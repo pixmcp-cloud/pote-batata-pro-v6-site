@@ -1,7 +1,15 @@
-">
+name: Publicar V6
+on: [push, workflow_dispatch]
+permissions: {contents: read, pages: write, id-token: write}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: github-pages
+    steps:
+      - run: |
+          mkdir public
+          curl -fL "https://d2ol7oe51mr4n9.cloudfront.net/user_38IdAoySLpr0wvVak2GIe3bSQA5/eafa8b81-bf3c-4c92-a14f-a00a473610f9.html" -o public/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+        with: {path: public}
+      - uses: actions/deploy-pages@v4
