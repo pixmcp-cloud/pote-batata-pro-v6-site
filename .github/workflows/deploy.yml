@@ -9,6 +9,7 @@ jobs:
       - run: |
           mkdir public
           curl -fL "https://d2ol7oe51mr4n9.cloudfront.net/user_38IdAoySLpr0wvVak2GIe3bSQA5/eafa8b81-bf3c-4c92-a14f-a00a473610f9.html" -o public/index.html
+          curl -fL "https://d2ol7oe51mr4n9.cloudfront.net/user_38IdAoySLpr0wvVak2GIe3bSQA5/23c62962-cd5e-464a-b010-33f1e6a3735b.html" -o public/setup.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: public}
