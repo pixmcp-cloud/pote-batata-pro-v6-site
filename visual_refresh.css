@@ -175,176 +175,54 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
 }
 @media(prefers-reduced-motion:reduce){.ops-icon img{transition:none!important}}
 
-/* Central de Operações — títulos grandes como Home, com contorno legível sobre as artes 3D.
-   Última camada: prevalece sobre os estilos anteriores de miniaturas. */
-.ops-card strong{
-  display:block;
-  position:relative;
-  z-index:3;
-  max-width:100%!important;
-  width:100%;
-  font-family:system-ui,Arial,sans-serif;
-  font-size:clamp(25px,2.9vw,34px)!important;
-  font-weight:900!important;
-  letter-spacing:-.055em;
-  line-height:1.1!important;
-  color:#fff8ed!important;
-  -webkit-text-stroke:1.8px #07101d;
-  paint-order:stroke fill;
-  text-shadow:0 3px 2px #03070c,0 5px 11px #000e,0 0 17px #000c;
-  overflow-wrap:normal;
-  word-break:normal;
-  text-wrap:balance;
-  pointer-events:none;
-}
-.ops-card:before{
-  background:linear-gradient(180deg,transparent 18%,#08111c31 40%,#060c17d4 73%,#040812f5 100%)!important;
-}
-@media(max-width:700px){
- .ops-card{min-height:159px!important;aspect-ratio:1.22/1!important;padding:12px!important}
- .ops-card strong{
-   font-size:clamp(23px,6.05vw,30px)!important;
-   letter-spacing:-.06em!important;
-   -webkit-text-stroke:1.5px #050b16;
- }
- .ops-chevron{top:10px!important;right:12px!important;bottom:auto!important}
-}
-@media(max-width:380px){
- .ops-card{min-height:148px!important;aspect-ratio:1.17/1!important;padding:10px!important}
- .ops-card strong{font-size:clamp(21px,6vw,25px)!important;letter-spacing:-.065em!important}
-}
-@media(max-width:320px){
- .ops-grid{grid-template-columns:1fr!important}
- .ops-card{min-height:160px!important;aspect-ratio:1.6/1!important}
- .ops-card strong{font-size:29px!important}
-}
-
-/* CORREÇÃO FINAL: contorno PRETO #000 em cada letra branca da Central. */
-.ops-grid .ops-card strong{
- color:#fff!important;
- -webkit-text-fill-color:#fff!important;
- -webkit-text-stroke:2.5px #000!important;
- paint-order:stroke fill;
- text-shadow:
-  -2px -2px 0 #000,
-   0 -2px 0 #000,
-   2px -2px 0 #000,
-  -2px  0 0 #000,
-   2px  0 0 #000,
-  -2px  2px 0 #000,
-   0  2px 0 #000,
-   2px  2px 0 #000,
-   0  6px 10px #000!important;
-}
-@media(max-width:700px){
- .ops-grid .ops-card strong{-webkit-text-stroke:2.2px #000!important}
-}
-
-/* Legibilidade corrigida: contorno preto nítido sem letras comprimidas. */
-.ops-grid .ops-card strong{
-  display:block;
-  width:100%;
-  max-width:100%!important;
-  font-size:clamp(22px,2.3vw,29px)!important;
-  font-weight:800!important;
-  letter-spacing:0!important;
-  line-height:1.16!important;
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-  -webkit-text-stroke:1.7px #000!important;
-  paint-order:stroke fill;
-  text-shadow:
-    -2px -2px 0 #000,
-     0   -2px 0 #000,
-     2px -2px 0 #000,
-    -2px  0   0 #000,
-     2px  0   0 #000,
-    -2px  2px 0 #000,
-     0    2px 0 #000,
-     2px  2px 0 #000,
-     0    5px 9px #000!important;
-  white-space:normal;
-  text-wrap:balance;
-  overflow-wrap:normal;
-}
-@media(max-width:700px){
-  .ops-grid .ops-card strong{
-    font-size:clamp(19px,5.8vw,24px)!important;
-    letter-spacing:0!important;
-    line-height:1.17!important;
-    -webkit-text-stroke:1.5px #000!important;
-  }
-}
-@media(max-width:380px){
-  .ops-grid .ops-card strong{
-    font-size:clamp(18px,5.6vw,22px)!important;
-  }
-}
-
-/* Central: texto no MEIO do botão, letras mais espaçadas e contorno preto real em camada separada. */
-.ops-grid .ops-card{
-  justify-content:center!important;
+/* Central de Operações: nomes BRANCOS, sem contorno, centralizados na parte inferior. */
+.ops-grid .ops-card {
+  justify-content:flex-end!important;
   align-items:center!important;
   text-align:center!important;
+  padding:16px 16px 17px!important;
 }
-.ops-grid .ops-card:before{
-  background:linear-gradient(180deg,#03060c10 0%,#02040a77 34%,#010309af 52%,#02050b6a 78%,#04081220 100%)!important;
+.ops-grid .ops-card::before {
+  background:linear-gradient(180deg,transparent 34%,rgba(2,6,12,.15) 54%,rgba(2,5,11,.82) 100%)!important;
 }
-.ops-grid .ops-card strong{
-  position:relative!important;
-  isolation:isolate;
-  z-index:3!important;
+.ops-grid .ops-card strong {
   display:block!important;
-  width:calc(100% - 8px)!important;
-  max-width:calc(100% - 8px)!important;
+  position:relative!important;
+  z-index:3!important;
+  width:calc(100% - 18px)!important;
+  max-width:calc(100% - 18px)!important;
   margin:0 auto!important;
   padding:0!important;
   text-align:center!important;
   font-family:system-ui,Arial,sans-serif!important;
-  font-size:clamp(20px,2vw,28px)!important;
-  font-weight:800!important;
-  letter-spacing:.035em!important;
-  line-height:1.18!important;
-  color:#ffffff!important;
-  -webkit-text-fill-color:#ffffff!important;
+  font-size:clamp(20px,2vw,26px)!important;
+  font-weight:750!important;
+  letter-spacing:.025em!important;
+  line-height:1.2!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
   -webkit-text-stroke:0!important;
-  text-shadow:
-   -1.5px -1.5px 0 #000,
-    1.5px -1.5px 0 #000,
-   -1.5px  1.5px 0 #000,
-    1.5px  1.5px 0 #000,
-    0 3px 7px #000!important;
-  overflow-wrap:normal!important;
+  text-shadow:0 2px 7px rgba(0,0,0,.75)!important;
   word-break:normal!important;
+  overflow-wrap:normal!important;
   white-space:normal!important;
   text-wrap:balance;
 }
-/* Cópia preta da mesma palavra atrás das letras brancas: contorno verdadeiro, independente do tema. */
-.ops-grid .ops-card strong::before{
-  content:attr(data-outline);
-  position:absolute;
-  inset:0;
-  z-index:-1;
-  width:100%;
-  text-align:center;
-  font:inherit;
-  letter-spacing:inherit;
-  line-height:inherit;
-  white-space:inherit;
-  text-wrap:inherit;
-  color:#000!important;
-  -webkit-text-fill-color:#000!important;
-  -webkit-text-stroke:5px #000!important;
-  text-shadow:0 0 1px #000!important;
-  pointer-events:none;
+.ops-grid .ops-card strong::before,
+.ops-grid .ops-card strong::after {
+  content:none!important;
+  display:none!important;
 }
-@media(max-width:700px){
- .ops-grid .ops-card strong{
-   font-size:clamp(19px,5.35vw,23px)!important;
-   letter-spacing:.025em!important;
- }
- .ops-grid .ops-card strong::before{-webkit-text-stroke:4.5px #000!important}
+.ops-grid .ops-chevron {
+  top:auto!important;
+  bottom:13px!important;
+  right:11px!important;
 }
-@media(max-width:380px){
- .ops-grid .ops-card strong{font-size:clamp(18px,5.1vw,21px)!important}
+@media(max-width:700px) {
+  .ops-grid .ops-card {min-height:145px!important;aspect-ratio:1.33/1!important;padding:13px 12px 15px!important}
+  .ops-grid .ops-card strong {font-size:clamp(17px,4.8vw,21px)!important;letter-spacing:.025em!important}
+}
+@media(max-width:380px) {
+  .ops-grid .ops-card {min-height:130px!important;aspect-ratio:1.25/1!important;padding:11px 9px 13px!important}
+  .ops-grid .ops-card strong {font-size:clamp(16px,4.75vw,19px)!important}
 }
