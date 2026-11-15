@@ -20,6 +20,8 @@ jobs:
           cp assets/pote-logo-original.jpg public/assets/pote-logo-original.jpg
           cp firebase_integration.js public/firebase_integration.js
           cp supplier_integration.js public/supplier_integration.js
+          cp simulation_panel.js public/simulation_panel.js
+          cp simulation_panel.css public/simulation_panel.css
           cp mobile.css public/mobile.css
           python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
@@ -28,7 +30,12 @@ jobs:
           node --input-type=module --check < public/firebase_integration.js
           node --check public/supplier_integration.js
           node test_suppliers.js
+          node --check public/simulation_panel.js
+          node test_clean_accounts.js
           grep -q 'supplier_integration.js' public/index.html
+          grep -q 'simulation_panel.js' public/index.html
+          grep -q 'simulation_panel.css' public/index.html
+          grep -q 'poteFreshAccount' public/index.html
           grep -q 'mobile.css' public/index.html
           grep -q 'id="poteSyncStatus"' public/index.html
           rm -f app-check.js

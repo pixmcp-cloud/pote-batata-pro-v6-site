@@ -26,3 +26,13 @@ Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não est
 - A versão FREE mantém o cadastro manual limitado a um fornecedor. Pesquisa externa está restrita ao painel ADM neste piloto.
 - A interface móvel ajusta cabeçalho, menu horizontal e largura dos campos; logo original é usada também no cabeçalho.
 - O teste `node test_suppliers.js` simula resposta de fornecedor, GPS e cadastro sem executar consultas externas na CI.
+
+## Contas reais zeradas e painel de simulação (15/11/2026)
+
+- **Conta Google nova:** inicia com 0 receitas cadastradas, 0 insumos, 0 em estoque, 0 vendas, 0 clientes, 0 fornecedores, 0 despesas, 0 compras e 0 produção. Identidade visual e configurações básicas são preservadas.
+- **Conta FREE antiga criada com a V6:** ao fazer login, a versão nova compara todos os dados persistidos com os exemplos originais. Só elimina os dados fictícios quando a conta corresponde exatamente ao modelo intacto. Se houver qualquer modificação, não redefine automaticamente os dados.
+- **Painel de simulação:** aberto pela Home, exibe gráficos e valores explicitamente fictícios, totalmente isolados dos pedidos, estoque, relatórios e do Firestore. Não realiza gravações.
+- **Zerar minha conta (com backup):** disponível nas Configurações para o próprio titular. Exige confirmação e exporta backup JSON antes de limpar o estado operacional. O conteúdo limpo é sincronizado à conta.
+- Contas ADM e FREE continuam sendo determinadas pela conta Google verificada; **a mudança visual ou de dados não ativa cobrança PRO**.
+- As regras do Firestore devem continuar isolando documentos por UID. Esta publicação não faz alterações nas regras do servidor.
+- Para auditoria: `node test_clean_accounts.js` verifica estado inicial, separação da simulação e bloqueio de migração destrutiva em contas personalizadas.

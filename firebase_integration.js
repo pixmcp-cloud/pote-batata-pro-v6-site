@@ -106,12 +106,26 @@ async function loadUser(user, index) {
   const record = await withDeadline(getDoc(refFor(user)), 15000, "carregamento dos seus dados");
   if (index !== epoch) return;
   if (record.exists() && record.data().state) {
-    window.POTE_APP.applyState(record.data().state);
-    lastJson = JSON.stringify(safeState());
+    const remote = record.data().state;
+    // Only reset a FREE account automatically when every field matches
+    // the untouched built-in demo. Any user edits must be preserved.
+    if (!admin && window.POTE_APP.isPristineDemo(remote)) {
+      window.POTE_APP.reset();
+      const fresh = safeState();
+      await withDeadline(setDoc(refFor(user), {
+        state: fresh, demoClearedVersion: 1, updatedAt: serverTimestamp()
+      }, {merge: true}), 15000, "remoção de dados demonstrativos da conta FREE");
+      lastJson = JSON.stringify(fresh);
+    } else {
+      window.POTE_APP.applyState(remote);
+      lastJson = JSON.stringify(safeState());
+    }
   } else {
     window.POTE_APP.reset();
     const start = safeState();
-    await withDeadline(setDoc(refFor(user), { state: start, updatedAt: serverTimestamp() }), 15000, "primeira gravação");
+    await withDeadline(setDoc(refFor(user), {
+      state: start, demoClearedVersion: 1, updatedAt: serverTimestamp()
+    }), 15000, "primeira gravação");
     lastJson = JSON.stringify(start);
   }
   if (index !== epoch) return;

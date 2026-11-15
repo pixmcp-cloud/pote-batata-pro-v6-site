@@ -31,6 +31,11 @@ once("Todos os dados de teste são armazenados somente no navegador deste aparel
 once("Nenhum dado enviado ao Floot. A troca FREE / PRO / ADM é um atalho exclusivo da simulação, não uma autenticação real.",
      "O login Google é real. A venda e a concessão de planos PRO ainda não foram implementadas.")
 once("pote-simulacao-backup-v6.json", "pote-batata-pro-backup.json")
+once("Faturamento de teste", "Faturamento real")
+once("Exportar JSON de teste", "Exportar backup dos meus dados")
+once("Entre nas áreas para testar dados, limites, vitrine WhatsApp e cálculos usando o backup.", "Organize sua operação, receitas, custos e pedidos. Seus dados começam zerados.")
+html, n = re.subn(r'<button class="btn danger" onclick="resetAll\(\)">[^<]*</button>', '<button class="btn danger" onclick="resetAll()">Zerar minha conta (com backup)</button>', html, count=1)
+if n != 1: raise SystemExit("Botão de zerar conta não encontrado")
 once("Pesquisa habilitada nesta simulação. Nenhuma chamada externa será enviada.",
      "Busca piloto de estabelecimentos reais no OpenStreetMap. Confirme os dados antes de comprar.")
 once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="index,follow"><meta name="description" content="Potê Batata Pro: gestão de receitas, custos, preços, pedidos e estoque.">')
@@ -60,7 +65,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115">' + "</head>")
+once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115">' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
@@ -107,20 +112,63 @@ html = html[:admin_start] + admin + html[admin_end:]
 bridge = """window.POTE_AUTH=null;
 const POTE_ORIGINAL_LOGO='./assets/pote-logo-original.jpg';
 SEED.brand.logoUrl=POTE_ORIGINAL_LOGO;
+const POTE_REAL_EMPTY_LISTS=[
+ 'ingredients','recipes','suppliers','expenses','clients','orders','recipeVersions',
+ 'recipeTrash','purchases','stockMovements','beverages','addons','combos','prepBatches'
+];
+function poteFreshAccount(){
+ const start=original();
+ for(const name of POTE_REAL_EMPTY_LISTS) start.data[name]=[];
+ start.data.checklist=(start.data.checklist||[]).map(x=>({...x,done:false}));
+ start.data.settings={...start.data.settings,estimatedMonthlyUnits:0};
+ start.data.brand={...start.data.brand,logoUrl:POTE_ORIGINAL_LOGO};
+ start.accounts=[];
+ start.creatives=[];
+ start.audit=[];
+ start.pricingPreset100V1=true;
+ start.freshAccountV1=true;
+ return start;
+}
+function poteIsPristineSeed(cloud){
+ const data=cloud?.data;
+ const baseline=original();
+ const sample=baseline.data;
+ if(!data||!Array.isArray(data.orders)||!sample.orders.length||data.orders.length!==sample.orders.length)return false;
+ // If any extra field or user customization exists, require manual confirmation instead.
+ if(JSON.stringify(Object.keys(data).sort())!==JSON.stringify(Object.keys(sample).sort())) return false;
+ for(const name of ['accounts','creatives','audit','unlocked','freeExpense','freeCreativeCount','trialUntil']){
+   if(JSON.stringify(cloud[name])!==JSON.stringify(baseline[name]))return false;
+ }
+ for(const name of Object.keys(sample)){
+   if(name==='brand'){
+     const a=data.brand,b=sample.brand;
+     if(!a||!b||JSON.stringify({...a,logoUrl:''})!==JSON.stringify({...b,logoUrl:''})) return false;
+   }else if(JSON.stringify(data[name])!==JSON.stringify(sample[name]))return false;
+ }
+ return true;
+}
 window.POTE_APP={
  snapshot(){
   const data=copy(state);
   delete data.mode;delete data.tab;delete data.expansion;
   return data;
  },
+ isPristineDemo(cloud){return poteIsPristineSeed(cloud);},
  applyState(cloud){
-  const start=original();
+  const start=poteFreshAccount();
   state={...start,...copy(cloud),data:{...start.data,...copy(cloud?.data||{})},
     mode:'free',tab:'home',expansion:null};
   if(state.data.brand?.logoUrl?.startsWith('data:image/svg+xml'))state.data.brand.logoUrl=POTE_ORIGINAL_LOGO;
   render();
  },
- reset(){state=original();render();}
+ reset(){state=poteFreshAccount();render();}
+};
+resetAll=function(){
+ if(!window.POTE_AUTH?.uid){toast('Faça login antes de zerar sua conta.');return;}
+ if(!window.confirm('ZERAR a conta: excluir receitas, insumos, estoque, vendas, clientes, fornecedores e despesas? Uma cópia JSON será baixada primeiro.'))return;
+ try{exportData();}catch(e){console.warn('Backup não disponível',e);toast('Não foi possível preparar o backup. Cancelado.');return;}
+ window.POTE_APP.reset();
+ toast('Conta zerada. Aguarde a confirmação de sincronização na nuvem.');
 };
 const poteOriginalRender=render;
 render=function(...args){
@@ -131,12 +179,12 @@ render=function(...args){
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=authfix-20261114\"></script></body></html>")
+     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=clean-free-20261115\"></script></body></html>")
 # Ensure beta is not confused with the public offline demo.
 once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:
     raise SystemExit("Exposed role switch remained")
-if not all(x in html for x in ["id=\"poteAuthGate\"", "id=\"poteSyncStatus\"", "id=\"poteExit\"", "id=\"poteLoggedAs\"", "poteOriginalRender", "firebase_integration.js"]):
+if not all(x in html for x in ["id=\"poteAuthGate\"", "id=\"poteSyncStatus\"", "id=\"poteExit\"", "id=\"poteLoggedAs\"", "poteFreshAccount", "simulation_panel.js", "poteOriginalRender", "firebase_integration.js"]):
     raise SystemExit("Missing authentication integration")
 p.write_text(html, encoding="utf-8")
 print("Created beta login page, size", len(html), "characters")
