@@ -21,6 +21,7 @@ const loginBtn = document.getElementById("poteGoogleLogin");
 const exitBtn = document.getElementById("poteExit");
 const syncEl = document.getElementById("poteSyncStatus");
 const message = document.getElementById("poteLoginMessage");
+const browserHint = document.getElementById("poteBrowserHint");
 const logged = document.getElementById("poteLoggedAs");
 
 let active = null;
@@ -30,6 +31,17 @@ let ready = false;
 let timer = null;
 let lastJson = "";
 let epoch = 0;
+let loginWatchdog = null;
+const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
+function showBrowserHint() { if (browserHint) browserHint.hidden = false; }
+function withDeadline(promise, ms, label) {
+  let timerId;
+  const deadline = new Promise((_, reject) => {
+    timerId = setTimeout(() => reject(new Error("Tempo esgotado na " + label)), ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timerId));
+}
+if (embeddedBrowser) showBrowserHint();
 
 function setStatus(v) { syncEl.textContent = v; }
 function setMessage(v) { message.textContent = v; }
@@ -74,24 +86,24 @@ async function loadUser(user, index) {
   setMessage("Verificando conta e carregando seus dados...");
   ready = false;
   clearTimeout(timer);
-  const claims = await getIdTokenResult(user, true);
+  const claims = await withDeadline(getIdTokenResult(user, true), 15000, "verificação do Google");
   const admin = user.email?.toLowerCase() === "pixmcp@gmail.com" &&
     claims.claims.email_verified === true &&
     claims.claims.firebase?.sign_in_provider === "google.com";
   window.POTE_AUTH = { uid: user.uid, email: user.email, role: admin ? "admin" : "free" };
   active = user;
   const profile = doc(db, "users", user.uid);
-  const existing = await getDoc(profile);
+  const existing = await withDeadline(getDoc(profile), 15000, "consulta do perfil");
   if (!existing.exists()) {
-    await setDoc(profile, {
+    await withDeadline(setDoc(profile, {
       displayName: user.displayName || "",
       email: user.email,
       photoURL: user.photoURL || "",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    }), 15000, "criação do perfil");
   }
-  const record = await getDoc(refFor(user));
+  const record = await withDeadline(getDoc(refFor(user)), 15000, "carregamento dos seus dados");
   if (index !== epoch) return;
   if (record.exists() && record.data().state) {
     window.POTE_APP.applyState(record.data().state);
@@ -99,7 +111,7 @@ async function loadUser(user, index) {
   } else {
     window.POTE_APP.reset();
     const start = safeState();
-    await setDoc(refFor(user), { state: start, updatedAt: serverTimestamp() });
+    await withDeadline(setDoc(refFor(user), { state: start, updatedAt: serverTimestamp() }), 15000, "primeira gravação");
     lastJson = JSON.stringify(start);
   }
   if (index !== epoch) return;
@@ -112,13 +124,28 @@ async function loadUser(user, index) {
 }
 
 loginBtn.addEventListener("click", async () => {
+  clearTimeout(loginWatchdog);
   loginBtn.disabled = true;
+  if (embeddedBrowser) showBrowserHint();
   setMessage("Abrindo login Google...");
+  loginWatchdog = setTimeout(() => {
+    if (!auth.currentUser) {
+      loginBtn.disabled = false;
+      showBrowserHint();
+      setMessage("O Google não respondeu. Abra este endereço diretamente no Chrome e tente novamente.");
+    } else {
+      setMessage("Verificando conta e conexão com o banco...");
+    }
+  }, 18000);
   try {
-    await signInWithPopup(auth, google);
+    await withDeadline(signInWithPopup(auth, google), 35000, "janela de login Google");
   } catch (e) {
     loginBtn.disabled = false;
-    setMessage("Não foi possível entrar: " + (e.code || "erro de autenticação") + ". Use o Chrome ou Edge atualizado.");
+    showBrowserHint();
+    const code = e.code || e.message || "erro de autenticação";
+    setMessage("Falha no login Google (" + code + "). Abra no Chrome ou Edge e tente novamente.");
+  } finally {
+    clearTimeout(loginWatchdog);
   }
 });
 exitBtn.addEventListener("click", async () => {
@@ -133,6 +160,7 @@ exitBtn.addEventListener("click", async () => {
 });
 onAuthStateChanged(auth, async user => {
   const myEpoch = ++epoch;
+  clearTimeout(loginWatchdog);
   if (!user) {
     clearTimeout(timer);
     ready = false;
@@ -153,6 +181,7 @@ onAuthStateChanged(auth, async user => {
     ready = false;
     setGate(true);
     loginBtn.disabled = false;
+    showBrowserHint();
     setMessage("Falha ao carregar sua conta: " + (e.code || e.message) + ". Nenhum dado foi liberado.");
     setStatus("Acesso bloqueado até resolver a conexão");
   }

@@ -23,7 +23,7 @@ if n != 1:
     raise SystemExit("Previous localStorage guest state pattern changed; stopping")
 once("function persist(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}",
      "function persist(){if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
-once("V6 • DEMONSTRAÇÃO FREE", "V6 • BETA COM LOGIN GOOGLE")
+once("V6 • DEMONSTRAÇÃO FREE", "POTÊ BATATA PRO • ONLINE")
 once("🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.",
      "🔐 Beta conectado ao Firebase: dados por conta Google. Recursos PRO e licenças comerciais ainda não disponíveis.")
 once("Todos os dados de teste são armazenados somente no navegador deste aparelho.",
@@ -31,6 +31,7 @@ once("Todos os dados de teste são armazenados somente no navegador deste aparel
 once("Nenhum dado enviado ao Floot. A troca FREE / PRO / ADM é um atalho exclusivo da simulação, não uma autenticação real.",
      "O login Google é real. A venda e a concessão de planos PRO ainda não foram implementadas.")
 once("pote-simulacao-backup-v6.json", "pote-batata-pro-backup.json")
+once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="index,follow"><meta name="description" content="Potê Batata Pro: gestão de receitas, custos, preços, pedidos e estoque.">')
 
 head = """<style>
 #poteAuthGate{position:fixed;inset:0;z-index:10000;background:#120e0b;display:flex;align-items:center;
@@ -52,16 +53,20 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteLoggedAs{font-size:12px;color:#ffe3b2;overflow-wrap:anywhere}
 #poteSyncStatus{font-size:12px;color:#b9dabe;margin-left:auto}
 @media(max-width:550px){#poteLoggedAs{font-size:10px}.pote-login-card{padding:22px}}
+.pote-brand-logo{height:118px;width:118px;margin:0 auto 12px;border:2px solid #ba9359;border-radius:50%;overflow:hidden;background:#120b07;box-shadow:0 5px 18px #0007}
+.pote-brand-logo img{width:100%;height:100%;display:block;object-fit:cover;transform:scale(1.48)}
+#poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
+#poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
 once("</head>", head + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
-  <div style="font-size:48px">🥔</div><h1>Potê Batata Pro</h1>
+  <div class="pote-brand-logo"><img src="./assets/pote-logo-original.jpg" alt="Logotipo Potê Batata"></div><h1>Potê Batata Pro</h1>
   <p>Entre com sua conta Google para acessar seu espaço de receitas, preços, pedidos e estoque.</p>
   <button id="poteGoogleLogin" type="button">Entrar com Google</button>
   <div id="poteLoginMessage" role="status">Preparando autenticação...</div>
-  <p style="font-size:12px">A conta administradora acessa o painel ADM. Outras contas começam no FREE.</p>
+  <p id="poteBrowserHint" hidden>Se o Google não abrir, use o menu do aplicativo e escolha <strong>Abrir no Chrome</strong>. <a href="https://pixmcp-cloud.github.io/pote-batata-pro-v6-site/">Link do site oficial</a>.</p>
   <div class="pote-support">
    <a href="mailto:contato@livresom.com">✉️ contato@livresom.com</a>
    <a href="https://wa.me/5548999951729" target="_blank" rel="noopener">💬 (48) 99995-1729</a>
@@ -92,6 +97,8 @@ admin = """function pageAdmin(){
 html = html[:admin_start] + admin + html[admin_end:]
 
 bridge = """window.POTE_AUTH=null;
+const POTE_ORIGINAL_LOGO='./assets/pote-logo-original.jpg';
+SEED.brand.logoUrl=POTE_ORIGINAL_LOGO;
 window.POTE_APP={
  snapshot(){
   const data=copy(state);
@@ -102,6 +109,7 @@ window.POTE_APP={
   const start=original();
   state={...start,...copy(cloud),data:{...start.data,...copy(cloud?.data||{})},
     mode:'free',tab:'home',expansion:null};
+  if(state.data.brand?.logoUrl?.startsWith('data:image/svg+xml'))state.data.brand.logoUrl=POTE_ORIGINAL_LOGO;
   render();
  },
  reset(){state=original();render();}
@@ -117,7 +125,7 @@ render();
 once("render();\n</script></body></html>",
      bridge + "</script><script type=\"module\" src=\"./firebase_integration.js\"></script></body></html>")
 # Ensure beta is not confused with the public offline demo.
-once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro V6 • Beta com Google Login e Firestore")
+once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:
     raise SystemExit("Exposed role switch remained")
 if not all(x in html for x in ["id=\"poteAuthGate\"", "poteOriginalRender", "firebase_integration.js"]):

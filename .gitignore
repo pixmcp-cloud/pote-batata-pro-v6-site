@@ -1,0 +1,4 @@
+public/
+*.b64
+__pycache__/
+app-check.js
