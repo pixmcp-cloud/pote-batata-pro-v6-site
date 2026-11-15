@@ -5,12 +5,12 @@
   const savedHome = pageHome;
   pageHome=function(...args){
     const html=savedHome(...args);
-    return '<section class="pote-sim-invite" aria-label="Dados demonstrativos">'
+    return html.replace("</section>", "</section>" + '<section class="pote-sim-invite" aria-label="Dados demonstrativos">'
       +'<div class="pote-sim-invite-copy"><div class="pote-sim-eyebrow">VISUALIZAÇÃO SEM RISCO</div>'
       +'<h2>Como seus gráficos podem ficar?</h2>'
       +'<p>Veja um painel com números fictícios, sem gerar vendas, alterar estoque ou afetar seu lucro real.</p></div>'
       +'<button type="button" class="pote-sim-open" onclick="window.POTE_SIM.open()">'
-      +' <span>▥</span> Painel de simulação</button></section>'+html;
+      +' <span>▥</span> Painel de simulação</button></section>');
   };
   const mock={
     revenue:2846.90,
