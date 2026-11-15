@@ -124,3 +124,53 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
  .ops-icon{height:38px!important}
  .ops-icon img{width:38px!important;height:38px!important}
 }
+
+/* Central de Operações: cada arte ocupa a superfície inteira do botão 3D. */
+.ops-grid{align-items:stretch}
+.ops-card{
+  position:relative;isolation:isolate;display:flex;flex-direction:column;
+  justify-content:flex-end!important;align-items:flex-start;
+  min-width:0;min-height:184px!important;aspect-ratio:1.65/1;
+  padding:16px 19px!important;gap:0!important;
+  background:#172536!important;overflow:hidden;border-radius:22px!important;
+  box-shadow:inset 0 2px 1px #ffffff53,inset 0 -5px 14px #0009,7px 9px 0 #09131f,10px 16px 24px #000c!important;
+}
+.ops-card:before{
+  content:"";position:absolute;inset:0;z-index:1!important;border-radius:inherit;
+  background:linear-gradient(180deg,#0b142300 32%,#09101cb0 66%,#070e19ef 100%)!important;
+  pointer-events:none;
+}
+.ops-card:after{content:"";position:absolute;inset:0;z-index:2;border-radius:inherit;
+  border:1px solid #d7be8b4a;box-shadow:inset 0 2px 1px #ffffff54,inset 0 20px 35px #ffffff09;
+  background:transparent!important;width:auto!important;height:auto!important;top:0!important;right:0!important;pointer-events:none}
+.ops-icon{position:absolute!important;inset:0!important;z-index:0!important;
+  display:block!important;width:100%!important;height:100%!important;min-height:0!important;
+  max-height:none!important;overflow:hidden!important;filter:none!important}
+.ops-icon img{position:absolute;inset:0;display:block!important;
+  width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  border-radius:0!important;object-fit:cover!important;object-position:center center!important;
+  mix-blend-mode:normal!important;filter:saturate(1.13) contrast(1.08)!important;
+  transform:scale(1.1)!important;transition:transform .3s ease,filter .3s ease!important}
+.ops-card strong{position:relative;z-index:3;font-size:clamp(13px,1.4vw,16px)!important;
+  font-weight:850;color:#fff8ed!important;line-height:1.25;
+  text-shadow:0 2px 6px #000f,0 0 14px #000c;max-width:82%}
+.ops-chevron{position:absolute;z-index:3;right:17px;bottom:13px;color:#ffda9c;
+  text-shadow:0 2px 8px #000e}
+.ops-card:hover .ops-icon img{transform:scale(1.17)!important;
+  filter:saturate(1.22) contrast(1.08)!important}
+.ops-card:active .ops-icon img{transform:scale(1.06)!important}
+@media(max-width:700px){
+  .ops-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px!important}
+  .ops-card{aspect-ratio:1.33/1;min-height:145px!important;padding:14px!important;gap:0!important;
+    box-shadow:inset 0 2px 1px #ffffff50,4px 6px 0 #09131f,5px 12px 19px #000c!important}
+  .ops-icon{width:100%!important;height:100%!important}
+  .ops-icon img{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important}
+  .ops-card strong{font-size:13px!important}
+}
+@media(max-width:380px){
+  .ops-grid{gap:11px!important}
+  .ops-card{min-height:128px!important;padding:11px!important;aspect-ratio:1.24/1}
+  .ops-icon img{width:100%!important;height:100%!important}
+  .ops-card strong{font-size:12px!important}
+}
+@media(prefers-reduced-motion:reduce){.ops-icon img{transition:none!important}}
