@@ -105,3 +105,22 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
 .ops-card strong{font-size:15px}
 @media(max-width:700px){.ops-card{min-height:146px}.ops-icon{height:90px}.ops-icon img{height:96px;width:105px}}
 @media(prefers-reduced-motion:reduce){.ops-icon img{transition:none}.ops-card:hover .ops-icon img{transform:none}}
+
+/* Imagens 3D compactas: dimensionamento fluido em desktop e celular */
+.ops-card{min-width:0;min-height:108px!important;gap:5px!important;padding:12px 14px!important;justify-content:center}
+.ops-icon{height:clamp(45px,5vw,66px)!important;min-height:0!important;flex:0 0 auto;align-items:center!important}
+.ops-icon img{display:block;width:clamp(44px,5vw,70px)!important;height:clamp(44px,5vw,70px)!important;max-width:37%!important;max-height:70px!important;aspect-ratio:1/1;object-fit:contain;transform:none!important;border-radius:10px}
+.ops-card:hover .ops-icon img{transform:translateY(-2px) scale(1.025)!important}
+.ops-card strong{font-size:clamp(11px,1.15vw,14px)!important;line-height:1.3}
+@media(max-width:700px){
+ .ops-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px!important}
+ .ops-card{min-height:86px!important;padding:10px 12px!important;gap:4px!important}
+ .ops-icon{height:44px!important}
+ .ops-icon img{width:44px!important;height:44px!important;max-width:44px!important;max-height:44px!important}
+ .ops-card strong{font-size:12px!important}
+}
+@media(max-width:380px){
+ .ops-card{min-height:80px!important;padding:9px!important}
+ .ops-icon{height:38px!important}
+ .ops-icon img{width:38px!important;height:38px!important}
+}
