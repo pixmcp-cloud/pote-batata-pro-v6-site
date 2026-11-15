@@ -24,6 +24,8 @@ jobs:
           cp simulation_panel.js public/simulation_panel.js
           cp simulation_panel.css public/simulation_panel.css
           cp mobile.css public/mobile.css
+          cp floating_menu.css public/floating_menu.css
+          cp floating_menu.js public/floating_menu.js
           cp visual_refresh.css public/visual_refresh.css
           cp dashboard_charts.js public/dashboard_charts.js
           cp recipe_images.js public/recipe_images.js

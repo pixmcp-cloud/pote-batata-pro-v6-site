@@ -1,0 +1,45 @@
+/* Menu de acesso permanente, independente do scroll */
+#poteFloatingRoot{position:relative;z-index:9998}
+#poteFloatToggle{position:fixed;right:clamp(15px,2.5vw,28px);bottom:calc(18px + env(safe-area-inset-bottom));z-index:9997;display:flex;align-items:center;justify-content:center;width:55px;height:55px;border:1px solid #f5d69e9e;border-radius:17px;color:#ffdc9d;background:linear-gradient(140deg,#3b4d62,#152438 76%);box-shadow:inset 0 2px #ffffff65,0 5px 0 #0a1018,0 11px 25px #000b;cursor:pointer;transition:transform .2s}
+#poteFloatToggle:active{transform:translateY(3px);box-shadow:inset 0 3px 10px #000a,0 2px 0 #0a1018}
+#poteFloatBackdrop{position:fixed;inset:0;z-index:9994;background:#050b15b9;backdrop-filter:blur(4px)}
+#poteFloatBackdrop[hidden],#poteProfileOverlay[hidden]{display:none!important}
+#poteFloatDrawer{position:fixed;inset:0 0 0 auto;width:min(375px,88vw);max-width:100%;z-index:9995;display:flex;flex-direction:column;background:linear-gradient(160deg,#273549,#121b29 78%);border-left:1px solid #9eaec071;box-shadow:-24px 0 65px #000d;transform:translateX(104%);visibility:hidden;transition:transform .24s ease,visibility .24s;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(80px + env(safe-area-inset-bottom));color:#fff0d4;font-family:system-ui,Arial,sans-serif}
+#poteFloatDrawer.is-open{transform:translateX(0);visibility:visible}
+.pote-float-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:24px 20px 17px;border-bottom:1px solid #8a9db04d;background:#202d3df7}
+.pote-float-head small{display:block;font-size:9px;letter-spacing:2px;font-weight:850;color:#f2bf76}
+.pote-float-head strong{display:block;font-size:20px;line-height:1.15;margin-top:5px;letter-spacing:-.04em}
+.pote-float-head button,.pote-profile-head button{border:1px solid #9baeb065;background:#33465d;border-radius:10px;color:#ffe4ab;width:37px;height:37px;display:grid;place-items:center;cursor:pointer}
+.pote-float-account{margin:17px 15px 14px;padding:12px;display:flex;align-items:center;text-align:left;gap:12px;border:1px solid #ddbd8273;border-radius:16px;background:linear-gradient(145deg,#3c4654,#243244);color:#fff0d2;cursor:pointer;box-shadow:inset 0 1px #ffffff4a,0 6px 15px #0008}
+#poteFloatAvatar{width:51px;height:51px;flex-shrink:0;border-radius:50%;border:1px solid #e5be85;display:grid;place-items:center;overflow:hidden;background:#1b2b3b;color:#f0d5a0}
+#poteFloatAvatar img{width:100%;height:100%;object-fit:cover}
+.pote-float-account>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.pote-float-account strong{font-size:13px;overflow:hidden;text-overflow:ellipsis}
+.pote-float-account small{font-size:10px;color:#bbc9d7;overflow-wrap:anywhere}
+.pote-float-chevron{font-size:24px;color:#eec681}
+#poteFloatNavigation{display:flex;flex-direction:column;gap:3px;padding:0 15px}
+#poteFloatNavigation button,.pote-float-foot button{width:100%;padding:13px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center;text-align:left;color:#eff2f6;background:transparent;border:1px solid transparent;border-radius:12px;font:650 13px system-ui,Arial,sans-serif;cursor:pointer}
+#poteFloatNavigation button>span:last-child{font-size:21px;color:#d9b377}
+#poteFloatNavigation button:hover,#poteFloatNavigation button.selected{background:#384b63;border-color:#a1bad477;box-shadow:inset 0 1px #ffffff27;color:#ffe1ad}
+.pote-float-foot{padding:18px 15px;border-top:1px solid #889bb14c;margin-top:14px}
+.pote-float-foot button{border:1px solid #ae8c5980;background:#2d3b4c;color:#ffe1ad}
+.pote-float-foot small{display:block;padding:9px 12px;color:#abbccb;font-size:10px}
+#poteProfileOverlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#050b14dc;padding:15px;overflow:auto;color:#fff1de;font-family:system-ui,Arial,sans-serif}
+.pote-profile-card{width:min(425px,100%);padding:23px;background:linear-gradient(150deg,#32435a,#141e2d);border:1px solid #afbed17a;border-radius:24px;box-shadow:inset 0 1px #ffffff57,0 22px 64px #000c}
+.pote-profile-head{display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:21px}
+.pote-profile-head small{color:#eac087;font-size:10px;letter-spacing:1.7px}
+.pote-profile-head h2{color:#fff1d6;font-size:25px;margin:3px 0 0;letter-spacing:-.04em}
+.pote-photo-input{display:flex;align-items:center;gap:13px;border:1px dashed #b8a484a1;border-radius:15px;padding:13px;cursor:pointer;background:#0f1b2b}
+#poteProfilePreview{display:grid;place-items:center;border-radius:50%;overflow:hidden;width:76px;height:76px;flex-shrink:0;border:2px solid #f6ce93;color:#f6ce93}
+#poteProfilePreview img{width:100%;height:100%;object-fit:cover}
+.pote-photo-input>span:nth-child(2){font-size:13px;font-weight:780}
+.pote-photo-input small{display:block;font-size:10px;font-weight:400;color:#bdcce1;margin-top:5px}
+.pote-profile-label{display:block;margin:20px 0 10px;font-size:12px;color:#e5d8c3}
+.pote-profile-label input{display:block;width:100%;margin-top:7px;border:1px solid #839cb6;background:#0d1928;color:#fff;border-radius:12px;padding:13px;font:500 14px system-ui}
+#poteProfileIdentity{font-size:11px;color:#b8c9d9;overflow-wrap:anywhere}
+.pote-profile-actions{display:flex;gap:9px;margin-top:20px}
+.pote-profile-actions button{flex:1;min-height:45px;border-radius:12px;border:1px solid #a7b0bc79;font-weight:800;cursor:pointer;background:#2a3a4c;color:#f8ecd9}
+#poteProfileSave{background:linear-gradient(#f8dca1,#d6a764)!important;border-color:#ffe7a3!important;color:#261a0e!important}
+@media(max-width:850px){.navmobile{display:none!important}#poteFloatToggle{right:15px;bottom:calc(80px + env(safe-area-inset-bottom));width:53px;height:53px}#poteFloatDrawer{width:min(360px,91vw)}}
+@media(min-width:851px){#poteFloatToggle{right:20px;bottom:23px}}
+@media(prefers-reduced-motion:reduce){#poteFloatDrawer,#poteFloatToggle{transition:none}}
