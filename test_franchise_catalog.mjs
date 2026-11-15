@@ -87,7 +87,7 @@ assert(rules.includes("match /franchiseAudit/{eventId}"));
 assert(rules.includes(".hasOnly(['displayName', 'photoURL', 'updatedAt'])"));
 const src=read("source/pote_app_base.html");
 assert(src.includes("window.POTE_AUTH?.franchiseActive"));
-assert(src.includes("state.data.recipes.filter(r=>!r.franchiseLocked)"));
+assert(src.includes("state.data.recipes.filter(r=>!r.franchiseLocked&&!(window.POTE_AUTH?.franchiseActive&&r.templateOrigin==='batataria'))"),"Uma franquia não deve exibir fichas genéricas duplicadas");
 const business=read("business_setup.js");
 assert(business.includes("window.POTE_AUTH?.franchiseActive"));
 const html=read("public/index.html");
