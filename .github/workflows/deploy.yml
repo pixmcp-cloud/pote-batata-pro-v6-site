@@ -53,6 +53,7 @@ jobs:
           cp beverage_catalog.js public/beverage_catalog.js
           cp payment_flow.js public/payment_flow.js
           cp stock_inventory.js public/stock_inventory.js
+          cp stock_delete.js public/stock_delete.js
           cp stock_ext.js public/stock_ext.js
           cp commerce_update.css public/commerce_update.css
           cp stock_status.js public/stock_status.js
@@ -103,6 +104,8 @@ jobs:
           node --check public/beverage_catalog.js
           node --check public/payment_flow.js
           node --check public/stock_inventory.js
+          node --check public/stock_delete.js
+          node test_stock_delete_priority.js
           node --check public/stock_ext.js
           node test_commerce_v2.js
           node --check public/stock_status.js

@@ -3,12 +3,13 @@
 "use strict";
 if(window.POTE_RELEASE_NEWS)return;
 const RELEASE={
- id:"2026-11-15-reposicao-cores-estoque-01",
+ id:"2026-11-15-reposicao-lixeira-e-prioridade-02",
  date:"15/11/2026",
  title:"Novidades da Gestão Pro",
  items:[
-  ["Reposição direta","Nos alertas de estoque, use Repor estoque faltante para abrir a compra do item que impede o pedido."],
-  ["Estoque com três cores","Vermelho: faltante. Laranja: baixo. Verde: saldo suficiente. Os saldos consideram reservas de pedidos pendentes."],
+  ["Reposição direta","Toque no item faltante ou use Repor estoque faltante para abrir a compra correta. O alerta é recalculado após a reposição."],
+  ["Estoque prioritário","Itens faltantes agora aparecem primeiro. Vermelho: faltante, laranja: baixo e verde: saldo suficiente, descontadas as reservas."],
+  ["Lixeira de produtos","Excluir ou restaurar cadastros do estoque. Para potes duplicados, transferir o saldo e substituir nas receitas sem apagar o histórico."],
   ["Pedidos e recibos","Comandas completas, personalização dos ingredientes e pagamento com troco automático."],
   ["Combos e bebidas","Águas, refrigerantes e combo de batata + refri com desconto de 5%."]
  ]

@@ -26,7 +26,7 @@ function recipeLowIds(data,held=reserved(data)){
   const ingredients=[...r.items];
   if(data.settings?.usePackagingStock){
    for(const x of data.ingredients||[]){
-    if(x.category!=="Embalagem")continue;
+    if(x.category!=="Embalagem"||x.archived)continue;
     if(Array.isArray(r.packagingIngredientIds)&&!r.packagingIngredientIds.includes(x.id))continue;
     ingredients.push({id:x.id,g:1});
    }
@@ -56,8 +56,38 @@ function context(){
  const list=window.POTE_RESTOCK_CONTEXT?.items;
  return Array.isArray(list)?list:[];
 }
-function requested(id,kind){
- return context().find(i=>String(i.id)===String(id)&&i.kind===kind)||null;
+function currentContext(data=typeof state!=="undefined"?state.data:null){
+ if(!data)return [];
+ const held=reserved(data);
+ const result=[];
+ for(const x of context()){
+  const kind=x.kind==="beverage"?"beverage":"ingredient";
+  const collection=kind==="beverage"?data.beverages:data.ingredients;
+  const item=(collection||[]).find(i=>!i.archived&&String(i.id)===String(x.id));
+  if(!item&&(collection||[]).some(i=>i.archived&&String(i.id)===String(x.id)))continue;
+  const reservedQty=Math.max(0,n((kind==="beverage"?held.beverages:held.ingredients).get(x.id)));
+  const physicallyPresent=Math.max(0,n(item?.stock));
+  const available=Math.max(0,physicallyPresent-reservedQty);
+  const originallyNeeded=Math.max(0,n(x.needed)||n(x.missing)+n(x.available));
+  const missing=Math.max(0,originallyNeeded-available);
+  const perUnit=Math.max(0,n(x.perUnit));
+  const capacity=perUnit>0?Math.floor((available+1e-7)/perUnit):null;
+  let level=null;
+  if(!item||missing>1e-7)level="missing";
+  else if((n(item.minimum)>0&&available<=n(item.minimum))||
+          (capacity!==null&&capacity<5))level="low";
+  // If the item was originally low without a known requirement, mark resolved
+  // as soon as the physical stock exceeds its configured minimum.
+  if(!level)continue;
+  result.push({...x,kind,level,available,physicalStock:physicallyPresent,
+   reserved:reservedQty,missing,capacity,
+   unit:item?.measureUnit||x.unit||"un",name:item?.name||x.name});
+ }
+ return result.sort((a,b)=>(a.level==="missing"?0:1)-(b.level==="missing"?0:1)||
+   String(a.name).localeCompare(String(b.name),"pt-BR",{sensitivity:"base"}));
 }
-window.POTE_STOCK_STATUS={reserved,recipeLowIds,classify,requested,fmt};
+function requested(id,kind){
+ return currentContext().find(i=>String(i.id)===String(id)&&i.kind===kind)||null;
+}
+window.POTE_STOCK_STATUS={reserved,recipeLowIds,classify,requested,currentContext,fmt};
 })();

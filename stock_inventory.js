@@ -7,11 +7,12 @@ const normalize=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
 const key=i=>normalize(i?.category||"Insumo")+"|"+normalize(i?.name)+"|"+String(i?.measureUnit||"g");
 function duplicate(data,{name,category,measureUnit,excludeId}){
  const target=key({name,category,measureUnit});
- return (data?.ingredients||[]).find(i=>i.id!==excludeId&&key(i)===target)||null;
+ return (data?.ingredients||[]).find(i=>!i.archived&&i.id!==excludeId&&key(i)===target)||null;
 }
 function duplicates(items){
  const byKey=new Map();
  for(const item of items||[]){
+  if(item.archived)continue;
   if(!byKey.has(key(item)))byKey.set(key(item),[]);
   byKey.get(key(item)).push(item);
  }

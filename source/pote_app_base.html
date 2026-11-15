@@ -54,7 +54,7 @@ function master(){return state.mode==='adm'}
 function allowed(r){return !!r&&!r.franchiseLocked&&!(window.POTE_AUTH?.franchiseActive&&r.templateOrigin==='batataria')&&(pro()||r?.id===state.unlocked||(!SEED.recipes.some(x=>x.id===r?.id)&&freeCustom()[0]?.id===r?.id))}
 function chosenExpenses(){return state.data.expenses.filter(e=>e.enabled)}
 function freeCustom(){return state.data.recipes.filter(r=>!SEED.recipes.some(x=>x.id===r.id))}
-function ingredientCustom(){return state.data.ingredients.filter(i=>!SEED.ingredients.some(x=>x.id===i.id))}
+function ingredientCustom(){return state.data.ingredients.filter(i=>!i.archived&&!SEED.ingredients.some(x=>x.id===i.id))}
 function canOperate(recipeId){if(!pro()&&(!recipeId||!allowed(recipe(recipeId)))){toast('🔒 Você só pode operar com a receita liberada ou sua receita própria.');return false}return true}
 function label(txt){return `<span class="pill">${escapeHtml(txt)}</span>`}
 function field(name,id,value,type='text',extra=''){return `<label class="field">${name}<input id="${id}" type="${type}" value="${escapeHtml(value??'')}" ${extra}></label>`}
@@ -76,7 +76,7 @@ function imageSource(r){
 }
 function img(r){return imageSource(r)?`<img src="${escapeHtml(imageSource(r))}" alt="${escapeHtml(r.name)}" onerror="this.outerHTML='<span class=\'emoji\'>${icon(r)}</span>'">`:`<span class="emoji">${icon(r)}</span>`}
 function baseUnit(i){const pu=i?.purchaseUnit||'kg';const q=Math.max(0.0001,num(i?.purchaseQuantity)||1);return num(i?.purchasePrice??i?.price)/(q*(pu==='kg'||pu==='L'?1000:1))}
-function packagingIngredients(){return state.data.ingredients.filter(i=>i.category==='Embalagem')}
+function packagingIngredients(){return state.data.ingredients.filter(i=>i.category==='Embalagem'&&!i.archived)}
 function packagingForRecipe(r){const all=packagingIngredients();return Array.isArray(r?.packagingIngredientIds)?all.filter(i=>r.packagingIngredientIds.includes(i.id)):all}
 function effectivePackageCost(r){
  if(state.data.settings.usePackagingStock){

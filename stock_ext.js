@@ -5,8 +5,12 @@ if(window.POTE_STOCK_EXT)return;
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const sorted=()=>[...(state.data.beverages||[])].sort((a,b)=>
- String(a.name+" "+a.size).localeCompare(String(b.name+" "+b.size),"pt-BR",{sensitivity:"base"}));
+const sorted=()=>[...(state.data.beverages||[])].sort((a,b)=>{
+ const rank={missing:0,low:1,good:2};
+ const wa=rank[beverageHealth(a).level]??3,wb=rank[beverageHealth(b).level]??3;
+ return wa-wb||String(a.name+" "+a.size).localeCompare(String(b.name+" "+b.size),
+  "pt-BR",{sensitivity:"base"});
+});
 function duplicatePanel(){
  const groups=window.POTE_INVENTORY?.duplicates?.(state.data.ingredients)||[];
  if(!groups.length)return "";
@@ -17,7 +21,7 @@ function duplicatePanel(){
    ' cadastros · '+group.map(i=>Number(i.stock||0)).reduce((a,b)=>a+b,0)+
    ' '+esc(group[0].measureUnit||"g")+' no total</span>'+
    '<button class="btn mini line" type="button" data-duplicate-id="'+esc(group[0].id)+
-    '" onclick="POTE_INVENTORY.merge(this.dataset.duplicateId)">Conferir e mesclar</button></div>').join("")+
+    '" onclick="POTE_STOCK_DELETE.open(this.dataset.duplicateId)">Conferir duplicados</button></div>').join("")+
   '</section>';
 }
 function beverageHealth(b){
@@ -35,7 +39,7 @@ function renderBeverages(){
   '<p>O preço exibido é o de venda. O custo de compra começa zerado até registrar a mercadoria realmente recebida. Latas, garrafas e sabores têm saldos independentes.</p>'+
   (drinks.length?'<div class="stock-beverage-grid">'+drinks.map(b=>
    '<article class="stock-beverage-card stock-status-'+beverageHealth(b).level+'" data-stock-name="'+esc([b.name,b.size,b.id].join(" ").toLowerCase())+'">'+
-   '<div><strong>'+esc(b.name)+'</strong><small>'+esc(b.size||"Sem volume")+'</small></div>'+
+   '<div><button type="button" class="stock-item-open" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.selectBeverage(this.dataset.bevId)">'+esc(b.name)+'</button><small>'+esc(b.size||"Sem volume")+'</small></div>'+
    '<div><small>Estoque físico</small><b class="stock-balance-'+beverageHealth(b).level+'">'+
     Number(b.stock||0).toLocaleString("pt-BR")+" un</b><small>Disponível após reservas: "+beverageHealth(b).available+" un</small></div>"+
    '<div><small>Venda</small><strong>'+esc(money(b.sellPrice))+'</strong></div>'+

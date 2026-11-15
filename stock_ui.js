@@ -6,7 +6,7 @@ const S=window.POTE_STOCK;
 const $=id=>document.getElementById(id);
 const e=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const idFor=x=>String(x?.id??"");
-const available=()=>state.data.ingredients.filter(i=>!(window.POTE_AUTH?.franchiseActive&&i.templateOrigin==="batataria"))
+const available=()=>state.data.ingredients.filter(i=>!i.archived&&!(window.POTE_AUTH?.franchiseActive&&i.templateOrigin==="batataria"))
  .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"pt-BR",{sensitivity:"base",numeric:true}));
 const integerFmt=(v,d=2)=>Number(v??0).toLocaleString("pt-BR",{maximumFractionDigits:d});
 const sourceLabel=item=>{
@@ -22,14 +22,47 @@ function costUnit(item){
  if(!Number.isFinite(paid)||!Number.isFinite(q)||q<=0)return "Custo não informado";
  return S.money(paid)+" / "+integerFmt(q,3)+" "+u+" (embalagem, não estoque)";
 }
+function itemHealth(i,held,recipeRisk){
+ const current=window.POTE_STOCK_STATUS?.requested?.(i.id,"ingredient");
+ return window.POTE_STOCK_STATUS?.classify?.(i,held?.ingredients.get(i.id),{
+   risk:recipeRisk.has(i.id),shortage:current?.level==="missing"
+ })||{level:Number(i.stock)<=0?"missing":"good",
+      label:Number(i.stock)<=0?"FALTANTE":"ESTOQUE BOM",available:Number(i.stock)||0,reservation:0};
+}
+function priorityPanel(visible,held,recipeRisk){
+ const items=visible.map(i=>({i,health:itemHealth(i,held,recipeRisk),kind:"ingredient"}))
+   .filter(x=>x.health.level==="missing");
+ for(const b of state.data.beverages||[]){
+  const h=window.POTE_STOCK_STATUS?.classify?.(b,held?.beverages.get(b.id),{
+    shortage:window.POTE_STOCK_STATUS?.requested?.(b.id,"beverage")?.level==="missing"});
+  if(h?.level==="missing")items.push({i:b,health:h,kind:"beverage"});
+ }
+ if(!items.length)return "";
+ items.sort((a,b)=>String(a.i.name||"").localeCompare(String(b.i.name||""),"pt-BR"));
+ return '<section class="stock-urgent-list" role="status">'+
+  '<div class="stock-urgent-header"><strong>FALTANTES · REPOR PRIMEIRO</strong>'+
+  '<small>'+items.length+' item(ns) sem disponibilidade para novas vendas</small></div>'+
+  '<div>'+items.map(({i,health,kind})=>'<button type="button" class="stock-urgent-link"'+
+    ' data-need-id="'+e(i.id)+'" data-need-kind="'+e(kind)+'"'+
+    ' onclick="POTE_STOCK_UI.jumpToNeed(this.dataset.needId,this.dataset.needKind)">'+
+    '<strong>'+e(i.name)+'</strong><span>Físico: '+e(S.formatStock(kind==="beverage"?{...i,measureUnit:"un"}:i))+
+    ' · Reservado: '+e(S.formatStock(kind==="beverage"?{...i,measureUnit:"un"}:i,health.reservation))+
+    ' · Disponível: '+e(S.formatStock(kind==="beverage"?{...i,measureUnit:"un"}:i,health.available))+'</span>'+
+    '<b>+ Repor</b></button>').join("")+'</div></section>';
+}
 function restockPanel(){
- const items=window.POTE_RESTOCK_CONTEXT?.items;
- if(!Array.isArray(items)||!items.length)return "";
+ const previous=window.POTE_RESTOCK_CONTEXT?.items;
+ if(!Array.isArray(previous)||!previous.length)return "";
+ const items=window.POTE_STOCK_STATUS?.currentContext?.()||previous;
+ if(!items.length)return '<section class="stock-restock-resolved" role="status">'+
+  '<strong>Reposição atendida para este pedido.</strong>'+
+  '<p>O saldo atualizado cobre os itens da falta anterior. Volte e confira o pedido novamente.</p>'+
+  '<button type="button" class="btn" onclick="POTE_STOCK_UI.returnToOrder()">Voltar ao pedido</button></section>';
  return '<section class="stock-pending-replenish" id="stockRestockFocus" role="status">'+
   '<strong>Reposição necessária para o pedido</strong>'+
   '<p>Estes itens estão faltando ou baixos. Faça a compra ou ajuste a contagem física antes de voltar ao pedido. As reservas de pedidos pendentes já foram consideradas.</p>'+
   '<div>'+items.map(i=>'<article class="stock-pending-item '+(i.level==="missing"?"missing":"low")+'">'+
-   '<strong>'+(i.level==="missing"?"FALTANTE":"ESTOQUE BAIXO")+': '+e(i.name)+'</strong>'+
+   '<button type="button" class="stock-pending-open" data-need-id="'+e(i.id)+'" data-need-kind="'+e(i.kind)+'" onclick="POTE_STOCK_UI.jumpToNeed(this.dataset.needId,this.dataset.needKind)">'+(i.level==="missing"?"FALTANTE":"ESTOQUE BAIXO")+': '+e(i.name)+'</button>'+
    '<span>'+(i.level==="missing"?"Faltam "+S.decimal(i.missing||0)+" "+e(i.unit||"un"):
       "Rendimento restante: "+S.decimal(i.capacity||0)+" unidade(s)")+'</span>'+
    '<button class="btn mini" type="button" data-need-id="'+e(i.id)+'" data-need-kind="'+e(i.kind)+
@@ -48,11 +81,12 @@ function returnToOrder(){
 }
 function renderPanel(state,data){
  const visible=available();
- const ingredients=visible.filter(i=>i.category!=="Embalagem");
- const packs=visible.filter(i=>i.category==="Embalagem");
- const displayItems=[...ingredients,...packs];
  const held=window.POTE_STOCK_STATUS?.reserved?.(state.data);
  const recipeRisk=window.POTE_STOCK_STATUS?.recipeLowIds?.(state.data,held)||new Set();
+ const ranks={missing:0,low:1,good:2};
+ const displayItems=[...visible].sort((a,b)=>
+  (ranks[itemHealth(a,held,recipeRisk).level]??3)-(ranks[itemHealth(b,held,recipeRisk).level]??3)||
+  String(a.name||"").localeCompare(String(b.name||""),"pt-BR",{sensitivity:"base",numeric:true}));
  const count=visible.length,low=visible.filter(i=>S.number(i.minimum)>0&&
    S.number(i.stock)<=S.number(i.minimum)).length;
  const localStockCount=visible.filter(i=>S.number(i.stock)>0).length;
@@ -69,6 +103,7 @@ function renderPanel(state,data){
    <div><small>Abaixo do mínimo</small><strong>${low}</strong></div>
   </div>
  </div>
+ ${priorityPanel(visible,held,recipeRisk)}
  ${shortages.length?`<section class="stock-shortage-alert" role="status">
  <strong>⚠ Estoque crítico para produção</strong>
  <p>Estas receitas têm insumos disponíveis para menos de cinco unidades. O sistema bloqueia pedidos sem saldo e considera quantidades reservadas para pedidos pendentes.</p>
@@ -104,19 +139,13 @@ function renderPanel(state,data){
   </div>
   <p id="stockSearchEmpty" class="stock-search-empty" hidden>Nenhum item encontrado. Experimente outra palavra.</p>
   <div class="stock-card-list">${displayItems.map((i,idx)=>{
-   const stock=Number(i.stock)||0,threshold=Number(i.minimum)||0;
-   const isLow=threshold>0&&stock<=threshold;
-    const requested=window.POTE_STOCK_STATUS?.requested?.(i.id,"ingredient");
-    const health=window.POTE_STOCK_STATUS?.classify?.(i,held?.ingredients.get(i.id),{
-      risk:recipeRisk.has(i.id),shortage:requested?.level==="missing"
-    })||{level:stock<=0?"missing":isLow?"low":"good",
-      label:stock<=0?"FALTANTE":isLow?"ESTOQUE BAIXO":"ESTOQUE BOM",
-      available:stock,reservation:0};
-   return `${idx===0&&ingredients.length?'<div class="stock-group-title"><strong>Ingredientes e perecíveis</strong><small>Alimentos e insumos utilizados na produção</small></div>':""}
-    ${idx===ingredients.length&&packs.length?'<div class="stock-group-title stock-group-packaging"><strong>Embalagens e descartáveis</strong><small>Potes, caixas de pizza, sacos plásticos, tampas e talheres · separados dos alimentos</small></div>':""}
+   const health=itemHealth(i,held,recipeRisk);
+   const previous=idx>0?itemHealth(displayItems[idx-1],held,recipeRisk).level:null;
+   const titles={missing:"Faltantes · repor primeiro",low:"Estoque baixo · atenção",good:"Estoque bom · disponível"};
+   return `${health.level!==previous?'<div class="stock-priority-title '+health.level+'"><strong>'+titles[health.level]+'</strong><small>Ordenado por prioridade</small></div>':""}
     <article class="stock-card stock-status-${health.level} ${i.category==="Embalagem"?"stock-packaging-card":""}" data-stock-status="${health.level}" data-stock-name="${e([i.name,i.category||'',i.id].join(' ').toLocaleLowerCase('pt-BR'))}">
     <div class="stock-card-primary">
-     <div class="stock-card-name"><strong>${e(i.name)}</strong><small>${e(i.category||"Insumo")}</small><span class="stock-health-badge ${health.level}">${e(health.label)}</span></div>
+     <div class="stock-card-name"><button type="button" class="stock-item-open" data-stock-id="${e(i.id)}" onclick="POTE_STOCK_UI.openPurchase(this.dataset.stockId)" title="Repor este item">${e(i.name)}</button><small>${e(i.category||"Insumo")}</small><span class="stock-health-badge ${health.level}">${e(health.label)}</span></div>
      <div class="stock-card-balance"><small>ESTOQUE ATUAL · FÍSICO</small><strong class="stock-balance-${health.level}">${e(S.formatStock(i))}</strong><small>Disponível após reservas: ${e(S.formatStock(i,health.available))}</small></div>
     </div>
     <div class="stock-card-details">
@@ -128,6 +157,9 @@ function renderPanel(state,data){
     <div class="stock-card-actions">
      <button class="btn mini" type="button" data-stock-id="${e(i.id)}" onclick="POTE_STOCK_UI.openPurchase(this.dataset.stockId)">+ Nova compra</button>
      <button class="btn mini line" type="button" data-stock-id="${e(i.id)}" onclick="POTE_STOCK_UI.adjustStock(this.dataset.stockId)">Conferir / ajustar saldo</button>
+     <button type="button" class="btn mini danger stock-delete-button" aria-label="Excluir ${e(i.name)}" data-stock-id="${e(i.id)}" onclick="POTE_STOCK_DELETE.open(this.dataset.stockId)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m5 6 1 14h12l1-14"/><path d="M10 10v7M14 10v7"/></svg> Excluir
+     </button>
     </div>
     <details class="stock-ref-edit">
      <summary>Editar preço da embalagem e rendimento</summary>
@@ -164,7 +196,8 @@ function renderPanel(state,data){
    ${field("Rendimento (%)","newIngYield","100","text",'inputmode="decimal"')}
   </div>
   <button class="btn" onclick="addIngredient()">Cadastrar ingrediente (saldo inicial 0)</button>
- </section>`;
+ </section>
+ ${window.POTE_STOCK_DELETE?.trashHtml?.()||""}`;
 }
 function selectIngredient(){
  const item=state.data.ingredients.find(i=>i.id===$("stockPurchaseIngredient")?.value);
@@ -207,6 +240,7 @@ function savePurchase(){
    paidTotal:paid,supplier:$("stockPurchaseSupplier")?.value,
    purchases:data.purchases,movements:data.stockMovements,makeId:()=>uid()});
   persist();render();
+  if(state.tab==="ingredients")openPurchase(item.id);
   toast(item.name+": "+S.formatStock(item,result.previous)+" + "+S.formatStock(item,result.added)+
    " = "+S.formatStock(item,result.next)+". Compra de "+S.money(result.totalPaid)+" registrada.");
  }catch(err){alert(err.message)}

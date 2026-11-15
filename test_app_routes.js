@@ -46,7 +46,7 @@ for(let i=0;i<inline.length;i++){
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
 for(const module of ["universe_templates.js","universe_core.js","business_setup.js",
- "stock_math.js","stock_ui.js","beverage_catalog.js","payment_flow.js","stock_inventory.js","stock_ext.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js"]){
+ "stock_math.js","stock_ui.js","stock_delete.js","beverage_catalog.js","payment_flow.js","stock_inventory.js","stock_ext.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js"]){
  try{vm.runInContext(fs.readFileSync(module,"utf8"),sandbox,{filename:module,timeout:5000})}
  catch(e){errors.push({page:module,error:String(e.stack||e)})}
 }

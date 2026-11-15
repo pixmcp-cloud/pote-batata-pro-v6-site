@@ -145,20 +145,20 @@ N.close();
 // Uma versão nova deve reabrir o aviso mesmo para quem dispensou a anterior.
 delete window.POTE_RELEASE_NEWS;
 const next=read("release_news.js").replace(
- 'id:"2026-11-15-reposicao-cores-estoque-01"',
+ 'id:"2026-11-15-reposicao-lixeira-e-prioridade-02"',
  'id:"2026-11-16-outro-aviso-02"');
 window.POTE_AUTH.uid="user1";
 vm.runInContext(next,ctx,{filename:"next-release-news.js"});
 assert.equal(window.POTE_RELEASE_NEWS.dismissed(),false);
 assert.equal(element("poteReleaseNews").hidden,false,"Nova versão deve aparecer");
 const built=read("public/index.html");
-for(const path of ["stock_status.js?v=stock-triage-20261115",
- "stock_ui.js?v=stock-triage-20261115",
- "stock_ext.js?v=stock-triage-20261115",
- "order_guard.js?v=stock-triage-20261115",
- "release_news.js?v=news-20261115-01",
- "release_news.css?v=news-20261115-01",
- "stock_triage.css?v=stock-triage-20261115"]){
+for(const path of ["stock_status.js?v=stock-priority-20261115",
+ "stock_ui.js?v=stock-priority-20261115",
+ "stock_ext.js?v=stock-priority-20261115",
+ "order_guard.js?v=stock-priority-20261115",
+ "release_news.js?v=news-20261115-02",
+ "release_news.css?v=news-20261115-02",
+ "stock_triage.css?v=stock-priority-20261115"]){
  assert(built.includes(path),"Build público sem "+path);
 }
 assert(read("make_beta.py").includes("POTE_ORDER?.restoreDraft?.()"));

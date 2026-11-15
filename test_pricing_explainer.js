@@ -77,7 +77,7 @@ const src=read("source/pote_app_base.html");
 assert(src.includes("POTE_PRICING?.validateForm"));
 assert(src.includes("Resultado estimado / unidade"));
 const build=read("public/index.html");
-for(const part of ["pricing_explainer.js?v=price-guide-20261115","pricing_explainer.css?v=price-guide-20261115"]){
+for(const part of ["pricing_explainer.js?v=stock-priority-20261115","pricing_explainer.css?v=price-guide-20261115"]){
  assert(build.includes(part),"Asset ausente: "+part)
 }
 console.log("PASS: preço discriminado, referência de embalagem individual, custos incompletos e prevenção de taxas/margens inválidas.");

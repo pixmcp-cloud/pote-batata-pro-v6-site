@@ -51,7 +51,7 @@ function report(recipe){
   delivery:n(s.deliveryCostPerOrder)};
 }
 function packageControls(recipe){
- const all=state.data.ingredients.filter(i=>i.category==="Embalagem")
+ const all=state.data.ingredients.filter(i=>i.category==="Embalagem"&&!i.archived)
   .sort((a,b)=>String(a.name).localeCompare(String(b.name),"pt-BR"));
  if(!all.length)return '<small>Nenhuma embalagem cadastrada. Cadastre potes, tampas ou caixas em Estoque e compras.</small>';
  const selected=new Set(Array.isArray(recipe.packagingIngredientIds)?recipe.packagingIngredientIds:all.map(i=>i.id));

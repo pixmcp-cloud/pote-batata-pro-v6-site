@@ -13,7 +13,7 @@ function joinNeeds(quote,qty,settings,ingredients){
   ...(quote?.addons||[]).filter(a=>a?.ingredientId).map(a=>({id:a.ingredientId,g:n(a.quantity)}))];
  if(settings?.usePackagingStock){
   const ids=quote?.recipe?.packagingIngredientIds;
-  for(const i of ingredients.filter(x=>x.category==="Embalagem"&&
+  for(const i of ingredients.filter(x=>x.category==="Embalagem"&&!x.archived&&
        (!Array.isArray(ids)||ids.includes(x.id))))rows.push({id:i.id,g:1,isPkg:true});
  }
  const needs=new Map();
@@ -130,7 +130,7 @@ function toRestockItems(report){
  return [...errors.map(x=>({...x,level:"missing"})),
   ...low.map(x=>({...x,level:"low"}))];
 }
-function restock(){
+function restockItem(id,kind){
  const items=toRestockItems(lastStockReport);
  if(!items.length){go("ingredients");return}
  captureOrderDraft();
@@ -138,9 +138,14 @@ function restock(){
   startedAt:new Date().toISOString()};
  const modal=$("poteOrderAlerts");if(modal)modal.hidden=true;
  go("ingredients");
- const first=items[0];
- if(first.kind==="beverage")window.POTE_STOCK_EXT?.selectBeverage?.(first.id);
- else window.POTE_STOCK_UI?.openPurchase?.(first.id);
+ const selected=items.find(i=>i.id===id&&i.kind===kind)||items[0];
+ if(selected.kind==="beverage")window.POTE_STOCK_EXT?.selectBeverage?.(selected.id);
+ else window.POTE_STOCK_UI?.openPurchase?.(selected.id);
+}
+function restock(){
+ const items=toRestockItems(lastStockReport);
+ if(!items.length){go("ingredients");return}
+ restockItem(items[0].id,items[0].kind);
 }
 window.addEventListener?.("pote:user-logout",()=>{
  savedOrderDraft=null;lastStockReport=null;window.POTE_RESTOCK_CONTEXT=null;
@@ -168,7 +173,7 @@ function showAlert(title,description,report=null){
  const items=toRestockItems(report);
  const list=$("poteOrderAlertItems");
  if(list)list.innerHTML=items.map(x=>'<div class="pote-order-alert-item '+(x.level==="missing"?"missing":"low")+'">'+
-  '<strong>'+(x.level==="missing"?"FALTANTE: ":"ESTOQUE BAIXO: ")+esc(x.name)+'</strong>'+
+  '<button type="button" class="pote-order-missing-open" data-need-id="'+esc(x.id)+'" data-need-kind="'+esc(x.kind)+'" onclick="POTE_ORDER.restockItem(this.dataset.needId,this.dataset.needKind)">'+(x.level==="missing"?"FALTANTE: ":"ESTOQUE BAIXO: ")+esc(x.name)+' · toque para repor</button>'+
   '<small>'+(x.level==="missing"?
    'Repor '+fmtQty(x.missing)+' '+esc(x.unit||"un")+'. Disponível após reservas: '+fmtQty(x.available)+' '+esc(x.unit||"un"):
    'Restam insumos para '+fmtQty(x.after)+' unidade(s) após este pedido.')+'</small></div>').join("");
@@ -366,5 +371,5 @@ function alertOnEnter(){
   ". Considere comprar os seguintes itens: "+names,check);
 }
 window.POTE_ORDER={joinNeeds,reserved,checkOrder,checkCart,acceptCart,calc,currentQuote,refresh,checkBeforeRegister,
- checkBeforeProduce,showAlert,restock,toRestockItems,restoreDraft,scrollToOrders,lowAfterOrder,alertOnEnter,scanLowRecipes,ensureModal};
+ checkBeforeProduce,showAlert,restock,restockItem,toRestockItems,restoreDraft,scrollToOrders,lowAfterOrder,alertOnEnter,scanLowRecipes,ensureModal};
 })();
