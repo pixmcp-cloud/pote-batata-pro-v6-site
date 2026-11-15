@@ -28,6 +28,10 @@ jobs:
           cp image_responsive.css public/image_responsive.css
           cp admin_console.css public/admin_console.css
           cp admin_console.js public/admin_console.js
+          cp gallery.js public/gallery.js
+          cp gallery.css public/gallery.css
+          cp gallery_policy.mjs public/gallery_policy.mjs
+          cp gallery_config.mjs public/gallery_config.mjs
           cp license_terms.mjs public/license_terms.mjs
           cp floating_menu.js public/floating_menu.js
           cp visual_refresh.css public/visual_refresh.css
@@ -47,6 +51,11 @@ jobs:
           node test_dashboard_charts.js
           node test_clean_accounts.js
           node test_responsive_images.js
+          node --input-type=module --check < public/gallery.js
+          node --check public/gallery_policy.mjs
+          node --check public/gallery_config.mjs
+          node --check public/floating_menu.js
+          node test_gallery_42h.mjs
           node --check public/license_terms.mjs
           node --input-type=module --check < public/admin_console.js
           node test_admin_licenses.mjs

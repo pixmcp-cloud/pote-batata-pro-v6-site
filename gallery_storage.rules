@@ -1,0 +1,29 @@
+// PREPARADO para Firebase Cloud Storage; NÃO implantado.
+// A implantação exige confirmação do projeto Blaze e a ativação do bucket.
+// Nenhum arquivo é público. A leitura expira após 42 horas.
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(userId) {
+      return request.auth != null
+        && request.auth.uid == userId
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    match /gallery/{userId}/{fileName} {
+      allow get: if isOwner(userId)
+        && request.time < resource.timeCreated + duration.value(42, 'h');
+      allow list: if false;
+      allow create: if isOwner(userId)
+        && fileName.matches('[A-Za-z0-9_-]+[.](webp|jpg)')
+        && request.resource.size > 0
+        && request.resource.size <= 3 * 1024 * 1024
+        && request.resource.contentType.matches('image/(webp|jpeg)');
+      allow update: if false;
+      allow delete: if isOwner(userId);
+    }
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

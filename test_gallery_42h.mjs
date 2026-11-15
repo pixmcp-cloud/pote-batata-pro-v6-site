@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {GALLERY_TTL_HOURS,GALLERY_TTL_MS,GALLERY_LOCAL_LIMIT,galleryExpiry,isGalleryExpired,galleryTimeRemaining,galleryFileLabel} from "./gallery_policy.mjs";
+import {GALLERY_CLOUD_ENABLED} from "./gallery_config.mjs";
+assert.equal(GALLERY_TTL_HOURS,42);
+assert.equal(GALLERY_TTL_MS,151200000);
+const now=Date.parse("2026-11-15T16:00:00Z");
+const item={createdAtMs:now,expiresAtMs:galleryExpiry(now)};
+assert.equal(isGalleryExpired(item,now),false);
+assert.equal(isGalleryExpired(item,now+GALLERY_TTL_MS-1),false);
+assert.equal(isGalleryExpired(item,now+GALLERY_TTL_MS),true);
+assert.equal(galleryTimeRemaining(item,now),"42h 00m");
+assert.equal(galleryTimeRemaining(item,now+GALLERY_TTL_MS-60000),"00h 01m");
+assert.equal(galleryTimeRemaining(item,now+GALLERY_TTL_MS),"Expirada");
+assert.equal(galleryFileLabel("<teste>\u0000 imagem"),"teste imagem");
+assert(GALLERY_LOCAL_LIMIT>=40);
+assert.equal(GALLERY_CLOUD_ENABLED,false,"Não ativar cobrança ou sincronização paga sem autorização");
+const source=readFileSync("source/pote_app_base.html","utf8");
+assert(source.includes("gallery:'Galeria'"),"Galeria deve constar no menu principal");
+assert(source.includes("if(tab==='gallery')"),"Galeria deve abrir a partir da navegação");
+assert(source.includes("downloadCreative({galleryOnly:true})"),"Geração deve salvar automaticamente na galeria");
+assert(source.includes("saveImageBlob(blob"),"Arquivo real deve ir para a galeria");
+assert(source.includes("state.creatives=[{"),"Não acumular histórico de imagens no estado Firestore");
+const floating=readFileSync("floating_menu.js","utf8");
+assert(floating.includes('["gallery","Galeria · 42h"]'),"Menu flutuante deve abrir Galeria");
+const gallery=readFileSync("gallery.js","utf8");
+for(const marker of ["indexedDB.open","objectStore","expiresAtMs","cleanupLocal","window.POTE_GALLERY","image/webp","galleryFileLabel","deleteItem","saveImageBlob"]){
+ assert(gallery.includes(marker),"Galeria incompleta: "+marker);
+}
+assert(gallery.includes("não sincronizado com Floot"),"A Galeria deve informar modo local honestamente");
+const html=readFileSync("public/index.html","utf8");
+for(const marker of ["gallery.js?v=galeria-42h","gallery.css?v=galeria-42h"])assert(html.includes(marker),marker+" ausente do deploy");
+const rules=readFileSync("gallery_storage.rules","utf8");
+assert(rules.includes("duration.value(42, 'h')"));
+assert(rules.includes("allow list: if false"));
+console.log("PASS: menu Galeria, salvamento real, retenção 42h, limpeza, isolamento local e nuvem sem cobrança.");
