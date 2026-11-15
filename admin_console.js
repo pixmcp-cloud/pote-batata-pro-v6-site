@@ -1,7 +1,7 @@
 import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115";
+import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115-years";
 
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const btn=document.getElementById("poteAdminOpen");
@@ -16,7 +16,7 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
     <div class="pote-adm-toolbar"><input id="poteAdmSearch" type="search" placeholder="Buscar por e-mail, nome ou UID..." aria-label="Buscar usuários"><select id="poteAdmFilter" aria-label="Filtrar por plano"><option value="all">Todos os cadastros</option><option value="free">Somente FREE</option><option value="trial">Testes ativos</option><option value="pro">PRO ativos</option><option value="lifetime">Vitalícios</option><option value="expired">Vencidos</option></select><button id="poteAdmReload" type="button">Atualizar lista</button></div>
     <div class="pote-adm-columns">
      <section class="pote-adm-list"><div class="pote-adm-section-head"><h3>Contas cadastradas</h3><span id="poteAdmFound"></span></div><div id="poteAdmUsers" class="pote-adm-users" role="listbox" aria-label="Selecione uma conta"></div></section>
-     <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div><div id="poteAdmCountdown" class="pote-adm-countdown" data-state="free"><small id="poteAdmCountdownLabel">TEMPO PARA VOLTAR AO FREE</small><strong id="poteAdmCountdownTime" role="timer">--d --h --m --s</strong><span id="poteAdmCountdownHint">Selecione uma conta com licença ativa.</span></div>
+     <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div><div id="poteAdmCountdown" class="pote-adm-countdown" data-state="free"><small id="poteAdmCountdownLabel">TEMPO PARA VOLTAR AO FREE</small><strong id="poteAdmCountdownTime" role="timer">--a --d --h --m --s</strong><span id="poteAdmCountdownHint">Selecione uma conta com licença ativa.</span></div>
       <label class="pote-adm-label">Licença e duração<select id="poteAdmTerm" aria-label="Modalidade da licença">${LICENSE_TERMS.map(x=>`<option value="${x.id}">${esc(x.label)}</option>`).join("")}</select></label>
       <p id="poteAdmPreview" class="pote-adm-preview"></p>
       <div class="pote-adm-controls"><button id="poteAdmGrant" type="button" disabled>Promover / renovar</button><button id="poteAdmRevoke" type="button" disabled>Revogar → FREE</button></div>
@@ -56,7 +56,7 @@ function refreshCountdown(){
  const remaining=licenseCountdown(user?.license,Date.now());
  widget.dataset.state=remaining.state;
  $("poteAdmCountdownLabel").textContent=remaining.state==="active"?"TEMPO RESTANTE PARA VOLTAR AO FREE":"STATUS DA LICENÇA";
- $("poteAdmCountdownTime").textContent=user?remaining.formatted:"--d --h --m --s";
+ $("poteAdmCountdownTime").textContent=user?remaining.formatted:"--a --d --h --m --s";
  $("poteAdmCountdownHint").textContent=user?remaining.description:"Selecione uma conta cadastrada.";
  document.querySelectorAll("[data-remaining-uid]").forEach(el=>{
   const account=entries.find(x=>x.uid===el.getAttribute("data-remaining-uid"));

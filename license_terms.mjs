@@ -53,20 +53,31 @@ export function dateBR(date){
   return ms===null?"Sem vencimento":new Date(ms).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 // A regressiva utiliza o vencimento salvo no Firestore, nunca a data de abertura da tela.
+// Anos são anos de calendário, incluindo ajustes para 29 de fevereiro.
+function addCalendarYearsClamped(date,years){
+  return plusCalendarMonthsClamped(date,years*12);
+}
 export function licenseCountdown(license,now=Date.now()){
   const current=resolveLicense(license,now);
   if(current.kind==="lifetime"&&current.active)
     return {state:"lifetime",seconds:null,formatted:"Sem vencimento",description:"Licença vitalícia"};
   if(current.reason==="expired")
-    return {state:"expired",seconds:0,formatted:"00d 00h 00m 00s",description:"Prazo encerrado · voltou ao FREE"};
+    return {state:"expired",seconds:0,formatted:"00a 00d 00h 00m 00s",description:"Prazo encerrado · voltou ao FREE"};
   if(!current.active)
     return {state:"free",seconds:null,formatted:"Sem vencimento",description:"Conta FREE"};
   const seconds=Math.max(0,Math.ceil((current.expiresAt-now)/1000));
   if(seconds===0)
-    return {state:"expired",seconds:0,formatted:"00d 00h 00m 00s",description:"Prazo encerrado · voltou ao FREE"};
+    return {state:"expired",seconds:0,formatted:"00a 00d 00h 00m 00s",description:"Prazo encerrado · voltou ao FREE"};
+  const nowDate=new Date(now),endDate=new Date(current.expiresAt);
+  let years=Math.max(0,endDate.getUTCFullYear()-nowDate.getUTCFullYear());
+  let anchor=addCalendarYearsClamped(nowDate,years);
+  while(years>0&&anchor.getTime()>current.expiresAt){
+    years--;anchor=addCalendarYearsClamped(nowDate,years);
+  }
+  const remainder=Math.max(0,Math.ceil((current.expiresAt-anchor.getTime())/1000));
   const pad=n=>String(n).padStart(2,"0");
-  const days=Math.floor(seconds/86400),hours=Math.floor(seconds%86400/3600);
-  const minutes=Math.floor(seconds%3600/60),secs=seconds%60;
-  return {state:"active",seconds,formatted:pad(days)+"d "+pad(hours)+"h "+pad(minutes)+"m "+pad(secs)+"s",
+  const days=Math.floor(remainder/86400),hours=Math.floor(remainder%86400/3600);
+  const minutes=Math.floor(remainder%3600/60),secs=remainder%60;
+  return {state:"active",seconds,formatted:pad(years)+"a "+pad(days)+"d "+pad(hours)+"h "+pad(minutes)+"m "+pad(secs)+"s",
     description:"Tempo restante para voltar ao FREE",expiresAt:current.expiresAt};
 }

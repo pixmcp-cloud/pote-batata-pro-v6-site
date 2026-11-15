@@ -63,7 +63,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=premium-20261115-fullcard"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
+once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=premium-20261115-fullcard"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-20261115-years"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
@@ -176,7 +176,7 @@ render=function(...args){
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=license-20261115\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-20261115\"></script></body></html>")
+     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-20261115-profile\"></script><script type=\"module\" src=\"./firebase_integration.js?v=license-20261115-years\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-20261115-years\"></script></body></html>")
 # Ensure beta is not confused with the public offline demo.
 once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:

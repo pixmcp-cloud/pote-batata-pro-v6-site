@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115";
+import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
@@ -72,12 +72,14 @@ function refreshEntitlements() {
     planBadge.textContent = result.label;
     planBadge.title = result.expiresAt ? "Vencimento: " + dateBR(result.expiresAt) : "Sem vencimento";
   }
+  const remaining = licenseCountdown(rawUserLicense, Date.now());
   if (planCountdown) {
-    const remaining = licenseCountdown(rawUserLicense, Date.now());
     planCountdown.hidden = admin || remaining.state !== "active";
     planCountdown.textContent = remaining.state === "active" ? "Volta ao FREE em " + remaining.formatted : "";
     planCountdown.title = remaining.expiresAt ? "Vencimento: " + dateBR(remaining.expiresAt) : "";
   }
+  window.POTE_LICENSE_STATUS = {...remaining,label:result.label,expiresLabel:remaining.expiresAt?dateBR(remaining.expiresAt):null};
+  window.dispatchEvent(new CustomEvent("pote:license-updated",{detail:window.POTE_LICENSE_STATUS}));
   if (ready && wasPro !== Boolean(window.POTE_AUTH.proActive) && typeof window.render === "function") {
     window.render();
   }

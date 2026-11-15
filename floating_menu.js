@@ -25,6 +25,12 @@ wrap.innerHTML=`
    <label class="pote-photo-input"><span id="poteProfilePreview">${avatar}</span><span>Alterar foto de perfil<small>JPG, PNG ou WebP · até 5 MB</small></span><input id="poteProfilePhoto" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>
    <label class="pote-profile-label" for="poteProfileName">Nome de exibição<input id="poteProfileName" type="text" maxlength="65" placeholder="Como deseja aparecer no aplicativo" autocomplete="nickname"></label>
    <p id="poteProfileIdentity"></p>
+   <section id="poteProfileLicense" class="pote-profile-license" data-state="free" aria-label="Licença da sua conta">
+    <div class="pote-profile-license-top"><small>MEU PLANO</small><strong id="poteProfileLicenseType">FREE</strong></div>
+    <span id="poteProfileCountdownLabel">Validade do acesso</span>
+    <strong id="poteProfileCountdown" role="timer" aria-live="off">Sem vencimento</strong>
+    <p id="poteProfileLicenseHint">Suas informações de licença serão carregadas após entrar com Google.</p>
+   </section>
    <div class="pote-profile-actions"><button type="button" id="poteProfileCancel">Cancelar</button><button type="submit" id="poteProfileSave">Salvar perfil</button></div>
   </form>
 </div>`;
@@ -39,6 +45,35 @@ function refresh(){
  const photo=p.photoData;
  $('poteFloatAvatar').innerHTML=photo?'<img src="'+safe(photo)+'" alt="Foto de perfil">':avatar;
  document.querySelectorAll('#poteFloatNavigation button').forEach(b=>b.classList.toggle('selected',typeof state!=='undefined'&&b.dataset.tab===state.tab));
+}
+function refreshProfileLicense(status=window.POTE_LICENSE_STATUS){
+ const box=$('poteProfileLicense');
+ if(!box)return;
+ if(!window.POTE_AUTH?.uid){
+  box.dataset.state='free';
+  $('poteProfileLicenseType').textContent='Não conectado';
+  $('poteProfileCountdownLabel').textContent='STATUS DO ACESSO';
+  $('poteProfileCountdown').textContent='—';
+  $('poteProfileLicenseHint').textContent='Entre com Google para consultar sua licença.';
+  return;
+ }
+ if(window.POTE_AUTH.role==='admin'){
+  box.dataset.state='lifetime';
+  $('poteProfileLicenseType').textContent='ADM · ACESSO MESTRE';
+  $('poteProfileCountdownLabel').textContent='VALIDADE';
+  $('poteProfileCountdown').textContent='Sem vencimento';
+  $('poteProfileLicenseHint').textContent='Acesso administrativo verificado.';
+  return;
+ }
+ const state=status?.state||'free';
+ box.dataset.state=state;
+ $('poteProfileLicenseType').textContent=state==='lifetime'?'PRO VITALÍCIA':state==='active'?(status?.label||'PRO'):state==='expired'?'FREE · VENCIDO':'FREE';
+ $('poteProfileCountdownLabel').textContent=state==='active'?'TEMPO RESTANTE PARA VOLTAR AO FREE':'VALIDADE DO ACESSO';
+ $('poteProfileCountdown').textContent=state==='active'?(status.formatted||'00a 00d 00h 00m 00s'):
+    state==='expired'?'00a 00d 00h 00m 00s':'Sem vencimento';
+ $('poteProfileLicenseHint').textContent=state==='active'?'Vencimento: '+(status?.expiresLabel||'consulte a administração'):
+    state==='lifetime'?'Licença vitalícia: sem retorno automático ao FREE.':
+    state==='expired'?'O prazo terminou e sua conta voltou ao FREE.':'O plano FREE não possui prazo de expiração.';
 }
 function setOpen(v){
  opened=!!v;
@@ -59,6 +94,7 @@ function showProfile(open){
   $('poteProfilePreview').innerHTML=p.photoData?'<img src="'+safe(p.photoData)+'" alt="Foto atual">':avatar;
   $('poteProfileIdentity').textContent='Conta: '+(window.POTE_AUTH?.email||'Faça login para salvar o perfil');
   $('poteProfilePhoto').value='';
+  refreshProfileLicense();
   $('poteProfileName').focus();
  }
 }
@@ -108,7 +144,9 @@ $('poteProfileForm').addEventListener('submit',e=>{
  if(typeof toast==='function')toast('Perfil atualizado na sua conta');
 });
 window.addEventListener('pote:changed',refresh);
+window.addEventListener('pote:license-updated',e=>refreshProfileLicense(e.detail));
 const observer=new MutationObserver(()=>{if(!opened&&$('poteProfileOverlay').hidden)refresh()});
 const page=document.getElementById('page');if(page)observer.observe(page,{childList:true});
 refresh();
+refreshProfileLicense();
 })();

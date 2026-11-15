@@ -71,3 +71,24 @@
   .headin .brand{padding-right:63px!important}
   #poteFloatToggle{top:10px!important;right:12px!important;width:44px!important;height:44px!important}
 }
+
+/* Meu Perfil: status e regressiva sincronizados com a licença da conta Google. */
+.pote-profile-license{
+  margin:16px 0 13px;padding:16px;border:1px solid #b89c6b8a;border-radius:16px;
+  background:radial-gradient(circle at 90% 4%,#d7a96335,transparent 57%),linear-gradient(140deg,#253850,#142133);
+  box-shadow:inset 0 1px #ffffff3b,0 9px 17px #0009;
+  min-width:0;display:flex;flex-direction:column;gap:7px;
+}
+.pote-profile-license-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
+.pote-profile-license-top small{font-size:10px;letter-spacing:1.4px;font-weight:900;color:#e7c187}
+.pote-profile-license-top strong{font-size:11px;font-weight:850;color:#ffdc9e;border:1px solid #dfb97c66;border-radius:10px;padding:5px 8px;background:#d5a86817}
+#poteProfileCountdownLabel{font-size:10px;font-weight:790;letter-spacing:.6px;color:#c5d4e2}
+#poteProfileCountdown{display:block;width:100%;font-size:clamp(17px,4.55vw,25px);font-weight:900;
+  color:#fff0cf;line-height:1.3;letter-spacing:-.02em;white-space:nowrap;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+#poteProfileLicenseHint{margin:0!important;color:#becfe0!important;font-size:11px!important;line-height:1.45!important}
+.pote-profile-license[data-state="expired"]{border-color:#d38778a0;background:linear-gradient(135deg,#382630,#1b2637)}
+.pote-profile-license[data-state="expired"] #poteProfileCountdown{color:#ffb2a8}
+.pote-profile-license[data-state="free"],.pote-profile-license[data-state="lifetime"]{border-color:#8fbea489}
+.pote-profile-license[data-state="free"] #poteProfileCountdown,.pote-profile-license[data-state="lifetime"] #poteProfileCountdown{color:#b9e9ca}
+@media(max-width:390px){.pote-profile-license{padding:12px}.pote-profile-license-top strong{font-size:10px}#poteProfileCountdown{font-size:clamp(15px,4.25vw,19px)}}
