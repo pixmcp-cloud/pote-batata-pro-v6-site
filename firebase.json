@@ -1,0 +1,17 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Pote Batata Pro",
+        "supportEmail": "contato@livresom.com",
+        "authorizedRedirectUris": [
+          "https://pote-batata-livresom-261115.firebaseapp.com/__/auth/handler",
+          "https://pixmcp-cloud.github.io"
+        ]
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}
