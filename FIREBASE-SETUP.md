@@ -1,24 +1,23 @@
-# Potê Batata Pro — Firebase
-Google Cloud project (created): `pote-batata-livresom-261115`.
-Firebase resources: **not enabled yet** due to API 403 PERMISSION_DENIED (possible unaccepted Firebase Terms of Service).
+# Potê Batata Pro — configuração do Firebase
+Projeto **Firebase real confirmado por imagem do Console**: `potobatata-b71f3`, nome exibido `PotoBatata`.
+Conta CLI atualmente autenticada: `pixmcp@gmail.com`.
 
-## Owner action
-Open https://console.firebase.google.com/?hl=pt-br with `pixmcp@gmail.com`.
-Choose **Add Firebase to an existing Google Cloud project**, select `Pote Batata Pro` (`pote-batata-livresom-261115`), accept the Firebase Terms (if prompted), and do not enable paid billing.
-Report completion; CLI can then run `firebase projects:addfirebase pote-batata-livresom-261115`.
+## Bloqueio de acesso
+O comando `firebase projects:list --json` retorna lista vazia, e `firebase apps:list --project potobatata-b71f3 --json` recebe HTTP 403 PERMISSION_DENIED.
+A conta proprietária do projeto no console deve conferir **Configurações do projeto > Usuários e permissões** e conceder acesso a `pixmcp@gmail.com` (papel Firebase Admin ou proprietário, conforme necessário).
+Mudanças IAM podem levar alguns minutos.
 
-## Prepared local configuration (not deployed)
-- `.firebaserc` specifies the intended project.
-- `firebase.json` prepares Google Sign-In and Firestore rules; support email is contato@livresom.com.
-- `firestore.rules` isolates user data by Firebase UID, allows the Google-verified administrator `pixmcp@gmail.com`, and denies other paths.
+## Preparação local, ainda não implantada
+- `.firebaserc` vincula o repositório ao projeto real `potobatata-b71f3`.
+- `firebase.json` aponta para `firestore.rules`; não configura provedores de autenticação.
+- `firestore.rules` isola dados por UID e reconhece como ADM o usuário verificado via Google com e-mail `pixmcp@gmail.com`.
 
-Next, after Firebase is activated:
-1. Verify project is on the free Spark plan.
-2. Deploy the Google Auth provider and Firestore rules.
-3. Provision the Firestore default database with production-deny rules.
-4. Register a Firebase Web App and obtain the client-side Firebase config.
-5. Integrate Google login and protected role checks into the GitHub Pages app.
-6. Test account isolation and admin/regular-user sign-in before replacing the public V6 demo.
-7. Enforce FREE/PRO quotas server-side before enabling paid plans.
+## Depois de conceder acesso
+1. Testar `firebase projects:list` e `firebase apps:list --project potobatata-b71f3`.
+2. Ativar Authentication > Provedores de login > Google no Console, cadastrar `contato@livresom.com` como suporte conforme opções disponíveis.
+3. Criar Firestore na localização adequada no plano gratuito e implantar as regras restritivas.
+4. Registrar aplicação Web, obter firebaseConfig (configuração pública), definir domínio de autenticação autorizado.
+5. Substituir a demonstração por um fluxo real de login Google e operações reais no Firestore.
+6. Testar isolamento de dados e ADM antes de atualizar produção.
 
-Note: local preparation does not mean Firebase Authentication or the database is active.
+O site público permanece no modo demonstração FREE e não é um sistema com login real.
