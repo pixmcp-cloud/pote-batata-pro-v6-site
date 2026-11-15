@@ -12,5 +12,9 @@ assert(override.includes('paint-order:stroke fill'),'Contorno deve permanecer at
 assert(override.includes('@media(max-width:700px)'),'Tamanho mobile ausente');
 assert(override.includes('font-size:clamp(23px,6.05vw,30px)!important'),'Nomes mobile devem ser ampliados');
 assert(override.includes('text-wrap:balance'),'Quebra de linha deve respeitar o espaço disponível');
-assert(html.includes('visual_refresh.css?v=premium-20261115-bold-outline'),'Cache da folha nova não foi atualizado');
+const final=css.slice(css.lastIndexOf('/* CORREÇÃO FINAL: contorno PRETO'));
+assert(final.includes('-webkit-text-stroke:2.5px #000!important'),'Contorno preto puro obrigatório');
+assert(final.includes('text-shadow:'),'Sombras pretas de fallback obrigatórias');
+assert(final.includes('-webkit-text-fill-color:#fff!important'),'Preenchimento interno deve permanecer branco');
+assert(html.includes('visual_refresh.css?v=font-outline-black-20261115'),'Cache da folha nova não foi atualizado');
 console.log('PASS: nomes da Central maiores, contornados e responsivos.');

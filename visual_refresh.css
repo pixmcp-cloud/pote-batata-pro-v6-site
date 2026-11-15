@@ -218,3 +218,24 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
  .ops-card{min-height:160px!important;aspect-ratio:1.6/1!important}
  .ops-card strong{font-size:29px!important}
 }
+
+/* CORREÇÃO FINAL: contorno PRETO #000 em cada letra branca da Central. */
+.ops-grid .ops-card strong{
+ color:#fff!important;
+ -webkit-text-fill-color:#fff!important;
+ -webkit-text-stroke:2.5px #000!important;
+ paint-order:stroke fill;
+ text-shadow:
+  -2px -2px 0 #000,
+   0 -2px 0 #000,
+   2px -2px 0 #000,
+  -2px  0 0 #000,
+   2px  0 0 #000,
+  -2px  2px 0 #000,
+   0  2px 0 #000,
+   2px  2px 0 #000,
+   0  6px 10px #000!important;
+}
+@media(max-width:700px){
+ .ops-grid .ops-card strong{-webkit-text-stroke:2.2px #000!important}
+}
