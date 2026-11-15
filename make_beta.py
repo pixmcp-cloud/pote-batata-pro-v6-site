@@ -35,15 +35,15 @@ once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="r
 
 head = """<style>
 #poteAuthGate{position:fixed;inset:0;z-index:10000;background:#120e0b;display:flex;align-items:center;
-justify-content:center;padding:18px;overflow:auto;color:#fff}
+justify-content:center;padding:18px;overflow:auto;overflow-x:hidden;color:#fff;width:100%;max-width:100vw;box-sizing:border-box}
 #poteAuthGate[hidden]{display:none!important}
-.pote-login-card{width:min(100%,460px);border:1px solid #79522f;border-radius:22px;
+.pote-login-card{width:100%;max-width:460px;min-width:0;box-sizing:border-box;border:1px solid #79522f;border-radius:22px;
 padding:clamp(24px,5vw,36px);background:linear-gradient(155deg,#2b2017,#16110d);
 box-shadow:0 22px 80px #0009;text-align:center}
 .pote-login-card h1{font-size:clamp(24px,5vw,31px);margin:10px 0;color:#f4d9a4}
-.pote-login-card p{line-height:1.55;color:#d2bfaa;font-size:14px}
+.pote-login-card p{line-height:1.55;color:#d2bfaa;font-size:14px;overflow-wrap:anywhere}
 #poteGoogleLogin{border:0;background:#fff;color:#282018;min-height:49px;
-border-radius:12px;padding:13px 20px;font-weight:800;font-size:15px;cursor:pointer;width:100%;margin-top:14px}
+border-radius:12px;padding:13px 20px;font-weight:800;font-size:15px;cursor:pointer;width:100%;max-width:100%;box-sizing:border-box;margin-top:14px}
 #poteGoogleLogin:disabled{opacity:.65;cursor:wait}
 #poteLoginMessage{min-height:26px;font-size:13px;margin-top:14px;color:#ffd39a}
 .pote-support{margin-top:18px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
