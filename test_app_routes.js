@@ -46,7 +46,7 @@ for(let i=0;i<inline.length;i++){
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
 for(const module of ["universe_templates.js","universe_core.js","business_setup.js",
- "stock_math.js","stock_ui.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js"]){
+ "stock_math.js","stock_ui.js","beverage_catalog.js","payment_flow.js","stock_inventory.js","stock_ext.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js"]){
  try{vm.runInContext(fs.readFileSync(module,"utf8"),sandbox,{filename:module,timeout:5000})}
  catch(e){errors.push({page:module,error:String(e.stack||e)})}
 }
@@ -225,3 +225,95 @@ vm.runInContext('state.tab="ingredients";',sandbox);
 window.POTE_APP.applyState(current(),{preserveNavigation:true});
 assert.equal(vm.runInContext("state.tab",sandbox),"ingredients","Sync remoto não deve levar de Estoque para Home");
 console.log("PASS: personalizar sem milho, dois adicionais, baixa do estoque, recibo detalhado e permanência em Pedidos/Estoque.");
+
+window.POTE_AUTH={email:"pixmcp@gmail.com",uid:"test-admin",role:"admin",proActive:true,franchiseActive:false};
+const comboState=structuredClone(testState);
+comboState.data.businessType="batataria";
+comboState.data.recipes=structuredClone(SEED.recipes).filter(r=>["r01","r03","r21"].includes(r.id));
+comboState.data.ingredients=structuredClone(SEED.ingredients);
+comboState.data.ingredients.forEach(i=>{i.stock=100000;i.yield=100});
+comboState.data.orders=[];comboState.data.beverages=[];comboState.data.combos=[];
+comboState.data.addons=[];comboState.data.settings.usePackagingStock=false;
+window.POTE_APP.applyState(comboState);
+vm.runInContext('state.tab="orders";render();',sandbox);
+let business=window.POTE_APP.snapshot().data;
+assert.equal(business.beverages.length,11,"Batataria cria 11 opções comerciais sem estoque fictício");
+assert.equal(business.combos.length,1,"Um combo inicial somente");
+assert(business.beverages.every(b=>b.stock===0));
+el("orderItem").value="combo:starter-potato-soda";
+window.POTE_DRINKS.mount();
+el("orderComboRecipe").value="r03";
+el("orderComboBeverage").value="preset-cola-lata";
+const comboQuote=vm.runInContext("optionQuote('combo:starter-potato-soda','direto')",sandbox);
+assert.equal(comboQuote.recipe.id,"r03");
+assert.equal(comboQuote.beverages[0].id,"preset-cola-lata");
+const expected=Math.round((vm.runInContext("sellPrice(recipe('r03'),'direto')",sandbox)+7)*.95*100)/100;
+assert.equal(comboQuote.price,expected,"O desconto de 5% deve ser exato, sem arredondamento comercial adicional");
+assert.equal(window.POTE_ORDER.calc(comboQuote,1).ok,false,"Sem refrigerante em estoque o combo é bloqueado");
+el("stockBeverageId").value="preset-cola-lata";
+el("stockBeverageQty").value="12";
+el("stockBeveragePaid").value="42,00";
+el("stockBeverageSupplier").value="Distribuidora teste";
+window.POTE_STOCK_EXT.saveBeveragePurchase();
+business=window.POTE_APP.snapshot().data;
+assert.equal(business.beverages.find(b=>b.id==="preset-cola-lata").stock,12);
+el("orderItem").value="combo:starter-potato-soda";
+window.POTE_DRINKS.mount();
+el("orderComboRecipe").value="r03";
+el("orderComboBeverage").value="preset-cola-lata";
+for(const [id,value] of Object.entries({
+ orderQty:"1",orderPrice:comboQuote.price.toFixed(2),orderDelivery:"8",
+ orderHasDelivery:"sim",orderAddress:"Rua Teste 20",orderPayment:"dinheiro",
+ orderCashReceived:"1000,00",orderChannel:"direto",orderExtraBev:"",orderExtraAddon:"",
+ orderClient:"",orderNote:"Combo com Bacon",orderWeight:"500"}))el(id).value=value;
+vm.runInContext("newOrder();",sandbox);
+let finalCombo=window.POTE_APP.snapshot().data.orders[0];
+assert(finalCombo,"O combo deve ser registrável após repor o refrigerante");
+assert.equal(finalCombo.recipeId,"r03");
+assert.equal(finalCombo.comboId,"starter-potato-soda");
+assert.equal(finalCombo.beverageItems[0].id,"preset-cola-lata");
+assert.equal(finalCombo.deliveryFee,8);
+assert.equal(finalCombo.deliveryType,"Tele-entrega");
+assert.equal(finalCombo.paymentMethod,"Dinheiro");
+assert.equal(finalCombo.paidAmount,1000);
+assert.equal(finalCombo.changeGiven,Number((1000-(finalCombo.price+8)).toFixed(2)));
+let kitchenCombo=vm.runInContext("receiptHTML(state.data.orders[0],'kitchen')",sandbox);
+let customerCombo=vm.runInContext("receiptHTML(state.data.orders[0],'customer')",sandbox);
+assert(kitchenCombo.includes("Taxa de tele-entrega"));
+assert(/R\$\s*8,00/.test(kitchenCombo),"Valor da tele-entrega precisa aparecer na comanda");
+assert(customerCombo.includes("Troco devolvido"));
+assert(customerCombo.includes("Valor recebido"));
+assert(customerCombo.includes("aprox. 500 g"));
+vm.runInContext("produce("+JSON.stringify(finalCombo.id)+");",sandbox);
+business=window.POTE_APP.snapshot().data;
+assert.equal(business.beverages.find(b=>b.id==="preset-cola-lata").stock,11);
+assert.equal(vm.runInContext("state.tab",sandbox),"orders");
+console.log("PASS: combo 5% com sabor/Bebida selecionáveis, compra de refri, troco e tele-entrega no recibo/comanda.");
+
+el("stockBeverageId").value="preset-cola-600";
+el("stockBeverageQty").value="4";
+el("stockBeveragePaid").value="24,00";
+window.POTE_STOCK_EXT.saveBeveragePurchase();
+vm.runInContext('state.tab="vitrine";render();',sandbox);
+el("vitrineComboRecipe-starter-potato-soda").value="r21";
+el("vitrineComboDrink-starter-potato-soda").value="preset-cola-600";
+vm.runInContext("addToCart('combo','starter-potato-soda');",sandbox);
+const comboCart=vm.runInContext("cart",sandbox);
+assert.equal(comboCart.length,1);
+assert.equal(comboCart[0].recipeId,"r21","Cardápio deve respeitar sabor Cachorro-Quente escolhido");
+assert.equal(comboCart[0].bevId,"preset-cola-600","Cardápio deve respeitar refrigerante Cola 600ml escolhido");
+for(const [id,val] of Object.entries({vitrineName:"Cliente vitrine",vitrinePhone:"48999998888",
+ vitrineAddr:"Rua Vitrine 42",vitrinePay:"Dinheiro",vitrineCashReceived:"300",
+ vitrineHasDelivery:"sim",vitrineDeliv:"8",vitrineObs:"Sem gelo"}))el(id).value=val;
+vm.runInContext("checkoutVitrine(false);",sandbox);
+const fromCart=window.POTE_APP.snapshot().data.orders.find(o=>o.clientName==="Cliente vitrine");
+assert(fromCart,"Combo com variações precisa registrar pela vitrine");
+assert.equal(fromCart.recipeId,"r21");
+assert.equal(fromCart.beverageItems[0].id,"preset-cola-600");
+assert.equal(fromCart.deliveryType,"Tele-entrega");
+assert.equal(fromCart.deliveryFee,8);
+assert.equal(fromCart.paymentMethod,"Dinheiro");
+assert.equal(fromCart.paidAmount,300);
+assert.equal(fromCart.changeGiven,Number((300-(fromCart.price+8)).toFixed(2)));
+assert.equal(vm.runInContext("state.tab",sandbox),"orders","Vitrine não deve retornar à Home");
+console.log("PASS: Cardápio Digital preserva sabor, refrigerante 600 ml, dinheiro, troco e tele-entrega.");

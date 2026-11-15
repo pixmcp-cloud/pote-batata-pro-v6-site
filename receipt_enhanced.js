@@ -68,8 +68,12 @@ function render(order,type,data){
    line("Canal",order.channel==="marketplace"?"Marketplace":"Venda direta / balcão")+'</div>'+
   '<div class="pote-receipt-block"><h3>Cliente e entrega</h3>'+
    line("Cliente",client)+(order.clientPhone?line("WhatsApp",order.clientPhone):"")+
-   line("Entrega / retirada",order.clientAddress||"Retirada no balcão")+
-   (!kitchen?line("Pagamento",payment):"")+'</div>'+
+   line("Modalidade",order.deliveryType||((Number(order.deliveryFee)||0)>0?"Tele-entrega":"Retirada"))+
+   line("Endereço / referência",order.clientAddress||"Retirada no balcão")+
+   (kitchen?line("Taxa de tele-entrega",money(delivery)):"")+
+   (!kitchen?line("Pagamento",payment)+
+   (order.paidAmount!=null?line("Valor recebido",money(order.paidAmount)):"")+
+   (order.changeGiven!=null?line("Troco devolvido",money(order.changeGiven)):""):"")+'</div>'+
   '<div class="pote-receipt-block"><h3>Produto</h3>'+
    '<div class="pote-receipt-product"><strong>'+esc(order.name||"Produto")+'</strong>'+
     '<span>'+qty(count)+' unidade(s) × '+money(order.price)+' (incl. adicionais)</span></div>'+
@@ -96,7 +100,7 @@ function render(order,type,data){
    '<div class="pote-receipt-block"><h3>Valores</h3>'+
     line("Produtos",money(sub))+
     (Number(order.discountApplied||0)>0?line("Desconto do combo",money(Number(order.discountApplied)*count)+" já incluído no preço"):"")+
-    line("Entrega",delivery>0?money(delivery):"Sem cobrança")+
+    line("Taxa de tele-entrega",delivery>0?money(delivery):"Sem cobrança")+
     line("TOTAL",money(total),"total")+'</div>')+
   '<div class="pote-receipt-block"><h3>Observações '+(kitchen?"para a cozinha":"do pedido")+'</h3>'+
    '<p>'+esc(order.note||"Nenhuma observação registrada")+'</p></div>'+

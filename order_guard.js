@@ -159,7 +159,8 @@ function checkCart(items,{requireMain=false}={}){
   if(!Number.isInteger(qty)||qty<1||qty>1000){
    issues.push({name:"Quantidade inválida em "+(m.name||"produto"),missing:1});continue;
   }
-  const quote=typeof optionQuote==="function"?optionQuote(m.kind+":"+m.id,"direto"):null;
+  const quote=window.POTE_DRINKS?.quoteForCart?.(m,"direto")||
+    (typeof optionQuote==="function"?optionQuote(m.kind+":"+m.id,"direto"):null);
   if(!quote?.recipe||quote.recipe.unavailable||!Array.isArray(quote.recipe.items)||!quote.recipe.items.length){
    issues.push({name:"Produto indisponível ou sem ficha: "+(m.name||"produto"),missing:1});continue;
   }

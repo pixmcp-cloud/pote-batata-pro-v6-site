@@ -9,7 +9,7 @@ const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"B
 const n=v=>Number(v)||0;
 let key="",excluded=new Set(),extraCounts=new Map(),lastAdded=false;
 function quoteKey(){
- return String($("orderItem")?.value||"");
+ return String($("orderItem")?.value||"")+":"+String($("orderComboRecipe")?.value||"");
 }
 function baseQuote(){
  return typeof optionQuote==="function"?optionQuote(quoteKey(),$("orderChannel")?.value||"direto",

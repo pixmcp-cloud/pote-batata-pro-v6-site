@@ -50,6 +50,11 @@ jobs:
           cp receipt_enhanced.css public/receipt_enhanced.css
           cp pricing_explainer.js public/pricing_explainer.js
           cp pricing_explainer.css public/pricing_explainer.css
+          cp beverage_catalog.js public/beverage_catalog.js
+          cp payment_flow.js public/payment_flow.js
+          cp stock_inventory.js public/stock_inventory.js
+          cp stock_ext.js public/stock_ext.js
+          cp commerce_update.css public/commerce_update.css
           cp business_setup.css public/business_setup.css
           cp franchise_sync.js public/franchise_sync.js
           cp franchise_catalog.mjs public/franchise_catalog.mjs
@@ -91,6 +96,11 @@ jobs:
           node test_custom_receipts.js
           node --check public/pricing_explainer.js
           node test_pricing_explainer.js
+          node --check public/beverage_catalog.js
+          node --check public/payment_flow.js
+          node --check public/stock_inventory.js
+          node --check public/stock_ext.js
+          node test_commerce_v2.js
           node test_app_routes.js
           test -f public/assets/generic/business-hotdog.svg
           node --check public/franchise_catalog.mjs

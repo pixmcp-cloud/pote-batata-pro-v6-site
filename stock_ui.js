@@ -23,7 +23,11 @@ function costUnit(item){
  return S.money(paid)+" / "+integerFmt(q,3)+" "+u+" (embalagem, não estoque)";
 }
 function renderPanel(state,data){
- const visible=available(),count=visible.length,low=visible.filter(i=>S.number(i.minimum)>0&&
+ const visible=available();
+ const ingredients=visible.filter(i=>i.category!=="Embalagem");
+ const packs=visible.filter(i=>i.category==="Embalagem");
+ const displayItems=[...ingredients,...packs];
+ const count=visible.length,low=visible.filter(i=>S.number(i.minimum)>0&&
    S.number(i.stock)<=S.number(i.minimum)).length;
  const localStockCount=visible.filter(i=>S.number(i.stock)>0).length;
  const last=(state.data.purchases||[]).filter(p=>visible.some(i=>i.id===p.ingredientId))
@@ -44,6 +48,8 @@ function renderPanel(state,data){
  <p>Estas receitas têm insumos disponíveis para menos de cinco unidades. O sistema bloqueia pedidos sem saldo e considera quantidades reservadas para pedidos pendentes.</p>
  <div>${shortages.map(r=>`<span>${e(r.name)}: ${r.maxUnits} un · ${e(r.ingredients.join(", "))}</span>`).join("")}</div>
  </section>`:""}
+ ${window.POTE_STOCK_EXT?.duplicatePanel?.()||""}
+ ${window.POTE_STOCK_EXT?.renderBeverages?.()||""}
  <section class="stock-box" id="stockPurchaseBox">
   <div class="stock-section-head"><div><small>ENTRADA DE MERCADORIAS</small><h2>+ Registrar nova compra</h2></div><span>Adiciona ao estoque, não substitui</span></div>
   ${visible.length?`<div class="stock-purchase-fields">
@@ -67,13 +73,15 @@ function renderPanel(state,data){
      <input id="stockSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Lupa: nome, categoria ou código..." oninput="POTE_STOCK_UI.filter(this.value)">
     </span></label>
    <button type="button" class="btn line mini stock-search-clear" onclick="POTE_STOCK_UI.clearSearch()">Limpar busca</button>
-   <small id="stockSearchCount" aria-live="polite">${visible.length} itens encontrados</small>
+   <small id="stockSearchCount" aria-live="polite">${visible.length+(state.data.beverages||[]).length} itens encontrados</small>
   </div>
   <p id="stockSearchEmpty" class="stock-search-empty" hidden>Nenhum item encontrado. Experimente outra palavra.</p>
-  <div class="stock-card-list">${visible.map(i=>{
+  <div class="stock-card-list">${displayItems.map((i,idx)=>{
    const stock=Number(i.stock)||0,threshold=Number(i.minimum)||0;
    const isLow=threshold>0&&stock<=threshold;
-   return `<article class="stock-card" data-stock-name="${e([i.name,i.category||'',i.id].join(' ').toLocaleLowerCase('pt-BR'))}">
+   return `${idx===0&&ingredients.length?'<div class="stock-group-title"><strong>Ingredientes e perecíveis</strong><small>Alimentos e insumos utilizados na produção</small></div>':""}
+    ${idx===ingredients.length&&packs.length?'<div class="stock-group-title stock-group-packaging"><strong>Embalagens e descartáveis</strong><small>Potes, caixas de pizza, sacos plásticos, tampas e talheres · separados dos alimentos</small></div>':""}
+    <article class="stock-card ${i.category==="Embalagem"?"stock-packaging-card":""}" data-stock-name="${e([i.name,i.category||'',i.id].join(' ').toLocaleLowerCase('pt-BR'))}">
     <div class="stock-card-primary">
      <div class="stock-card-name"><strong>${e(i.name)}</strong><small>${e(i.category||"Insumo")}</small></div>
      <div class="stock-card-balance"><small>ESTOQUE ATUAL</small><strong${isLow?' class="stock-critical"':''}>${e(S.formatStock(i))}</strong><small>${isLow?"Abaixo do estoque mínimo":stock<=0?"Sem saldo disponível":"Quantidade física disponível"}</small></div>
@@ -207,7 +215,7 @@ function normalized(text){
  return String(text||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").trim();
 }
 function filter(q){
- const term=normalized(q),cards=[...document.querySelectorAll(".stock-card")];
+ const term=normalized(q),cards=[...document.querySelectorAll(".stock-card,.stock-beverage-card")];
  let found=0;
  for(const el of cards){
   const match=!term||normalized(el.dataset.stockName).includes(term);
