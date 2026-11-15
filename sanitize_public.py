@@ -22,6 +22,7 @@ old="function render(){document.body.classList.toggle('admin-mode',master());"
 if old not in s: raise SystemExit('Renderização principal não encontrada')
 s=s.replace(old,"function render(){state.mode='free';document.body.classList.toggle('admin-mode',false);",1)
 s=s.replace('LABORATÓRIO V6 • OPERAÇÃO COMPLETA + VITRINE','V6 • DEMONSTRAÇÃO FREE')
+s=s.replace('</head>', '<meta name="robots" content="noindex,nofollow,noarchive"></head>', 1)
 s=s.replace('🧪 Todos os perfis são simulações. Os dados ficam somente neste aparelho.','🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.')
 s=s.replace("'\n'","'\\n'")
 s=s.replace("obs?'\n*Obs:* '+obs:''","obs?'\\n*Obs:* '+obs:''")
