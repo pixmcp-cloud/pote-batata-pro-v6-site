@@ -12,6 +12,7 @@ jobs:
           mkdir -p public
           curl --retry 3 --retry-delay 2 -fL "https://d2ol7oe51mr4n9.cloudfront.net/user_38IdAoySLpr0wvVak2GIe3bSQA5/eafa8b81-bf3c-4c92-a14f-a00a473610f9.html" -o public/index.html
           python3 sanitize_public.py public/index.html
+          python3 add_contacts.py public/index.html
           python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S); assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
           rm -f app-check.js
