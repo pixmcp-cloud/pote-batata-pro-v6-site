@@ -6,7 +6,8 @@ const S=window.POTE_STOCK;
 const $=id=>document.getElementById(id);
 const e=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const idFor=x=>String(x?.id??"");
-const available=()=>state.data.ingredients.filter(i=>!(window.POTE_AUTH?.franchiseActive&&i.templateOrigin==="batataria"));
+const available=()=>state.data.ingredients.filter(i=>!(window.POTE_AUTH?.franchiseActive&&i.templateOrigin==="batataria"))
+ .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"pt-BR",{sensitivity:"base",numeric:true}));
 const integerFmt=(v,d=2)=>Number(v??0).toLocaleString("pt-BR",{maximumFractionDigits:d});
 const sourceLabel=item=>{
  const src=String(item.source||"").toLowerCase();
@@ -27,6 +28,7 @@ function renderPanel(state,data){
  const localStockCount=visible.filter(i=>S.number(i.stock)>0).length;
  const last=(state.data.purchases||[]).filter(p=>visible.some(i=>i.id===p.ingredientId))
   .slice(0,12);
+ const shortages=window.POTE_ORDER?.scanLowRecipes?.(7)||[];
  return `<div class="stock-head">
   <div class="stock-kicker">INVENTÁRIO ATUAL · VALORES REAIS DA SUA CONTA</div>
   <h2>Estoque e compras</h2>
@@ -37,6 +39,11 @@ function renderPanel(state,data){
    <div><small>Abaixo do mínimo</small><strong>${low}</strong></div>
   </div>
  </div>
+ ${shortages.length?`<section class="stock-shortage-alert" role="status">
+ <strong>⚠ Estoque crítico para produção</strong>
+ <p>Estas receitas têm insumos disponíveis para menos de cinco unidades. O sistema bloqueia pedidos sem saldo e considera quantidades reservadas para pedidos pendentes.</p>
+ <div>${shortages.map(r=>`<span>${e(r.name)}: ${r.maxUnits} un · ${e(r.ingredients.join(", "))}</span>`).join("")}</div>
+ </section>`:""}
  <section class="stock-box" id="stockPurchaseBox">
   <div class="stock-section-head"><div><small>ENTRADA DE MERCADORIAS</small><h2>+ Registrar nova compra</h2></div><span>Adiciona ao estoque, não substitui</span></div>
   ${visible.length?`<div class="stock-purchase-fields">

@@ -41,6 +41,9 @@ jobs:
           cp stock_math.js public/stock_math.js
           cp stock_ui.js public/stock_ui.js
           cp stock_ui.css public/stock_ui.css
+          cp order_guard.js public/order_guard.js
+          cp exit_guard.js public/exit_guard.js
+          cp order_ui.css public/order_ui.css
           cp business_setup.css public/business_setup.css
           cp franchise_sync.js public/franchise_sync.js
           cp franchise_catalog.mjs public/franchise_catalog.mjs
@@ -74,6 +77,10 @@ jobs:
           node --check public/stock_math.js
           node --check public/stock_ui.js
           node test_stock_manager.js
+          node --check public/order_guard.js
+          node --check public/exit_guard.js
+          node test_order_guards.js
+          node test_app_routes.js
           test -f public/assets/generic/business-hotdog.svg
           node --check public/franchise_catalog.mjs
           node --input-type=module --check < public/franchise_sync.js

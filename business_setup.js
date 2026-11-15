@@ -210,6 +210,10 @@ function select(type){
  const counts={batataria:26,pizzaria:30,hamburgueria:30,hotdog:20,lancheria:0};
  const summary=" Este universo tem "+counts[type]+" receitas-modelo. Os demais universos ficarão guardados separadamente, com seus próprios dados.";
  if(!confirm("Selecionar "+choice.label+"?"+summary+" Os dados e custos serão próprios da sua conta."))return;
+ if(previous!==type&&typeof cart!=="undefined"&&cart.length){
+   if(!confirm("A sacola atual tem produtos do ramo anterior. Trocar de universo vai limpar somente os itens não registrados da sacola, sem alterar pedidos já salvos. Continuar?"))return;
+   cart=[];
+ }
  const data=state.data;
  if(!window.POTE_UNIVERSES){alert("Catálogos indisponíveis. Atualize a página e tente novamente.");return}
  const imported=window.POTE_UNIVERSES.switchTo(state,type,SEED);

@@ -1,0 +1,179 @@
+const fs=require("node:fs"),vm=require("node:vm"),assert=require("node:assert/strict");
+const html=fs.readFileSync("public/index.html","utf8");
+const backup=html.match(/<script id="backup" type="application\/json">([\s\S]*?)<\/script>/);
+assert(backup,"Modelo de dados embutido ausente");
+const SEED=JSON.parse(backup[1]),elements=new Map(),errors=[];
+function el(id){
+ if(!elements.has(id)){
+  const o={id,textContent:"",innerHTML:"",value:"",hidden:false,disabled:false,
+   src:"",dataset:{},style:{},className:"",classList:{
+    add(){},remove(){},toggle(){},contains(){return false}},
+   focus(){},addEventListener(){},removeEventListener(){},scrollIntoView(){},click(){},
+   setAttribute(){},getAttribute(){return null},querySelectorAll(){return []},querySelector(){return null},
+   insertBefore(){},appendChild(){},remove(){},select(){},parentElement:null,
+   firstChild:{nodeType:3,textContent:""},
+   getBoundingClientRect(){return {width:300,height:200}}};
+  elements.set(id,o);
+ }
+ return elements.get(id);
+}
+el("backup").textContent=JSON.stringify(SEED);
+const doc={
+ body:{classList:{add(){},remove(){},toggle(){}},appendChild(){},style:{},querySelector(){return null}},
+ documentElement:{classList:{toggle(){},add(){},remove(){}}},
+ getElementById:el,createElement:()=>el("generated_"+elements.size),
+ querySelector:()=>null,querySelectorAll:()=>[],addEventListener(){},
+ createTreeWalker(){return {nextNode(){return false}}}
+};
+const window={POTE_AUTH:{uid:"test-admin",email:"admin@example.com",role:"admin",proActive:true,
+ franchiseActive:false},POTE_RECIPE_IMAGES:{},POTE_RECIPE_LABELS:{},
+ POTE_APP_READY:false,addEventListener(){},dispatchEvent(){},open(){},
+ confirm(){return true},scrollTo(){},NodeFilter:{SHOW_TEXT:4},Node:{TEXT_NODE:3}};
+const sandbox={window,document:doc,location:{href:"http://localhost/test"},history:{pushState(){}},
+ navigator:{},localStorage:{getItem(){return null},setItem(){},removeItem(){}},
+ console,setTimeout(){return 1},clearTimeout(){},setInterval(){return 1},
+ clearInterval(){},requestAnimationFrame(fn){fn()},scrollTo(){},
+ alert(){},confirm(){return true},prompt(){return null},Date,Intl,Math,Number,JSON,String,
+ Array,Object,Map,Set,URL,Blob,Event:class{constructor(type){this.type=type}},Node:{TEXT_NODE:3},
+ NodeFilter:{SHOW_TEXT:4}};
+vm.createContext(sandbox);
+const inline=[...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g)]
+ .filter(x=>!x[1].includes("application/json"));
+assert(inline.length>=1);
+for(let i=0;i<inline.length;i++){
+ try{vm.runInContext(inline[i][2],sandbox,{filename:"app-inline-"+i+".js",timeout:5000})}
+ catch(e){errors.push({page:"boot",error:String(e.stack||e)});}
+}
+assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
+for(const module of ["universe_templates.js","universe_core.js","business_setup.js",
+ "stock_math.js","stock_ui.js","order_guard.js"]){
+ try{vm.runInContext(fs.readFileSync(module,"utf8"),sandbox,{filename:module,timeout:5000})}
+ catch(e){errors.push({page:module,error:String(e.stack||e)})}
+}
+assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
+const tabs=["home","vitrine","recipes","builder","pricing","ingredients","expenses",
+ "suppliers","clients","orders","combos","reports","creative","brand","settings","tests","admin"];
+const pages={};
+for(const tab of tabs){
+ try{
+  sandbox.window.POTE_APP.applyState(sandbox.window.POTE_APP.snapshot());
+  vm.runInContext("state.tab="+JSON.stringify(tab)+"; render();",sandbox,{timeout:5000});
+  pages[tab]=el("page").innerHTML;
+  assert.equal(typeof pages[tab],"string");
+  assert(pages[tab].length>0,"Página vazia");
+ }catch(e){errors.push({page:tab,error:String(e.stack||e).slice(0,1400)})}
+}
+assert(errors.length===0,"Falha ao abrir área(s): "+JSON.stringify(errors));
+assert(pages.ingredients.includes("Registrar nova compra"),"Estoque deve apresentar compra real");
+assert(pages.ingredients.includes("Estoque existente"),"Estoque deve mostrar saldos");
+assert(pages.orders.includes("poteOrderAvailability"),"Pedidos devem exibir capacidade durante digitação");
+assert(pages.orders.includes("ordersHistoryTitle"),"Pedidos devem conter lista de finalizados");
+assert(pages.home.includes("Central de Operações"));
+assert(pages.vitrine.includes("Cardápio"));
+assert(pages.reports.includes("Relatórios")||pages.reports.includes("Matriz BCG"));
+console.log("PASS: "+tabs.length+" áreas renderizadas sem erro de JavaScript:",tabs.join(", "));
+
+const testState=window.POTE_APP.snapshot();
+testState.data.recipes=[{id:"route-r1",name:"Lanche teste",category:"Salgado",
+ items:[{id:"route-potato",g:500}],steps:["Preparar"],pricingMode:"gain",targetGainPct:100}];
+testState.data.ingredients=[{id:"route-potato",name:"Batata física",category:"Base",
+ purchaseQuantity:1,purchaseUnit:"kg",purchasePrice:5,yield:100,stock:3000,minimum:0,measureUnit:"g"}];
+testState.data.orders=[];testState.data.beverages=[];testState.data.addons=[];testState.data.combos=[];
+testState.data.clients=[];testState.data.expenses=[];testState.data.stockMovements=[];
+testState.data.settings.usePackagingStock=false;
+window.POTE_APP.applyState(testState);
+function setOrder(q){
+ el("orderItem").value="recipe:route-r1";
+ el("orderChannel").value="direto";el("orderQty").value=String(q);
+ el("orderPrice").value="50";el("orderDelivery").value="0";
+ el("orderExtraBev").value="";el("orderExtraAddon").value="";
+ el("orderClient").value="";el("orderAddress").value="";
+ el("orderNote").value="Teste de fluxo integrado";
+ vm.runInContext('state.tab="orders";render();',sandbox);
+}
+function current(){return window.POTE_APP.snapshot()}
+setOrder(2);
+vm.runInContext("newOrder();",sandbox);
+let fresh=current();
+assert.equal(fresh.data.orders.length,1,"Pedido válido deve ser criado");
+assert.equal(fresh.data.orders[0].status,"recebido");
+assert.equal(fresh.tab,undefined,"Snapshot não deve conter página atual");
+assert.equal(fresh.data.ingredients[0].stock,3000,"Registrar pedido reserva, mas não baixa antes da produção");
+assert.equal(vm.runInContext("state.tab",sandbox),"orders","Registro não pode sair da página Pedidos");
+let orderId=fresh.data.orders[0].id;
+vm.runInContext("produce("+JSON.stringify(orderId)+");",sandbox);
+fresh=current();
+assert.equal(fresh.data.orders[0].status,"em_producao");
+assert.equal(fresh.data.ingredients[0].stock,2000);
+assert.equal(vm.runInContext("state.tab",sandbox),"orders");
+vm.runInContext("finishOrder("+JSON.stringify(orderId)+");",sandbox);
+fresh=current();
+assert.equal(fresh.data.orders[0].status,"entregue");
+assert.equal(vm.runInContext("state.tab",sandbox),"orders","Finalizar deve permanecer em Pedidos");
+vm.runInContext("finishOrder("+JSON.stringify(orderId)+");",sandbox);
+assert.equal(current().data.ingredients[0].stock,2000,"Concluir duas vezes não pode duplicar baixa");
+setOrder(5);
+vm.runInContext("newOrder();",sandbox);
+assert.equal(current().data.orders.length,1,"Pedido acima do saldo deve ser bloqueado antes de ser salvo");
+setOrder(1);
+vm.runInContext("newOrder();",sandbox);
+assert.equal(current().data.orders.length,2);
+setOrder(4);
+vm.runInContext("newOrder();",sandbox);
+assert.equal(current().data.orders.length,2,"Pedido pendente reserva estoque e bloqueia outro pedido excessivo");
+console.log("PASS: fluxo real de pedidos — registrar, reservar, produzir, concluir, bloquear excesso e permanecer na sessão Pedidos.");
+
+const vitState=structuredClone(testState);
+vitState.data.orders=[];
+vitState.data.settings.usePackagingStock=true;
+vitState.data.ingredients.push(
+ {id:"vit-cheese",name:"Queijo extra",category:"Laticínio",purchaseQuantity:1,
+  purchaseUnit:"kg",purchasePrice:30,measureUnit:"g",yield:100,stock:1000},
+ {id:"vit-box",name:"Embalagem",category:"Embalagem",purchaseQuantity:1,
+  purchaseUnit:"un",purchasePrice:1,measureUnit:"un",yield:100,stock:10}
+);
+vitState.data.beverages=[{id:"vit-soda",name:"Refrigerante",sellPrice:5,
+ purchaseQuantity:10,purchasePrice:40,stock:10}];
+vitState.data.addons=[{id:"vit-addon",name:"Queijo extra",ingredientId:"vit-cheese",
+ quantity:40,sellPrice:3}];
+window.POTE_APP.applyState(vitState);
+vm.runInContext('state.tab="vitrine";render();',sandbox);
+vm.runInContext("addToCart('recipe','route-r1');",sandbox);
+vm.runInContext("addToCart('recipe','route-r1');",sandbox);
+vm.runInContext("addToCart('addon','vit-addon');",sandbox);
+vm.runInContext("addToCart('bev','vit-soda');",sandbox);
+assert.equal(vm.runInContext("cart.length",sandbox),3,"Sacola deve conter lanche, adicional e bebida");
+assert.equal(vm.runInContext("cart.find(x=>x.kind==='recipe').qty",sandbox),2);
+for(const id of ["vitrineName","vitrinePhone","vitrineAddr","vitrinePay","vitrineObs","vitrineDeliv"])
+ el(id).value="";
+el("vitrineDeliv").value="0";
+vm.runInContext("checkoutVitrine(false);",sandbox);
+let vit=current();
+assert.equal(vit.data.orders.length,1,"Cardápio deve registrar pedido após validação de estoque");
+assert.equal(vm.runInContext("state.tab",sandbox),"orders","O Cardápio deve mostrar Pedidos após registrar");
+assert.equal(vm.runInContext("cart.length",sandbox),0,"Sacola deve ser limpa somente após registro confirmado");
+let vitOrder=vit.data.orders[0];
+assert.equal(vitOrder.qty,2);
+assert.equal(vitOrder.items.find(x=>x.id==="vit-cheese").g,20,
+ "Adicional de 40g total para duas unidades deve ser rateado, sem dobrar o estoque");
+assert.equal(vitOrder.items.find(x=>x.id==="vit-box").g,1,
+ "Embalagem deve ser incluída na venda pela vitrine");
+assert.equal(vitOrder.beverageItems.find(x=>x.id==="vit-soda").qty,0.5,
+ "Bebida adicional única deve ser rateada por unidade");
+vm.runInContext("produce("+JSON.stringify(vitOrder.id)+");",sandbox);
+vit=current();
+assert.equal(vit.data.ingredients.find(x=>x.id==="vit-cheese").stock,960,
+ "Produção deve descontar 40g de queijo, não 80g");
+assert.equal(vit.data.ingredients.find(x=>x.id==="vit-box").stock,8,
+ "Produção deve descontar 2 embalagens");
+assert.equal(vit.data.beverages[0].stock,9,
+ "Produção deve descontar 1 bebida extra, não 2");
+assert.equal(vm.runInContext("state.tab",sandbox),"orders");
+vm.runInContext('state.tab="vitrine";render();',sandbox);
+vitState.data.ingredients[0].stock=0;
+window.POTE_APP.applyState(vitState);
+vm.runInContext('state.tab="vitrine";render();',sandbox);
+vm.runInContext("addToCart('recipe','route-r1');",sandbox);
+assert.equal(vm.runInContext("cart.length",sandbox),0,
+ "Vitrine deve impedir adicionar produto sem estoque, antes de oferecer registrar pedido");
+console.log("PASS: sacola validada antes da compra, itens extras rateados, embalagens e bebidas descontadas corretamente, sem contornar o bloqueio.");

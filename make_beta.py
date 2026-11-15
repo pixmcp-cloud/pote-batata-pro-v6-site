@@ -72,7 +72,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" href="./assets/generic/business-neutral.svg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=bottom-white-no-outline-20261115"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-franchise-20261115"><link rel="stylesheet" href="./gallery.css?v=galeria-42h"><link rel="stylesheet" href="./business_setup.css?v=business-universes-20261115"><link rel="stylesheet" href="./stock_ui.css?v=stock-clear-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
+once("</head>", head + '<link rel="icon" href="./assets/generic/business-neutral.svg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=bottom-white-no-outline-20261115"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-franchise-20261115"><link rel="stylesheet" href="./gallery.css?v=galeria-42h"><link rel="stylesheet" href="./business_setup.css?v=business-universes-20261115"><link rel="stylesheet" href="./stock_ui.css?v=stock-clear-20261115"><link rel="stylesheet" href="./order_ui.css?v=orders-v2-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
@@ -200,13 +200,19 @@ render=function(...args){
  const result=poteOriginalRender(...args);
  window.POTE_BUSINESS?.refresh?.();
  if(state.tab==='ingredients')window.POTE_STOCK_UI?.selectIngredient?.();
+ if(state.tab==='orders')window.POTE_ORDER?.refresh?.();
  if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'));
+ return result;
+};
+const poteOriginalGo=go;
+go=function(tab){const result=poteOriginalGo(tab);
+ if(tab==='orders')window.POTE_ORDER?.alertOnEnter?.();
  return result;
 };
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-franchise-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=franchise-20261115\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-franchise-20261115\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./universe_templates.js?v=universes-20261115\"></script><script src=\"./universe_core.js?v=universes-20261115\"></script><script src=\"./business_setup.js?v=business-universes-20261115\"></script><script src=\"./stock_math.js?v=stock-clear-20261115\"></script><script src=\"./stock_ui.js?v=stock-clear-20261115\"></script><script type=\"module\" src=\"./franchise_sync.js?v=franchise-sync-20261115\"></script></body></html>")
+     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-franchise-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=franchise-20261115\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-franchise-20261115\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./universe_templates.js?v=universes-20261115\"></script><script src=\"./universe_core.js?v=universes-20261115\"></script><script src=\"./business_setup.js?v=business-universes-20261115\"></script><script src=\"./stock_math.js?v=stock-clear-20261115\"></script><script src=\"./stock_ui.js?v=stock-clear-20261115\"></script><script src=\"./order_guard.js?v=orders-v2-20261115\"></script><script src=\"./exit_guard.js?v=exit-v2-20261115\"></script><script type=\"module\" src=\"./franchise_sync.js?v=franchise-sync-20261115\"></script></body></html>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")

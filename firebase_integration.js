@@ -253,6 +253,7 @@ loginBtn.addEventListener("click", async () => {
   }
 });
 exitBtn.addEventListener("click", async () => {
+  if(!window.POTE_EXIT?.confirmLogout?.())return;
   clearTimeout(timer);
   await sync();
   ready = false;

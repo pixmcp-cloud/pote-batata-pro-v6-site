@@ -84,3 +84,17 @@ Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não est
 - O distintivo de usuário autenticado foi corrigido para **FRANQUIA • OFICIAL**, **PRO • LICENÇA ATIVA**, **FREE • PLANO GRATUITO** ou **ADM • ACESSO MESTRE**, conforme permissões reais; remover rótulos de acesso simulado das contas reais.
 - **Pendente de validação operacional:** testar o cadastro de compra com conta Google real e a sincronização entre dois aparelhos. Edicões concorrentes do mesmo estoque em dois dispositivos ainda exigem estratégia de transação para evitar sobrescrita.
 - **Floot:** aplicar o mesmo novo fluxo posteriormente, preservando o banco existente.
+
+## Fluxo de pedidos, estoque crítico e navegação protegida — 15/11/2026
+
+- **Pedidos e produção:** conferência de saldo **no cadastro**, levando em conta ingredientes do sabor, adicionais, embalagens, bebidas e saldos já comprometidos pelos pedidos recebidos ainda não produzidos. O mesmo estoque não pode ficar disponível para dois pedidos pendentes na mesma cópia sincronizada do estado. Produzir verifica novamente antes da baixa.
+- **Pedidos recusados por estoque:** modal explícito com itens em falta e botão **Ver estoque**; o botão **Registrar pedido** é desativado conforme o usuário digita a quantidade ou seleciona outro sabor/combo/adicional.
+- **Avisos de estoque crítico:** quando restam ingredientes para menos de **cinco unidades** do sabor escolhido, aparecem aviso no fluxo de venda, alerta em modal no momento da operação e resumo dos sabores críticos na tela Estoque.
+- **Pós-venda:** registrar, produzir, finalizar e cancelar permanecem na seção **Pedidos** e destacam o pedido; não retornam à Home. A listagem inclui pedidos recebidos, em produção e finalizados.
+- **Cardápio Digital:** venda via sacola também valida **toda a compra, agregada** antes de registrar/abrir WhatsApp. Aumentar quantidade ou adicionar item sem estoque não altera a sacola. Bebidas e adicionais extras são rateados corretamente por quantidade da receita no pedido; embalagem é contabilizada; só é possível fechar sacola com pelo menos um produto principal.
+- **Saída:** botão Sair exige confirmação; Voltar em sessão Google tenta interceptar e exibir diálogo; beforeunload pede aviso nativo ao navegador. **Limitação:** Android e navegadores podem impedir o aviso quando o sistema encerra a aba/app.
+- **Organização:** ingredientes, estoques e bebidas mostrados alfabeticamente por nome (ordenação visual pt-BR; sem mudar IDs ou registros).
+- **Troca de ramo:** impede levar produtos de uma sacola não finalizada para outro universo; pede confirmação antes de limpá-la.
+- **Auditoria automatizada:** 17 telas renderizadas, fluxo real integrado do caixa (registrar, reservar, produzir, concluir e bloquear excedente), sacola com adicional/bebida/embalagem, mais regressões de galeria, gráficos, licenças, franquias, universos, estoque e fornecedores.
+- **Risco ainda aberto:** o aplicativo grava um documento completo de estado por usuário no Firestore. Dois aparelhos alterando o mesmo estoque quase simultaneamente ainda podem gerar conflitos; para garantir reserva atômica multiequipamento, implementar operação transacional no backend e testes com contas Google reais. Não declarar proteção absoluta sem essa etapa.
+- **Floot:** mudanças do GitHub ainda devem ser replicadas na versão nativa.
