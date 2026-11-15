@@ -125,7 +125,7 @@ for(const term of ["checkBeforeRegister","checkBeforeProduce","ordersHistoryTitl
  assert(src.includes(term),"Integração do pedido ausente: "+term);
 }
 const html=read("public/index.html");
-for(const path of ["order_guard.js?v=orders-v2-20261115",
+for(const path of ["order_guard.js?v=stock-triage-20261115",
  "exit_guard.js?v=exit-v2-20261115","order_ui.css?v=orders-v2-20261115"]){
  assert(html.includes(path),"Falta incluir "+path+" no site final");
 }

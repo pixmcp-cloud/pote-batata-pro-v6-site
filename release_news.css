@@ -1,0 +1,24 @@
+#poteReleaseNews[hidden]{display:none!important}
+#poteReleaseNews{position:fixed;inset:0;z-index:15000;display:flex;align-items:center;
+ justify-content:center;padding:16px;background:#000d;backdrop-filter:blur(7px);overflow-y:auto}
+.pote-news-dialog{box-sizing:border-box;width:min(540px,100%);max-height:min(90dvh,780px);
+ overflow-y:auto;border-radius:22px;padding:clamp(18px,4vw,28px);
+ border:1px solid #e3c48fbd;background:linear-gradient(145deg,#263e54,#0d2032);
+ color:#f8e7cc;box-shadow:0 22px 60px #000c,inset 0 1px #ffffff38;
+ font-family:system-ui,Arial,sans-serif}
+.pote-news-dialog>small:first-child{display:block;font-size:10px;letter-spacing:.13em;
+ font-weight:850;color:#ecc28b}
+.pote-news-dialog h2{font-size:clamp(24px,4vw,30px);line-height:1.25;margin:10px 0;color:#ffebc9}
+.pote-news-dialog>p{color:#d2e1ec;font-size:13px;line-height:1.55}
+.pote-news-list{display:flex;flex-direction:column;gap:9px;margin:15px 0}
+.pote-news-list article{display:flex;flex-direction:column;gap:5px;
+ padding:11px 13px;border:1px solid #a2b5cc70;border-radius:11px;background:#13273ac4}
+.pote-news-list strong{font-size:13px;color:#ffdda7}
+.pote-news-list span{font-size:12px;line-height:1.6;color:#d8e2eb}
+.pote-news-checkbox{display:flex;align-items:center;gap:10px;border:1px solid #d5bc919b;
+ border-radius:11px;padding:12px;background:#243951;margin:17px 0 12px;cursor:pointer}
+.pote-news-checkbox input{width:21px;height:21px;accent-color:#d4ab6e;flex:0 0 21px}
+.pote-news-checkbox span{font-size:13px;font-weight:700}
+#poteNewsClose{width:100%;min-height:46px}
+.pote-news-dialog>small:last-child{display:block;font-size:10px;color:#b8cbd9;
+ line-height:1.5;margin-top:12px}

@@ -20,6 +20,13 @@ function duplicatePanel(){
     '" onclick="POTE_INVENTORY.merge(this.dataset.duplicateId)">Conferir e mesclar</button></div>').join("")+
   '</section>';
 }
+function beverageHealth(b){
+ const held=window.POTE_STOCK_STATUS?.reserved?.(state.data)?.beverages?.get(b.id)||0;
+ const context=window.POTE_STOCK_STATUS?.requested?.(b.id,"beverage");
+ return window.POTE_STOCK_STATUS?.classify?.(b,held,{shortage:context?.level==="missing"})||
+  {level:Number(b.stock)<=0?"missing":"good",label:Number(b.stock)<=0?"FALTANTE":"ESTOQUE BOM",
+   available:Number(b.stock)||0,reservation:0};
+}
 function renderBeverages(){
  const drinks=sorted(),history=(state.data.purchases||[])
   .filter(p=>p.itemKind==="beverage").slice(0,9);
@@ -27,13 +34,13 @@ function renderBeverages(){
   '<div class="stock-section-head"><div><small>UNIDADES FÍSICAS</small><h2>Águas e refrigerantes</h2></div><span>Separados dos ingredientes e descartáveis</span></div>'+
   '<p>O preço exibido é o de venda. O custo de compra começa zerado até registrar a mercadoria realmente recebida. Latas, garrafas e sabores têm saldos independentes.</p>'+
   (drinks.length?'<div class="stock-beverage-grid">'+drinks.map(b=>
-   '<article class="stock-beverage-card" data-stock-name="'+esc([b.name,b.size,b.id].join(" ").toLowerCase())+'">'+
+   '<article class="stock-beverage-card stock-status-'+beverageHealth(b).level+'" data-stock-name="'+esc([b.name,b.size,b.id].join(" ").toLowerCase())+'">'+
    '<div><strong>'+esc(b.name)+'</strong><small>'+esc(b.size||"Sem volume")+'</small></div>'+
-   '<div><small>Estoque</small><b class="'+(Number(b.stock)<=Number(b.minimum||0)?"stock-critical":"")+'">'+
-    Number(b.stock||0).toLocaleString("pt-BR")+" un</b></div>"+
+   '<div><small>Estoque físico</small><b class="stock-balance-'+beverageHealth(b).level+'">'+
+    Number(b.stock||0).toLocaleString("pt-BR")+" un</b><small>Disponível após reservas: "+beverageHealth(b).available+" un</small></div>"+
    '<div><small>Venda</small><strong>'+esc(money(b.sellPrice))+'</strong></div>'+
    '<div><small>Última compra</small><strong>'+esc(Number(b.purchasePrice)>0?money(b.purchasePrice)+" / "+(b.purchaseQuantity||1)+" un":"Sem custo informado")+'</strong></div>'+
-   '<button class="btn mini" type="button" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.selectBeverage(this.dataset.bevId)">+ Comprar</button>'+
+   '<span class="stock-health-badge '+beverageHealth(b).level+'">'+beverageHealth(b).label+'</span><button class="btn mini" type="button" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.selectBeverage(this.dataset.bevId)">+ Comprar</button>'+
    '<button class="btn mini line" type="button" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.adjustBeverage(this.dataset.bevId)">Ajustar saldo</button>'+
    '</article>').join("")+'</div>':'<p>Nenhuma bebida cadastrada. Você pode cadastrá-las em Combos e Bebidas.</p>')+
   (drinks.length?'<div class="stock-beverage-purchase">'+

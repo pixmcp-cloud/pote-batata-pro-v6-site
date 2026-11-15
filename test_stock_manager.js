@@ -92,7 +92,7 @@ assert(panel.includes("Batata oficial"),"Estoque oficial da franquia aparece");
 assert(!panel.includes("Batata modelo"),"Insumos de demonstração da batataria não devem invadir a franquia");
 const built=read("public/index.html");
 assert(built.includes('stock_math.js?v=stock-clear-20261115'));
-assert(built.includes('stock_ui.js?v=stock-clear-20261115'));
+assert(built.includes('stock_ui.js?v=stock-triage-20261115'));
 assert(built.includes('stock_ui.css?v=stock-clear-20261115'));
 assert(!built.includes("PRO • ACESSO SIMULADO"),"Não pode chamar assinatura real de simulada");
 assert(built.includes("FRANQUIA • OFICIAL"));

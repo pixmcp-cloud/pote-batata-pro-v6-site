@@ -68,11 +68,11 @@ function checkOrder(stock,quote,qty,{excludeOrderId=null}={}){
   const name=record?.name||"Insumo excluído ("+id+")";
   if(!record||available+1e-7<perUnit*requested){
    const shortage=Math.max(0,perUnit*requested-available);
-   errors.push({name,available,needed:perUnit*requested,missing:shortage,
+   errors.push({id,kind:type,name,available,needed:perUnit*requested,missing:shortage,
     reserved:held,unit:measure,kind:type});
   }
   if(capacity-requested<5){
-   low.push({name,available,unit:measure,capacity,
+   low.push({id,kind:type,name,available,unit:measure,capacity,
     after:Math.max(0,capacity-requested),reserved:held,kind:type});
   }
  };
@@ -101,23 +101,79 @@ function reportText(report){
    (x.reserved>0?" (há quantidade reservada para pedidos pendentes)":"");
  }).join("; ");
 }
+let lastStockReport=null;
+let savedOrderDraft=null;
+const DRAFT_IDS=["orderItem","orderChannel","orderQty","orderPrice","orderClient",
+ "orderAddress","orderNote","orderWeight","orderPayment","orderCashReceived",
+ "orderHasDelivery","orderDelivery","orderExtraBev","orderExtraAddon",
+ "orderComboRecipe","orderComboBeverage"];
+function captureOrderDraft(){
+ if(state?.tab!=="orders"||!$("orderItem"))return;
+ const values={};
+ for(const id of DRAFT_IDS)if($(id))values[id]=$(id).value;
+ savedOrderDraft={values,uid:String(window.POTE_AUTH?.uid||"")};
+}
+function restoreDraft(){
+ if(state?.tab!=="orders"||!savedOrderDraft||savedOrderDraft.uid!==String(window.POTE_AUTH?.uid||""))return false;
+ const values=savedOrderDraft.values;
+ for(const id of ["orderItem","orderChannel"]){if($(id)&&values[id]!=null)$(id).value=values[id]}
+ window.POTE_DRINKS?.mount?.();
+ for(const [id,v] of Object.entries(values))if($(id))$(id).value=v;
+ savedOrderDraft=null;
+ window.POTE_PAYMENT?.sync?.();
+ window.POTE_ORDER_CUSTOM?.mount?.();
+ return true;
+}
+function toRestockItems(report){
+ const errors=(report?.errors||[]).filter(x=>x.id);
+ const low=(report?.low||[]).filter(x=>x.id&&!errors.some(z=>z.id===x.id));
+ return [...errors.map(x=>({...x,level:"missing"})),
+  ...low.map(x=>({...x,level:"low"}))];
+}
+function restock(){
+ const items=toRestockItems(lastStockReport);
+ if(!items.length){go("ingredients");return}
+ captureOrderDraft();
+ window.POTE_RESTOCK_CONTEXT={items,from:state?.tab||"orders",
+  startedAt:new Date().toISOString()};
+ const modal=$("poteOrderAlerts");if(modal)modal.hidden=true;
+ go("ingredients");
+ const first=items[0];
+ if(first.kind==="beverage")window.POTE_STOCK_EXT?.selectBeverage?.(first.id);
+ else window.POTE_STOCK_UI?.openPurchase?.(first.id);
+}
+window.addEventListener?.("pote:user-logout",()=>{
+ savedOrderDraft=null;lastStockReport=null;window.POTE_RESTOCK_CONTEXT=null;
+});
 function ensureModal(){
  let modal=$("poteOrderAlerts");if(modal)return modal;
  modal=document.createElement("div");modal.id="poteOrderAlerts";modal.hidden=true;
  modal.innerHTML='<section class="pote-order-dialog" role="alertdialog" aria-modal="true" aria-labelledby="poteOrderAlertTitle">'+
  '<small>CONTROLE DE ESTOQUE</small><h2 id="poteOrderAlertTitle">Aviso</h2>'+
- '<p id="poteOrderAlertDescription"></p>'+
+ '<p id="poteOrderAlertDescription"></p><div id="poteOrderAlertItems" class="pote-order-alert-items"></div>'+
  '<div class="pote-order-alert-actions"><button type="button" class="btn line" id="poteOrderAlertClose">Entendi</button>'+
- '<button type="button" class="btn" id="poteOrderAlertStock">Ver estoque</button></div></section>';
+ '<button type="button" class="btn" id="poteOrderAlertStock">Ver estoque</button>'+
+ '<button type="button" class="btn" id="poteOrderAlertRestock">Repor estoque faltante</button></div></section>';
  document.body.appendChild(modal);
  $("poteOrderAlertClose").addEventListener("click",()=>{modal.hidden=true});
- $("poteOrderAlertStock").addEventListener("click",()=>{modal.hidden=true;go("ingredients")});
+ $("poteOrderAlertStock").addEventListener("click",()=>{captureOrderDraft();modal.hidden=true;go("ingredients")});
+ $("poteOrderAlertRestock").addEventListener("click",restock);
  return modal;
 }
-function showAlert(title,description){
+function showAlert(title,description,report=null){
  const modal=ensureModal();
  $("poteOrderAlertTitle").textContent=title;
  $("poteOrderAlertDescription").textContent=description;
+ lastStockReport=report;
+ const items=toRestockItems(report);
+ const list=$("poteOrderAlertItems");
+ if(list)list.innerHTML=items.map(x=>'<div class="pote-order-alert-item '+(x.level==="missing"?"missing":"low")+'">'+
+  '<strong>'+(x.level==="missing"?"FALTANTE: ":"ESTOQUE BAIXO: ")+esc(x.name)+'</strong>'+
+  '<small>'+(x.level==="missing"?
+   'Repor '+fmtQty(x.missing)+' '+esc(x.unit||"un")+'. Disponível após reservas: '+fmtQty(x.available)+' '+esc(x.unit||"un"):
+   'Restam insumos para '+fmtQty(x.after)+' unidade(s) após este pedido.')+'</small></div>').join("");
+ const restockButton=$("poteOrderAlertRestock");
+ if(restockButton){restockButton.disabled=!items.length;restockButton.hidden=!items.length}
  modal.hidden=false;
  $("poteOrderAlertClose").focus?.();
 }
@@ -192,7 +248,7 @@ function checkCart(items,{requireMain=false}={}){
   const item=state.data.ingredients.find(i=>i.id===id);
   const available=Math.max(0,n(item?.stock)-n(held.ingredients.get(id)));
   if(!item||available+1e-7<needed){
-   issues.push({name:item?.name||"Insumo excluído ("+id+")",
+   issues.push({id,kind:"ingredient",name:item?.name||"Insumo excluído ("+id+")",
     missing:Math.max(0,needed-available),available,needed,
     reserved:n(held.ingredients.get(id)),unit:item?.measureUnit||"g"});
   }
@@ -201,7 +257,7 @@ function checkCart(items,{requireMain=false}={}){
   const item=state.data.beverages.find(i=>i.id===id);
   const available=Math.max(0,n(item?.stock)-n(held.beverages.get(id)));
   if(!item||available+1e-7<needed){
-   issues.push({name:item?.name||"Bebida excluída ("+id+")",
+   issues.push({id,kind:"beverage",name:item?.name||"Bebida excluída ("+id+")",
     missing:Math.max(0,needed-available),available,needed,
     reserved:n(held.beverages.get(id)),unit:"un"});
   }
@@ -212,7 +268,7 @@ function acceptCart(items,{requireMain=false}={}){
  const result=checkCart(items,{requireMain});
  if(result.ok)return true;
  showAlert("Sacola bloqueada — estoque ou cadastro insuficiente",
-  reportText(result)+". Corrija antes de registrar ou enviar este pedido.");
+  reportText(result)+". Corrija antes de registrar ou enviar este pedido.",result);
  return false;
 }
 function checkBeforeRegister(){
@@ -220,7 +276,7 @@ function checkBeforeRegister(){
  const result=calc(q,qty);
  if(!result.ok){
   showAlert("Pedido não registrado — estoque insuficiente",
-   reportText(result)+". Reponha ou ajuste o estoque antes de aceitar o pedido.");
+   reportText(result)+". Reponha ou ajuste o estoque antes de aceitar o pedido.",result);
   refresh();return false;
  }
  return true;
@@ -240,7 +296,7 @@ function checkBeforeProduce(order){
   const item=state.data.ingredients.find(i=>i.id===id);
   const available=Math.max(0,n(item?.stock)-n(held.ingredients.get(id)));
   if(!item||available+1e-7<needed)
-   errors.push({name:item?.name||id,missing:Math.max(0,needed-available),
+   errors.push({id,kind:"ingredient",name:item?.name||id,missing:Math.max(0,needed-available),
     available,needed,reserved:n(held.ingredients.get(id)),
     unit:item?.measureUnit||"g"});
  }
@@ -248,12 +304,12 @@ function checkBeforeProduce(order){
   const item=state.data.beverages.find(b=>b.id===id);
   const available=Math.max(0,n(item?.stock)-n(held.beverages.get(id)));
   if(!item||available+1e-7<needed)
-   errors.push({name:item?.name||id,missing:Math.max(0,needed-available),
+   errors.push({id,kind:"beverage",name:item?.name||id,missing:Math.max(0,needed-available),
     available,needed,reserved:n(held.beverages.get(id)),unit:"un"});
  }
  if(errors.length){
   showAlert("Produção bloqueada — estoque comprometido",
-   reportText({errors})+". Confira as reservas e reponha o estoque antes de produzir.");
+   reportText({errors})+". Confira as reservas e reponha o estoque antes de produzir.",{errors});
   return false;
  }
  return true;
@@ -269,7 +325,7 @@ function lowAfterOrder(order){
  showAlert("Alerta: estoque para menos de 5 unidades",
   qty===0?"Não é possível produzir mais uma unidade de "+order.name+
    ". Reponha "+names+".":"Restam ingredientes para aproximadamente "+qty+
-   " unidade(s) de "+order.name+". Confira "+names+" e prepare a reposição.");
+   " unidade(s) de "+order.name+". Confira "+names+" e prepare a reposição.",result);
 }
 function scrollToOrders(id){
  if(typeof state==="undefined")return;
@@ -307,8 +363,8 @@ function alertOnEnter(){
  showAlert(check.maxUnits===0?"Atenção: produto sem estoque":"Aviso de reposição",
   check.maxUnits===0?"Não há saldo disponível para produzir "+quote.recipe.name+". "+names:
   "Restam ingredientes para "+check.maxUnits+" unidade(s) de "+quote.recipe.name+
-  ". Considere comprar os seguintes itens: "+names);
+  ". Considere comprar os seguintes itens: "+names,check);
 }
 window.POTE_ORDER={joinNeeds,reserved,checkOrder,checkCart,acceptCart,calc,currentQuote,refresh,checkBeforeRegister,
- checkBeforeProduce,showAlert,scrollToOrders,lowAfterOrder,alertOnEnter,scanLowRecipes,ensureModal};
+ checkBeforeProduce,showAlert,restock,toRestockItems,restoreDraft,scrollToOrders,lowAfterOrder,alertOnEnter,scanLowRecipes,ensureModal};
 })();

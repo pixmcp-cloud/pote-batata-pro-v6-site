@@ -22,11 +22,37 @@ function costUnit(item){
  if(!Number.isFinite(paid)||!Number.isFinite(q)||q<=0)return "Custo não informado";
  return S.money(paid)+" / "+integerFmt(q,3)+" "+u+" (embalagem, não estoque)";
 }
+function restockPanel(){
+ const items=window.POTE_RESTOCK_CONTEXT?.items;
+ if(!Array.isArray(items)||!items.length)return "";
+ return '<section class="stock-pending-replenish" id="stockRestockFocus" role="status">'+
+  '<strong>Reposição necessária para o pedido</strong>'+
+  '<p>Estes itens estão faltando ou baixos. Faça a compra ou ajuste a contagem física antes de voltar ao pedido. As reservas de pedidos pendentes já foram consideradas.</p>'+
+  '<div>'+items.map(i=>'<article class="stock-pending-item '+(i.level==="missing"?"missing":"low")+'">'+
+   '<strong>'+(i.level==="missing"?"FALTANTE":"ESTOQUE BAIXO")+': '+e(i.name)+'</strong>'+
+   '<span>'+(i.level==="missing"?"Faltam "+S.decimal(i.missing||0)+" "+e(i.unit||"un"):
+      "Rendimento restante: "+S.decimal(i.capacity||0)+" unidade(s)")+'</span>'+
+   '<button class="btn mini" type="button" data-need-id="'+e(i.id)+'" data-need-kind="'+e(i.kind)+
+    '" onclick="POTE_STOCK_UI.jumpToNeed(this.dataset.needId,this.dataset.needKind)">Repor este item</button>'+
+   '</article>').join("")+'</div>'+
+  '<button type="button" class="btn line" onclick="POTE_STOCK_UI.returnToOrder()">Voltar ao pedido</button>'+
+ '</section>';
+}
+function jumpToNeed(id,kind){
+ if(kind==="beverage")window.POTE_STOCK_EXT?.selectBeverage?.(id);
+ else openPurchase(id);
+}
+function returnToOrder(){
+ window.POTE_RESTOCK_CONTEXT=null;
+ if(typeof go==="function")go("orders");
+}
 function renderPanel(state,data){
  const visible=available();
  const ingredients=visible.filter(i=>i.category!=="Embalagem");
  const packs=visible.filter(i=>i.category==="Embalagem");
  const displayItems=[...ingredients,...packs];
+ const held=window.POTE_STOCK_STATUS?.reserved?.(state.data);
+ const recipeRisk=window.POTE_STOCK_STATUS?.recipeLowIds?.(state.data,held)||new Set();
  const count=visible.length,low=visible.filter(i=>S.number(i.minimum)>0&&
    S.number(i.stock)<=S.number(i.minimum)).length;
  const localStockCount=visible.filter(i=>S.number(i.stock)>0).length;
@@ -48,6 +74,7 @@ function renderPanel(state,data){
  <p>Estas receitas têm insumos disponíveis para menos de cinco unidades. O sistema bloqueia pedidos sem saldo e considera quantidades reservadas para pedidos pendentes.</p>
  <div>${shortages.map(r=>`<span>${e(r.name)}: ${r.maxUnits} un · ${e(r.ingredients.join(", "))}</span>`).join("")}</div>
  </section>`:""}
+ ${restockPanel()}
  ${window.POTE_STOCK_EXT?.duplicatePanel?.()||""}
  ${window.POTE_STOCK_EXT?.renderBeverages?.()||""}
  <section class="stock-box" id="stockPurchaseBox">
@@ -79,12 +106,18 @@ function renderPanel(state,data){
   <div class="stock-card-list">${displayItems.map((i,idx)=>{
    const stock=Number(i.stock)||0,threshold=Number(i.minimum)||0;
    const isLow=threshold>0&&stock<=threshold;
+    const requested=window.POTE_STOCK_STATUS?.requested?.(i.id,"ingredient");
+    const health=window.POTE_STOCK_STATUS?.classify?.(i,held?.ingredients.get(i.id),{
+      risk:recipeRisk.has(i.id),shortage:requested?.level==="missing"
+    })||{level:stock<=0?"missing":isLow?"low":"good",
+      label:stock<=0?"FALTANTE":isLow?"ESTOQUE BAIXO":"ESTOQUE BOM",
+      available:stock,reservation:0};
    return `${idx===0&&ingredients.length?'<div class="stock-group-title"><strong>Ingredientes e perecíveis</strong><small>Alimentos e insumos utilizados na produção</small></div>':""}
     ${idx===ingredients.length&&packs.length?'<div class="stock-group-title stock-group-packaging"><strong>Embalagens e descartáveis</strong><small>Potes, caixas de pizza, sacos plásticos, tampas e talheres · separados dos alimentos</small></div>':""}
-    <article class="stock-card ${i.category==="Embalagem"?"stock-packaging-card":""}" data-stock-name="${e([i.name,i.category||'',i.id].join(' ').toLocaleLowerCase('pt-BR'))}">
+    <article class="stock-card stock-status-${health.level} ${i.category==="Embalagem"?"stock-packaging-card":""}" data-stock-status="${health.level}" data-stock-name="${e([i.name,i.category||'',i.id].join(' ').toLocaleLowerCase('pt-BR'))}">
     <div class="stock-card-primary">
-     <div class="stock-card-name"><strong>${e(i.name)}</strong><small>${e(i.category||"Insumo")}</small></div>
-     <div class="stock-card-balance"><small>ESTOQUE ATUAL</small><strong${isLow?' class="stock-critical"':''}>${e(S.formatStock(i))}</strong><small>${isLow?"Abaixo do estoque mínimo":stock<=0?"Sem saldo disponível":"Quantidade física disponível"}</small></div>
+     <div class="stock-card-name"><strong>${e(i.name)}</strong><small>${e(i.category||"Insumo")}</small><span class="stock-health-badge ${health.level}">${e(health.label)}</span></div>
+     <div class="stock-card-balance"><small>ESTOQUE ATUAL · FÍSICO</small><strong class="stock-balance-${health.level}">${e(S.formatStock(i))}</strong><small>Disponível após reservas: ${e(S.formatStock(i,health.available))}</small></div>
     </div>
     <div class="stock-card-details">
      <span><small>Preço / embalagem de referência</small><strong>${e(costUnit(i))}</strong></span>
@@ -233,7 +266,7 @@ function clearSearch(){
  filter("");
 }
 window.POTE_STOCK_UI={renderPanel,selectIngredient,preview,openPurchase,savePurchase,
- adjustStock,saveReference,filter,clearSearch,normalized,costUnit};
+ adjustStock,saveReference,filter,clearSearch,normalized,costUnit,restockPanel,jumpToNeed,returnToOrder};
 window.stockSelectIngredient=selectIngredient;
 window.stockConfirmPurchase=savePurchase;
 window.stockOpenPurchase=openPurchase;

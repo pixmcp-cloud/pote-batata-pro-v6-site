@@ -1,0 +1,47 @@
+/* Semáforo operacional: vermelho faltante, laranja baixo, verde suficiente. */
+.stock-health-badge{display:inline-flex;align-items:center;align-self:flex-start;gap:5px;
+ padding:5px 8px;margin-top:5px;border-radius:8px;font-size:10px;font-weight:900;
+ letter-spacing:.08em;border:1px solid currentColor}
+.stock-health-badge:before{content:"";height:8px;width:8px;border-radius:100%;
+ background:currentColor;box-shadow:0 0 7px currentColor}
+.stock-health-badge.missing{color:#ffc3bf;background:#7826298e}
+.stock-health-badge.low{color:#ffcf84;background:#71501ca6}
+.stock-health-badge.good{color:#b0f5c4;background:#1b513b9f}
+.stock-card.stock-status-missing,.stock-beverage-card.stock-status-missing{
+ border:2px solid #ec716b!important;box-shadow:inset 0 0 0 1px #ba2e2744,0 10px 21px #0005}
+.stock-card.stock-status-low,.stock-beverage-card.stock-status-low{
+ border:2px solid #eca64d!important;box-shadow:inset 0 0 0 1px #e8a84d25,0 10px 21px #0005}
+.stock-card.stock-status-good,.stock-beverage-card.stock-status-good{
+ border:1px solid #84c8a2!important}
+.stock-balance-missing{color:#ffaba7!important}
+.stock-balance-low{color:#ffd48b!important}
+.stock-balance-good{color:#b2f2c5!important}
+.pote-order-alert-items{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.pote-order-alert-item{display:flex;flex-direction:column;gap:5px;padding:10px 13px;
+ border-radius:11px;border:1px solid;line-height:1.5}
+.pote-order-alert-item strong{font-size:13px;font-weight:880}
+.pote-order-alert-item small{font-size:11px}
+.pote-order-alert-item.missing{background:#642a30;border-color:#ff7775;color:#ffe0dc}
+.pote-order-alert-item.low{background:#654924;border-color:#efaf5f;color:#ffdfaf}
+.pote-order-alert-actions button[hidden]{display:none!important}
+#poteOrderAlertRestock{border-color:#e6c48e!important;background:#ffdfac!important;color:#201713!important;
+ font-weight:850;box-shadow:0 5px 15px #0005}
+.stock-pending-replenish{margin:0 0 17px;padding:17px;border:2px solid #f0a36c;
+ border-radius:16px;background:linear-gradient(125deg,#4a3031,#242b39);color:#fff1db}
+.stock-pending-replenish>strong{font-size:18px;color:#ffe0ad}
+.stock-pending-replenish>p{font-size:12px;line-height:1.65;color:#e9d6ca}
+.stock-pending-replenish>div{display:grid;gap:8px;margin:14px 0}
+.stock-pending-item{display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+ padding:11px;border:1px solid;border-radius:11px}
+.stock-pending-item strong{flex:1;min-width:130px;font-size:13px}
+.stock-pending-item span{font-size:12px}
+.stock-pending-item button{min-height:38px}
+.stock-pending-item.missing{border-color:#ff7874;background:#632b30}
+.stock-pending-item.missing strong{color:#ffd0ce}
+.stock-pending-item.low{border-color:#eeb065;background:#604822}
+.stock-pending-item.low strong{color:#ffdc99}
+@media(max-width:480px){
+ .pote-order-alert-actions{flex-direction:column}
+ .stock-pending-item{align-items:stretch;flex-direction:column}
+ .stock-pending-item button{width:100%}
+}

@@ -55,6 +55,10 @@ jobs:
           cp stock_inventory.js public/stock_inventory.js
           cp stock_ext.js public/stock_ext.js
           cp commerce_update.css public/commerce_update.css
+          cp stock_status.js public/stock_status.js
+          cp stock_triage.css public/stock_triage.css
+          cp release_news.js public/release_news.js
+          cp release_news.css public/release_news.css
           cp business_setup.css public/business_setup.css
           cp franchise_sync.js public/franchise_sync.js
           cp franchise_catalog.mjs public/franchise_catalog.mjs
@@ -101,6 +105,9 @@ jobs:
           node --check public/stock_inventory.js
           node --check public/stock_ext.js
           node test_commerce_v2.js
+          node --check public/stock_status.js
+          node --check public/release_news.js
+          node test_stock_alert_release.js
           node test_app_routes.js
           test -f public/assets/generic/business-hotdog.svg
           node --check public/franchise_catalog.mjs

@@ -129,6 +129,6 @@ for(const expected of ["POTE_PAYMENT?.validate","POTE_PAYMENT?.vitrineValidate",
 }
 const page=read("public/index.html");
 for(const expected of ["beverage_catalog.js?v=commerce-20261115","payment_flow.js?v=commerce-20261115",
- "stock_inventory.js?v=commerce-20261115","stock_ext.js?v=commerce-20261115",
+ "stock_inventory.js?v=commerce-20261115","stock_ext.js?v=stock-triage-20261115",
  "commerce_update.css?v=commerce-20261115"]){assert(page.includes(expected),expected)}
 console.log("PASS: 11 bebidas com estoque zero, combo 3 sabores/5%, dinheiro/troco, entrega, duplicados e compras físicas.");
