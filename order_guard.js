@@ -12,7 +12,9 @@ function joinNeeds(quote,qty,settings,ingredients){
  const rows=[...(quote?.recipe?.items||[]).map(i=>({...i})),
   ...(quote?.addons||[]).filter(a=>a?.ingredientId).map(a=>({id:a.ingredientId,g:n(a.quantity)}))];
  if(settings?.usePackagingStock){
-  for(const i of ingredients.filter(x=>x.category==="Embalagem"))rows.push({id:i.id,g:1,isPkg:true});
+  const ids=quote?.recipe?.packagingIngredientIds;
+  for(const i of ingredients.filter(x=>x.category==="Embalagem"&&
+       (!Array.isArray(ids)||ids.includes(x.id))))rows.push({id:i.id,g:1,isPkg:true});
  }
  const needs=new Map();
  for(const x of rows){
@@ -86,8 +88,9 @@ function calc(quote,qty,{excludeOrderId=null}={}){
 }
 function currentQuote(){
  const v=$("orderItem")?.value||"",channel=$("orderChannel")?.value||"direto";
- return typeof optionQuote==="function"?optionQuote(v,channel,
+ const quote=typeof optionQuote==="function"?optionQuote(v,channel,
   $("orderExtraBev")?.value||"",$("orderExtraAddon")?.value||""):null;
+ return window.POTE_ORDER_CUSTOM?.adjustQuote?.(quote)||quote;
 }
 function reportText(report){
  return report.errors.slice(0,6).map(x=>{

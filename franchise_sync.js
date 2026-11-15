@@ -66,7 +66,7 @@ function applyCatalog(catalog,active=true){
     window.POTE_UNIVERSES.switchTo(state,"batataria",window.POTE_SEED,{skipTemplates:true});
   const result=mergeFranchiseCatalog(state,catalog,{active});
   if(!result.changed)return;
-  window.POTE_APP.applyState(state);
+  window.POTE_APP.applyState(state,{preserveNavigation:true});
   window.POTE_BUSINESS?.refresh?.();
   window.dispatchEvent(new Event("pote:changed"));
   if(active&&result.recipesAdded>0&&typeof window.toast==="function")

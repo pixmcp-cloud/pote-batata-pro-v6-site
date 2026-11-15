@@ -146,7 +146,7 @@ function observeRemote(user, index) {
     if (incoming === lastJson) return;
     // Nunca sobrescrever uma alteração local que ainda não foi salva.
     if (JSON.stringify(safeState()) !== lastJson) return;
-    window.POTE_APP.applyState(remote);
+    window.POTE_APP.applyState(remote,{preserveNavigation:true});
     lastJson = JSON.stringify(safeState());
     setStatus("Atualizado entre aplicativos");
   }, error => {

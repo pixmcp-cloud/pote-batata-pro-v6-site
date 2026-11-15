@@ -61,11 +61,19 @@ function renderPanel(state,data){
  </section>
  <section class="stock-box">
   <div class="stock-section-head"><div><small>CONTAGEM FÍSICA</small><h2>Estoque existente</h2></div><span>Separado do preço da embalagem</span></div>
-  <label class="stock-search">Localizar ingrediente<input id="stockSearch" type="search" placeholder="Digite batata, leite, queijo..." oninput="POTE_STOCK_UI.filter(this.value)"></label>
+  <div class="stock-search-area">
+   <label class="stock-search" for="stockSearch"><span>Pesquisar itens no estoque</span>
+    <span class="stock-search-control"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+     <input id="stockSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Lupa: nome, categoria ou código..." oninput="POTE_STOCK_UI.filter(this.value)">
+    </span></label>
+   <button type="button" class="btn line mini stock-search-clear" onclick="POTE_STOCK_UI.clearSearch()">Limpar busca</button>
+   <small id="stockSearchCount" aria-live="polite">${visible.length} itens encontrados</small>
+  </div>
+  <p id="stockSearchEmpty" class="stock-search-empty" hidden>Nenhum item encontrado. Experimente outra palavra.</p>
   <div class="stock-card-list">${visible.map(i=>{
    const stock=Number(i.stock)||0,threshold=Number(i.minimum)||0;
    const isLow=threshold>0&&stock<=threshold;
-   return `<article class="stock-card" data-stock-name="${e(i.name.toLocaleLowerCase('pt-BR'))}">
+   return `<article class="stock-card" data-stock-name="${e([i.name,i.category||'',i.id].join(' ').toLocaleLowerCase('pt-BR'))}">
     <div class="stock-card-primary">
      <div class="stock-card-name"><strong>${e(i.name)}</strong><small>${e(i.category||"Insumo")}</small></div>
      <div class="stock-card-balance"><small>ESTOQUE ATUAL</small><strong${isLow?' class="stock-critical"':''}>${e(S.formatStock(i))}</strong><small>${isLow?"Abaixo do estoque mínimo":stock<=0?"Sem saldo disponível":"Quantidade física disponível"}</small></div>
@@ -195,14 +203,29 @@ function saveReference(button){
  item.purchaseUnit=unit;item.yield=yld;item.source="Preço informado manualmente";
  persist();render();toast("Custo de referência atualizado. Saldo de estoque preservado.");
 }
+function normalized(text){
+ return String(text||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").trim();
+}
 function filter(q){
- q=String(q||"").trim().toLocaleLowerCase("pt-BR");
- document.querySelectorAll(".stock-card").forEach(el=>{
-  el.hidden=!!q&&!String(el.dataset.stockName||"").includes(q);
- });
+ const term=normalized(q),cards=[...document.querySelectorAll(".stock-card")];
+ let found=0;
+ for(const el of cards){
+  const match=!term||normalized(el.dataset.stockName).includes(term);
+  el.hidden=!match;if(match)found++;
+ }
+ const total=document.getElementById("stockSearchCount");
+ if(total)total.textContent=found+" de "+cards.length+" itens encontrados";
+ const empty=document.getElementById("stockSearchEmpty");
+ if(empty)empty.hidden=found>0;
+ return found;
+}
+function clearSearch(){
+ const field=document.getElementById("stockSearch");
+ if(field){field.value="";field.focus?.()}
+ filter("");
 }
 window.POTE_STOCK_UI={renderPanel,selectIngredient,preview,openPurchase,savePurchase,
- adjustStock,saveReference,filter,costUnit};
+ adjustStock,saveReference,filter,clearSearch,normalized,costUnit};
 window.stockSelectIngredient=selectIngredient;
 window.stockConfirmPurchase=savePurchase;
 window.stockOpenPurchase=openPurchase;

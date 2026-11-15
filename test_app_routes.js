@@ -46,7 +46,7 @@ for(let i=0;i<inline.length;i++){
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
 for(const module of ["universe_templates.js","universe_core.js","business_setup.js",
- "stock_math.js","stock_ui.js","order_guard.js"]){
+ "stock_math.js","stock_ui.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js"]){
  try{vm.runInContext(fs.readFileSync(module,"utf8"),sandbox,{filename:module,timeout:5000})}
  catch(e){errors.push({page:module,error:String(e.stack||e)})}
 }
@@ -177,3 +177,51 @@ vm.runInContext("addToCart('recipe','route-r1');",sandbox);
 assert.equal(vm.runInContext("cart.length",sandbox),0,
  "Vitrine deve impedir adicionar produto sem estoque, antes de oferecer registrar pedido");
 console.log("PASS: sacola validada antes da compra, itens extras rateados, embalagens e bebidas descontadas corretamente, sem contornar o bloqueio.");
+
+const customState=structuredClone(testState);
+customState.data.businessType="batataria";
+customState.data.recipes[0].category="Gourmet";
+customState.data.recipes[0].items.push({id:"custom-corn",g:60});
+customState.data.ingredients.push({id:"custom-corn",name:"Milho",category:"Vegetal",
+ purchaseQuantity:1,purchaseUnit:"kg",purchasePrice:10,yield:100,stock:0,measureUnit:"g"});
+customState.data.ingredients.push({id:"custom-bacon",name:"Bacon",category:"Proteína",
+ purchaseQuantity:1,purchaseUnit:"kg",purchasePrice:40,yield:100,stock:300,measureUnit:"g"});
+customState.data.addons=[{id:"custom-addon",name:"Bacon extra",ingredientId:"custom-bacon",
+ quantity:40,sellPrice:5}];
+customState.data.orders=[];
+window.POTE_APP.applyState(customState);
+setOrder(2);
+el("orderWeight").value="500";
+el("orderNote").value="Caprichar no tempero";
+window.POTE_ORDER_CUSTOM.reset();
+window.POTE_ORDER_CUSTOM.remove("custom-corn",true);
+window.POTE_ORDER_CUSTOM.delta("custom-addon",1);
+window.POTE_ORDER_CUSTOM.delta("custom-addon",1);
+vm.runInContext("newOrder();",sandbox);
+const personalized=current();
+assert.equal(personalized.data.orders.length,1,"Pedido sem milho e com bacon deve ser registrado");
+const customized=personalized.data.orders[0];
+assert(!customized.items.some(i=>i.id==="custom-corn"),"Milho removido não pode aparecer na separação");
+assert.equal(customized.items.find(i=>i.id==="custom-bacon").g,80);
+assert.equal(customized.removedIngredients[0].name,"Milho");
+assert.equal(customized.customAddons[0].count,2);
+assert.equal(customized.approxWeightG,500);
+assert.equal(vm.runInContext("state.tab",sandbox),"orders");
+assert.equal(personalized.data.recipes[0].items.length,2,"Receita original preservada");
+const customReceipt=vm.runInContext("receiptHTML(state.data.orders[0],'customer')",sandbox);
+const customKitchen=vm.runInContext("receiptHTML(state.data.orders[0],'kitchen')",sandbox);
+for(const label of ["SEM Milho","Bacon extra","aprox. 500 g","aprox. 1 kg"])
+ assert(customReceipt.includes(label),"Recibo não mostra "+label);
+assert(customKitchen.includes("RETIRAR / NÃO COLOCAR"));
+const id=customized.id;
+vm.runInContext("showReceipt("+JSON.stringify(id)+",'customer');",sandbox);
+assert.equal(vm.runInContext("state.tab",sandbox),"orders","Abrir recibo não pode sair de Pedidos");
+vm.runInContext("produce("+JSON.stringify(id)+");",sandbox);
+const made=current();
+assert.equal(made.data.ingredients.find(i=>i.id==="custom-corn").stock,0);
+assert.equal(made.data.ingredients.find(i=>i.id==="custom-bacon").stock,140);
+assert.equal(made.data.ingredients.find(i=>i.id==="route-potato").stock,2000);
+vm.runInContext('state.tab="ingredients";',sandbox);
+window.POTE_APP.applyState(current(),{preserveNavigation:true});
+assert.equal(vm.runInContext("state.tab",sandbox),"ingredients","Sync remoto não deve levar de Estoque para Home");
+console.log("PASS: personalizar sem milho, dois adicionais, baixa do estoque, recibo detalhado e permanência em Pedidos/Estoque.");

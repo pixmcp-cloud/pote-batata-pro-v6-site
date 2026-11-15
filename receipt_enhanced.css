@@ -1,0 +1,53 @@
+/* Recibo e comanda completos, legíveis no celular e impressão térmica. */
+#poteReceiptModal{position:fixed;inset:0;z-index:14000;overflow-y:auto;
+ background:#040915e8;backdrop-filter:blur(5px);padding:22px 12px}
+.pote-receipt-sheet{width:min(560px,100%);margin:auto}
+.pote-receipt-toolbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+ background:linear-gradient(120deg,#253d50,#102031);border:1px solid #a9b1c883;
+ border-radius:14px;padding:11px;margin-bottom:11px}
+.pote-receipt-toolbar button{min-height:42px;flex:1;white-space:normal}
+.pote-complete-receipt{font-family:Arial,system-ui,sans-serif!important;color:#131313!important;
+ background:#fff!important;border-radius:8px!important;padding:clamp(15px,4vw,26px)!important;
+ font-size:13px;line-height:1.45;box-shadow:0 15px 42px #0009;
+ overflow-wrap:anywhere}
+.pote-complete-receipt *{color:inherit;box-sizing:border-box}
+.pote-receipt-header{text-align:center;border-bottom:2px dashed #555;padding-bottom:12px}
+.pote-receipt-header h2{font-size:21px;margin:0 0 5px;font-weight:900;letter-spacing:-.02em}
+.pote-receipt-header>strong{display:block;font-size:14px;margin:10px 0 3px;letter-spacing:.08em}
+.pote-receipt-header small{display:block;color:#555}
+.pote-receipt-block{border-bottom:1px dashed #8b8b8b;padding:11px 0}
+.pote-receipt-block h3{font-size:14px;margin:0 0 9px;font-weight:850;text-transform:uppercase}
+.pote-receipt-line{display:flex;align-items:baseline;justify-content:space-between;gap:15px;padding:4px 0}
+.pote-receipt-line>span{color:#444;flex:1}
+.pote-receipt-line>strong{font-weight:760;text-align:right;min-width:0;overflow-wrap:anywhere}
+.pote-receipt-line.weight>strong{font-size:14px}
+.pote-receipt-line.total{font-size:20px;line-height:1.3;margin-top:9px;border-top:1px solid #888;padding-top:12px}
+.pote-receipt-line.total>span,.pote-receipt-line.total>strong{font-size:20px;font-weight:950}
+.pote-receipt-product{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+ padding:7px 0 9px}
+.pote-receipt-product>strong{font-size:16px}
+.pote-receipt-product>span{font-weight:650}
+.pote-receipt-note{display:block;font-size:10px;color:#666;margin-top:6px}
+.pote-receipt-removed,.pote-receipt-extras{padding:9px 11px;border:1px solid #9b9b9b;margin-top:9px;
+ border-radius:5px;font-size:12px}
+.pote-receipt-removed{border:2px solid #111}
+.pote-receipt-removed>strong{display:block;font-weight:950;font-size:13px;letter-spacing:.06em}
+.pote-receipt-extras>strong{font-weight:880;display:block}
+.pote-receipt-drinks{margin-top:10px}
+.pote-complete-receipt table{width:100%;border-collapse:collapse;font-size:12px;text-align:left}
+.pote-complete-receipt th,.pote-complete-receipt td{padding:6px 4px;border-bottom:1px solid #d5d5d5}
+.pote-complete-receipt th:last-child,.pote-complete-receipt td:last-child{text-align:right}
+.pote-receipt-footer{text-align:center;margin-top:12px;font-size:10px;color:#555}
+@media print{
+ @page{margin:4mm;size:auto}
+ body *{visibility:hidden!important}
+ #poteReceiptModal,#poteReceiptModal .pote-complete-receipt,
+ #poteReceiptModal .pote-complete-receipt *{visibility:visible!important}
+ #poteReceiptModal{position:absolute!important;inset:0!important;display:block!important;
+ background:white!important;padding:0!important;overflow:visible!important;z-index:999999!important}
+ #poteReceiptModal .pote-receipt-sheet{width:100%!important;max-width:80mm!important;margin:0 auto!important}
+ #poteReceiptModal .pote-complete-receipt{padding:2mm!important;box-shadow:none!important;
+ border:0!important;border-radius:0!important;font-size:10px!important}
+ #poteReceiptModal .pote-receipt-toolbar{display:none!important}
+ #poteReceiptModal .pote-receipt-line.total>strong{font-size:17px!important}
+}
