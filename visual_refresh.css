@@ -174,3 +174,47 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
   .ops-card strong{font-size:12px!important}
 }
 @media(prefers-reduced-motion:reduce){.ops-icon img{transition:none!important}}
+
+/* Central de Operações — títulos grandes como Home, com contorno legível sobre as artes 3D.
+   Última camada: prevalece sobre os estilos anteriores de miniaturas. */
+.ops-card strong{
+  display:block;
+  position:relative;
+  z-index:3;
+  max-width:100%!important;
+  width:100%;
+  font-family:system-ui,Arial,sans-serif;
+  font-size:clamp(25px,2.9vw,34px)!important;
+  font-weight:900!important;
+  letter-spacing:-.055em;
+  line-height:1.1!important;
+  color:#fff8ed!important;
+  -webkit-text-stroke:1.8px #07101d;
+  paint-order:stroke fill;
+  text-shadow:0 3px 2px #03070c,0 5px 11px #000e,0 0 17px #000c;
+  overflow-wrap:normal;
+  word-break:normal;
+  text-wrap:balance;
+  pointer-events:none;
+}
+.ops-card:before{
+  background:linear-gradient(180deg,transparent 18%,#08111c31 40%,#060c17d4 73%,#040812f5 100%)!important;
+}
+@media(max-width:700px){
+ .ops-card{min-height:159px!important;aspect-ratio:1.22/1!important;padding:12px!important}
+ .ops-card strong{
+   font-size:clamp(23px,6.05vw,30px)!important;
+   letter-spacing:-.06em!important;
+   -webkit-text-stroke:1.5px #050b16;
+ }
+ .ops-chevron{top:10px!important;right:12px!important;bottom:auto!important}
+}
+@media(max-width:380px){
+ .ops-card{min-height:148px!important;aspect-ratio:1.17/1!important;padding:10px!important}
+ .ops-card strong{font-size:clamp(21px,6vw,25px)!important;letter-spacing:-.065em!important}
+}
+@media(max-width:320px){
+ .ops-grid{grid-template-columns:1fr!important}
+ .ops-card{min-height:160px!important;aspect-ratio:1.6/1!important}
+ .ops-card strong{font-size:29px!important}
+}

@@ -1,0 +1,16 @@
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const css=fs.readFileSync('visual_refresh.css','utf8');
+const html=fs.readFileSync('public/index.html','utf8');
+const marker='/* Central de Operações — títulos grandes como Home, com contorno legível sobre as artes 3D.';
+assert(css.includes(marker),'Falta o estilo principal');
+const override=css.slice(css.lastIndexOf(marker));
+assert(override.includes('.ops-card strong{'),'Falta seletor dos nomes dos cards');
+assert(override.includes('font-size:clamp(25px,2.9vw,34px)!important'),'Títulos desktop devem se aproximar do tamanho do título Home');
+assert(override.includes('-webkit-text-stroke:1.8px #07101d'),'Contorno das letras não configurado');
+assert(override.includes('paint-order:stroke fill'),'Contorno deve permanecer atrás da letra');
+assert(override.includes('@media(max-width:700px)'),'Tamanho mobile ausente');
+assert(override.includes('font-size:clamp(23px,6.05vw,30px)!important'),'Nomes mobile devem ser ampliados');
+assert(override.includes('text-wrap:balance'),'Quebra de linha deve respeitar o espaço disponível');
+assert(html.includes('visual_refresh.css?v=premium-20261115-bold-outline'),'Cache da folha nova não foi atualizado');
+console.log('PASS: nomes da Central maiores, contornados e responsivos.');
