@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
@@ -32,6 +32,7 @@ let timer = null;
 let lastJson = "";
 let epoch = 0;
 let loginWatchdog = null;
+let unsubscribeRemote = null;
 const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
 function showBrowserHint() { if (browserHint) browserHint.hidden = false; }
 function withDeadline(promise, ms, label) {
@@ -80,6 +81,26 @@ function queueSave() {
   timer = setTimeout(sync, 1300);
 }
 window.addEventListener("pote:changed", queueSave);
+
+function observeRemote(user, index) {
+  if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
+  unsubscribeRemote = onSnapshot(refFor(user), snapshot => {
+    if (index !== epoch || !ready || auth.currentUser?.uid !== user.uid) return;
+    if (snapshot.metadata.hasPendingWrites || saving) return;
+    const remote = snapshot.data()?.state;
+    if (!remote || !remote.data) return;
+    const incoming = JSON.stringify(remote);
+    if (incoming === lastJson) return;
+    // Nunca sobrescrever uma alteração local que ainda não foi salva.
+    if (JSON.stringify(safeState()) !== lastJson) return;
+    window.POTE_APP.applyState(remote);
+    lastJson = JSON.stringify(safeState());
+    setStatus("Atualizado entre aplicativos");
+  }, error => {
+    console.warn("Firestore realtime:", error.code || error.message);
+    setStatus("Sincronização em tempo real indisponível. Atualize a página.");
+  });
+}
 
 async function loadUser(user, index) {
   setGate(true);
@@ -135,6 +156,7 @@ async function loadUser(user, index) {
   setMessage("");
   setStatus("Dados salvos na nuvem");
   setGate(false);
+  observeRemote(user, index);
 }
 
 loginBtn.addEventListener("click", async () => {
@@ -174,6 +196,7 @@ exitBtn.addEventListener("click", async () => {
 });
 onAuthStateChanged(auth, async user => {
   const myEpoch = ++epoch;
+  if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
   clearTimeout(loginWatchdog);
   if (!user) {
     clearTimeout(timer);
