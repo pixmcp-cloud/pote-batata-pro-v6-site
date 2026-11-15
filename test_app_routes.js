@@ -304,7 +304,7 @@ assert.equal(comboCart[0].recipeId,"r21","Cardápio deve respeitar sabor Cachorr
 assert.equal(comboCart[0].bevId,"preset-cola-600","Cardápio deve respeitar refrigerante Cola 600ml escolhido");
 for(const [id,val] of Object.entries({vitrineName:"Cliente vitrine",vitrinePhone:"48999998888",
  vitrineAddr:"Rua Vitrine 42",vitrinePay:"Dinheiro",vitrineCashReceived:"300",
- vitrineHasDelivery:"sim",vitrineDeliv:"8",vitrineObs:"Sem gelo"}))el(id).value=val;
+ vitrineHasDelivery:"sim",vitrineDeliv:"8,00",vitrineObs:"Sem gelo"}))el(id).value=val;
 vm.runInContext("checkoutVitrine(false);",sandbox);
 const fromCart=window.POTE_APP.snapshot().data.orders.find(o=>o.clientName==="Cliente vitrine");
 assert(fromCart,"Combo com variações precisa registrar pela vitrine");

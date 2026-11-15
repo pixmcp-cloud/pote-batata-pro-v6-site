@@ -75,7 +75,8 @@ function validate(){
 function vitrineTotal(){
  const cartArray=typeof cart==="undefined"?[]:cart;
  const sub=cartArray.reduce((x,i)=>x+(Number(i.price)||0)*(Number(i.qty)||0),0);
- return sub+Number($("vitrineDeliv")?.value||0);
+ const feeCents=toCents($("vitrineDeliv")?.value||"0");
+ return sub+(Number.isFinite(feeCents)?feeCents/100:NaN);
 }
 function vitrineSync(){
  const method=$("vitrinePay")?.value||"Pix",cash=method.toLocaleLowerCase("pt-BR").includes("dinheiro"),
@@ -88,7 +89,7 @@ function vitrineSync(){
  const addr=$("vitrineAddr");
  if(addr)addr.placeholder=delivery==="sim"?"Endereço de tele-entrega":"Retirada no balcão";
  const sum=$("vitrineSummary");if(sum){
-  const total=vitrineTotal(),deliveryCost=Number(fee?.value)||0;
+  const total=vitrineTotal(),feeCents=toCents(fee?.value||"0"),deliveryCost=Number.isFinite(feeCents)?feeCents/100:0;
   sum.innerHTML="Subtotal: <b>"+money(total-deliveryCost)+"</b> · Entrega: <b>"+money(deliveryCost)+
     "</b> · Total: <b>"+money(total)+"</b>";
  }
