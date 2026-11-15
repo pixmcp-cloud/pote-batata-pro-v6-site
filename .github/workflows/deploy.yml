@@ -11,6 +11,7 @@ jobs:
         run: |
           mkdir -p public
           cp source/pote_app_base.html public/index.html
+          cp firebase-bridge.html public/firebase-bridge.html
           python3 sanitize_public.py public/index.html
           python3 add_contacts.py public/index.html
           cp public/index.html public/beta.html

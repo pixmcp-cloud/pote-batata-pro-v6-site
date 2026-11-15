@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Conectar Potê Batata Pro ao Firebase</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;background:radial-gradient(circle at top,#31425c,#111825 70%);font:15px/1.5 system-ui,Arial,sans-serif;color:#ffeed7;padding:20px}
+main{max-width:460px;width:100%;background:linear-gradient(145deg,#313d51,#182333);padding:28px 24px;border:1px solid #a5b5c976;border-radius:24px;box-shadow:inset 0 1px #ffffff3a,0 20px 65px #000b;text-align:center}
+img{height:100px;width:100px;border-radius:50%;object-fit:cover;border:2px solid #e7bb76}h1{font-size:23px;letter-spacing:-.04em;margin:15px 0 8px}p{color:#ced9e8;font-size:13px}button{background:linear-gradient(#ffe0a5,#dcaa5f);border:1px solid #ffe4af;border-radius:13px;color:#27180b;padding:15px 19px;font-weight:900;width:100%;font-size:15px;margin-top:15px;cursor:pointer;box-shadow:inset 0 1px #fff9,0 8px 18px #0006}button:disabled{opacity:.6;cursor:wait}#status{font-size:12px;min-height:30px;margin-top:15px;color:#d9c5ab}
+</style>
+</head>
+<body><main>
+<img src="./assets/pote-logo-original.jpg" alt="Logomarca Potê Batata">
+<h1>Conectar os dois aplicativos</h1>
+<p>Autorize sua conta Google para que o Potê Batata Pro do Floot utilize os mesmos clientes, vendas, receitas e estoque do site oficial.</p>
+<button type="button" id="connect">Conectar minha conta Google</button>
+<div role="status" id="status">Seus dados permanecem separados por conta.</div>
+</main>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
+const params=new URLSearchParams(location.search),nonce=params.get("nonce")||"",url=params.get("origin")||"";
+const status=document.getElementById("status"),button=document.getElementById("connect");
+let target;
+try{
+ target=new URL(url);
+ const host=target.hostname.toLowerCase();
+ if(target.protocol!=="https:"||!(host==="floot.com"||host==="0ac73184-2ba0-41f8-9a16-fd1d03017e6d.sandbox.floot.app")||!/^[-a-zA-Z0-9_]{20,120}$/.test(nonce)||!window.opener)throw Error("Conexão não autorizada");
+}catch(err){button.disabled=true;status.textContent="Abra esta página pelo botão de conexão dentro do Floot.";throw err}
+const config={apiKey:"AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",authDomain:"potobatata-b71f3.firebaseapp.com",projectId:"potobatata-b71f3",appId:"1:947524221002:web:ece242260f26bb46418eb3",messagingSenderId:"947524221002",storageBucket:"potobatata-b71f3.firebasestorage.app"};
+const auth=getAuth(initializeApp(config));const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:"select_account"});
+button.onclick=async()=>{
+ button.disabled=true;status.textContent="Abrindo autenticação Google...";
+ try{
+  const result=await signInWithPopup(auth,provider);
+  const credential=GoogleAuthProvider.credentialFromResult(result);
+  if((!credential?.idToken&&!credential?.accessToken)||!result.user.emailVerified)throw Error("Google não forneceu uma identidade verificada");
+  window.opener.postMessage({type:"POTE_UNIFIED_GOOGLE_CREDENTIAL",nonce,idToken:credential.idToken||null,accessToken:credential.accessToken||null},target.origin);
+  status.textContent="Conta verificada. Retorne ao Floot.";
+  setTimeout(()=>window.close(),1200);
+ }catch(e){button.disabled=false;status.textContent="Não foi possível conectar: "+(e.code||e.message||"erro")+". Tente novamente no Chrome."}
+};
+</script></body></html>
