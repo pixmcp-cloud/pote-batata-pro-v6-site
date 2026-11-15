@@ -43,7 +43,7 @@ function withDeadline(promise, ms, label) {
 }
 if (embeddedBrowser) showBrowserHint();
 
-function setStatus(v) { syncEl.textContent = v; }
+function setStatus(v) { if (syncEl) syncEl.textContent = v; }
 function setMessage(v) { message.textContent = v; }
 function setGate(show) {
   gate.hidden = !show;

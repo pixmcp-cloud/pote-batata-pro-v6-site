@@ -76,7 +76,8 @@ gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Ent
 once("<body>", "<body class=\"pote-auth-locked\">" + gate)
 switch = r'<div class="switch" role="group" aria-label="Versão de demonstração">.*?</div>'
 new_switch = ('<div class="switch" role="group" aria-label="Sua sessão">'
- '<span id="poteLoggedAs"></span><button id="poteExit" type="button">Sair</button></div>')
+ '<span id="poteLoggedAs"></span><button id="poteExit" type="button">Sair</button>'
+ '<span id="poteSyncStatus" aria-live="polite"></span></div>')
 html, n = re.subn(switch, new_switch, html, count=1, flags=re.S)
 if n != 1:
     raise SystemExit("Header session marker not found")
@@ -123,12 +124,12 @@ render=function(...args){
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script type=\"module\" src=\"./firebase_integration.js\"></script></body></html>")
+     bridge + "</script><script type=\"module\" src=\"./firebase_integration.js?v=authfix-20261114\"></script></body></html>")
 # Ensure beta is not confused with the public offline demo.
 once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:
     raise SystemExit("Exposed role switch remained")
-if not all(x in html for x in ["id=\"poteAuthGate\"", "poteOriginalRender", "firebase_integration.js"]):
+if not all(x in html for x in ["id=\"poteAuthGate\"", "id=\"poteSyncStatus\"", "id=\"poteExit\"", "id=\"poteLoggedAs\"", "poteOriginalRender", "firebase_integration.js"]):
     raise SystemExit("Missing authentication integration")
 p.write_text(html, encoding="utf-8")
 print("Created beta login page, size", len(html), "characters")
