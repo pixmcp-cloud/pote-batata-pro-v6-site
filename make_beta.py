@@ -65,7 +65,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115">' + "</head>")
+once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=premium-20261115">' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
