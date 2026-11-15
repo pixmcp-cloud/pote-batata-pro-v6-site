@@ -1,0 +1,96 @@
+/* Central de escolha do segmento: neutra e premium, sem identidade específica do Potê. */
+#poteBusinessOverlay[hidden]{display:none!important}
+#poteBusinessOverlay{position:fixed;inset:0;z-index:11005;display:grid;place-items:center;
+ background:#050b14e6;backdrop-filter:blur(5px);padding:clamp(10px,2vw,27px);
+ font-family:system-ui,Arial,sans-serif;color:#f9ebd4}
+html.pote-business-open{overflow:hidden}
+.pote-business-shell{width:min(990px,100%);max-height:min(91dvh,1000px);overflow:auto;min-width:0;
+ border-radius:24px;border:1px solid #9caabf91;
+ background:linear-gradient(145deg,#25354b,#141f2e 86%);
+ box-shadow:inset 0 1px #ffffff35,0 24px 65px #000c;padding:25px}
+.pote-business-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
+.pote-business-head small{color:#eac08b;font-size:10px;letter-spacing:1.8px;font-weight:900}
+.pote-business-head h2{font-size:clamp(24px,3.4vw,34px);letter-spacing:-.05em;
+ line-height:1.13;color:#fff0d8;margin:7px 0 6px}
+.pote-business-head p{margin:0;font-size:12px;color:#bbcbdc}
+#poteBusinessClose{width:43px;height:43px;border-radius:13px;border:1px solid #9fb7cf85;
+ background:#30445b;color:#f7d7a3;flex-shrink:0;cursor:pointer;font-size:20px}
+.pote-business-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;
+ margin:22px 0 17px;padding:11px 15px;border:1px solid #8d9eb47a;background:#111e2c;
+ border-radius:13px;color:#c5d5e7;font-size:12px}
+#poteBusinessCurrent{color:#f3d09a;font-weight:900}
+.pote-business-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.pote-business-options button{position:relative;display:flex;flex-direction:column;align-items:flex-start;
+ overflow:hidden;min-width:0;text-align:left;padding:13px;border-radius:18px;
+ background:linear-gradient(150deg,#364961,#1b2839);border:1px solid #9fb1c77e;
+ box-shadow:inset 0 1px #ffffff49,0 8px 17px #0008;color:#ffe6c1;cursor:pointer;
+ transition:border-color .15s,transform .15s}
+.pote-business-options button:hover,.pote-business-options button.selected{border-color:#f1cb92;
+ background:linear-gradient(150deg,#475b74,#25364b)}
+.pote-business-options button:active{transform:translateY(2px)}
+.pote-business-options img{width:100%;height:143px;display:block;object-fit:cover;object-position:center;
+ border-radius:12px;margin-bottom:12px;border:1px solid #e6cfa436}
+.pote-business-options strong{font-size:18px;letter-spacing:-.025em;color:#fff5db}
+.pote-business-options small{font-size:11px;line-height:1.6;color:#c2d1e2;min-height:35px;margin:4px 0 12px}
+.pote-business-choose{padding:7px 13px;background:#c6a16c2e;border:1px solid #eec99088;
+ border-radius:10px;font-size:11px;font-weight:880;color:#ffda9d}
+.pote-business-options button.selected .pote-business-choose{background:#e4bf7b;color:#1a1d24}
+.pote-business-note{margin:18px 0 8px;color:#bed1e0;background:#112436;
+ border:1px solid #899bb05c;padding:14px;border-radius:13px;font-size:11px;line-height:1.65}
+.pote-business-note strong{color:#f2d19d}
+#poteBusinessMessage{min-height:10px;color:#a7e6c2;font-size:11px}
+.ops-business-card{grid-column:1/-1!important;aspect-ratio:auto!important;min-height:151px!important;
+ position:relative;align-items:flex-start!important;justify-content:center!important;
+ text-align:left!important;padding:18px 22px!important;
+ background:linear-gradient(125deg,#30415a,#192639)!important}
+.ops-business-card .ops-icon{position:absolute!important;inset:0 0 0 auto!important;
+ width:min(57%,430px)!important;height:100%!important;z-index:0!important;opacity:.75}
+.ops-business-card .ops-icon img{object-fit:cover!important;object-position:center!important;transform:none!important}
+.ops-business-card::before{background:linear-gradient(90deg,#0d1825f7 4%,#111d2fdf 46%,#0a17233b 100%)!important}
+.ops-business-card strong{width:min(65%,420px)!important;max-width:65%!important;
+ margin:0!important;text-align:left!important;font-size:clamp(22px,3vw,29px)!important;
+ color:#fff2d9!important}
+.ops-business-card strong::before,.ops-business-card strong::after{content:none!important;display:none!important}
+.ops-business-card .ops-business-hint{position:relative;z-index:3;color:#c2d3e7;
+ font-size:11px;text-align:left;max-width:68%;margin-top:7px;line-height:1.55}
+.ops-business-card .ops-chevron{top:auto!important;bottom:17px!important;right:18px!important}
+.pote-business-locked-brand .pote-brand-logo{background:#1a2839;border-color:#d3b57d}
+@media(max-width:700px){
+ .pote-business-shell{width:100%;height:100dvh;max-height:100dvh;border-radius:0;border:0;padding:20px 14px 26px}
+ #poteBusinessOverlay{padding:0}
+ .pote-business-options{gap:10px}
+ .pote-business-options button{padding:9px;border-radius:14px}
+ .pote-business-options img{height:100px;margin-bottom:9px}
+ .pote-business-options strong{font-size:15px}
+ .pote-business-options small{font-size:10px;min-height:54px}
+ .ops-business-card{min-height:135px!important;padding:16px!important}
+ .ops-business-card strong{font-size:24px!important}
+ .ops-business-card .ops-business-hint{font-size:10px}
+}
+@media(max-width:350px){.pote-business-options{grid-template-columns:1fr}.pote-business-options img{height:118px}.pote-business-options small{min-height:0}}
+
+/* Ajuste específico: o cartão Negócio é horizontal e não herda o rodapé dos seis botões operacionais. */
+.ops-grid .ops-business-card{
+  grid-column:1/-1!important;
+  min-height:153px!important;
+  aspect-ratio:auto!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  text-align:left!important;
+  padding:20px 23px!important;
+}
+.ops-grid .ops-business-card strong{
+  width:min(62%,420px)!important;
+  max-width:62%!important;
+  margin:0!important;
+  text-align:left!important;
+  font-size:clamp(23px,2.9vw,30px)!important;
+  line-height:1.1!important;
+  letter-spacing:.01em!important;
+}
+.ops-grid .ops-business-card .ops-business-hint{max-width:62%}
+@media(max-width:700px){
+ .ops-grid .ops-business-card{min-height:143px!important;padding:15px!important}
+ .ops-grid .ops-business-card strong{font-size:24px!important}
+ .ops-grid .ops-business-card .ops-business-hint{max-width:67%}
+}

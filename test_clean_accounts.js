@@ -17,7 +17,7 @@ const seed={
  },
  accounts:[{email:"fake"}],creatives:[],audit:[]
 };
-const sandbox={SEED:{brand:{}},original:()=>JSON.parse(JSON.stringify(seed)),JSON,Array,Object};
+const sandbox={SEED:{brand:{}},window:{POTE_AUTH:null},original:()=>JSON.parse(JSON.stringify(seed)),JSON,Array,Object};
 vm.createContext(sandbox);
 vm.runInContext(bootstrap+"globalThis.checkAccount=poteFreshAccount;globalThis.isDemo=poteIsPristineSeed;",sandbox);
 const fresh=sandbox.checkAccount();
@@ -26,7 +26,10 @@ const list=["ingredients","recipes","suppliers","expenses","clients","orders","r
 for(const k of list) assert.strictEqual(fresh.data[k].length,0,"Sample data leaked into "+k);
 assert.strictEqual(fresh.data.settings.estimatedMonthlyUnits,0);
 assert.strictEqual(fresh.data.checklist[0].done,false);
-assert.strictEqual(fresh.data.brand.logoUrl,"./assets/pote-logo-original.jpg");
+assert.strictEqual(fresh.data.brand.logoUrl,"./assets/generic/business-neutral.svg");
+assert.strictEqual(fresh.data.brand.name,"Meu Negócio");
+assert.strictEqual(fresh.data.businessType,"");
+assert.deepStrictEqual(JSON.parse(JSON.stringify(fresh.data.businessTemplates)),{});
 assert.strictEqual(sandbox.isDemo(seed),true,"Unmodified seeded FREE account must be detectable");
 const custom=JSON.parse(JSON.stringify(seed));
 custom.data.orders.push({id:"user-real-order",price:100});

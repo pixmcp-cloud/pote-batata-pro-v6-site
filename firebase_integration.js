@@ -205,6 +205,13 @@ async function loadUser(user, index) {
   setGate(false);
   observeRemote(user, index);
   observeProfile(user, index);
+  window.POTE_BUSINESS?.refresh?.();
+  if(window.POTE_BRAND_MIGRATED){
+    // Persistir a remoção da marca-padrão em contas FREE antigas, sem apagar cadastros.
+    window.POTE_BRAND_MIGRATED=false;
+    lastJson='';
+    queueSave();
+  }
 }
 
 loginBtn.addEventListener("click", async () => {
@@ -248,6 +255,7 @@ onAuthStateChanged(auth, async user => {
   if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
   if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }
   rawUserLicense = null;
+  window.POTE_BRAND_MIGRATED=false;
   if (adminOpen) adminOpen.hidden = true;
   if (planBadge) planBadge.hidden = true;
   if (planCountdown) planCountdown.hidden = true;

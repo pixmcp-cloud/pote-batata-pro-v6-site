@@ -36,7 +36,7 @@ html, n = re.subn(r'<button class="btn danger" onclick="resetAll\(\)">[^<]*</but
 if n != 1: raise SystemExit("Botão de zerar conta não encontrado")
 once("Pesquisa habilitada nesta simulação. Nenhuma chamada externa será enviada.",
      "Busca piloto de estabelecimentos reais no OpenStreetMap. Confirme os dados antes de comprar.")
-once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="index,follow"><meta name="description" content="Potê Batata Pro: gestão de receitas, custos, preços, pedidos e estoque.">')
+once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="index,follow"><meta name="description" content="Gestão Pro: plataforma para batatarias, pizzarias, hamburguerias e lancherias.">')
 
 head = """<style>
 #poteAuthGate{position:fixed;inset:0;z-index:10000;background:#120e0b;display:flex;align-items:center;
@@ -63,11 +63,11 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=bottom-white-no-outline-20261115"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-20261115-years"><link rel="stylesheet" href="./gallery.css?v=galeria-42h"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
+once("</head>", head + '<link rel="icon" href="./assets/generic/business-neutral.svg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=bottom-white-no-outline-20261115"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-20261115-years"><link rel="stylesheet" href="./gallery.css?v=galeria-42h"><link rel="stylesheet" href="./business_setup.css?v=business-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
-  <div class="pote-brand-logo"><img src="./assets/pote-logo-original.jpg" alt="Logotipo Potê Batata"></div><h1>Potê Batata Pro</h1>
+  <div class="pote-brand-logo"><img src="./assets/generic/business-neutral.svg" alt="Identidade genérica de estabelecimento"></div><h1>Gestão Pro</h1>
   <p>Entre com sua conta Google para acessar seu espaço de receitas, preços, pedidos e estoque.</p>
   <button id="poteGoogleLogin" type="button">Entrar com Google</button>
   <div id="poteLoginMessage" role="status">Preparando autenticação...</div>
@@ -79,8 +79,8 @@ gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Ent
  </div>
 </div>"""
 once("<body>", "<body class=\"pote-auth-locked\">" + gate)
-brand_markup = ('<div class="brand"><img src="./assets/pote-logo-original.jpg" alt="Potê Batata">'
-                '<span>POTÊ BATATA PRO<small>GESTÃO ONLINE</small></span></div>')
+brand_markup = ('<div class="brand"><img id="poteHeadLogo" src="./assets/generic/business-neutral.svg" alt="Ícone do negócio">'
+                '<span><span id="poteHeadName">GESTÃO PRO</span><small id="poteHeadSubtitle">ESCOLHA SEU NEGÓCIO</small></span></div>')
 html, n = re.subn(r'<div class="brand">[^<]*<small>[^<]*</small></div>', brand_markup, html, count=1)
 if n != 1:
     raise SystemExit("Cabeçalho da marca não encontrado")
@@ -108,6 +108,10 @@ html = html[:admin_start] + admin + html[admin_end:]
 
 bridge = """window.POTE_AUTH=null;
 const POTE_ORIGINAL_LOGO='./assets/pote-logo-original.jpg';
+const POTE_GENERIC_LOGO='./assets/generic/business-neutral.svg';
+const POTE_NEUTRAL_BRAND={name:'Meu Negócio',subtitle:'GESTÃO DE ALIMENTAÇÃO',
+ slogan:'Organize vendas, estoque e receitas',phone:'',instagram:'',
+ primary:'#233449',accent:'#e4b974',logoUrl:POTE_GENERIC_LOGO};
 SEED.brand.logoUrl=POTE_ORIGINAL_LOGO;
 const POTE_REAL_EMPTY_LISTS=[
  'ingredients','recipes','suppliers','expenses','clients','orders','recipeVersions',
@@ -118,7 +122,11 @@ function poteFreshAccount(){
  for(const name of POTE_REAL_EMPTY_LISTS) start.data[name]=[];
  start.data.checklist=(start.data.checklist||[]).map(x=>({...x,done:false}));
  start.data.settings={...start.data.settings,estimatedMonthlyUnits:0};
- start.data.brand={...start.data.brand,logoUrl:POTE_ORIGINAL_LOGO};
+ start.data.brand=window.POTE_AUTH?.role==='admin'
+  ? {...start.data.brand,logoUrl:POTE_ORIGINAL_LOGO}
+  : {...start.data.brand,...POTE_NEUTRAL_BRAND};
+ start.data.businessType=window.POTE_AUTH?.role==='admin'?'batataria':'';
+ start.data.businessTemplates={};
  start.accounts=[];
  start.creatives=[];
  start.audit=[];
@@ -155,7 +163,12 @@ window.POTE_APP={
   const start=poteFreshAccount();
   state={...start,...copy(cloud),data:{...start.data,...copy(cloud?.data||{})},
     mode:'free',tab:'home',expansion:null};
-  if(state.data.brand?.logoUrl?.startsWith('data:image/svg+xml'))state.data.brand.logoUrl=POTE_ORIGINAL_LOGO;
+  if(window.POTE_AUTH?.role==='admin'){
+   if(state.data.brand?.logoUrl?.startsWith('data:image/svg+xml'))state.data.brand.logoUrl=POTE_ORIGINAL_LOGO;
+  }else{
+   if(!state.data.businessType)state.data.businessType='';
+   if(window.POTE_BUSINESS?.normalizeAccountBrand?.())window.POTE_BRAND_MIGRATED=true;
+  }
   render();
  },
  reset(){state=poteFreshAccount();render();}
@@ -170,13 +183,17 @@ resetAll=function(){
 const poteOriginalRender=render;
 render=function(...args){
  const result=poteOriginalRender(...args);
+ window.POTE_BUSINESS?.refresh?.();
  if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'));
  return result;
 };
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-20261115-profile\"></script><script type=\"module\" src=\"./firebase_integration.js?v=license-20261115-years\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-20261115-years\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script></body></html>")
+     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-20261115-business\"></script><script type=\"module\" src=\"./firebase_integration.js?v=license-20261115-years\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-20261115-years\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./business_setup.js?v=business-20261115\"></script></body></html>")
+# Identidade neutra no login; conta mestre recupera a marca ao entrar.
+html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
+if title_count != 1: raise SystemExit("Título neutro não encontrado")
 # Ensure beta is not confused with the public offline demo.
 once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:

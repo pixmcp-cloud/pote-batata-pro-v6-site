@@ -19,6 +19,7 @@ jobs:
           cp public/beta.html public/index.html
           mkdir -p public/assets
           cp assets/pote-logo-original.jpg public/assets/pote-logo-original.jpg
+          cp -R assets/generic public/assets/generic
           cp firebase_integration.js public/firebase_integration.js
           cp supplier_integration.js public/supplier_integration.js
           cp simulation_panel.js public/simulation_panel.js
@@ -34,6 +35,8 @@ jobs:
           cp gallery_config.mjs public/gallery_config.mjs
           cp license_terms.mjs public/license_terms.mjs
           cp floating_menu.js public/floating_menu.js
+          cp business_setup.js public/business_setup.js
+          cp business_setup.css public/business_setup.css
           cp visual_refresh.css public/visual_refresh.css
           cp dashboard_charts.js public/dashboard_charts.js
           cp recipe_images.js public/recipe_images.js
@@ -56,6 +59,11 @@ jobs:
           node --check public/gallery_config.mjs
           node --check public/floating_menu.js
           node test_gallery_42h.mjs
+          node --check public/business_setup.js
+          node test_business_setup.js
+          test -f public/assets/generic/business-neutral.svg
+          test -f public/assets/generic/business-batataria.svg
+          test -f public/assets/generic/recipe-r26.svg
           node test_operations_type.js
           node --check public/license_terms.mjs
           node --input-type=module --check < public/admin_console.js

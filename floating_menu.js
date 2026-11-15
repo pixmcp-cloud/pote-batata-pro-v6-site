@@ -4,7 +4,7 @@
 if(window.__poteFloatingMenuLoaded)return;
 window.__poteFloatingMenuLoaded=true;
 const safe=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const nav=[["home","Início"],["orders","Pedidos e produção"],["recipes","Receitas e fichas"],["builder","Criar receita"],["ingredients","Estoque e insumos"],["clients","Clientes"],["suppliers","Fornecedores"],["pricing","Precificação"],["expenses","Gastos e despesas"],["reports","Gráficos e relatórios"],["creative","Criativos"],["gallery","Galeria · 42h"],["brand","Minha marca"],["settings","Configurações e backup"]];
+const nav=[["home","Início"],["business","Negócio"],["orders","Pedidos e produção"],["recipes","Receitas e fichas"],["builder","Criar receita"],["ingredients","Estoque e insumos"],["clients","Clientes"],["suppliers","Fornecedores"],["pricing","Precificação"],["expenses","Gastos e despesas"],["reports","Gráficos e relatórios"],["creative","Criativos"],["gallery","Galeria · 42h"],["brand","Minha marca"],["settings","Configurações e backup"]];
 const icon='<svg viewBox="0 0 24 24" aria-hidden="true" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
 const avatar='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2c0-5 16-5 16 0v2"/></svg>';
 const closeIcon='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l14 14M19 5L5 19"/></svg>';
@@ -14,7 +14,7 @@ wrap.innerHTML=`
 <button id="poteFloatToggle" type="button" aria-label="Abrir menu de opções" aria-expanded="false" aria-controls="poteFloatDrawer">${icon}</button>
 <div id="poteFloatBackdrop" hidden></div>
 <aside id="poteFloatDrawer" aria-label="Menu de navegação" aria-hidden="true" inert>
- <div class="pote-float-head"><div><small>POTÊ BATATA PRO</small><strong>Menu de Operações</strong></div><button id="poteFloatClose" type="button" aria-label="Fechar menu">${closeIcon}</button></div>
+ <div class="pote-float-head"><div><small id="poteFloatBrand">GESTÃO PRO</small><strong>Menu de Operações</strong></div><button id="poteFloatClose" type="button" aria-label="Fechar menu">${closeIcon}</button></div>
  <button id="poteFloatProfile" class="pote-float-account" type="button"><span id="poteFloatAvatar">${avatar}</span><span><strong id="poteFloatName">Meu perfil</strong><small id="poteFloatEmail">Configurar nome e foto</small></span><span class="pote-float-chevron">›</span></button>
  <nav id="poteFloatNavigation"></nav>
  <div class="pote-float-foot"><button type="button" id="poteFloatSettings">⚙ Configurações e perfil</button><small>As informações de perfil pertencem à sua conta.</small></div>
@@ -106,6 +106,7 @@ $('poteFloatNavigation').addEventListener('click',e=>{
  const b=e.target.closest('button[data-tab]');
  if(!b)return;
  setOpen(false);
+ if(b.dataset.tab==='business'){window.POTE_BUSINESS?.open();return}
  if(b.dataset.tab==='gallery'){window.POTE_GALLERY?.open();return}
  if(typeof go==='function')go(b.dataset.tab);
 });

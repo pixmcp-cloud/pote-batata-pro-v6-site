@@ -36,3 +36,14 @@ Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não est
 - Contas ADM e FREE continuam sendo determinadas pela conta Google verificada; **a mudança visual ou de dados não ativa cobrança PRO**.
 - As regras do Firestore devem continuar isolando documentos por UID. Esta publicação não faz alterações nas regras do servidor.
 - Para auditoria: `node test_clean_accounts.js` verifica estado inicial, separação da simulação e bloqueio de migração destrutiva em contas personalizadas.
+
+## Adaptação a múltiplos negócios (15/11/2026)
+
+- O login e a identidade inicial usam **Gestão Pro** e uma ilustração genérica. A conta mestre Google `pixmcp@gmail.com` mantém sua marca Potê Batata e os dados já salvos.
+- Um cartão **Negócio** na Home e uma entrada no menu permitem escolher **Batataria**, **Pizzaria**, **Hamburgueria** ou **Lancheria**.
+- A seleção de **Batataria** copia para a conta, uma vez, 26 receitas e 45 ingredientes de referência. **Estoque inicial dos ingredientes é zero** e os preços do modelo precisam ser conferidos. Fotografias de receita e logotipo são ilustrações SVG genéricas diferentes das fotografias da conta mestre.
+- Os outros três ramos começam sem fichas-modelo e permitem o cadastro das próprias receitas. O cliente pode alterar o ramo sem que receitas, pedidos ou estoque existentes sejam apagados; a tela informa isso.
+- Contas antigas com a identidade original intacta recebem somente a neutralização da marca-padrão (preservando contatos e registros). As opções FREE/PRO e a sincronização Google permanecem.
+- As ilustrações SVG não usam rede de terceiros nem geram cobrança de imagem por visualização.
+- **Limitação de segurança:** o GitHub Pages é público e os antigos arquivos de imagem ainda são servidos estaticamente para a conta mestre. Embora o aplicativo não os mostre aos demais usuários, URLs estáticas não constituem proteção de acesso. Antes da venda comercial, mover esses arquivos para armazenamento com autorização por usuário e remover os originais do conteúdo público.
+- **Floot:** a mesma função ainda precisa ser incorporada e validada quando o limite diário de desenvolvimento permitir.
