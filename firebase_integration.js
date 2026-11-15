@@ -40,6 +40,8 @@ let unsubscribeRemote = null;
 let unsubscribeProfile = null;
 let expiryCheckInterval = null;
 let rawUserLicense = null;
+let rawUserFranchise = null;
+window.POTE_APP_READY=false;
 const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
 function showBrowserHint() { if (browserHint) browserHint.hidden = false; }
 function withDeadline(promise, ms, label) {
@@ -63,26 +65,32 @@ function refreshEntitlements() {
   const result = resolveLicense(rawUserLicense, Date.now());
   const admin = window.POTE_AUTH.role === "admin";
   const wasPro = Boolean(window.POTE_AUTH.proActive);
-  window.POTE_AUTH.proActive = admin || result.active;
-  window.POTE_AUTH.plan = admin ? "admin" : result.kind;
+  const wasFranchise=Boolean(window.POTE_AUTH.franchiseActive);
+  const franchise=!admin&&rawUserFranchise?.status==="active"&&rawUserFranchise.brandId==="potebatata";
+  window.POTE_AUTH.franchiseActive=franchise;
+  window.POTE_AUTH.proActive = admin || franchise || result.active;
+  window.POTE_AUTH.plan = admin ? "admin" : franchise ? "franchise" : result.kind;
   window.POTE_AUTH.expiresAt = result.expiresAt;
   if (adminOpen) adminOpen.hidden = !admin;
   if (planBadge) {
     planBadge.hidden = admin;
-    planBadge.textContent = result.label;
+    planBadge.textContent = franchise ? "FRANQUIA POTÊ BATATA" : result.label;
     planBadge.title = result.expiresAt ? "Vencimento: " + dateBR(result.expiresAt) : "Sem vencimento";
   }
   const remaining = licenseCountdown(rawUserLicense, Date.now());
   if (planCountdown) {
-    planCountdown.hidden = admin || remaining.state !== "active";
+    planCountdown.hidden = admin || franchise || remaining.state !== "active";
     planCountdown.textContent = remaining.state === "active" ? "Volta ao FREE em " + remaining.formatted : "";
     planCountdown.title = remaining.expiresAt ? "Vencimento: " + dateBR(remaining.expiresAt) : "";
   }
-  window.POTE_LICENSE_STATUS = {...remaining,label:result.label,expiresLabel:remaining.expiresAt?dateBR(remaining.expiresAt):null};
+  window.POTE_LICENSE_STATUS = {...remaining,label:franchise?"FRANQUIA POTÊ BATATA":result.label,
+    franchiseActive:franchise,expiresLabel:remaining.expiresAt?dateBR(remaining.expiresAt):null};
   window.dispatchEvent(new CustomEvent("pote:license-updated",{detail:window.POTE_LICENSE_STATUS}));
-  if (ready && wasPro !== Boolean(window.POTE_AUTH.proActive) && typeof window.render === "function") {
-    window.render();
+  if(ready&&wasFranchise!==franchise){
+    window.dispatchEvent(new Event("pote:franchise-updated"));
   }
+  if (ready && (wasPro !== Boolean(window.POTE_AUTH.proActive)||wasFranchise!==franchise)
+      && typeof window.render === "function")window.render();
 }
 function observeProfile(user, index) {
   if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
@@ -90,6 +98,7 @@ function observeProfile(user, index) {
   unsubscribeProfile = onSnapshot(profileRef, snapshot => {
     if (index !== epoch || auth.currentUser?.uid !== user.uid) return;
     rawUserLicense = snapshot.data()?.license || null;
+    rawUserFranchise = snapshot.data()?.franchise || null;
     refreshEntitlements();
   }, error => console.warn("Licença: ", error.code || error.message));
   if (expiryCheckInterval) clearInterval(expiryCheckInterval);
@@ -160,6 +169,7 @@ async function loadUser(user, index) {
   const profile = doc(db, "users", user.uid);
   const existing = await withDeadline(getDoc(profile), 15000, "consulta do perfil");
   rawUserLicense = existing.exists() ? existing.data().license || null : null;
+  rawUserFranchise = existing.exists() ? existing.data().franchise || null : null;
   refreshEntitlements();
   if (!existing.exists()) {
     await withDeadline(setDoc(profile, {
@@ -197,6 +207,7 @@ async function loadUser(user, index) {
   }
   if (index !== epoch) return;
   ready = true;
+  window.POTE_APP_READY=true;
   logged.textContent = user.email;
   refreshEntitlements();
   loginBtn.disabled = false;
@@ -206,6 +217,7 @@ async function loadUser(user, index) {
   observeRemote(user, index);
   observeProfile(user, index);
   window.POTE_BUSINESS?.refresh?.();
+  window.dispatchEvent(new Event("pote:user-ready"));
   if(window.POTE_BRAND_MIGRATED){
     // Persistir a remoção da marca-padrão em contas FREE antigas, sem apagar cadastros.
     window.POTE_BRAND_MIGRATED=false;
@@ -255,6 +267,9 @@ onAuthStateChanged(auth, async user => {
   if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
   if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }
   rawUserLicense = null;
+  rawUserFranchise=null;
+  window.POTE_APP_READY=false;
+  window.dispatchEvent(new Event("pote:user-logout"));
   window.POTE_BRAND_MIGRATED=false;
   if (adminOpen) adminOpen.hidden = true;
   if (planBadge) planBadge.hidden = true;

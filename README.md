@@ -47,3 +47,15 @@ Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não est
 - As ilustrações SVG não usam rede de terceiros nem geram cobrança de imagem por visualização.
 - **Limitação de segurança:** o GitHub Pages é público e os antigos arquivos de imagem ainda são servidos estaticamente para a conta mestre. Embora o aplicativo não os mostre aos demais usuários, URLs estáticas não constituem proteção de acesso. Antes da venda comercial, mover esses arquivos para armazenamento com autorização por usuário e remover os originais do conteúdo público.
 - **Floot:** a mesma função ainda precisa ser incorporada e validada quando o limite diário de desenvolvimento permitir.
+
+## Rede de franquias Potê Batata — 15/11/2026
+
+- A conta Google mestre pode selecionar outro usuário em **ADM · Gerenciar** e usar **Transformar em franquia**, com confirmação e registro de auditoria. Também pode revogar.
+- O papel de franquia fica no perfil Firebase `users/{uid}.franchise`. Apenas a conta mestre Google verificada pode modificar esse campo; contas normais não podem se promover.
+- Uma franquia ativa tem acesso PRO à marca e às fichas oficiais. A tela Meu Perfil mostra **FRANQUIA POTÊ BATATA**. A seção Negócio fica restrita a Batataria enquanto a franquia estiver ativa.
+- A matriz publica automaticamente **somente** receitas, instruções, ingredientes usados e referências de fotos no documento compartilhado `franchiseCatalog/potebatata`. O catálogo não inclui valores de compras, estoque, pedidos, clientes, despesas ou fornecedores.
+- Cada franquia acompanha o catálogo por `onSnapshot`: sabores novos aparecem, sabores removidos são bloqueados. O preço, margem, estoque e movimentações da franquia permanecem independentes.
+- Na revogação, o acesso ao catálogo é retirado pelas regras do Firestore, o logotipo volta ao genérico, receitas oficiais ficam bloqueadas, mas registros comerciais históricos são preservados.
+- **Limite do modelo atual:** os arquivos de imagens da marca continuam hospedados no GitHub Pages público e as fichas de Batataria ainda são distribuídas no HTML para a instalação de novos usuários. A interface e o Firestore restringem o uso da marca, mas não há proteção de acesso aos arquivos estáticos. Para exclusividade comercial, migrar imagens e conteúdo original para armazenamento privado com controle de acesso.
+- A sincronização acontece com navegador conectado e sessão Google válida; não é um serviço de publicação em background independente dos logins.
+- **Floot:** função pendente de replicação e testes na versão nativa após liberação do limite do workspace.

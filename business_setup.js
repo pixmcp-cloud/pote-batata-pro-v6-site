@@ -29,7 +29,7 @@ function isBrandTemplate(brand){
  return oldName&&oldSubtitle;
 }
 function normalizeAccountBrand(){
- if(master()||typeof state==="undefined"||!state.data)return false;
+ if(master()||window.POTE_AUTH?.franchiseActive||typeof state==="undefined"||!state.data)return false;
  const brand=state.data.brand||{};
  let changed=false;
  if(isBrandTemplate(brand)&&(!brand.logoUrl||brand.logoUrl==="./assets/pote-logo-original.jpg"||
@@ -78,24 +78,25 @@ function normalizePageCopy(){
 }
 function refreshIdentity(){
  const on=master();
+ const isBranded=on||window.POTE_AUTH?.franchiseActive;
  const brand=(typeof state!=="undefined"&&state.data?.brand)||neutralBrand();
  const topLogo=$("poteHeadLogo"),topName=$("poteHeadName"),topSub=$("poteHeadSubtitle");
- if(topLogo)topLogo.src=on?"./assets/pote-logo-original.jpg":(brand.logoUrl||GENERIC_LOGO);
+ if(topLogo)topLogo.src=isBranded?"./assets/pote-logo-original.jpg":(brand.logoUrl||GENERIC_LOGO);
  const favicon=document.querySelector('link[rel="icon"]');
- if(favicon)favicon.href=on?"./assets/pote-logo-original.jpg":GENERIC_LOGO;
- if(topName)topName.textContent=on?"POTÊ BATATA PRO":"GESTÃO PRO";
- if(topSub)topSub.textContent=on?"GESTÃO ONLINE":(currentItem()?.label?.toUpperCase()||"ESCOLHA SEU NEGÓCIO");
+ if(favicon)favicon.href=isBranded?"./assets/pote-logo-original.jpg":GENERIC_LOGO;
+ if(topName)topName.textContent=isBranded?"POTÊ BATATA PRO":"GESTÃO PRO";
+ if(topSub)topSub.textContent=isBranded?(on?"GESTÃO ONLINE":"FRANQUIA OFICIAL"):(currentItem()?.label?.toUpperCase()||"ESCOLHA SEU NEGÓCIO");
  const floatTitle=$("poteFloatBrand");
- if(floatTitle)floatTitle.textContent=on?"POTÊ BATATA PRO":"GESTÃO PRO";
+ if(floatTitle)floatTitle.textContent=isBranded?"POTÊ BATATA PRO":"GESTÃO PRO";
  const footer=document.querySelector(".foot");
  if(footer?.firstChild?.nodeType===Node.TEXT_NODE){
-  const newText=on?"Potê Batata Pro · Gestão Online. ":"Gestão Pro · Plataforma para negócios de alimentação. ";
+  const newText=isBranded?"Potê Batata Pro · Gestão Online. ":"Gestão Pro · Plataforma para negócios de alimentação. ";
   if(footer.firstChild.textContent!==newText)footer.firstChild.textContent=newText;
  }
  const businessDesc=$("poteBusinessCurrent");
  if(businessDesc)businessDesc.textContent=currentItem()?.label||"Escolher tipo de negócio";
  const businessHero=$("poteBusinessHeroHint");
- if(businessHero)businessHero.textContent=on?"Batataria · Conta mestre preservada":currentItem()?"Ramo: "+currentItem().label:"Escolha Batataria, Pizzaria, Hamburgueria ou Lancheria";
+ if(businessHero)businessHero.textContent=on?"Batataria · Conta mestre preservada":window.POTE_AUTH?.franchiseActive?"Batataria · Franquia oficial":"Ramo: "+(currentItem()?.label||"Escolha seu negócio");
  const businessImage=$("poteBusinessImage");
  if(businessImage)businessImage.src=currentItem()?.photo||"./assets/generic/business-neutral.svg";
  normalizePageCopy();
@@ -162,6 +163,8 @@ function show(open){
 }
 function select(type){
  if(!window.POTE_AUTH?.uid){alert("Entre com Google antes de escolher seu negócio.");return}
+ if(window.POTE_AUTH.franchiseActive){if(type!=="batataria"){alert("Franquia oficial Potê Batata: o ramo Batataria é obrigatório enquanto a franquia estiver ativa.");return}
+   state.data.businessType="batataria";persist();render();show(false);return}
  const choice=TYPES.find(x=>x.id===type);if(!choice)return;
  if(master()){
   // A identidade e os registros próprios da conta mestre nunca são substituídos.

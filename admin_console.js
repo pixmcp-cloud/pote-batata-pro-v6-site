@@ -13,17 +13,26 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
    <header class="pote-adm-head"><div><small>CONTROLE EXCLUSIVO • CONTA MESTRE</small><h2 id="poteAdmTitle">Central Administrativa</h2><p>Cadastros Google, licenças, prazos e histórico de concessões.</p></div><button id="poteAdmClose" aria-label="Fechar administração" type="button">✕</button></header>
    <div class="pote-adm-scroll">
     <div class="pote-adm-stats" id="poteAdmStats" aria-live="polite"></div>
-    <div class="pote-adm-toolbar"><input id="poteAdmSearch" type="search" placeholder="Buscar por e-mail, nome ou UID..." aria-label="Buscar usuários"><select id="poteAdmFilter" aria-label="Filtrar por plano"><option value="all">Todos os cadastros</option><option value="free">Somente FREE</option><option value="trial">Testes ativos</option><option value="pro">PRO ativos</option><option value="lifetime">Vitalícios</option><option value="expired">Vencidos</option></select><button id="poteAdmReload" type="button">Atualizar lista</button></div>
+    <div class="pote-adm-toolbar"><input id="poteAdmSearch" type="search" placeholder="Buscar por e-mail, nome ou UID..." aria-label="Buscar usuários"><select id="poteAdmFilter" aria-label="Filtrar por plano"><option value="all">Todos os cadastros</option><option value="free">Somente FREE</option><option value="trial">Testes ativos</option><option value="pro">PRO ativos</option><option value="lifetime">Vitalícios</option><option value="franchise">Franquias</option><option value="expired">Vencidos</option></select><button id="poteAdmReload" type="button">Atualizar lista</button></div>
     <div class="pote-adm-columns">
      <section class="pote-adm-list"><div class="pote-adm-section-head"><h3>Contas cadastradas</h3><span id="poteAdmFound"></span></div><div id="poteAdmUsers" class="pote-adm-users" role="listbox" aria-label="Selecione uma conta"></div></section>
      <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div><div id="poteAdmCountdown" class="pote-adm-countdown" data-state="free"><small id="poteAdmCountdownLabel">TEMPO PARA VOLTAR AO FREE</small><strong id="poteAdmCountdownTime" role="timer">--a --d --h --m --s</strong><span id="poteAdmCountdownHint">Selecione uma conta com licença ativa.</span></div>
       <label class="pote-adm-label">Licença e duração<select id="poteAdmTerm" aria-label="Modalidade da licença">${LICENSE_TERMS.map(x=>`<option value="${x.id}">${esc(x.label)}</option>`).join("")}</select></label>
       <p id="poteAdmPreview" class="pote-adm-preview"></p>
       <div class="pote-adm-controls"><button id="poteAdmGrant" type="button" disabled>Promover / renovar</button><button id="poteAdmRevoke" type="button" disabled>Revogar → FREE</button></div>
+      <section class="pote-adm-franchise">
+        <div class="pote-adm-franchise-head"><strong>Franquia Potê Batata</strong><span id="poteAdmFranchiseStatus">Selecione uma conta</span></div>
+        <p>Ative para liberar a marca original, as fotos oficiais e a atualização automática dos sabores cadastrados pela matriz. Cada unidade mantém seus próprios clientes, estoque, vendas e custos.</p>
+        <div class="pote-adm-controls">
+          <button type="button" id="poteAdmFranchiseActivate" disabled>Transformar em franquia</button>
+          <button type="button" id="poteAdmFranchiseRevoke" disabled>Revogar franquia</button>
+        </div>
+      </section>
       <p class="pote-adm-footnote">FREE não vence. O teste de 24 horas começa na concessão; o PRO tem opções de 1, 6 ou 12 meses; a vitalícia não vence. Licenças vencidas retornam a FREE na verificação de acesso.</p>
       <div id="poteAdmFeedback" role="status" aria-live="polite"></div>
      </section>
     </div>
+    <section class="pote-adm-audit"><div class="pote-adm-section-head"><h3>Histórico de franquias</h3><button id="poteAdmFranchiseAuditReload" type="button">Recarregar</button></div><div id="poteAdmFranchiseAudit"></div></section>
     <section class="pote-adm-audit"><div class="pote-adm-section-head"><h3>Histórico de alterações</h3><button id="poteAdmAuditReload" type="button">Recarregar</button></div><div id="poteAdmAudit"></div></section>
    </div>
   </section>
@@ -38,8 +47,12 @@ function selectionReady(){
  const user=current(),allowed=!!user&&user.uid!==auth.currentUser?.uid;
  $("poteAdmGrant").disabled=!allowed||busy;
  $("poteAdmRevoke").disabled=!allowed||busy;
+ const isFranchise=user?.franchise?.status==="active"&&user.franchise.brandId==="potebatata";
+ $("poteAdmFranchiseActivate").disabled=!allowed||busy||isFranchise;
+ $("poteAdmFranchiseRevoke").disabled=!allowed||busy||!isFranchise;
+ $("poteAdmFranchiseStatus").textContent=isFranchise?"Franquia ativa":"Não é franquia";
  $("poteAdmSelected").innerHTML=user?
-  `<strong>${esc(user.displayName||user.email||"Sem nome")}</strong><small>${esc(user.email||user.uid)}</small><span>${esc(resolveLicense(user.license,today()).label)} · ${esc(user.license?.term||"free")}</span>`:
+  `<strong>${esc(user.displayName||user.email||"Sem nome")}</strong><small>${esc(user.email||user.uid)}</small><span>${esc(isFranchise?"FRANQUIA POTÊ BATATA":resolveLicense(user.license,today()).label)} · ${esc(user.license?.term||"free")}</span>`:
   "Selecione uma conta na lista.";
  preview();
  refreshCountdown();
@@ -78,30 +91,32 @@ function refreshCountdown(){
 function fmtDate(input){return input?dateBR(input):"—"}
 function render(){
  const now=today();
- const stats={total:entries.length,free:0,trial:0,pro:0,lifetime:0,expired:0};
+ const stats={total:entries.length,free:0,trial:0,pro:0,lifetime:0,expired:0,franchise:0};
  for(const u of entries){
   if(String(u.email||"").toLowerCase()==="pixmcp@gmail.com")continue;
   const l=resolveLicense(u.license,now);
+  if(u.franchise?.status==="active"&&u.franchise.brandId==="potebatata")stats.franchise++;
   if(l.reason==="expired")stats.expired++;
+  if(u.franchise?.status==="active"&&u.franchise.brandId==="potebatata")continue;
   if(l.active)stats[l.kind]++;else stats.free++;
  }
  $("poteAdmStats").innerHTML=[
-  ["Cadastros",stats.total],["FREE",stats.free],["Teste ativo",stats.trial],["PRO ativo",stats.pro],["Vitalício",stats.lifetime],["Vencidos",stats.expired]
+  ["Cadastros",stats.total],["FREE",stats.free],["Teste ativo",stats.trial],["PRO ativo",stats.pro],["Vitalício",stats.lifetime],["Franquias",stats.franchise],["Vencidos",stats.expired]
  ].map(([label,n])=>`<div><small>${label}</small><strong>${n}</strong></div>`).join("");
  const filter=$("poteAdmFilter").value,q=$("poteAdmSearch").value.trim().toLowerCase();
  const matched=entries.filter(u=>{
   const plan=resolveLicense(u.license,now);
-  const ok=filter==="all"||(filter==="expired"?plan.reason==="expired":filter==="free"?plan.kind==="free":plan.kind===filter);
+  const ok=filter==="all"||(filter==="franchise"?u.franchise?.status==="active"&&u.franchise.brandId==="potebatata":filter==="expired"?plan.reason==="expired":filter==="free"?plan.kind==="free"&&u.franchise?.status!=="active":plan.kind===filter);
   return ok&&[u.email,u.displayName,u.uid].some(v=>String(v||"").toLowerCase().includes(q));
  });
  $("poteAdmFound").textContent=matched.length+" exibido(s)";
  $("poteAdmUsers").innerHTML=matched.length?matched.map(u=>{
   const l=resolveLicense(u.license,now),selected=u.uid===selection;
   const isSelf=u.uid===auth.currentUser?.uid;
-  const name=u.displayName||u.email||"Usuário Google",meta=isSelf?"Administrador mestre":l.expiresAt?"Vence em "+expires(l.expiresAt):"Sem vencimento";
+  const name=u.displayName||u.email||"Usuário Google",meta=isSelf?"Administrador mestre":u.franchise?.status==="active"?"Franquia Potê Batata · acesso oficial":l.expiresAt?"Vence em "+expires(l.expiresAt):"Sem vencimento";
   return `<button type="button" data-uid="${esc(u.uid)}" class="pote-adm-user${selected?" selected":""}" role="option" aria-selected="${selected}" ${isSelf?'title="Conta administradora — somente consulta"':''}>
    <span class="pote-adm-user-identity"><strong>${esc(name)}</strong><small>${esc(u.email||u.uid)}</small><small>${esc(fmtDate(u.createdAt))} · ${esc(meta)}</small><small class="pote-adm-timer-row" data-remaining-uid="${esc(u.uid)}"></small></span>
-   <span class="pote-adm-user-plan" data-plan="${esc(l.kind)}">${isSelf?"ADM MESTRE":esc(l.label)}</span></button>`;
+   <span class="pote-adm-user-plan" data-plan="${esc(u.franchise?.status==="active"?"franchise":l.kind)}">${isSelf?"ADM MESTRE":u.franchise?.status==="active"?"FRANQUIA":esc(l.label)}</span></button>`;
  }).join(""):'<p class="pote-adm-empty">Nenhuma conta encontrada para este filtro.</p>';
  selectionReady();
 }
@@ -116,7 +131,7 @@ async function assertAdmin(){
  if(token.claims.email_verified!==true||token.signInProvider!=="google.com")throw Error("Conta Google não verificada");
  return user;
 }
-function setBusy(v){busy=v;selectionReady();$("poteAdmReload").disabled=v;$("poteAdmAuditReload").disabled=v;}
+function setBusy(v){busy=v;selectionReady();$("poteAdmReload").disabled=v;$("poteAdmAuditReload").disabled=v;$("poteAdmFranchiseAuditReload").disabled=v;}
 async function loadUsers(){
  if(loading)return;loading=true;status("Consultando cadastros...");$("poteAdmUsers").innerHTML='<p class="pote-adm-empty">Carregando contas do Firestore...</p>';
  try{
@@ -173,13 +188,66 @@ async function changeLicense(revoke=false){
  }catch(e){status("Alteração não foi concluída: "+(e.code||e.message),true)}
  finally{setBusy(false)}
 }
+async function loadFranchiseAudit(){
+ $("poteAdmFranchiseAudit").textContent="Carregando histórico de franquias...";
+ try{
+  await assertAdmin();
+  const records=await getDocs(query(collection(db,"franchiseAudit"),orderBy("at","desc"),limit(30)));
+  $("poteAdmFranchiseAudit").innerHTML=records.empty?
+   '<p class="pote-adm-empty">Nenhuma franquia concedida nesta central.</p>':
+   records.docs.map(d=>{
+    const a=d.data();
+    return '<div class="pote-adm-event"><span>'+esc(fmtDate(a.at))+'</span><strong>'+
+     esc(a.targetEmail||a.targetUid)+'</strong><span>'+esc(a.brandId||"potebatata")+
+     '</span><small>'+esc(a.action||"alteração")+'</small></div>'
+   }).join("");
+ }catch(e){$("poteAdmFranchiseAudit").textContent="Histórico indisponível: "+(e.code||e.message)}
+}
+async function changeFranchise(enable){
+ const selected=current(),actorId=auth.currentUser?.uid;
+ if(!selected||!actorId||selected.uid===actorId||busy)return;
+ const active=selected.franchise?.status==="active"&&selected.franchise?.brandId==="potebatata";
+ if(enable===active){status(enable?"Esta conta já é franquia.":"Esta conta não tem franquia ativa.",true);return}
+ const name=selected.email||selected.uid;
+ const prompt=enable?
+  "Transformar "+name+" em FRANQUIA OFICIAL POTÊ BATATA? Isso libera logo, fotos oficiais, PRO e os novos sabores automáticos. Vendas, estoque e custos permanecem separados.":
+  "REVOGAR a franquia de "+name+"? A conta perde o uso da identidade e dos sabores oficiais sincronizados. As vendas e os registros históricos próprios serão preservados.";
+ if(!confirm(prompt))return;
+ setBusy(true);status(enable?"Ativando franquia com acesso oficial...":"Revogando acesso à franquia...");
+ try{
+  const actor=await assertAdmin();
+  const ref=doc(db,"users",selected.uid),latest=await getDoc(ref);
+  if(!latest.exists())throw Error("Usuário não existe mais");
+  if(latest.data().email?.trim().toLowerCase()==="pixmcp@gmail.com")throw Error("A conta mestre não pode ser convertida em franquia");
+  const now=serverTimestamp();
+  const franchise={
+   brandId:"potebatata",status:enable?"active":"revoked",
+   grantedByUid:actor.uid,grantedByEmail:actor.email,
+   grantedAt:enable?now:(latest.data().franchise?.grantedAt||now),
+   changedAt:now
+  };
+  const batch=writeBatch(db);
+  batch.update(ref,{franchise,updatedAt:now});
+  batch.set(doc(collection(db,"franchiseAudit")),{
+   action:enable?"ativar":"revogar",status:franchise.status,brandId:"potebatata",
+   at:now,actorUid:actor.uid,actorEmail:actor.email,
+   targetUid:selected.uid,targetEmail:latest.data().email||selected.email||""
+  });
+  await batch.commit();
+  status(enable?"Franquia ativada. A conta receberá automaticamente a marca e o catálogo ao sincronizar.":
+    "Franquia revogada. Os registros comerciais próprios foram preservados.");
+  window.POTE_FRANCHISE?.refresh?.();
+  await Promise.all([loadUsers(),loadFranchiseAudit()]);
+ }catch(e){status("Não foi possível alterar a franquia: "+(e.code||e.message),true)}
+ finally{setBusy(false)}
+}
 async function open(){
  try{await assertAdmin()}catch(e){alert(e.message);return}
  overlay.hidden=false;
  document.documentElement.classList.add("pote-admin-open");
  $("poteAdmSearch").value="";
  $("poteAdmFilter").value="all";
- await Promise.all([loadUsers(),loadAudit()]);
+ await Promise.all([loadUsers(),loadAudit(),loadFranchiseAudit()]);
  if(clockTimer!==null)clearInterval(clockTimer);
  clockTimer=setInterval(()=>{if(!overlay.hidden)refreshCountdown()},1000);
  refreshCountdown();
@@ -196,6 +264,9 @@ overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!overlay.hidden)close()});
 $("poteAdmReload").addEventListener("click",loadUsers);
 $("poteAdmAuditReload").addEventListener("click",loadAudit);
+$("poteAdmFranchiseAuditReload").addEventListener("click",loadFranchiseAudit);
+$("poteAdmFranchiseActivate").addEventListener("click",()=>changeFranchise(true));
+$("poteAdmFranchiseRevoke").addEventListener("click",()=>changeFranchise(false));
 $("poteAdmUsers").addEventListener("click",e=>{
  const target=e.target.closest("[data-uid]");if(!target)return;selection=target.dataset.uid;render();
 });

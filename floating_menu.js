@@ -65,6 +65,14 @@ function refreshProfileLicense(status=window.POTE_LICENSE_STATUS){
   $('poteProfileLicenseHint').textContent='Acesso administrativo verificado.';
   return;
  }
+ if(window.POTE_AUTH.franchiseActive||status?.franchiseActive){
+  box.dataset.state='lifetime';
+  $('poteProfileLicenseType').textContent='FRANQUIA POTÊ BATATA';
+  $('poteProfileCountdownLabel').textContent='CATÁLOGO OFICIAL';
+  $('poteProfileCountdown').textContent='Sincronização ativa';
+  $('poteProfileLicenseHint').textContent='A marca, as imagens e os sabores são atualizados pela matriz. Seus custos, vendas e estoque continuam exclusivos da sua unidade.';
+  return;
+ }
  const state=status?.state||'free';
  box.dataset.state=state;
  $('poteProfileLicenseType').textContent=state==='lifetime'?'PRO VITALÍCIA':state==='active'?(status?.label||'PRO'):state==='expired'?'FREE · VENCIDO':'FREE';

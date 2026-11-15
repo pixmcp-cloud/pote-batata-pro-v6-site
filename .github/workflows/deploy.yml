@@ -37,6 +37,8 @@ jobs:
           cp floating_menu.js public/floating_menu.js
           cp business_setup.js public/business_setup.js
           cp business_setup.css public/business_setup.css
+          cp franchise_sync.js public/franchise_sync.js
+          cp franchise_catalog.mjs public/franchise_catalog.mjs
           cp visual_refresh.css public/visual_refresh.css
           cp dashboard_charts.js public/dashboard_charts.js
           cp recipe_images.js public/recipe_images.js
@@ -61,6 +63,9 @@ jobs:
           node test_gallery_42h.mjs
           node --check public/business_setup.js
           node test_business_setup.js
+          node --check public/franchise_catalog.mjs
+          node --input-type=module --check < public/franchise_sync.js
+          node test_franchise_catalog.mjs
           test -f public/assets/generic/business-neutral.svg
           test -f public/assets/generic/business-batataria.svg
           test -f public/assets/generic/recipe-r26.svg

@@ -76,6 +76,48 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Um catálogo publicado pela matriz. As franquias recebem apenas as fichas
+    // aprovadas, nunca o appState, vendas ou custos privados da conta mestre.
+    function isActivePoteFranchise() {
+      return googleVerified()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.status == 'active'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.brandId == 'potebatata';
+    }
+    match /franchiseCatalog/{catalogId} {
+      allow get: if catalogId == 'potebatata'
+        && (isAdmin() || isActivePoteFranchise());
+      allow list: if false;
+      allow create, update: if catalogId == 'potebatata'
+        && isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'brandId', 'version', 'branding', 'recipes', 'ingredients',
+          'publisherUid', 'fingerprint', 'updatedAt'
+        ])
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.publisherUid == request.auth.uid
+        && request.resource.data.recipes.size() <= 150
+        && request.resource.data.ingredients.size() <= 250
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /franchiseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail',
+          'targetUid', 'targetEmail', 'brandId', 'status'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.action in ['ativar', 'revogar']
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
     // Deny everything not explicitly listed.
     match /{document=**} {
       allow read, write: if false;
