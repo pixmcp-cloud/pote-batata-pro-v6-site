@@ -96,3 +96,12 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
 .ops-chart-disclaimer{color:#9eafc2;font-size:10px;line-height:1.6;margin:13px 0 0}
 @media(max-width:680px){.ops-analytics-grid{grid-template-columns:1fr}.ops-chart-wide{grid-column:auto}.ops-stats{grid-template-columns:1fr 1fr}.ops-stats>div:last-child{grid-column:1/-1}.ops-analytics-heading{flex-wrap:wrap}.ops-chart-card{padding:15px}.ops-donut-body{gap:15px}}
 @media(max-width:390px){.ops-stats strong{font-size:17px}.ops-real-badge{font-size:9px}}
+
+/* Artes 3D de alto padrão em cada função da Central */
+.ops-card{min-height:164px;gap:2px}
+.ops-icon{display:flex;align-items:center;justify-content:flex-start;height:105px;width:100%;font-size:0;filter:none;overflow:visible}
+.ops-icon img{display:block;height:110px;width:119px;max-width:86%;object-fit:contain;mix-blend-mode:screen;border-radius:14px;filter:drop-shadow(0 13px 8px #0009) saturate(1.08);transform:translateY(-9px);transition:transform .23s,filter .23s}
+.ops-card:hover .ops-icon img{transform:translateY(-15px) scale(1.055);filter:drop-shadow(0 17px 14px #000c) saturate(1.14)}
+.ops-card strong{font-size:15px}
+@media(max-width:700px){.ops-card{min-height:146px}.ops-icon{height:90px}.ops-icon img{height:96px;width:105px}}
+@media(prefers-reduced-motion:reduce){.ops-icon img{transition:none}.ops-card:hover .ops-icon img{transform:none}}
