@@ -1,0 +1,35 @@
+/* Potê Batata Pro — interface responsiva e resultados da busca pública. */
+html, body { max-width: 100%; overflow-x: clip; }
+.brand { display:flex; align-items:center; gap:10px; min-width:0; }
+.brand img { width:37px; height:37px; object-fit:cover; border-radius:50%; flex-shrink:0; border:1px solid #a77a3a; }
+.brand > span { display:block; min-width:0; font-size:clamp(13px,3.6vw,18px); overflow-wrap:anywhere; }
+.brand small { letter-spacing:.02em; }
+#poteSyncStatus {color:#a8d9b0; font-size:12px; overflow-wrap:anywhere; }
+#poteLoggedAs {font-size:12px; min-width:0; overflow-wrap:anywhere;}
+.pote-supplier-lookup{min-width:0;border:1px solid #654a31;background:#1b130e;border-radius:12px;padding:13px;margin:12px 0 22px;}
+.pote-supplier-lookup small {display:block;color:#baad99;font-size:11px;margin-top:10px;line-height:1.45;}
+.pote-supplier-lookup a:not(.btn){color:#e5b86c;}
+#supplierLookupStatus {color:#e0cfb2;margin-bottom:10px;line-height:1.5;}
+.pote-supplier-result{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-top:1px solid #59412c;padding:12px 0;}
+.pote-supplier-result strong{color:#f8ddb0;overflow-wrap:anywhere;}
+.pote-supplier-result .muted{font-size:12px;}
+.pote-supplier-result-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.pote-supplier-result-actions .btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:700;}
+@media(max-width:850px){
+  .headin{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;gap:9px;padding:11px 13px;}
+  .switch{width:100%;max-width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px;padding:7px;}
+  #poteLoggedAs{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;}
+  #poteExit{justify-self:end;}
+  #poteSyncStatus{grid-column:1/-1;margin-left:0;text-align:left;padding:2px 5px 3px;}
+  .navmobile{max-width:100vw;width:100%;min-width:0;scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;}
+  .navmobile .navbtn{scroll-snap-align:start;}
+  .shell,.layout,.content,.box,.hero{max-width:100%;min-width:0;}
+  .content{padding:12px;}
+  .livresom-contact,.livresom-footer-contacts{max-width:100%;min-width:0;}
+  .fields{grid-template-columns:minmax(0,1fr);}
+  .pote-supplier-result-actions{width:100%;}
+}
+@media(max-width:390px){
+  .brand{letter-spacing:0.025em;}
+  .pote-supplier-result-actions .btn{flex:1 1 auto;}
+}

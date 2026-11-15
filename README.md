@@ -18,3 +18,11 @@ O frontend público contém apenas o código da aplicação, nunca dados privado
 A autenticação precisa de teste presencial em navegador Chrome/Edge com a conta administradora e com outra conta. Navegadores internos de aplicativos podem bloquear o popup Google — a tela agora sinaliza e orienta a abrir o navegador externo.
 
 Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não estão implementadas ou autorizadas. Não oferecer assinaturas pagas até concluir validação e controles de servidor. Dados demonstrativos que venham da V6 não devem ser confundidos com registros reais.
+
+## Atualização: fornecedores e GPS (piloto gratuito)
+- No painel ADM, **Usar GPS** solicita autorização real do navegador via `navigator.geolocation` em HTTPS. Em WebViews do ChatGPT/WhatsApp pode falhar; use Chrome/Edge.
+- **Pesquisar fornecedores** consulta apenas após clique e usa Photon (dados públicos do OpenStreetMap), com cache local de 24 horas e consultas limitadas. Endereços, horários, telefones e estoque devem ser confirmados.
+- A consulta pública pode limitar requisições ou ficar indisponível. **Não é serviço com SLA de produção**; para escalar a uma base grande de assinantes, contratar ou hospedar um provedor com garantias.
+- A versão FREE mantém o cadastro manual limitado a um fornecedor. Pesquisa externa está restrita ao painel ADM neste piloto.
+- A interface móvel ajusta cabeçalho, menu horizontal e largura dos campos; logo original é usada também no cabeçalho.
+- O teste `node test_suppliers.js` simula resposta de fornecedor, GPS e cadastro sem executar consultas externas na CI.

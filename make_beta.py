@@ -31,6 +31,8 @@ once("Todos os dados de teste são armazenados somente no navegador deste aparel
 once("Nenhum dado enviado ao Floot. A troca FREE / PRO / ADM é um atalho exclusivo da simulação, não uma autenticação real.",
      "O login Google é real. A venda e a concessão de planos PRO ainda não foram implementadas.")
 once("pote-simulacao-backup-v6.json", "pote-batata-pro-backup.json")
+once("Pesquisa habilitada nesta simulação. Nenhuma chamada externa será enviada.",
+     "Busca piloto de estabelecimentos reais no OpenStreetMap. Confirme os dados antes de comprar.")
 once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="index,follow"><meta name="description" content="Potê Batata Pro: gestão de receitas, custos, preços, pedidos e estoque.">')
 
 head = """<style>
@@ -58,7 +60,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg">' + "</head>")
+once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115">' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
@@ -74,6 +76,11 @@ gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Ent
  </div>
 </div>"""
 once("<body>", "<body class=\"pote-auth-locked\">" + gate)
+brand_markup = ('<div class="brand"><img src="./assets/pote-logo-original.jpg" alt="Potê Batata">'
+                '<span>POTÊ BATATA PRO<small>GESTÃO ONLINE</small></span></div>')
+html, n = re.subn(r'<div class="brand">[^<]*<small>[^<]*</small></div>', brand_markup, html, count=1)
+if n != 1:
+    raise SystemExit("Cabeçalho da marca não encontrado")
 switch = r'<div class="switch" role="group" aria-label="Versão de demonstração">.*?</div>'
 new_switch = ('<div class="switch" role="group" aria-label="Sua sessão">'
  '<span id="poteLoggedAs"></span><button id="poteExit" type="button">Sair</button>'
@@ -124,7 +131,7 @@ render=function(...args){
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script type=\"module\" src=\"./firebase_integration.js?v=authfix-20261114\"></script></body></html>")
+     bridge + "</script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=authfix-20261114\"></script></body></html>")
 # Ensure beta is not confused with the public offline demo.
 once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:

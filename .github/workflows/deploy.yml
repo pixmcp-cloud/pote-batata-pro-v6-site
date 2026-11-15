@@ -19,11 +19,18 @@ jobs:
           mkdir -p public/assets
           cp assets/pote-logo-original.jpg public/assets/pote-logo-original.jpg
           cp firebase_integration.js public/firebase_integration.js
+          cp supplier_integration.js public/supplier_integration.js
+          cp mobile.css public/mobile.css
           python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
           python3 -c 'import pathlib,re; s=pathlib.Path("public/beta.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
           node --input-type=module --check < public/firebase_integration.js
+          node --check public/supplier_integration.js
+          node test_suppliers.js
+          grep -q 'supplier_integration.js' public/index.html
+          grep -q 'mobile.css' public/index.html
+          grep -q 'id="poteSyncStatus"' public/index.html
           rm -f app-check.js
           test ! -e public/setup.html
           grep -q "poteAuthGate" public/beta.html
