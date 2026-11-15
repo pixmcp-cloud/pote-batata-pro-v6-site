@@ -72,3 +72,15 @@ Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não est
 - O acesso FREE continua com as mesmas limitações de receitas; o catálogo completo é recurso PRO conforme licenciamento.
 - **Atenção:** os modelos são pontos de partida, não fichas técnicas profissionalmente homologadas. Conferir gramagens, rendimento, alergênicos, cocção e custos reais antes da venda.
 - **Floot:** adaptar os universos e a migração aos registros já existentes no projeto nativo, sem substituir os dados de produção.
+
+## Estoque real e compras — 15/11/2026
+
+- A tela **Estoque e compras** separa claramente três valores: **saldo físico atual**, **preço/quantidade da embalagem de referência**, e **rendimento aproveitável (%)**. Exemplo de modelo: R$ 90 por 25 kg (custo de referência), 90% (rendimento) e **estoque real independente**.
+- **Nova compra:** informar ingrediente, quantidade de fato recebida, unidade (kg/g/L/ml/un), valor **total** pago e fornecedor opcional. A tela calcula saldo inicial + compra = novo saldo antes de confirmar. A gravação armazena a compra em `data.purchases`, o movimento em `data.stockMovements` e atualiza `ingredient.stock`; custo da última compra passa a ser referência de precificação.
+- Exemplo validado: 3 kg no depósito + 20 kg comprados por R$ 180 = 23 kg; custo de referência passa a R$ 180/20 kg. O preço por quilo é R$ 9 e o rendimento continua registrado separadamente.
+- **Conferir / ajustar saldo:** substitui o saldo pela contagem física informada e registra a diferença com motivo; não gera pedido de compra fictício.
+- **Últimas compras:** registra horário, ingrediente, quantidade e valor pago. Quando a conta é franquia, ingredientes genéricos de Batataria importados antes da promoção não são exibidos na área principal, preservando os dados históricos.
+- O formulário de custo de referência não aumenta nem diminui o estoque: preço e quantidade da embalagem **não** representam saldo físico. Ingrediente novo começa com estoque 0.
+- O distintivo de usuário autenticado foi corrigido para **FRANQUIA • OFICIAL**, **PRO • LICENÇA ATIVA**, **FREE • PLANO GRATUITO** ou **ADM • ACESSO MESTRE**, conforme permissões reais; remover rótulos de acesso simulado das contas reais.
+- **Pendente de validação operacional:** testar o cadastro de compra com conta Google real e a sincronização entre dois aparelhos. Edicões concorrentes do mesmo estoque em dois dispositivos ainda exigem estratégia de transação para evitar sobrescrita.
+- **Floot:** aplicar o mesmo novo fluxo posteriormente, preservando o banco existente.

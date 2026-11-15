@@ -1,0 +1,202 @@
+/* Gestão clara de estoque — saldo físico, compras reais, preço de referência e rendimento em áreas distintas. */
+(function(){
+"use strict";
+if(window.POTE_STOCK_UI)return;
+const S=window.POTE_STOCK;
+const $=id=>document.getElementById(id);
+const e=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const idFor=x=>String(x?.id??"");
+const available=()=>state.data.ingredients.filter(i=>!(window.POTE_AUTH?.franchiseActive&&i.templateOrigin==="batataria"));
+const integerFmt=(v,d=2)=>Number(v??0).toLocaleString("pt-BR",{maximumFractionDigits:d});
+const sourceLabel=item=>{
+ const src=String(item.source||"").toLowerCase();
+ if(item.modelRecipe||item.templateOrigin||src.includes("referência")||src.includes("simula")||src.includes("atualize"))
+   if(!src.startsWith("compra real")&&!src.startsWith("preço informado"))return "REFERÊNCIA DO MODELO · CONFIRA ANTES DE USAR";
+ return "VALOR INFORMADO · ÚLTIMA COMPRA/EDIÇÃO";
+};
+function costUnit(item){
+ const paid=S.number(item.purchasePrice??item.price);
+ const q=S.number(item.purchaseQuantity??1);
+ const u=item.purchaseUnit||"kg";
+ if(!Number.isFinite(paid)||!Number.isFinite(q)||q<=0)return "Custo não informado";
+ return S.money(paid)+" / "+integerFmt(q,3)+" "+u+" (embalagem, não estoque)";
+}
+function renderPanel(state,data){
+ const visible=available(),count=visible.length,low=visible.filter(i=>S.number(i.minimum)>0&&
+   S.number(i.stock)<=S.number(i.minimum)).length;
+ const localStockCount=visible.filter(i=>S.number(i.stock)>0).length;
+ const last=(state.data.purchases||[]).filter(p=>visible.some(i=>i.id===p.ingredientId))
+  .slice(0,12);
+ return `<div class="stock-head">
+  <div class="stock-kicker">INVENTÁRIO ATUAL · VALORES REAIS DA SUA CONTA</div>
+  <h2>Estoque e compras</h2>
+  <p><strong>Estoque</strong> é o saldo que existe fisicamente. <strong>Compra</strong> soma uma entrada ao saldo. <strong>Preço da embalagem</strong> e <strong>rendimento (%)</strong> servem só para calcular custos — não indicam quantidade disponível.</p>
+  <div class="stock-summary">
+   <div><small>Insumos cadastrados</small><strong>${count}</strong></div>
+   <div><small>Com saldo positivo</small><strong>${localStockCount}</strong></div>
+   <div><small>Abaixo do mínimo</small><strong>${low}</strong></div>
+  </div>
+ </div>
+ <section class="stock-box" id="stockPurchaseBox">
+  <div class="stock-section-head"><div><small>ENTRADA DE MERCADORIAS</small><h2>+ Registrar nova compra</h2></div><span>Adiciona ao estoque, não substitui</span></div>
+  ${visible.length?`<div class="stock-purchase-fields">
+   <label>Ingrediente comprado<select id="stockPurchaseIngredient" onchange="POTE_STOCK_UI.selectIngredient()">
+   ${visible.map(i=>`<option value="${e(i.id)}">${e(i.name)}</option>`).join("")}</select></label>
+   <label>Quantidade recebida<input id="stockPurchaseQty" type="text" inputmode="decimal" placeholder="Ex.: 20" oninput="POTE_STOCK_UI.preview()"></label>
+   <label>Unidade<select id="stockPurchaseUnit" onchange="POTE_STOCK_UI.preview()">
+   <option value="kg">kg</option><option value="g">g</option><option value="L">L</option><option value="ml">ml</option><option value="un">un</option></select></label>
+   <label>Valor TOTAL pago (R$)<input id="stockPurchasePaid" type="text" inputmode="decimal" placeholder="Ex.: 185,90" oninput="POTE_STOCK_UI.preview()"></label>
+   <label class="stock-purchase-supplier">Fornecedor (opcional)<input id="stockPurchaseSupplier" type="text" maxlength="130" placeholder="Nome do fornecedor"></label>
+  </div>
+  <div id="stockPurchasePreview" class="stock-purchase-preview">Selecione o item e informe a quantidade e o total pago. O saldo novo será calculado aqui.</div>
+  <div class="stock-purchase-actions"><button class="btn" type="button" onclick="POTE_STOCK_UI.savePurchase()">Confirmar compra e somar ao estoque</button><small>Exemplo: 3 kg no estoque + 20 kg comprados = 23 kg. Os valores reais são registrados no histórico.</small></div>`:
+  '<p>Nenhum ingrediente cadastrado. Adicione o primeiro item na seção Cadastro de ingrediente, abaixo.</p>'}
+ </section>
+ <section class="stock-box">
+  <div class="stock-section-head"><div><small>CONTAGEM FÍSICA</small><h2>Estoque existente</h2></div><span>Separado do preço da embalagem</span></div>
+  <label class="stock-search">Localizar ingrediente<input id="stockSearch" type="search" placeholder="Digite batata, leite, queijo..." oninput="POTE_STOCK_UI.filter(this.value)"></label>
+  <div class="stock-card-list">${visible.map(i=>{
+   const stock=Number(i.stock)||0,threshold=Number(i.minimum)||0;
+   const isLow=threshold>0&&stock<=threshold;
+   return `<article class="stock-card" data-stock-name="${e(i.name.toLocaleLowerCase('pt-BR'))}">
+    <div class="stock-card-primary">
+     <div class="stock-card-name"><strong>${e(i.name)}</strong><small>${e(i.category||"Insumo")}</small></div>
+     <div class="stock-card-balance"><small>ESTOQUE ATUAL</small><strong${isLow?' class="stock-critical"':''}>${e(S.formatStock(i))}</strong><small>${isLow?"Abaixo do estoque mínimo":stock<=0?"Sem saldo disponível":"Quantidade física disponível"}</small></div>
+    </div>
+    <div class="stock-card-details">
+     <span><small>Preço / embalagem de referência</small><strong>${e(costUnit(i))}</strong></span>
+     <span><small>Rendimento aproveitável</small><strong>${integerFmt(i.yield||100)}%</strong></span>
+     <span><small>Estoque mínimo</small><strong>${e(S.formatStock(i,i.minimum||0))}</strong></span>
+    </div>
+    <div class="stock-reference-note">${e(sourceLabel(i))}</div>
+    <div class="stock-card-actions">
+     <button class="btn mini" type="button" data-stock-id="${e(i.id)}" onclick="POTE_STOCK_UI.openPurchase(this.dataset.stockId)">+ Nova compra</button>
+     <button class="btn mini line" type="button" data-stock-id="${e(i.id)}" onclick="POTE_STOCK_UI.adjustStock(this.dataset.stockId)">Conferir / ajustar saldo</button>
+    </div>
+    <details class="stock-ref-edit">
+     <summary>Editar preço da embalagem e rendimento</summary>
+     <div class="stock-ref-fields">
+      <label>Preço da embalagem (R$)<input data-ref="price" inputmode="decimal" value="${e(i.purchasePrice??i.price??0)}"></label>
+      <label>Quantidade na embalagem<input data-ref="quantity" inputmode="decimal" value="${e(i.purchaseQuantity??1)}"></label>
+      <label>Unidade da embalagem<select data-ref="unit">${["kg","g","L","ml","un"].map(u=>`<option value="${u}" ${(i.purchaseUnit||"kg")===u?"selected":""}>${u}</option>`).join("")}</select></label>
+      <label>Rendimento (%)<input data-ref="yield" inputmode="decimal" value="${e(i.yield??100)}"></label>
+     </div>
+     <p class="stock-note">Estes campos alteram o custo calculado da receita, <b>não aumentam nem diminuem o saldo</b>. Exemplo: R$ 90 / 25 kg e 90% de rendimento são dados de custo, não indicam 25 kg no depósito.</p>
+     <button type="button" class="btn mini line" data-stock-id="${e(i.id)}" onclick="POTE_STOCK_UI.saveReference(this)">Salvar parâmetros de custo</button>
+    </details>
+   </article>`}).join("")||'<p class="muted">Estoque vazio para este universo.</p>'}</div>
+ </section>
+ <section class="stock-box">
+  <div class="stock-section-head"><div><small>REGISTRO DAS ENTRADAS</small><h2>Últimas compras</h2></div><span>Valores efetivamente pagos</span></div>
+  <div class="stock-history">${last.map(p=>{
+   const item=state.data.ingredients.find(x=>x.id===p.ingredientId)||{measureUnit:"g",stock:0};
+   const added=Number(p.added)||0;
+   const date=p.at?new Date(p.at).toLocaleString("pt-BR"):"Data não informada";
+   return `<div class="stock-history-item"><div><strong>${e(p.name||item.name||"Insumo")}</strong><small>${e(date)}${p.supplier?" · "+e(p.supplier):""}</small></div>
+    <div><strong>+${e(S.formatStock(item,added))}</strong><small>Total pago: ${e(S.money(p.totalPaid??p.pricePaid??0))}</small></div></div>`;
+  }).join("")||'<p class="muted">Nenhuma compra real registrada neste universo.</p>'}</div>
+ </section>
+ <section class="stock-box">
+  <div class="stock-section-head"><div><small>CADASTRO DE INSUMOS</small><h2>Adicionar ingrediente ou embalagem</h2></div><span>Começa com estoque zero</span></div>
+  <p>O preço inicial é apenas uma referência de custo. Depois, use <b>Nova compra</b> para registrar quanto recebeu e pagou.</p>
+  <div class="fields">
+   ${field("Nome do ingrediente","newIngName","")}
+   ${select("Categoria","newIngCat",[["Proteína","Proteína"],["Laticínio","Laticínio"],["Base","Base"],["Molho e vegetal","Molho e vegetal"],["Finalização","Finalização"],["Embalagem","Embalagem"],["Doce","Doce"]],"Base")}
+   ${field("Preço da embalagem de referência (R$)","newIngPrice","","text",'inputmode="decimal"')}
+   ${field("Quantidade da embalagem (NÃO é estoque)","newIngQuantity","","text",'inputmode="decimal" placeholder="Ex.: 1"')}
+   ${select("Unidade da embalagem","newIngUnit",[["kg","kg"],["g","g"],["L","L"],["ml","ml"],["un","un"]],"kg")}
+   ${field("Rendimento (%)","newIngYield","100","text",'inputmode="decimal"')}
+  </div>
+  <button class="btn" onclick="addIngredient()">Cadastrar ingrediente (saldo inicial 0)</button>
+ </section>`;
+}
+function selectIngredient(){
+ const item=state.data.ingredients.find(i=>i.id===$("stockPurchaseIngredient")?.value);
+ const menu=$("stockPurchaseUnit");
+ if(!item||!menu)return;
+ const base=S.measureUnit(item);
+ menu.querySelectorAll("option").forEach(o=>{o.hidden=!S.validUnit(item,o.value);o.disabled=!S.validUnit(item,o.value)});
+ menu.value=S.defaultUnit(item);
+ preview();
+}
+function preview(){
+ const item=state.data.ingredients.find(i=>i.id===$("stockPurchaseIngredient")?.value);
+ const target=$("stockPurchasePreview");if(!target||!item)return;
+ const qty=$("stockPurchaseQty")?.value,unit=$("stockPurchaseUnit")?.value,paid=$("stockPurchasePaid")?.value;
+ if(!qty){target.textContent="Saldo atual: "+S.formatStock(item)+". Informe uma quantidade para calcular o saldo após a compra.";return}
+ try{
+  const plus=S.toBase(item,qty,unit),total=S.number(paid);
+  target.innerHTML="<b>Saldo antes:</b> "+e(S.formatStock(item))+
+   " <b>+ Entrada:</b> "+e(S.formatStock(item,plus))+
+   " <b>= Saldo depois:</b> "+e(S.formatStock(item,(Number(item.stock)||0)+plus))+
+   "<span>"+(Number.isFinite(total)&&total>0?"Valor total pago: "+e(S.money(total)):"Informe também o valor total pago.")+"</span>";
+ }catch(err){target.textContent=err.message}
+}
+function openPurchase(id){
+ const menu=$("stockPurchaseIngredient");
+ const item=state.data.ingredients.find(i=>i.id===id);
+ if(!item||!menu){if(typeof go==="function")go("ingredients");return}
+ menu.value=id;selectIngredient();
+ $("stockPurchaseBox")?.scrollIntoView({behavior:"smooth",block:"start"});
+ $("stockPurchaseQty")?.focus({preventScroll:true});
+}
+function savePurchase(){
+ const id=$("stockPurchaseIngredient")?.value,item=state.data.ingredients.find(i=>i.id===id);
+ if(!item){toast("Selecione um ingrediente.");return}
+ try{
+  const qty=$("stockPurchaseQty")?.value,paid=$("stockPurchasePaid")?.value;
+  const data=state.data;
+  data.purchases??=[];data.stockMovements??=[];
+  const result=S.purchase({ingredient:item,quantity:qty,unit:$("stockPurchaseUnit").value,
+   paidTotal:paid,supplier:$("stockPurchaseSupplier")?.value,
+   purchases:data.purchases,movements:data.stockMovements,makeId:()=>uid()});
+  persist();render();
+  toast(item.name+": "+S.formatStock(item,result.previous)+" + "+S.formatStock(item,result.added)+
+   " = "+S.formatStock(item,result.next)+". Compra de "+S.money(result.totalPaid)+" registrada.");
+ }catch(err){alert(err.message)}
+}
+function adjustStock(id){
+ const item=state.data.ingredients.find(i=>i.id===id);if(!item)return;
+ const unit=S.defaultUnit(item),factor=(unit==="kg"||unit==="L")?1000:1;
+ const current=S.decimal((Number(item.stock)||0)/factor);
+ const entered=prompt('CONFERÊNCIA DE ESTOQUE — '+item.name+
+  '\nInforme o SALDO TOTAL contado em '+unit+', não a quantidade comprada.\n'+
+  'Estoque atual: '+S.formatStock(item),current);
+ if(entered===null)return;
+ const reason=prompt("Motivo do ajuste (ex.: conferência, perda, correção de lançamento):","Conferência física");
+ if(reason===null)return;
+ try{
+  const result=S.adjust({ingredient:item,quantity:entered,unit,reason,
+   movements:state.data.stockMovements,makeId:()=>uid()});
+  persist();render();
+  toast("Estoque de "+item.name+" ajustado de "+S.formatStock(item,result.previous)+
+   " para "+S.formatStock(item,result.next)+".");
+ }catch(err){alert(err.message)}
+}
+function saveReference(button){
+ const item=state.data.ingredients.find(i=>i.id===button.dataset.stockId);
+ if(!item)return;
+ const article=button.closest(".stock-card");
+ const get=name=>article.querySelector('[data-ref="'+name+'"]')?.value;
+ const price=S.number(get("price")),quantity=S.number(get("quantity")),
+  yld=S.number(get("yield")),unit=get("unit");
+ if(!Number.isFinite(price)||price<0||!Number.isFinite(quantity)||quantity<=0||
+    !Number.isFinite(yld)||yld<=0||yld>100||!S.validUnit(item,unit)){
+  alert("Confira preço, quantidade, unidade e rendimento. Nenhum dado foi alterado.");return;
+ }
+ item.purchasePrice=price;item.price=price;item.purchaseQuantity=quantity;
+ item.purchaseUnit=unit;item.yield=yld;item.source="Preço informado manualmente";
+ persist();render();toast("Custo de referência atualizado. Saldo de estoque preservado.");
+}
+function filter(q){
+ q=String(q||"").trim().toLocaleLowerCase("pt-BR");
+ document.querySelectorAll(".stock-card").forEach(el=>{
+  el.hidden=!!q&&!String(el.dataset.stockName||"").includes(q);
+ });
+}
+window.POTE_STOCK_UI={renderPanel,selectIngredient,preview,openPurchase,savePurchase,
+ adjustStock,saveReference,filter,costUnit};
+window.stockSelectIngredient=selectIngredient;
+window.stockConfirmPurchase=savePurchase;
+window.stockOpenPurchase=openPurchase;
+})();

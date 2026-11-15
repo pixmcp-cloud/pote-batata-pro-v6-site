@@ -102,7 +102,7 @@
   };
 
   supplierGps = function () {
-    if (!pro()) {toast("Pesquisa por GPS reservada ao administrador no teste.");return;}
+    if (!pro()) {toast("Pesquisa por GPS disponível conforme seu plano e a integração do serviço.");return;}
     if (!window.isSecureContext || !navigator.geolocation) {
       status("GPS indisponível neste navegador. Abra o site no Chrome ou Edge, com HTTPS.");
       return;
