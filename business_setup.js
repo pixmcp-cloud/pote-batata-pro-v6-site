@@ -5,9 +5,10 @@
 if(window.POTE_BUSINESS)return;
 const TYPES=[
  {id:"batataria",label:"Batataria",name:"Minha Batataria",desc:"Receitas-modelo de batatas recheadas, com ingredientes para conferir.",photo:"./assets/generic/business-batataria.svg"},
- {id:"pizzaria",label:"Pizzaria",name:"Minha Pizzaria",desc:"Estruture sabores, massas, adicionais e seus próprios preços.",photo:"./assets/generic/business-pizzaria.svg"},
- {id:"hamburgueria",label:"Hamburgueria",name:"Minha Hamburgueria",desc:"Cadastre hambúrgueres, ingredientes, combos e custos reais.",photo:"./assets/generic/business-hamburgueria.svg"},
- {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Organize lanches, bebidas, pedidos, estoque e produção.",photo:"./assets/generic/business-lancheria.svg"}
+ {id:"pizzaria",label:"Pizzaria",name:"Minha Pizzaria",desc:"30 receitas-modelo de pizzas, com ingredientes e preparo completos.",photo:"./assets/generic/business-pizzaria.svg"},
+ {id:"hamburgueria",label:"Hamburgueria",name:"Minha Hamburgueria",desc:"30 receitas-modelo de hambúrgueres, com opções clássicas e artesanais.",photo:"./assets/generic/business-hamburgueria.svg"},
+ {id:"hotdog",label:"Hot Dog",name:"Meu Hot Dog",desc:"Receitas de cachorro-quente e combinações tradicionais e especiais.",photo:"./assets/generic/business-hotdog.svg"},
+ {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Ambiente vazio, sem receitas prontas: monte seu próprio cardápio.",photo:"./assets/generic/business-lancheria.svg"}
 ];
 const GENERIC_LOGO="./assets/generic/business-neutral.svg";
 const templateImage=id=>"./assets/generic/recipe-"+id+".svg";
@@ -52,6 +53,7 @@ function normalizePageCopy(){
  if(!page||!document.createTreeWalker||!window.NodeFilter)return;
  const category=currentItem()?.label||"seu negócio";
  const terms=[
+  ["🥔 Cardápio de Batatas no Pote","Cardápio de "+category],
   ["Cardápio de Batatas no Pote","Cardápio de "+category],
   ["Batata recheada","Produto principal"],
   ["Meta mensal (potes para rateio fixo)","Meta mensal (unidades para rateio fixo)"],
@@ -63,9 +65,19 @@ function normalizePageCopy(){
   ["por pote","por unidade"],
   ["cada pote produzido","cada unidade produzida"],
   ["cozinhar batatas ou desfiar frango","preparar massas, molhos ou recheios"],
-  ["potes necessários","unidades necessárias"]
+  ["potes necessários","unidades necessárias"],
+  ["potes você precisa vender","unidades você precisa vender"],
+  ["Quantidade de potes / combos","Quantidade de unidades / combos"],
+  ["descontadas automaticamente a cada pote produzido","descontadas automaticamente a cada unidade produzida"],
+  ["pote, tampa, talher, sacola","embalagem, tampa, talher, sacola"],
+  ["Quantidade por pote","Quantidade por unidade"],
+  ["pote produzido","unidade preparada"],
+  ["por pote","por unidade"],
+  ["/pote","/unidade"],
+  ["potes","unidades"],
+  ["Potes","Unidades"]
  ];
- const scoped=page.querySelectorAll(".box h2,.box h3,.box .help,.field label,.kpi small,.receipt small,.vitrine-bar strong,.vitrine-bar .muted");
+ const scoped=page.querySelectorAll(".box h2,.box h3,.box p,.box .help,.box .notice,.field label,.kpi small,.receipt small,.vitrine-bar strong,.vitrine-bar .muted,.box .bar,.box .receipt,.box .kpi");
  for(const element of scoped){
   const tree=document.createTreeWalker(element,NodeFilter.SHOW_TEXT),nodes=[];
   while(tree.nextNode())nodes.push(tree.currentNode);
@@ -75,6 +87,23 @@ function normalizePageCopy(){
    if(value!==node.nodeValue)node.nodeValue=value;
   }
  }
+}
+function refreshUniverseBanner(){
+ const page=$("page");
+ if(!page||typeof page.querySelector!=="function"||typeof page.insertBefore!=="function")return;
+ let banner=page.querySelector("#poteUniverseBanner");
+ const type=currentItem();
+ const visible=!!type&&typeof state!=="undefined"&&state.tab!=="home";
+ if(!visible){if(banner)banner.remove();return}
+ if(!banner){banner=document.createElement("div");banner.id="poteUniverseBanner";
+   banner.className="pote-universe-banner";page.insertBefore(banner,page.firstChild)}
+ const title=master()?"MATRIZ · BATATARIA":window.POTE_AUTH?.franchiseActive?
+  "FRANQUIA · BATATARIA":type.label.toUpperCase();
+ const total=state.data?.recipes?.filter(r=>!r.franchiseLocked&&
+  !(window.POTE_AUTH?.franchiseActive&&r.templateOrigin==="batataria")).length||0;
+ banner.innerHTML='<img src="'+type.photo+'" alt="">'+
+  '<div><small>UNIVERSO DE NEGÓCIO ATIVO</small><strong>'+title+'</strong>'+
+  '<span>'+total+' fichas no catálogo · Vendas e estoque exclusivos deste ramo</span></div>';
 }
 function refreshIdentity(){
  const on=master();
@@ -100,8 +129,10 @@ function refreshIdentity(){
  const businessImage=$("poteBusinessImage");
  if(businessImage)businessImage.src=currentItem()?.photo||"./assets/generic/business-neutral.svg";
  normalizePageCopy();
+ refreshUniverseBanner();
 }
 function importBatatariaTemplates(){
+ if(window.POTE_UNIVERSES)return window.POTE_UNIVERSES.importModels(state,"batataria",SEED);
  const data=state.data,started=data.businessTemplates||{};
  if(started.batataria)return {recipes:0,ingredients:0,already:true};
  const seed=typeof SEED!=="undefined"?SEED:null;
@@ -145,8 +176,9 @@ root.innerHTML=`<div id="poteBusinessOverlay" role="dialog" aria-modal="true" ar
    <strong>${t.label}</strong><small>${t.desc}</small><span class="pote-business-choose">Selecionar</span></button>`).join("")}</div>
   <div class="pote-business-note">
    <strong>Seus dados estão protegidos.</strong> Mudar o ramo não apaga cadastros, vendas ou receitas existentes.
-   Na primeira seleção de Batataria, serão adicionadas 26 fichas e um catálogo de ingredientes com estoque zero.
-   Fotos e logotipo da sua empresa serão genéricos e poderão ser personalizados.
+   Cada universo mantém suas receitas, insumos, pedidos e estoque separados. Batataria inclui 26 fichas,
+   Pizzaria 30, Hamburgueria 30 e Hot Dog 20; Lancheria inicia totalmente sem receitas.
+   Os custos e estoques são seus, não há vendas simuladas. As imagens e a logo são genéricas.
   </div>
   <p id="poteBusinessMessage" aria-live="polite"></p>
  </section>
@@ -164,38 +196,30 @@ function show(open){
 function select(type){
  if(!window.POTE_AUTH?.uid){alert("Entre com Google antes de escolher seu negócio.");return}
  if(window.POTE_AUTH.franchiseActive){if(type!=="batataria"){alert("Franquia oficial Potê Batata: o ramo Batataria é obrigatório enquanto a franquia estiver ativa.");return}
-   state.data.businessType="batataria";persist();render();show(false);return}
+   window.POTE_UNIVERSES?.switchTo(state,"batataria",SEED,{skipTemplates:true});
+   persist();render();show(false);return}
  const choice=TYPES.find(x=>x.id===type);if(!choice)return;
  if(master()){
-  // A identidade e os registros próprios da conta mestre nunca são substituídos.
-  state.data.businessType=type;
-  persist();render();show(false);
-  if(typeof toast==="function")toast("Ramo escolhido. Marca e registros da conta mestre preservados.");
-  return;
+  if(type!=="batataria"){alert("A conta mestre mantém o universo Batataria e o catálogo oficial da matriz, para não misturar receitas de outras empresas.");return}
+  state.data.businessType="batataria";persist();render();show(false);return;
  }
  const previous=current(),existing=(state.data.recipes?.length||0)+(state.data.orders?.length||0)+(state.data.ingredients?.length||0);
  if(previous!==type && existing>0 &&
    !confirm("Mudar de "+(TYPES.find(x=>x.id===previous)?.label||"outro ramo")+" para "+choice.label+"? Seus cadastros e vendas atuais serão preservados e NÃO serão apagados."))return;
  const first=!previous;
- const summary=type==="batataria"?" Inclui receitas-modelo e ingredientes com estoque zerado.":" Suas receitas começam vazias se você ainda não cadastrou nenhuma.";
+ const counts={batataria:26,pizzaria:30,hamburgueria:30,hotdog:20,lancheria:0};
+ const summary=" Este universo tem "+counts[type]+" receitas-modelo. Os demais universos ficarão guardados separadamente, com seus próprios dados.";
  if(!confirm("Selecionar "+choice.label+"?"+summary+" Os dados e custos serão próprios da sua conta."))return;
  const data=state.data;
- data.businessType=type;
- const brand=data.brand||neutralBrand();
- if(first||isBrandTemplate(brand)||["Meu Negócio","Minha Batataria","Minha Pizzaria","Minha Hamburgueria","Minha Lancheria"].includes(brand.name)){
-  data.brand={...brand,name:choice.name,subtitle:choice.label.toUpperCase(),logoUrl:choice.photo};
- }
- let imported={recipes:0,ingredients:0};
- if(type==="batataria")imported=importBatatariaTemplates();
- // Nenhum outro ramo recebe imagens ou receitas da Batataria.
+ if(!window.POTE_UNIVERSES){alert("Catálogos indisponíveis. Atualize a página e tente novamente.");return}
+ const imported=window.POTE_UNIVERSES.switchTo(state,type,SEED);
+ // Cada universo tem seu próprio cadastro, pedidos e insumos arquivados separadamente.
  persist();
  render();
  refreshIdentity();
  show(false);
  if(typeof toast==="function"){
-  toast(type==="batataria"?
-   "Batataria pronta: "+(imported.already?"modelo já carregado":imported.recipes+" receitas e "+imported.ingredients+" ingredientes (estoque zero)"):
-   choice.label+" selecionada. Cadastre suas receitas e produtos.");
+  toast(choice.label+" selecionado: "+state.data.recipes.length+" fichas no universo atual. Estoques e vendas anteriores estão preservados em seus respectivos ramos.");
  }
 }
 $("poteBusinessClose").addEventListener("click",()=>show(false));

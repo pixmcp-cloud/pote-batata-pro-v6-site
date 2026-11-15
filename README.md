@@ -59,3 +59,16 @@ Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não est
 - **Limite do modelo atual:** os arquivos de imagens da marca continuam hospedados no GitHub Pages público e as fichas de Batataria ainda são distribuídas no HTML para a instalação de novos usuários. A interface e o Firestore restringem o uso da marca, mas não há proteção de acesso aos arquivos estáticos. Para exclusividade comercial, migrar imagens e conteúdo original para armazenamento privado com controle de acesso.
 - A sincronização acontece com navegador conectado e sessão Google válida; não é um serviço de publicação em background independente dos logins.
 - **Floot:** função pendente de replicação e testes na versão nativa após liberação do limite do workspace.
+
+## Universos independentes de alimentação — 15/11/2026
+
+- Cinco segmentos: **Batataria**, **Pizzaria**, **Hamburgueria**, **Hot Dog**, **Lancheria**.
+- Receitas-modelo: Batataria 26, Pizzaria 30, Hamburgueria 30, Hot Dog 20 e Lancheria 0.
+- Os cinco primeiros sabores de pizza seguem a preferência em pedidos relatada pelo iFood em 2026 (calabresa, frango com requeijão, marguerita, muçarela, portuguesa); para hambúrguer, clássicos como cheeseburger, X-Salada, X-Tudo e X-Bacon se destacam. Os demais modelos são curadoria de cardápio, não posição oficial em ranking de vendas.
+- Cada receita-modelo inclui ingredientes, gramagens de referência e preparo passo a passo; **custo dos insumos e estoque iniciam em zero**, obrigando o cliente a informar as compras reais.
+- A troca de universo arquiva as listas operacionais (receitas, insumos, clientes, pedidos, fornecedores, estoque, combos, despesas etc.) em `appState/main.data.businessUniverses` e carrega as listas exclusivas do ramo ativo. Voltar a um universo restaura os registros e customizações anteriores. Não duplica fichas na segunda seleção.
+- Contas antigas que haviam selecionado Pizzaria/Hamburgueria enquanto as 26 receitas da Batataria ainda permaneciam visíveis passam por migração conservadora: as fichas-modelo de batata são movidas para o universo Batataria sem apagar pedidos anteriores.
+- A conta administradora `pixmcp@gmail.com` permanece no universo Batataria, com sua logo e seu conteúdo próprio; unidades com franquia ativa ficam restritas à Batataria oficial. Na promoção de franquia, o ramo anterior é preservado no arquivo interno antes da ativação do catálogo oficial.
+- O acesso FREE continua com as mesmas limitações de receitas; o catálogo completo é recurso PRO conforme licenciamento.
+- **Atenção:** os modelos são pontos de partida, não fichas técnicas profissionalmente homologadas. Conferir gramagens, rendimento, alergênicos, cocção e custos reais antes da venda.
+- **Floot:** adaptar os universos e a migração aos registros já existentes no projeto nativo, sem substituir os dados de produção.

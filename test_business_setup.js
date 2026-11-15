@@ -6,6 +6,8 @@ const seed=JSON.parse(backup[1]);
 assert.equal(seed.recipes.length,26);
 assert.equal(seed.ingredients.length,45);
 const script=fs.readFileSync("business_setup.js","utf8");
+const templates=fs.readFileSync("universe_templates.js","utf8");
+const core=fs.readFileSync("universe_core.js","utf8");
 function setup(role="free"){
  const user={uid:"test-"+role,email:role==="admin"?"pixmcp@gmail.com":"user@example.com",role};
  const brand={name:"Meu Negócio",subtitle:"GESTÃO DE ALIMENTAÇÃO",logoUrl:"./assets/generic/business-neutral.svg",phone:"",instagram:""};
@@ -22,7 +24,9 @@ function setup(role="free"){
  const window={POTE_AUTH:user};
  const ctx={SEED:seed,state,window,document,Node:{TEXT_NODE:3},Date,Math,JSON,String,Array,Object,
   confirm:()=>true,alert:()=>{},persist:()=>{persisted++},render:()=>{rendered++},toast:()=>{},console};
- vm.createContext(ctx);vm.runInContext(script,ctx,{filename:"business_setup.js"});
+ vm.createContext(ctx);vm.runInContext(templates,ctx,{filename:"universe_templates.js"});
+ vm.runInContext(core,ctx,{filename:"universe_core.js"});
+ vm.runInContext(script,ctx,{filename:"business_setup.js"});
  return {ctx,state,window,document,get persistCount(){return persisted},get renderCount(){return rendered}};
 }
 const neutral=setup("free");
@@ -44,15 +48,22 @@ assert.equal(neutral.state.data.ingredients.length,45,"Importação duplicou ing
 neutral.state.data.orders.push({id:"real-order",value:140});
 neutral.window.POTE_BUSINESS.choose("pizzaria");
 assert.equal(neutral.state.data.businessType,"pizzaria");
-assert.equal(neutral.state.data.orders.length,1,"Trocar ramo apagou venda real");
-assert.equal(neutral.state.data.recipes.length,26,"Trocar ramo apagou receitas existentes");
+assert.equal(neutral.state.data.orders.length,0,"Pedidos de batata não devem aparecer na Pizzaria");
+assert.equal(neutral.state.data.recipes.length,30,"Pizzaria deve receber 30 receitas próprias");
+assert.equal(neutral.state.data.businessUniverses.batataria.orders.length,1,"Venda de Batataria deve ser arquivada");
+assert.equal(neutral.state.data.businessUniverses.batataria.recipes.length,26,"Receitas de Batataria devem ser preservadas");
 const pizza=setup("free");
 pizza.window.POTE_BUSINESS.choose("pizzaria");
-assert.equal(pizza.state.data.recipes.length,0,"Pizzaria não deve receber receitas de Batataria");
+assert.equal(pizza.state.data.recipes.length,30,"Pizzaria deve receber 30 sabores próprios");
+assert(pizza.state.data.recipes.every(x=>x.templateOrigin==="pizzaria"),"Batataria vazou na Pizzaria");
 assert.equal(pizza.state.data.brand.name,"Minha Pizzaria");
 const burger=setup("free");
 burger.window.POTE_BUSINESS.choose("hamburgueria");
-assert.equal(burger.state.data.recipes.length,0);
+assert.equal(burger.state.data.recipes.length,30);
+assert(burger.state.data.recipes.every(x=>x.templateOrigin==="hamburgueria"));
+const dog=setup("free");
+dog.window.POTE_BUSINESS.choose("hotdog");
+assert.equal(dog.state.data.recipes.length,20);
 const snack=setup("free");
 snack.window.POTE_BUSINESS.choose("lancheria");
 assert.equal(snack.state.data.recipes.length,0);
@@ -83,8 +94,8 @@ assert(src.includes("window.POTE_AUTH?.role==='admin'"),"Fotos originais não es
 const menu=fs.readFileSync("floating_menu.js","utf8");
 assert(menu.includes('["business","Negócio"]'));
 const result=fs.readFileSync("public/index.html","utf8");
-assert(result.includes("business_setup.js?v=business-franchise-20261115"));
-assert(result.includes("business_setup.css?v=business-franchise-20261115"));
+assert(result.includes("business_setup.js?v=business-universes-20261115"));
+assert(result.includes("business_setup.css?v=business-universes-20261115"));
 assert(result.includes("GESTÃO PRO"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));
-console.log("PASS: quatro segmentos, catálogo de 26 receitas, 45 ingredientes, estoque zerado, marca neutra e conta mestre preservada.");
+console.log("PASS: cinco universos, Pizzaria e Hamburgueria com 30 receitas cada, Hot Dog com 20 e Lancheria sem receitas.");

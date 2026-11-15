@@ -62,6 +62,8 @@ function applyCatalog(catalog,active=true){
  if(!window.POTE_APP_READY||!window.POTE_APP?.snapshot||(!master()&&active&&!franchise()))return;
  const state=window.POTE_APP.snapshot();
  try{
+  if(active&&state.data.businessType!=="batataria"&&window.POTE_UNIVERSES)
+    window.POTE_UNIVERSES.switchTo(state,"batataria",window.POTE_SEED,{skipTemplates:true});
   const result=mergeFranchiseCatalog(state,catalog,{active});
   if(!result.changed)return;
   window.POTE_APP.applyState(state);

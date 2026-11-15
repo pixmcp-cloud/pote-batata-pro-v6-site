@@ -218,9 +218,10 @@ async function loadUser(user, index) {
   observeProfile(user, index);
   window.POTE_BUSINESS?.refresh?.();
   window.dispatchEvent(new Event("pote:user-ready"));
-  if(window.POTE_BRAND_MIGRATED){
-    // Persistir a remoção da marca-padrão em contas FREE antigas, sem apagar cadastros.
+  if(window.POTE_BRAND_MIGRATED||window.POTE_UNIVERSE_MIGRATED){
+    // Gravar apenas migrações cuidadosas, sem apagar pedidos, receitas ou outros universos.
     window.POTE_BRAND_MIGRATED=false;
+    window.POTE_UNIVERSE_MIGRATED=false;
     lastJson='';
     queueSave();
   }
@@ -268,6 +269,7 @@ onAuthStateChanged(auth, async user => {
   if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }
   rawUserLicense = null;
   rawUserFranchise=null;
+  window.POTE_UNIVERSE_MIGRATED=false;
   window.POTE_APP_READY=false;
   window.dispatchEvent(new Event("pote:user-logout"));
   window.POTE_BRAND_MIGRATED=false;

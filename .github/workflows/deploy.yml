@@ -36,6 +36,8 @@ jobs:
           cp license_terms.mjs public/license_terms.mjs
           cp floating_menu.js public/floating_menu.js
           cp business_setup.js public/business_setup.js
+          cp universe_templates.js public/universe_templates.js
+          cp universe_core.js public/universe_core.js
           cp business_setup.css public/business_setup.css
           cp franchise_sync.js public/franchise_sync.js
           cp franchise_catalog.mjs public/franchise_catalog.mjs
@@ -63,6 +65,10 @@ jobs:
           node test_gallery_42h.mjs
           node --check public/business_setup.js
           node test_business_setup.js
+          node --check public/universe_templates.js
+          node --check public/universe_core.js
+          node test_business_universes.js
+          test -f public/assets/generic/business-hotdog.svg
           node --check public/franchise_catalog.mjs
           node --input-type=module --check < public/franchise_sync.js
           node test_franchise_catalog.mjs

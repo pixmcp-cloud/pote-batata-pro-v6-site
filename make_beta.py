@@ -63,7 +63,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" href="./assets/generic/business-neutral.svg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=bottom-white-no-outline-20261115"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-franchise-20261115"><link rel="stylesheet" href="./gallery.css?v=galeria-42h"><link rel="stylesheet" href="./business_setup.css?v=business-franchise-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
+once("</head>", head + '<link rel="icon" href="./assets/generic/business-neutral.svg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=bottom-white-no-outline-20261115"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-franchise-20261115"><link rel="stylesheet" href="./gallery.css?v=galeria-42h"><link rel="stylesheet" href="./business_setup.css?v=business-universes-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
@@ -113,6 +113,7 @@ const POTE_NEUTRAL_BRAND={name:'Meu Negócio',subtitle:'GESTÃO DE ALIMENTAÇÃO
  slogan:'Organize vendas, estoque e receitas',phone:'',instagram:'',
  primary:'#233449',accent:'#e4b974',logoUrl:POTE_GENERIC_LOGO};
 SEED.brand.logoUrl=POTE_ORIGINAL_LOGO;
+window.POTE_SEED=SEED;
 const POTE_REAL_EMPTY_LISTS=[
  'ingredients','recipes','suppliers','expenses','clients','orders','recipeVersions',
  'recipeTrash','purchases','stockMovements','beverages','addons','combos','prepBatches'
@@ -167,11 +168,16 @@ window.POTE_APP={
    if(state.data.brand?.logoUrl?.startsWith('data:image/svg+xml'))state.data.brand.logoUrl=POTE_ORIGINAL_LOGO;
   }else{
    if(!state.data.businessType)state.data.businessType='';
+   if(window.POTE_UNIVERSES&&state.data.businessType){
+     const migration=window.POTE_UNIVERSES.switchTo(state,state.data.businessType,SEED,
+       {skipTemplates:!!window.POTE_AUTH?.franchiseActive});
+     if(migration.changed)window.POTE_UNIVERSE_MIGRATED=true;
+   }
    if(window.POTE_BUSINESS?.normalizeAccountBrand?.())window.POTE_BRAND_MIGRATED=true;
   }
   render();
  },
- reset(){state=poteFreshAccount();render();}
+ reset(){state=poteFreshAccount();window.POTE_UNIVERSE_MIGRATED=false;render();}
 };
 resetAll=function(){
  if(!window.POTE_AUTH?.uid){toast('Faça login antes de zerar sua conta.');return;}
@@ -190,7 +196,7 @@ render=function(...args){
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-franchise-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=franchise-20261115\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-franchise-20261115\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./business_setup.js?v=business-franchise-20261115\"></script><script type=\"module\" src=\"./franchise_sync.js?v=franchise-sync-20261115\"></script></body></html>")
+     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-franchise-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=franchise-20261115\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-franchise-20261115\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./universe_templates.js?v=universes-20261115\"></script><script src=\"./universe_core.js?v=universes-20261115\"></script><script src=\"./business_setup.js?v=business-universes-20261115\"></script><script type=\"module\" src=\"./franchise_sync.js?v=franchise-sync-20261115\"></script></body></html>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")
