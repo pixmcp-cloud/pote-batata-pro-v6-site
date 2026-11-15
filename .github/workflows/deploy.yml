@@ -25,6 +25,7 @@ jobs:
           cp simulation_panel.css public/simulation_panel.css
           cp mobile.css public/mobile.css
           cp floating_menu.css public/floating_menu.css
+          cp image_responsive.css public/image_responsive.css
           cp floating_menu.js public/floating_menu.js
           cp visual_refresh.css public/visual_refresh.css
           cp dashboard_charts.js public/dashboard_charts.js
@@ -42,6 +43,7 @@ jobs:
           node --check public/dashboard_charts.js
           node test_dashboard_charts.js
           node test_clean_accounts.js
+          node test_responsive_images.js
           grep -q 'supplier_integration.js' public/index.html
           grep -q 'simulation_panel.js' public/index.html
           grep -q 'simulation_panel.css' public/index.html
