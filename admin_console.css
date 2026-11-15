@@ -1,0 +1,96 @@
+/* Central administrativa Potê Batata Pro — exclusivamente para a conta Google mestre */
+#poteAdminOpen{background:linear-gradient(150deg,#5c4530,#302a28);color:#ffe5b2;border:1px solid #b99157;
+  border-radius:10px;padding:9px 11px;font-weight:850;font-size:12px;min-height:38px;
+  box-shadow:inset 0 1px #ffffff46,0 3px 10px #0007;cursor:pointer}
+#poteAdminOpen[hidden],#potePlanBadge[hidden],#poteAdmOverlay[hidden]{display:none!important}
+#poteAdminOpen:hover,#poteAdminOpen:focus-visible{border-color:#ffe3a5;background:#6b4b2d}
+#potePlanBadge{font-size:10px;font-weight:780;color:#f3d7a9;border:1px solid #91764a80;border-radius:10px;
+  padding:5px 8px;white-space:nowrap;background:#cba05d1a}
+#poteAdmOverlay{position:fixed;inset:0;z-index:10025;background:#040811df;backdrop-filter:blur(6px);
+  display:grid;place-items:center;padding:clamp(10px,2vw,30px);color:#f7e9d4;font-family:system-ui,Arial,sans-serif}
+html.pote-admin-open{overflow:hidden}
+.pote-adm-shell{display:flex;flex-direction:column;width:min(1170px,100%);height:min(91dvh,920px);min-height:0;
+  background:linear-gradient(150deg,#25354a,#111925 88%);border:1px solid #a9bfda84;border-radius:24px;
+  box-shadow:inset 0 1px #ffffff36,0 29px 65px #000f;overflow:hidden}
+.pote-adm-head{padding:22px 25px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  background:radial-gradient(circle at 90% -40%,#b88b4b42,transparent 48%),#1b2839;border-bottom:1px solid #8399b457}
+.pote-adm-head small{font-size:10px;color:#f1c782;letter-spacing:1.6px;font-weight:850}
+.pote-adm-head h2{font-size:clamp(23px,3vw,31px);font-weight:900;letter-spacing:-.055em;color:#fff1d3;margin:5px 0}
+.pote-adm-head p{font-size:12px;color:#c4d2e1;margin:0}
+#poteAdmClose{width:42px;height:42px;flex-shrink:0;border:1px solid #a3bad17a;border-radius:13px;
+  background:#35495e;color:#ffebca;cursor:pointer;font-size:19px}
+.pote-adm-scroll{padding:22px 25px 30px;flex:1;overflow:auto;min-height:0;overscroll-behavior:contain}
+.pote-adm-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:11px;margin-bottom:18px}
+.pote-adm-stats>div{min-width:0;background:linear-gradient(155deg,#34465d,#202f42);border:1px solid #89a2bd77;
+  border-radius:15px;padding:14px 12px;box-shadow:inset 0 1px #ffffff27,0 7px 12px #0006}
+.pote-adm-stats small{display:block;font-size:10px;color:#b8cce1}
+.pote-adm-stats strong{display:block;color:#fbe0b1;font-size:clamp(18px,2.4vw,28px);margin-top:4px}
+.pote-adm-toolbar{display:grid;grid-template-columns:minmax(175px,1fr) minmax(160px,220px) auto;gap:10px;margin-bottom:15px}
+.pote-adm-toolbar input,.pote-adm-toolbar select,.pote-adm-label select{width:100%;min-height:44px;border:1px solid #8fa9c46e;
+  background:#111e2d;color:#eff5fb;border-radius:12px;padding:10px 12px;font-size:13px}
+.pote-adm-toolbar button,#poteAdmAuditReload{padding:10px 15px;border:1px solid #b08d5b7d;background:#304056;color:#f8d4a1;
+  border-radius:11px;cursor:pointer;font-weight:700;font-size:12px}
+.pote-adm-columns{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:16px;min-width:0}
+.pote-adm-list,.pote-adm-editor,.pote-adm-audit{min-width:0;border:1px solid #7f98b36a;background:linear-gradient(145deg,#26354a,#182536);
+  border-radius:19px;padding:17px;box-shadow:inset 0 1px #ffffff29,0 11px 21px #0007}
+.pote-adm-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.pote-adm-section-head h3,.pote-adm-editor h3{margin:0;color:#ffe5b8;font-size:16px}
+.pote-adm-section-head span{font-size:11px;color:#b4c8df}
+.pote-adm-users{max-height:460px;overflow:auto;display:flex;flex-direction:column;gap:8px;overscroll-behavior:contain}
+.pote-adm-user{display:flex;min-width:0;gap:10px;justify-content:space-between;align-items:center;text-align:left;
+  padding:13px 12px;border:1px solid #708ba76b;border-radius:12px;background:#19283a;cursor:pointer;color:#eef2f7}
+.pote-adm-user.selected,.pote-adm-user:hover{background:#314962;border-color:#f3cd98}
+.pote-adm-user-identity{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}
+.pote-adm-user-identity strong{font-size:13px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.pote-adm-user-identity small{font-size:10px;color:#b9cada;overflow-wrap:anywhere}
+.pote-adm-user-plan{flex-shrink:0;font-size:10px;border-radius:12px;border:1px solid #a0b6ce7a;padding:7px 10px;color:#d0e0eb}
+.pote-adm-user-plan[data-plan="pro"],.pote-adm-user-plan[data-plan="lifetime"]{background:#64492833;border-color:#e6c18283;color:#f8d79b}
+.pote-adm-user-plan[data-plan="trial"]{background:#1b486c66;border-color:#8dd8ff88;color:#a6dfff}
+.pote-adm-editor h3{margin-bottom:17px}
+.pote-adm-selected{padding:14px;border:1px solid #899caa70;border-radius:13px;background:#152335;
+  min-height:85px;margin-bottom:15px;color:#f6ead7;font-size:13px;overflow-wrap:anywhere}
+.pote-adm-selected strong{display:block;font-size:14px}
+.pote-adm-selected small{display:block;color:#bdcddd;margin:5px 0 8px;font-size:11px}
+.pote-adm-selected span{color:#f4ce9a;font-size:11px}
+.pote-adm-label{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#f1dec4}
+.pote-adm-preview{font-size:11px;color:#b8cee3;min-height:32px;line-height:1.45;margin:11px 0}
+.pote-adm-controls{display:flex;flex-wrap:wrap;gap:8px}
+.pote-adm-controls button{flex:1 1 140px;min-height:45px;border:1px solid #efcb90;border-radius:12px;
+  font-size:12px;font-weight:840;background:linear-gradient(#f2d292,#c49750);color:#261b11;cursor:pointer}
+#poteAdmRevoke{background:#44313a;border-color:#cb8585;color:#f7cece}
+.pote-adm-controls button:disabled,.pote-adm-toolbar button:disabled{opacity:.45;cursor:not-allowed}
+.pote-adm-footnote{font-size:11px;color:#b5c6d6;line-height:1.6;margin:17px 0}
+#poteAdmFeedback{font-size:12px;color:#a4e3c5;min-height:20px;overflow-wrap:anywhere}
+#poteAdmFeedback.error{color:#ffb0a5}
+.pote-adm-audit{margin-top:16px}
+#poteAdmAudit{display:grid;gap:6px;max-height:250px;overflow:auto}
+.pote-adm-event{display:grid;grid-template-columns:125px minmax(0,1fr) minmax(0,1fr) 75px;gap:10px;
+  align-items:center;border-bottom:1px solid #69839b4b;padding:10px 8px;font-size:11px;overflow-wrap:anywhere}
+.pote-adm-event strong{color:#fbe1af}
+.pote-adm-event small{color:#b4cde1}
+.pote-adm-empty{color:#b9c9dc;font-size:12px;padding:14px;line-height:1.5}
+@media(max-width:830px){.pote-adm-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .pote-adm-columns{grid-template-columns:1fr}.pote-adm-users{max-height:320px}}
+@media(max-width:540px){#poteAdmOverlay{padding:0;align-items:stretch}
+ .pote-adm-shell{border-radius:0;width:100%;height:100dvh;max-height:none}
+ .pote-adm-head{padding:19px 16px}.pote-adm-scroll{padding:16px 12px 32px}
+ .pote-adm-toolbar{grid-template-columns:1fr 1fr}.pote-adm-toolbar input{grid-column:1/-1}
+ .pote-adm-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+ .pote-adm-stats>div{padding:11px 8px}.pote-adm-stats small{font-size:9px}
+ .pote-adm-list,.pote-adm-editor,.pote-adm-audit{padding:12px}
+ .pote-adm-user{flex-wrap:wrap}.pote-adm-user-plan{margin-left:auto}
+ .pote-adm-event{grid-template-columns:1fr 1fr;gap:4px}}
+@media print{#poteAdmOverlay,#poteAdminOpen{display:none!important}}
+
+/* A faixa do e-mail mostra ADM, Sair e o status sem quebrar a ordem no celular */
+.head .switch{display:flex!important;flex-wrap:wrap;align-items:center;gap:7px!important;min-width:0;max-width:100%}
+#poteLoggedAs{display:inline-block;min-width:0;flex:1 1 auto;white-space:normal;overflow-wrap:anywhere}
+#poteAdminOpen{order:1;white-space:nowrap;flex:0 0 auto}
+#potePlanBadge{order:1}
+#poteExit{order:2;flex:0 0 auto}
+#poteSyncStatus{order:3;flex-basis:100%;padding-left:3px;min-width:0;margin:0!important}
+@media(max-width:850px){.head .switch{display:flex!important;width:100%;max-width:100%;padding:7px!important}
+#poteLoggedAs{font-size:11px;flex:1 1 115px;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+#poteAdminOpen{font-size:10px;padding:8px 9px;min-height:35px}
+#poteExit{min-height:36px}
+}

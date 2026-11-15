@@ -26,6 +26,9 @@ jobs:
           cp mobile.css public/mobile.css
           cp floating_menu.css public/floating_menu.css
           cp image_responsive.css public/image_responsive.css
+          cp admin_console.css public/admin_console.css
+          cp admin_console.js public/admin_console.js
+          cp license_terms.mjs public/license_terms.mjs
           cp floating_menu.js public/floating_menu.js
           cp visual_refresh.css public/visual_refresh.css
           cp dashboard_charts.js public/dashboard_charts.js
@@ -44,6 +47,9 @@ jobs:
           node test_dashboard_charts.js
           node test_clean_accounts.js
           node test_responsive_images.js
+          node --check public/license_terms.mjs
+          node --input-type=module --check < public/admin_console.js
+          node test_admin_licenses.mjs
           grep -q 'supplier_integration.js' public/index.html
           grep -q 'simulation_panel.js' public/index.html
           grep -q 'simulation_panel.css' public/index.html

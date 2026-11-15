@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import { resolveLicense, dateBR } from "./license_terms.mjs?v=plans-20261115";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
@@ -23,6 +24,8 @@ const syncEl = document.getElementById("poteSyncStatus");
 const message = document.getElementById("poteLoginMessage");
 const browserHint = document.getElementById("poteBrowserHint");
 const logged = document.getElementById("poteLoggedAs");
+const adminOpen = document.getElementById("poteAdminOpen");
+const planBadge = document.getElementById("potePlanBadge");
 
 let active = null;
 let saving = false;
@@ -33,6 +36,9 @@ let lastJson = "";
 let epoch = 0;
 let loginWatchdog = null;
 let unsubscribeRemote = null;
+let unsubscribeProfile = null;
+let expiryCheckInterval = null;
+let rawUserLicense = null;
 const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
 function showBrowserHint() { if (browserHint) browserHint.hidden = false; }
 function withDeadline(promise, ms, label) {
@@ -51,6 +57,35 @@ function setGate(show) {
   document.body.classList.toggle("pote-auth-locked", show);
 }
 function safeState() { return window.POTE_APP.snapshot(); }
+function refreshEntitlements() {
+  if (!window.POTE_AUTH) return;
+  const result = resolveLicense(rawUserLicense, Date.now());
+  const admin = window.POTE_AUTH.role === "admin";
+  const wasPro = Boolean(window.POTE_AUTH.proActive);
+  window.POTE_AUTH.proActive = admin || result.active;
+  window.POTE_AUTH.plan = admin ? "admin" : result.kind;
+  window.POTE_AUTH.expiresAt = result.expiresAt;
+  if (adminOpen) adminOpen.hidden = !admin;
+  if (planBadge) {
+    planBadge.hidden = admin;
+    planBadge.textContent = result.label;
+    planBadge.title = result.expiresAt ? "Vencimento: " + dateBR(result.expiresAt) : "Sem vencimento";
+  }
+  if (ready && wasPro !== Boolean(window.POTE_AUTH.proActive) && typeof window.render === "function") {
+    window.render();
+  }
+}
+function observeProfile(user, index) {
+  if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
+  const profileRef = doc(db, "users", user.uid);
+  unsubscribeProfile = onSnapshot(profileRef, snapshot => {
+    if (index !== epoch || auth.currentUser?.uid !== user.uid) return;
+    rawUserLicense = snapshot.data()?.license || null;
+    refreshEntitlements();
+  }, error => console.warn("Licença: ", error.code || error.message));
+  if (expiryCheckInterval) clearInterval(expiryCheckInterval);
+  expiryCheckInterval = setInterval(refreshEntitlements, 30000);
+}
 function refFor(user) { return doc(db, "users", user.uid, "appState", "main"); }
 
 async function sync() {
@@ -111,10 +146,12 @@ async function loadUser(user, index) {
   const admin = user.email?.toLowerCase() === "pixmcp@gmail.com" &&
     claims.claims.email_verified === true &&
     claims.claims.firebase?.sign_in_provider === "google.com";
-  window.POTE_AUTH = { uid: user.uid, email: user.email, role: admin ? "admin" : "free" };
+  window.POTE_AUTH = { uid: user.uid, email: user.email, role: admin ? "admin" : "free", proActive: admin, plan: admin ? "admin" : "free" };
   active = user;
   const profile = doc(db, "users", user.uid);
   const existing = await withDeadline(getDoc(profile), 15000, "consulta do perfil");
+  rawUserLicense = existing.exists() ? existing.data().license || null : null;
+  refreshEntitlements();
   if (!existing.exists()) {
     await withDeadline(setDoc(profile, {
       displayName: user.displayName || "",
@@ -151,12 +188,14 @@ async function loadUser(user, index) {
   }
   if (index !== epoch) return;
   ready = true;
-  logged.textContent = user.email + (admin ? " • ADM" : " • FREE");
+  logged.textContent = user.email;
+  refreshEntitlements();
   loginBtn.disabled = false;
   setMessage("");
   setStatus("Dados salvos na nuvem");
   setGate(false);
   observeRemote(user, index);
+  observeProfile(user, index);
 }
 
 loginBtn.addEventListener("click", async () => {
@@ -197,6 +236,11 @@ exitBtn.addEventListener("click", async () => {
 onAuthStateChanged(auth, async user => {
   const myEpoch = ++epoch;
   if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
+  if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
+  if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }
+  rawUserLicense = null;
+  if (adminOpen) adminOpen.hidden = true;
+  if (planBadge) planBadge.hidden = true;
   clearTimeout(loginWatchdog);
   if (!user) {
     clearTimeout(timer);

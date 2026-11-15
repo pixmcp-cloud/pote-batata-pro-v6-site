@@ -14,9 +14,9 @@ def once(old, new):
     html = html.replace(old, new, 1)
 
 once("function pro(){return false} function master(){return false}",
-     "function pro(){return Boolean(window.POTE_AUTH?.role==='admin')} function master(){return Boolean(window.POTE_AUTH?.role==='admin')}")
+     "function pro(){return Boolean(window.POTE_AUTH?.role==='admin'||window.POTE_AUTH?.proActive)} function master(){return Boolean(window.POTE_AUTH?.role==='admin')}")
 once("function render(){state.mode='free';document.body.classList.toggle('admin-mode',false);",
-     "function render(){state.mode=master()?'adm':'free';document.body.classList.toggle('admin-mode',master());")
+     "function render(){state.mode=master()?'adm':pro()?'pro':'free';document.body.classList.toggle('admin-mode',master());")
 pattern = r"let state=original\(\);try\{const old=JSON.parse\(localStorage.getItem\(KEY\).*?\}catch\(e\)\{\}"
 html, n = re.subn(pattern, "let state=original();", html, count=1, flags=re.S)
 if n != 1:
@@ -25,11 +25,11 @@ once("function persist(){try{localStorage.setItem(KEY,JSON.stringify(state))}cat
      "function persist(){if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
 once("V6 • DEMONSTRAÇÃO FREE", "POTÊ BATATA PRO • ONLINE")
 once("🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.",
-     "🔐 Beta conectado ao Firebase: dados por conta Google. Recursos PRO e licenças comerciais ainda não disponíveis.")
+     "🔐 Beta conectado ao Firebase: dados por conta Google. Contas FREE e PRO com licença vinculada à sua conta Google.")
 once("Todos os dados de teste são armazenados somente no navegador deste aparelho.",
      "Seus dados são sincronizados com sua conta Google pelo Firestore. Guarde também backups JSON.")
 once("Nenhum dado enviado ao Floot. A troca FREE / PRO / ADM é um atalho exclusivo da simulação, não uma autenticação real.",
-     "O login Google é real. A venda e a concessão de planos PRO ainda não foram implementadas.")
+     "O login Google é real. A concessão de licenças PRO é exclusiva da administração mestre. A cobrança online não está habilitada.")
 once("pote-simulacao-backup-v6.json", "pote-batata-pro-backup.json")
 once("Exportar JSON de teste", "Exportar backup dos meus dados")
 html, n = re.subn(r'<button class="btn danger" onclick="resetAll\(\)">[^<]*</button>', '<button class="btn danger" onclick="resetAll()">Zerar minha conta (com backup)</button>', html, count=1)
@@ -63,7 +63,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=premium-20261115-fullcard"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
+once("</head>", head + '<link rel="icon" type="image/jpeg" href="./assets/pote-logo-original.jpg"><link rel="stylesheet" href="./mobile.css?v=mobile-20261115"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=premium-20261115-fullcard"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115"><link rel="stylesheet" href="./image_responsive.css?v=fit-20261115"><link rel="stylesheet" href="./admin_console.css?v=adm-20261115"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
@@ -86,7 +86,7 @@ if n != 1:
     raise SystemExit("Cabeçalho da marca não encontrado")
 switch = r'<div class="switch" role="group" aria-label="Versão de demonstração">.*?</div>'
 new_switch = ('<div class="switch" role="group" aria-label="Sua sessão">'
- '<span id="poteLoggedAs"></span><button id="poteExit" type="button">Sair</button>'
+ '<span id="poteLoggedAs"></span><button id="poteAdminOpen" type="button" hidden aria-label="Abrir Central Administrativa">ADM · Gerenciar</button><span id="potePlanBadge" hidden></span><button id="poteExit" type="button">Sair</button>'
  '<span id="poteSyncStatus" aria-live="polite"></span></div>')
 html, n = re.subn(switch, new_switch, html, count=1, flags=re.S)
 if n != 1:
@@ -97,12 +97,11 @@ admin_end = html.find("function changeRecipeAvailability(", admin_start)
 if admin_start < 0 or admin_end < 0:
     raise SystemExit("Old simulated admin area not found")
 admin = """function pageAdmin(){
- if(!master())return '<div class="notice red">🔒 Somente ADM.</div>';
- return '<div class="box"><h2>Administração • Conta verificada</h2>'+
- '<p>Você entrou como administrador usando autenticação Google. Esta é a área de preparação do painel.</p>'+
- '<p><strong>Conta:</strong> '+escapeHtml(window.POTE_AUTH?.email||'')+'</p>'+
- '<p><strong>Banco:</strong> Firestore com regras por usuário; seus dados são sincronizados.</p>'+
- '<div class="notice">Concessão de licenças e cobrança PRO não estão ativas nesta versão beta. Nenhum plano pode ser vendido por aqui ainda.</div></div>';
+ if(!master())return '<div class="notice red">Acesso exclusivo da administração mestre.</div>';
+ return '<div class="box"><h2>Central Administrativa</h2>'+
+ '<p>Gerencie cadastros, concessões e renovações de licenças sem sair do aplicativo.</p>'+
+ '<div class="actions"><button type="button" class="btn" onclick="window.POTE_ADMIN?.open()">Abrir gestão de usuários e licenças</button></div>'+
+ '<div class="notice">FREE não tem vencimento. Modalidades: teste de 24 horas, PRO de 1 mês, 6 meses ou 1 ano, e vitalícia. A cobrança não é feita nesta área.</div></div>';
 }
 """
 html = html[:admin_start] + admin + html[admin_end:]
@@ -177,7 +176,7 @@ render=function(...args){
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=clean-free-20261115\"></script></body></html>")
+     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./floating_menu.js?v=menu-20261115\"></script><script type=\"module\" src=\"./firebase_integration.js?v=license-20261115\"></script><script type=\"module\" src=\"./admin_console.js?v=adm-20261115\"></script></body></html>")
 # Ensure beta is not confused with the public offline demo.
 once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:
