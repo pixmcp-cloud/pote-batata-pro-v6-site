@@ -31,9 +31,7 @@ once("Todos os dados de teste são armazenados somente no navegador deste aparel
 once("Nenhum dado enviado ao Floot. A troca FREE / PRO / ADM é um atalho exclusivo da simulação, não uma autenticação real.",
      "O login Google é real. A venda e a concessão de planos PRO ainda não foram implementadas.")
 once("pote-simulacao-backup-v6.json", "pote-batata-pro-backup.json")
-once("Faturamento de teste", "Faturamento real")
 once("Exportar JSON de teste", "Exportar backup dos meus dados")
-once("Entre nas áreas para testar dados, limites, vitrine WhatsApp e cálculos usando o backup.", "Organize sua operação, receitas, custos e pedidos. Seus dados começam zerados.")
 html, n = re.subn(r'<button class="btn danger" onclick="resetAll\(\)">[^<]*</button>', '<button class="btn danger" onclick="resetAll()">Zerar minha conta (com backup)</button>', html, count=1)
 if n != 1: raise SystemExit("Botão de zerar conta não encontrado")
 once("Pesquisa habilitada nesta simulação. Nenhuma chamada externa será enviada.",
