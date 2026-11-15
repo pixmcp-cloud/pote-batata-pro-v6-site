@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Create separate Firebase-authenticated beta from sanitized V6. Keep index.html unchanged."""
+from pathlib import Path
+import re
+import sys
+
+p = Path(sys.argv[1] if len(sys.argv) > 1 else "public/beta.html")
+html = p.read_text(encoding="utf-8")
+
+def once(old, new):
+    global html
+    if html.count(old) != 1:
+        raise SystemExit(f"Expected one marker ({html.count(old)}): {old[:75]}")
+    html = html.replace(old, new, 1)
+
+once("function pro(){return false} function master(){return false}",
+     "function pro(){return Boolean(window.POTE_AUTH?.role==='admin')} function master(){return Boolean(window.POTE_AUTH?.role==='admin')}")
+once("function render(){state.mode='free';document.body.classList.toggle('admin-mode',false);",
+     "function render(){state.mode=master()?'adm':'free';document.body.classList.toggle('admin-mode',master());")
+pattern = r"let state=original\(\);try\{const old=JSON.parse\(localStorage.getItem\(KEY\).*?\}catch\(e\)\{\}"
+html, n = re.subn(pattern, "let state=original();", html, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit("Previous localStorage guest state pattern changed; stopping")
+once("function persist(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}",
+     "function persist(){if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
+once("V6 • DEMONSTRAÇÃO FREE", "V6 • BETA COM LOGIN GOOGLE")
+once("🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.",
+     "🔐 Beta conectado ao Firebase: dados por conta Google. Recursos PRO e licenças comerciais ainda não disponíveis.")
+once("Todos os dados de teste são armazenados somente no navegador deste aparelho.",
+     "Seus dados são sincronizados com sua conta Google pelo Firestore. Guarde também backups JSON.")
+once("Nenhum dado enviado ao Floot. A troca FREE / PRO / ADM é um atalho exclusivo da simulação, não uma autenticação real.",
+     "O login Google é real. A venda e a concessão de planos PRO ainda não foram implementadas.")
+once("pote-simulacao-backup-v6.json", "pote-batata-pro-backup.json")
+
+head = """<style>
+#poteAuthGate{position:fixed;inset:0;z-index:10000;background:#120e0b;display:flex;align-items:center;
+justify-content:center;padding:18px;overflow:auto;color:#fff}
+#poteAuthGate[hidden]{display:none!important}
+.pote-login-card{width:min(100%,460px);border:1px solid #79522f;border-radius:22px;
+padding:clamp(24px,5vw,36px);background:linear-gradient(155deg,#2b2017,#16110d);
+box-shadow:0 22px 80px #0009;text-align:center}
+.pote-login-card h1{font-size:clamp(24px,5vw,31px);margin:10px 0;color:#f4d9a4}
+.pote-login-card p{line-height:1.55;color:#d2bfaa;font-size:14px}
+#poteGoogleLogin{border:0;background:#fff;color:#282018;min-height:49px;
+border-radius:12px;padding:13px 20px;font-weight:800;font-size:15px;cursor:pointer;width:100%;margin-top:14px}
+#poteGoogleLogin:disabled{opacity:.65;cursor:wait}
+#poteLoginMessage{min-height:26px;font-size:13px;margin-top:14px;color:#ffd39a}
+.pote-support{margin-top:18px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.pote-support a{color:#e9c18e;font-size:12px}
+#poteExit{font-size:12px;border:1px solid #a87739;border-radius:8px;background:#3c291b;
+color:#ffe0a6;padding:8px 10px;cursor:pointer}
+#poteLoggedAs{font-size:12px;color:#ffe3b2;overflow-wrap:anywhere}
+#poteSyncStatus{font-size:12px;color:#b9dabe;margin-left:auto}
+@media(max-width:550px){#poteLoggedAs{font-size:10px}.pote-login-card{padding:22px}}
+</style>"""
+once("</head>", head + "</head>")
+
+gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
+ <div class="pote-login-card">
+  <div style="font-size:48px">🥔</div><h1>Potê Batata Pro</h1>
+  <p>Entre com sua conta Google para acessar seu espaço de receitas, preços, pedidos e estoque.</p>
+  <button id="poteGoogleLogin" type="button">Entrar com Google</button>
+  <div id="poteLoginMessage" role="status">Preparando autenticação...</div>
+  <p style="font-size:12px">A conta administradora acessa o painel ADM. Outras contas começam no FREE.</p>
+  <div class="pote-support">
+   <a href="mailto:contato@livresom.com">✉️ contato@livresom.com</a>
+   <a href="https://wa.me/5548999951729" target="_blank" rel="noopener">💬 (48) 99995-1729</a>
+  </div>
+ </div>
+</div>"""
+once("<body>", "<body class=\"pote-auth-locked\">" + gate)
+switch = r'<div class="switch" role="group" aria-label="Versão de demonstração">.*?</div>'
+new_switch = ('<div class="switch" role="group" aria-label="Sua sessão">'
+ '<span id="poteLoggedAs"></span><button id="poteExit" type="button">Sair</button></div>')
+html, n = re.subn(switch, new_switch, html, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit("Header session marker not found")
+
+admin_start = html.find("function pageAdmin(){")
+admin_end = html.find("function changeRecipeAvailability(", admin_start)
+if admin_start < 0 or admin_end < 0:
+    raise SystemExit("Old simulated admin area not found")
+admin = """function pageAdmin(){
+ if(!master())return '<div class="notice red">🔒 Somente ADM.</div>';
+ return '<div class="box"><h2>Administração • Conta verificada</h2>'+
+ '<p>Você entrou como administrador usando autenticação Google. Esta é a área de preparação do painel.</p>'+
+ '<p><strong>Conta:</strong> '+escapeHtml(window.POTE_AUTH?.email||'')+'</p>'+
+ '<p><strong>Banco:</strong> Firestore com regras por usuário; seus dados são sincronizados.</p>'+
+ '<div class="notice">Concessão de licenças e cobrança PRO não estão ativas nesta versão beta. Nenhum plano pode ser vendido por aqui ainda.</div></div>';
+}
+"""
+html = html[:admin_start] + admin + html[admin_end:]
+
+bridge = """window.POTE_AUTH=null;
+window.POTE_APP={
+ snapshot(){
+  const data=copy(state);
+  delete data.mode;delete data.tab;delete data.expansion;
+  return data;
+ },
+ applyState(cloud){
+  const start=original();
+  state={...start,...copy(cloud),data:{...start.data,...copy(cloud?.data||{})},
+    mode:'free',tab:'home',expansion:null};
+  render();
+ },
+ reset(){state=original();render();}
+};
+const poteOriginalRender=render;
+render=function(...args){
+ const result=poteOriginalRender(...args);
+ if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'));
+ return result;
+};
+render();
+"""
+once("render();\n</script></body></html>",
+     bridge + "</script><script type=\"module\" src=\"./firebase_integration.js\"></script></body></html>")
+# Ensure beta is not confused with the public offline demo.
+once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro V6 • Beta com Google Login e Firestore")
+if 'id="proBtn"' in html or 'id="admBtn"' in html:
+    raise SystemExit("Exposed role switch remained")
+if not all(x in html for x in ["id=\"poteAuthGate\"", "poteOriginalRender", "firebase_integration.js"]):
+    raise SystemExit("Missing authentication integration")
+p.write_text(html, encoding="utf-8")
+print("Created beta login page, size", len(html), "characters")

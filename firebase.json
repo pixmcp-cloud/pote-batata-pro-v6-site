@@ -1,5 +1,16 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Pote Batata Pro",
+        "supportEmail": "pixmcp@gmail.com",
+        "authorizedRedirectUris": [
+          "https://potobatata-b71f3.firebaseapp.com/__/auth/handler"
+        ]
+      }
+    }
   }
 }

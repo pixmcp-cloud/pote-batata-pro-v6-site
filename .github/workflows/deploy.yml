@@ -1,4 +1,4 @@
-name: Publicar V6 - demonstracao gratuita
+name: Publicar V6 e beta autenticado
 on: [push, workflow_dispatch]
 permissions: {contents: read, pages: write, id-token: write}
 jobs:
@@ -7,16 +7,24 @@ jobs:
     environment: github-pages
     steps:
       - uses: actions/checkout@v4
-      - name: Preparar versão pública FREE
+      - name: Preparar demonstracao e beta Firebase
         run: |
           mkdir -p public
           curl --retry 3 --retry-delay 2 -fL "https://d2ol7oe51mr4n9.cloudfront.net/user_38IdAoySLpr0wvVak2GIe3bSQA5/eafa8b81-bf3c-4c92-a14f-a00a473610f9.html" -o public/index.html
           python3 sanitize_public.py public/index.html
           python3 add_contacts.py public/index.html
-          python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S); assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
+          cp public/index.html public/beta.html
+          python3 make_beta.py public/beta.html
+          cp firebase_integration.js public/firebase_integration.js
+          python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
+          python3 -c 'import pathlib,re; s=pathlib.Path("public/beta.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
+          node --check app-check.js
+          node --input-type=module --check < public/firebase_integration.js
           rm -f app-check.js
           test ! -e public/setup.html
+          grep -q "poteAuthGate" public/beta.html
+          grep -q "firebase_integration.js" public/beta.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: public}
