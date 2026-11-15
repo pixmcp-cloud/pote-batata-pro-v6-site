@@ -43,14 +43,13 @@ css = """
   .livresom-contact .livresom-links a{justify-content:center}}
 </style>
 """
-if html.count('<div id="page"></div>') != 1 or html.count('<div class="foot">') != 1:
+if html.count('<div class="foot">') != 1:
     raise SystemExit("Pontos de inserção não encontrados; cancelado")
 if 'livresom-contact' in html:
     raise SystemExit("Contatos já inseridos; evitando duplicação")
 html = html.replace("</head>", css + "</head>", 1)
-html = html.replace('<div id="page"></div>', banner + '<div id="page"></div>', 1)
 html = html.replace('<div class="foot">', '<div class="foot">' + footer, 1)
-assert html.count(f'href="{url}"') == 2
-assert html.count(f'href="mailto:{email}"') == 2
+assert html.count(f'href="{url}"') == 1
+assert html.count(f'href="mailto:{email}"') == 1
 file.write_text(html, encoding="utf-8")
-print(f"Contatos inseridos em dois locais: {email} | {phone} | {url}")
+print(f"Contatos inseridos somente no rodapé: {email} | {phone} | {url}")
