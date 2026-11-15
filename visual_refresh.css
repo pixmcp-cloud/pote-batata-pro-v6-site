@@ -280,3 +280,71 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
     font-size:clamp(18px,5.6vw,22px)!important;
   }
 }
+
+/* Central: texto no MEIO do botão, letras mais espaçadas e contorno preto real em camada separada. */
+.ops-grid .ops-card{
+  justify-content:center!important;
+  align-items:center!important;
+  text-align:center!important;
+}
+.ops-grid .ops-card:before{
+  background:linear-gradient(180deg,#03060c10 0%,#02040a77 34%,#010309af 52%,#02050b6a 78%,#04081220 100%)!important;
+}
+.ops-grid .ops-card strong{
+  position:relative!important;
+  isolation:isolate;
+  z-index:3!important;
+  display:block!important;
+  width:calc(100% - 8px)!important;
+  max-width:calc(100% - 8px)!important;
+  margin:0 auto!important;
+  padding:0!important;
+  text-align:center!important;
+  font-family:system-ui,Arial,sans-serif!important;
+  font-size:clamp(20px,2vw,28px)!important;
+  font-weight:800!important;
+  letter-spacing:.035em!important;
+  line-height:1.18!important;
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+  -webkit-text-stroke:0!important;
+  text-shadow:
+   -1.5px -1.5px 0 #000,
+    1.5px -1.5px 0 #000,
+   -1.5px  1.5px 0 #000,
+    1.5px  1.5px 0 #000,
+    0 3px 7px #000!important;
+  overflow-wrap:normal!important;
+  word-break:normal!important;
+  white-space:normal!important;
+  text-wrap:balance;
+}
+/* Cópia preta da mesma palavra atrás das letras brancas: contorno verdadeiro, independente do tema. */
+.ops-grid .ops-card strong::before{
+  content:attr(data-outline);
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  width:100%;
+  text-align:center;
+  font:inherit;
+  letter-spacing:inherit;
+  line-height:inherit;
+  white-space:inherit;
+  text-wrap:inherit;
+  color:#000!important;
+  -webkit-text-fill-color:#000!important;
+  -webkit-text-stroke:5px #000!important;
+  text-shadow:0 0 1px #000!important;
+  pointer-events:none;
+}
+@media(max-width:700px){
+ .ops-grid .ops-card strong{
+   font-size:clamp(19px,5.35vw,23px)!important;
+   letter-spacing:.025em!important;
+ }
+ .ops-grid .ops-card strong::before{-webkit-text-stroke:4.5px #000!important}
+}
+@media(max-width:380px){
+ .ops-grid .ops-card strong{font-size:clamp(18px,5.1vw,21px)!important}
+}
