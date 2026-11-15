@@ -135,4 +135,8 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: public}
+      # Evita corrida de indexação: o artefato pode ser enviado mas ainda não
+      # estar listado pela API de Actions quando deploy-pages tenta consultá-lo.
+      - name: Aguardar indexação do artefato do Pages
+        run: sleep 15
       - uses: actions/deploy-pages@v4
