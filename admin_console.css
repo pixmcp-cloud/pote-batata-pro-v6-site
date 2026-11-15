@@ -94,3 +94,41 @@ html.pote-admin-open{overflow:hidden}
 #poteAdminOpen{font-size:10px;padding:8px 9px;min-height:35px}
 #poteExit{min-height:36px}
 }
+
+/* Regressiva real do plano selecionado, sem redefinir o prazo ao atualizar a página. */
+.pote-adm-countdown{
+  border:1px solid #b89b6588;
+  border-radius:16px;
+  background:radial-gradient(circle at 96% 0%,#e2b86925,transparent 58%),linear-gradient(145deg,#253852,#141f30);
+  padding:16px 17px;
+  margin:-3px 0 17px;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  box-shadow:inset 0 1px #ffffff2a,0 7px 20px #0007;
+}
+.pote-adm-countdown small{
+  font-size:10px;font-weight:850;letter-spacing:1.35px;color:#f3cb89;
+}
+.pote-adm-countdown strong{
+  font-size:clamp(23px,3.4vw,34px);font-weight:900;
+  letter-spacing:.02em;color:#ffdf9e;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+  line-height:1.25;
+  white-space:nowrap;
+}
+.pote-adm-countdown span{font-size:11px;line-height:1.45;color:#b9cbdd}
+.pote-adm-countdown[data-state="expired"]{border-color:#d27c6b88;background:linear-gradient(140deg,#3d252b,#1c2634)}
+.pote-adm-countdown[data-state="expired"] strong{color:#ffa99b}
+.pote-adm-countdown[data-state="free"],.pote-adm-countdown[data-state="lifetime"]{border-color:#789da17a}
+.pote-adm-countdown[data-state="free"] strong,.pote-adm-countdown[data-state="lifetime"] strong{font-size:clamp(18px,2.8vw,24px);color:#b7e7d3}
+.pote-adm-timer-row{display:block;font-weight:720;color:#f0c98b!important;font-size:10px!important;font-variant-numeric:tabular-nums}
+#potePlanCountdown{display:block;order:3;flex-basis:100%;width:100%;color:#f8d49a;font:780 11px/1.4 system-ui,Arial,sans-serif;letter-spacing:.02em;font-variant-numeric:tabular-nums;padding:3px 6px}
+#potePlanCountdown[hidden]{display:none!important}
+#poteSyncStatus{order:4}
+@media(max-width:540px){
+ .pote-adm-countdown{padding:13px 12px;margin:0 0 15px}
+ .pote-adm-countdown strong{font-size:clamp(21px,6vw,29px)}
+ #potePlanCountdown{font-size:10px;line-height:1.5}
+}

@@ -1,7 +1,7 @@
 import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis} from "./license_terms.mjs?v=plans-20261115";
+import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115";
 
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const btn=document.getElementById("poteAdminOpen");
@@ -16,7 +16,7 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
     <div class="pote-adm-toolbar"><input id="poteAdmSearch" type="search" placeholder="Buscar por e-mail, nome ou UID..." aria-label="Buscar usuários"><select id="poteAdmFilter" aria-label="Filtrar por plano"><option value="all">Todos os cadastros</option><option value="free">Somente FREE</option><option value="trial">Testes ativos</option><option value="pro">PRO ativos</option><option value="lifetime">Vitalícios</option><option value="expired">Vencidos</option></select><button id="poteAdmReload" type="button">Atualizar lista</button></div>
     <div class="pote-adm-columns">
      <section class="pote-adm-list"><div class="pote-adm-section-head"><h3>Contas cadastradas</h3><span id="poteAdmFound"></span></div><div id="poteAdmUsers" class="pote-adm-users" role="listbox" aria-label="Selecione uma conta"></div></section>
-     <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div>
+     <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div><div id="poteAdmCountdown" class="pote-adm-countdown" data-state="free"><small id="poteAdmCountdownLabel">TEMPO PARA VOLTAR AO FREE</small><strong id="poteAdmCountdownTime" role="timer">--d --h --m --s</strong><span id="poteAdmCountdownHint">Selecione uma conta com licença ativa.</span></div>
       <label class="pote-adm-label">Licença e duração<select id="poteAdmTerm" aria-label="Modalidade da licença">${LICENSE_TERMS.map(x=>`<option value="${x.id}">${esc(x.label)}</option>`).join("")}</select></label>
       <p id="poteAdmPreview" class="pote-adm-preview"></p>
       <div class="pote-adm-controls"><button id="poteAdmGrant" type="button" disabled>Promover / renovar</button><button id="poteAdmRevoke" type="button" disabled>Revogar → FREE</button></div>
@@ -31,7 +31,7 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
 document.body.insertAdjacentHTML("beforeend",markup);
 const overlay=$("poteAdmOverlay");
 const today=()=>Date.now();
-let entries=[],selection=null,busy=false,loading=false;
+let entries=[],selection=null,busy=false,loading=false,clockTimer=null,previousClockState=null;
 const current=()=>entries.find(x=>x.uid===selection);
 const expires=v=>{if(!v)return "Sem vencimento";return dateBR(v)};
 function selectionReady(){
@@ -42,6 +42,7 @@ function selectionReady(){
   `<strong>${esc(user.displayName||user.email||"Sem nome")}</strong><small>${esc(user.email||user.uid)}</small><span>${esc(resolveLicense(user.license,today()).label)} · ${esc(user.license?.term||"free")}</span>`:
   "Selecione uma conta na lista.";
  preview();
+ refreshCountdown();
 }
 function preview(){
  const term=$("poteAdmTerm").value,u=current(),now=new Date();
@@ -49,6 +50,30 @@ function preview(){
  const anchor=term==="lifetime"?now:new Date(Math.max(now.getTime(),start||0));
  const end=expiryForTerm(term,anchor);
  $("poteAdmPreview").textContent=end?"Previsão de término: "+expires(end)+(start&&start>now.getTime()?" (renovação somada ao prazo atual)":""):"Sem vencimento: acesso vitalício";
+}
+function refreshCountdown(){
+ const widget=$("poteAdmCountdown"),user=current();
+ const remaining=licenseCountdown(user?.license,Date.now());
+ widget.dataset.state=remaining.state;
+ $("poteAdmCountdownLabel").textContent=remaining.state==="active"?"TEMPO RESTANTE PARA VOLTAR AO FREE":"STATUS DA LICENÇA";
+ $("poteAdmCountdownTime").textContent=user?remaining.formatted:"--d --h --m --s";
+ $("poteAdmCountdownHint").textContent=user?remaining.description:"Selecione uma conta cadastrada.";
+ document.querySelectorAll("[data-remaining-uid]").forEach(el=>{
+  const account=entries.find(x=>x.uid===el.getAttribute("data-remaining-uid"));
+  if(!account)return;
+  const clock=licenseCountdown(account.license,Date.now());
+  el.textContent=clock.state==="active"?"Volta ao FREE em "+clock.formatted:
+    clock.state==="expired"?"Prazo vencido · FREE":
+    clock.state==="lifetime"?"Vitalícia · sem vencimento":"FREE · sem vencimento";
+ });
+ // Quando um plano vence, os filtros e indicadores também precisam mudar.
+ const selectedState=user?remaining.state:"none";
+ if(previousClockState!==null && selectedState!==previousClockState && !overlay.hidden){
+   previousClockState=selectedState;
+   render();
+   return;
+ }
+ previousClockState=selectedState;
 }
 function fmtDate(input){return input?dateBR(input):"—"}
 function render(){
@@ -75,7 +100,7 @@ function render(){
   const isSelf=u.uid===auth.currentUser?.uid;
   const name=u.displayName||u.email||"Usuário Google",meta=isSelf?"Administrador mestre":l.expiresAt?"Vence em "+expires(l.expiresAt):"Sem vencimento";
   return `<button type="button" data-uid="${esc(u.uid)}" class="pote-adm-user${selected?" selected":""}" role="option" aria-selected="${selected}" ${isSelf?'title="Conta administradora — somente consulta"':''}>
-   <span class="pote-adm-user-identity"><strong>${esc(name)}</strong><small>${esc(u.email||u.uid)}</small><small>${esc(fmtDate(u.createdAt))} · ${esc(meta)}</small></span>
+   <span class="pote-adm-user-identity"><strong>${esc(name)}</strong><small>${esc(u.email||u.uid)}</small><small>${esc(fmtDate(u.createdAt))} · ${esc(meta)}</small><small class="pote-adm-timer-row" data-remaining-uid="${esc(u.uid)}"></small></span>
    <span class="pote-adm-user-plan" data-plan="${esc(l.kind)}">${isSelf?"ADM MESTRE":esc(l.label)}</span></button>`;
  }).join(""):'<p class="pote-adm-empty">Nenhuma conta encontrada para este filtro.</p>';
  selectionReady();
@@ -155,8 +180,16 @@ async function open(){
  $("poteAdmSearch").value="";
  $("poteAdmFilter").value="all";
  await Promise.all([loadUsers(),loadAudit()]);
+ if(clockTimer!==null)clearInterval(clockTimer);
+ clockTimer=setInterval(()=>{if(!overlay.hidden)refreshCountdown()},1000);
+ refreshCountdown();
 }
-function close(){overlay.hidden=true;document.documentElement.classList.remove("pote-admin-open")}
+function close(){
+ overlay.hidden=true;
+ document.documentElement.classList.remove("pote-admin-open");
+ if(clockTimer!==null){clearInterval(clockTimer);clockTimer=null;}
+ previousClockState=null;
+}
 btn.addEventListener("click",open);
 $("poteAdmClose").addEventListener("click",close);
 overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
@@ -168,6 +201,7 @@ $("poteAdmUsers").addEventListener("click",e=>{
 });
 $("poteAdmSearch").addEventListener("input",render);
 $("poteAdmFilter").addEventListener("change",render);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!overlay.hidden)refreshCountdown()});
 $("poteAdmTerm").addEventListener("change",preview);
 $("poteAdmGrant").addEventListener("click",()=>changeLicense(false));
 $("poteAdmRevoke").addEventListener("click",()=>changeLicense(true));

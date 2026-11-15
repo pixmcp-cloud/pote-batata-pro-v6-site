@@ -52,3 +52,21 @@ export function dateBR(date){
   const ms=epochMillis(date);
   return ms===null?"Sem vencimento":new Date(ms).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
 }
+// A regressiva utiliza o vencimento salvo no Firestore, nunca a data de abertura da tela.
+export function licenseCountdown(license,now=Date.now()){
+  const current=resolveLicense(license,now);
+  if(current.kind==="lifetime"&&current.active)
+    return {state:"lifetime",seconds:null,formatted:"Sem vencimento",description:"Licença vitalícia"};
+  if(current.reason==="expired")
+    return {state:"expired",seconds:0,formatted:"00d 00h 00m 00s",description:"Prazo encerrado · voltou ao FREE"};
+  if(!current.active)
+    return {state:"free",seconds:null,formatted:"Sem vencimento",description:"Conta FREE"};
+  const seconds=Math.max(0,Math.ceil((current.expiresAt-now)/1000));
+  if(seconds===0)
+    return {state:"expired",seconds:0,formatted:"00d 00h 00m 00s",description:"Prazo encerrado · voltou ao FREE"};
+  const pad=n=>String(n).padStart(2,"0");
+  const days=Math.floor(seconds/86400),hours=Math.floor(seconds%86400/3600);
+  const minutes=Math.floor(seconds%3600/60),secs=seconds%60;
+  return {state:"active",seconds,formatted:pad(days)+"d "+pad(hours)+"h "+pad(minutes)+"m "+pad(secs)+"s",
+    description:"Tempo restante para voltar ao FREE",expiresAt:current.expiresAt};
+}

@@ -86,7 +86,7 @@ if n != 1:
     raise SystemExit("Cabeçalho da marca não encontrado")
 switch = r'<div class="switch" role="group" aria-label="Versão de demonstração">.*?</div>'
 new_switch = ('<div class="switch" role="group" aria-label="Sua sessão">'
- '<span id="poteLoggedAs"></span><button id="poteAdminOpen" type="button" hidden aria-label="Abrir Central Administrativa">ADM · Gerenciar</button><span id="potePlanBadge" hidden></span><button id="poteExit" type="button">Sair</button>'
+ '<span id="poteLoggedAs"></span><button id="poteAdminOpen" type="button" hidden aria-label="Abrir Central Administrativa">ADM · Gerenciar</button><span id="potePlanBadge" hidden></span><span id="potePlanCountdown" hidden role="timer" aria-label="Tempo restante da licença"></span><button id="poteExit" type="button">Sair</button>'
  '<span id="poteSyncStatus" aria-live="polite"></span></div>')
 html, n = re.subn(switch, new_switch, html, count=1, flags=re.S)
 if n != 1:

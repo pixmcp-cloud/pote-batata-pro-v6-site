@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import { resolveLicense, dateBR } from "./license_terms.mjs?v=plans-20261115";
+import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
@@ -26,6 +26,7 @@ const browserHint = document.getElementById("poteBrowserHint");
 const logged = document.getElementById("poteLoggedAs");
 const adminOpen = document.getElementById("poteAdminOpen");
 const planBadge = document.getElementById("potePlanBadge");
+const planCountdown = document.getElementById("potePlanCountdown");
 
 let active = null;
 let saving = false;
@@ -71,6 +72,12 @@ function refreshEntitlements() {
     planBadge.textContent = result.label;
     planBadge.title = result.expiresAt ? "Vencimento: " + dateBR(result.expiresAt) : "Sem vencimento";
   }
+  if (planCountdown) {
+    const remaining = licenseCountdown(rawUserLicense, Date.now());
+    planCountdown.hidden = admin || remaining.state !== "active";
+    planCountdown.textContent = remaining.state === "active" ? "Volta ao FREE em " + remaining.formatted : "";
+    planCountdown.title = remaining.expiresAt ? "Vencimento: " + dateBR(remaining.expiresAt) : "";
+  }
   if (ready && wasPro !== Boolean(window.POTE_AUTH.proActive) && typeof window.render === "function") {
     window.render();
   }
@@ -84,7 +91,7 @@ function observeProfile(user, index) {
     refreshEntitlements();
   }, error => console.warn("Licença: ", error.code || error.message));
   if (expiryCheckInterval) clearInterval(expiryCheckInterval);
-  expiryCheckInterval = setInterval(refreshEntitlements, 30000);
+  expiryCheckInterval = setInterval(refreshEntitlements, 1000);
 }
 function refFor(user) { return doc(db, "users", user.uid, "appState", "main"); }
 
@@ -241,6 +248,7 @@ onAuthStateChanged(auth, async user => {
   rawUserLicense = null;
   if (adminOpen) adminOpen.hidden = true;
   if (planBadge) planBadge.hidden = true;
+  if (planCountdown) planCountdown.hidden = true;
   clearTimeout(loginWatchdog);
   if (!user) {
     clearTimeout(timer);
