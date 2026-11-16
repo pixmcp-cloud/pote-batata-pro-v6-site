@@ -1,0 +1,52 @@
+import assert from "node:assert/strict";
+const fields=new Map(),messages=[];
+const value=(id,v)=>fields.set(id,{value:v});
+const order1={id:"orderA123",name:"Batata",status:"entregue",deliveryFee:10,clientAddress:"Rua A",deliveryCost:0};
+const order2={id:"orderB456",name:"Pastel",status:"entregue",deliveryFee:8,clientAddress:"Rua B",deliveryCost:0};
+globalThis.window={POTE_AUTH:{uid:"account-a",role:"admin",proActive:true},POTE_SYNC_GUARD:{}};
+globalThis.state={mode:"adm",tab:"motoboy",data:{businessType:"batataria",orders:[order1],
+ businessUniverses:{pastelaria:{orders:[order2]}}}};
+globalThis.document={
+ getElementById:id=>fields.get(id),
+ querySelectorAll:()=>[{value:"batataria/orderA123"},{value:"pastelaria/orderB456"}]
+};
+globalThis.alert=x=>messages.push(String(x));
+globalThis.confirm=()=>true;
+globalThis.prompt=()=>null;
+globalThis.toast=x=>messages.push(String(x));
+let saved=0;
+globalThis.persist=()=>saved++;
+globalThis.render=()=>{};
+await import("./motoboy.js?integration=20261116");
+const M=window.POTE_MOTOBOY;
+assert(M.render().includes("Central MOTOBOY"));
+assert(M.render().includes("Cadastrar motoboy"));
+value("motoName","Carlos Entregador");value("motoPhone","48 99995-1729");value("motoPix","cpf@pix");
+value("motoModel","hybrid");value("motoRateDelivery","6");value("motoRateKm","2,50");value("motoRateDay","0");
+value("motoNotes","Turno da noite");
+M.saveCourier();assert.equal(state.data.kitchenLogistics.couriers.length,1);
+value("motoTripCourier",state.data.kitchenLogistics.couriers[0].id);
+value("motoTripKm","3.5");value("motoTripDistance","oneWayReturn");value("motoTripDate","2026-11-16");
+value("motoTripNote","Dois pedidos na mesma saída");
+M.createTrip();
+assert.equal(state.data.kitchenLogistics.trips.length,1);
+const t=state.data.kitchenLogistics.trips[0];
+assert.equal(t.orderRefs.length,2);
+M.deliver(t.id);
+assert.equal(order1.motoboyTripId,t.id);
+assert.equal(order2.motoboyTripId,t.id);
+const s=M.stats()[0].statement;
+assert.equal(s.trips,1);
+assert.equal(s.orders,2);
+assert.equal(s.km,7);
+assert.equal(s.due,29.5,"2 entregas*R$6 +7 km*R$2,50");
+M.allocate(t.id);
+assert.equal(order1.deliveryCost,14.75);
+assert.equal(order2.deliveryCost,14.75);
+M.allocate(t.id);
+assert.equal(order1.deliveryCost,14.75,"rateio não pode repetir");
+assert(saved>0);
+window.POTE_AUTH={uid:"account-a",role:"free",proActive:false};state.mode="free";
+M.saveCourier();assert.equal(state.data.kitchenLogistics.couriers.length,1);
+M.createTrip();assert.equal(state.data.kitchenLogistics.trips.length,1);
+console.log("PASS: UI Motoboy, 2 universos na mesma viagem, WhatsApp, cálculos híbridos, rateio único e limites FREE.");

@@ -3,7 +3,7 @@
    All inventory-sensitive edits serialize through the same transaction guard. */
 import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=v3-wave1-20261116";
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
-import {checkFreeUniverseDelta} from "./free_limits.mjs";
+import {checkFreeUniverseDelta} from "./free_limits.mjs?v=kitchen-motoboy-20261116";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
 const fail=(code,message)=>{const error=new Error(message);error.code=code;throw error};

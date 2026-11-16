@@ -1,0 +1,29 @@
+/* Central Motoboy: mesma linguagem visual clean/glass dos demais módulos. */
+.moto-page{color:#f8efe2}
+.moto-header,.moto-new,.moto-rider,.moto-trip{background:linear-gradient(145deg,#26364b,#152438);border:1px solid #98abc070;box-shadow:inset 0 1px #ffffff30,0 12px 21px #0006;border-radius:17px;padding:19px;margin-bottom:15px}
+.moto-header{background:radial-gradient(circle at 85% 10%,#b37a2f55,transparent 46%),linear-gradient(140deg,#2c4059,#142238)}
+.moto-header small{font-size:10px;letter-spacing:.14em;color:#eac68b;font-weight:850}
+.moto-header h2{font-size:clamp(26px,3vw,36px);color:#ffe9c7;margin:7px 0 5px}
+.moto-header p,.moto-note{font-size:12px;line-height:1.6;color:#c5d5e3}
+.moto-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:17px}
+.moto-stats>div{background:#172838;border:1px solid #829cb65c;border-radius:13px;padding:13px}
+.moto-stats small{display:block;font-size:10px;color:#b8cbdb}
+.moto-stats strong{display:block;font-size:clamp(16px,2.5vw,24px);margin-top:7px;overflow-wrap:anywhere;color:#ffdda8}
+.moto-new>summary{cursor:pointer;font-size:16px;font-weight:850;color:#ffdfb0}
+.moto-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}
+.moto-fields label{display:flex;flex-direction:column;gap:5px;color:#d4e0ef;font-size:11px;font-weight:650}
+.moto-fields input,.moto-fields select{width:100%;min-height:43px;border-radius:10px;border:1px solid #96aec7b0;background:#0e1b2c;color:#fff2dd;padding:10px;box-sizing:border-box}
+.moto-page h3{font-size:21px;margin:24px 0 10px;color:#ffdfb0}
+.moto-riders,.moto-trips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.moto-rider,.moto-trip{margin:0;min-width:0}
+.moto-rider header,.moto-row{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.moto-rider header strong{font-size:18px;color:#fff1d8}
+.moto-rider header span,.moto-trip .moto-row span{font-size:11px;color:#b6c7d8}
+.moto-rider p,.moto-trip{font-size:12px;line-height:1.6}
+.moto-rider .actions,.moto-trip .actions{margin-top:12px;gap:7px;display:flex;flex-wrap:wrap}
+.moto-hint{display:block;color:#b8cad8;margin-top:12px}
+.moto-order-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0}
+.moto-order-choices label{display:flex;gap:7px;background:#0c1828;border:1px solid #819bb45f;border-radius:10px;padding:10px;font-size:11px}
+.moto-order-choices input{width:17px;align-self:center;flex-shrink:0}
+.moto-order-choices small{display:block;color:#bbccdc;line-height:1.4;margin-top:2px}
+@media(max-width:740px){.moto-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.moto-riders,.moto-trips,.moto-fields,.moto-order-choices{grid-template-columns:1fr}}

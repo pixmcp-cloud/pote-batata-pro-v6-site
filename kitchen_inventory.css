@@ -1,0 +1,16 @@
+/* Configuração do estoque físico e seleção em massa de insumos. */
+.kitchen-panel{border-color:#bda66b88;background:radial-gradient(circle at 95% 0%,#92704334,transparent 44%),linear-gradient(140deg,#253c4d,#182537)}
+.kitchen-panel .actions{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+.kitchen-panel .actions .btn{white-space:normal}
+.kitchen-panel small{color:#bbcbd9;font-size:11px}
+.kitchen-catalog>summary{font-size:17px;font-weight:850;color:#f6dda9;cursor:pointer}
+.kitchen-catalog>p{margin:12px 0 8px}
+.kitchen-catalog>label{display:block;margin-bottom:12px;color:#d8e5ee}
+.kitchen-catalog input[type=search]{display:block;max-width:450px;width:100%;border:1px solid #9cb2c4;background:#0d1d2d;color:#faebd5;border-radius:10px;margin-top:6px;padding:11px}
+.kitchen-catalog-items{max-height:280px;overflow:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 17px;padding:4px}
+.kitchen-catalog-items label{display:flex;align-items:center;gap:7px;min-width:0;border:1px solid #849bb46b;background:#112237;border-radius:8px;padding:10px;color:#dce7ed;font-size:11px;cursor:pointer}
+.kitchen-catalog-items label[hidden]{display:none}
+.kitchen-catalog-items input{flex:0 0 auto;width:17px;height:17px}
+.kitchen-catalog-items small{color:#a9c3d6}
+@media(max-width:780px){.kitchen-catalog-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.kitchen-catalog-items{grid-template-columns:1fr}}

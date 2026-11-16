@@ -104,7 +104,7 @@ assert(source.includes("POTE_UNIVERSES.switchTo(state,type,SEED)"));
 assert(source.includes("Franquia oficial Potê Batata"));
 const built=read("public/index.html");
 assert(built.includes('universe_templates.js?v=universes-20261115'));
-assert(built.includes('universe_core.js?v=pastelaria-20261116'));
+assert(built.includes('universe_core.js?v=kitchen-motoboy-20261116'));
 assert(built.includes('business_setup.js?v=pastelaria-20261116'));
 const firebase=read("firebase_integration.js");
 assert(firebase.includes("POTE_UNIVERSE_MIGRATED"));

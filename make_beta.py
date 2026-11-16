@@ -28,8 +28,8 @@ pattern = r"let state=original\(\);try\{const old=JSON.parse\(localStorage.getIt
 html, n = re.subn(pattern, "let state=original();", html, count=1, flags=re.S)
 if n != 1:
     raise SystemExit("Previous localStorage guest state pattern changed; stopping")
-once("function persist(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}",
-     "function persist(){if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
+once("function persist(){window.POTE_KITCHEN?.capture?.(state);try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}",
+     "function persist(){window.POTE_KITCHEN?.capture?.(state);if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
 once("V6 • DEMONSTRAÇÃO FREE", "POTÊ BATATA PRO • ONLINE")
 once("🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.",
      "🔐 Beta conectado ao Firebase: dados por conta Google. Contas FREE e PRO com licença vinculada à sua conta Google.")
@@ -137,6 +137,8 @@ function poteFreshAccount(){
   : {...start.data.brand,...POTE_NEUTRAL_BRAND};
  start.data.businessType='batataria'; // FREE e ADM começam na Batataria e podem selecionar outros ramos
  start.data.businessTemplates={};
+ start.data.kitchenStock={mode:"shared",version:1,inventory:{}};
+ start.data.kitchenLogistics={couriers:[],trips:[],settlements:[]};
  start.accounts=[];
  start.creatives=[];
  start.audit=[];
@@ -175,6 +177,9 @@ window.POTE_APP={
   state={...start,...copy(cloud),data:{...start.data,...copy(cloud?.data||{})},
     mode:'free',tab:options.preserveNavigation&&NAMES[currentTab]?currentTab:'home',
     expansion:options.preserveNavigation?currentExpansion:null};
+  // Existing profiles have no kitchen mode: retain separated stock until they opt in.
+  if(cloud?.data&&!Object.prototype.hasOwnProperty.call(cloud.data,"kitchenStock"))
+   state.data.kitchenStock={mode:"separate",version:1,inventory:{},legacyUnreviewed:true};
   if(window.POTE_AUTH?.role==='admin'){
    if(state.data.businessType==='batataria'&&state.data.brand?.logoUrl?.startsWith('data:image/svg+xml'))state.data.brand.logoUrl=POTE_ORIGINAL_LOGO;
   }else{
@@ -186,6 +191,7 @@ window.POTE_APP={
    }
    if(window.POTE_BUSINESS?.normalizeAccountBrand?.())window.POTE_BRAND_MIGRATED=true;
   }
+  window.POTE_KITCHEN?.project?.(state);
   render();
  },
  reset(){state=poteFreshAccount();window.POTE_UNIVERSE_MIGRATED=false;render();}
@@ -206,6 +212,7 @@ resetAll=function(){
 };
 const poteOriginalRender=render;
 render=function(...args){
+ window.POTE_KITCHEN?.capture?.(state);
  const auditNormalization=window.POTE_STOCK?.normalizeInventory?.(state.data);
  if(auditNormalization?.invalid?.length)console.warn("Estoque com saldo numérico inválido",auditNormalization.invalid);
  window.POTE_DRINKS?.ensure?.(state);
@@ -228,7 +235,9 @@ go=function(tab){if(window.POTE_ACCESS?.requireTab?.(tab)===false)return;const r
 render();
 """
 once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./supplier_directory.js?v=contacts-20261116\"></script><script src=\"./garimpo.js?v=radar-cache-20261116\"></script><script src=\"./pote_notice.js?v=aviso-20261116\"></script><script src=\"./floating_menu.js?v=menu-franchise-20261115\"></script><script src=\"./release_news.js?v=pdv-20261116\"></script><script type=\"module\" src=\"./firebase_integration.js?v=free-universos-20261116\"></script><script type=\"module\" src=\"./admin_console.js?v=universe-permissions-20261116\"></script><script type=\"module\" src=\"./admin_permissions.js?v=universe-permissions-20261116\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./universe_templates.js?v=universes-20261115\"></script><script src=\"./pastelaria_templates.js?v=pastelaria-20261116\"></script><script src=\"./universe_core.js?v=pastelaria-20261116\"></script><script src=\"./access_control.js?v=free-universos-20261116\"></script><script src=\"./business_setup.js?v=pastelaria-20261116\"></script><script src=\"./beverage_catalog.js?v=commerce-20261115\"></script><script src=\"./payment_flow.js?v=commerce-20261115\"></script><script src=\"./stock_inventory.js?v=stock-priority-20261115\"></script><script src=\"./stock_delete.js?v=stock-priority-20261115\"></script><script src=\"./stock_math.js?v=v3-wave1-20261116\"></script><script src=\"./stock_update_modal.js?v=stock-update-20261115\"></script><script src=\"./stock_status.js?v=audit-20261115\"></script><script src=\"./app_audit.js?v=audit-20261115\"></script><script src=\"./stock_ui.js?v=estimativa-franquia-60-20261116\"></script><script src=\"./pricing_explainer.js?v=v3-wave1-20261116\"></script><script src=\"./order_customization.js?v=audit-20261115\"></script><script src=\"./receipt_enhanced.js?v=receipt-20261115\"></script><script src=\"./stock_ext.js?v=estimativa-franquia-60-20261116\"></script><script src=\"./order_guard.js?v=audit-20261115\"></script><script src=\"./cost_history.js?v=v3-cost-20261116\"></script><script src=\"./losses.js?v=v3-wave1-20261116\"></script><script src=\"./cancel_order_flow.js?v=v3-wave1-20261116\"></script><script src=\"./exit_guard.js?v=exit-v2-20261115\"></script><script type=\"module\" src=\"./franchise_sync.js?v=admin-all-universes-20261116\"></script><script type=\"module\" src=\"./franchise_shopping_list.mjs?v=starter-20261116\"></script></body></html>")
+     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./supplier_directory.js?v=kitchen-motoboy-20261116\"></script><script src=\"./garimpo.js?v=radar-cache-20261116\"></script><script src=\"./pote_notice.js?v=aviso-20261116\"></script><script src=\"./floating_menu.js?v=kitchen-motoboy-20261116\"></script><script src=\"./release_news.js?v=pdv-20261116\"></script><script type=\"module\" src=\"./firebase_integration.js?v=kitchen-motoboy-20261116\"></script><script type=\"module\" src=\"./admin_console.js?v=universe-permissions-20261116\"></script><script type=\"module\" src=\"./admin_permissions.js?v=kitchen-motoboy-20261116\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./universe_templates.js?v=universes-20261115\"></script><script src=\"./pastelaria_templates.js?v=pastelaria-20261116\"></script><script src=\"./universe_core.js?v=kitchen-motoboy-20261116\"></script><script src=\"./access_control.js?v=kitchen-motoboy-20261116\"></script><script src=\"./business_setup.js?v=pastelaria-20261116\"></script><script src=\"./beverage_catalog.js?v=commerce-20261115\"></script><script src=\"./payment_flow.js?v=commerce-20261115\"></script><script src=\"./stock_inventory.js?v=stock-priority-20261115\"></script><script src=\"./stock_delete.js?v=stock-priority-20261115\"></script><script src=\"./stock_math.js?v=v3-wave1-20261116\"></script><script src=\"./stock_update_modal.js?v=stock-update-20261115\"></script><script src=\"./stock_status.js?v=audit-20261115\"></script><script src=\"./app_audit.js?v=audit-20261115\"></script><script src=\"./stock_ui.js?v=kitchen-motoboy-20261116\"></script><script src=\"./pricing_explainer.js?v=v3-wave1-20261116\"></script><script src=\"./order_customization.js?v=audit-20261115\"></script><script src=\"./receipt_enhanced.js?v=receipt-20261115\"></script><script src=\"./stock_ext.js?v=estimativa-franquia-60-20261116\"></script><script src=\"./order_guard.js?v=audit-20261115\"></script><script src=\"./cost_history.js?v=v3-cost-20261116\"></script><script src=\"./losses.js?v=v3-wave1-20261116\"></script><script src=\"./cancel_order_flow.js?v=v3-wave1-20261116\"></script><script src=\"./exit_guard.js?v=exit-v2-20261115\"></script><script type=\"module\" src=\"./franchise_sync.js?v=admin-all-universes-20261116\"></script><script type=\"module\" src=\"./franchise_shopping_list.mjs?v=starter-20261116\"></script></body></html>")
+once("</body></html>", '<link rel="stylesheet" href="./kitchen_inventory.css?v=kitchen-20261116"><script src="./kitchen_inventory.js?v=kitchen-20261116"></script></body></html>')
+once("</body></html>", '<link rel="stylesheet" href="./motoboy.css?v=motoboy-20261116"><script type="module" src="./motoboy.js?v=motoboy-20261116"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-20261116"><script type="module" src="./pdv_cash_ui.mjs?v=v3-wave1-20261116"></script><script src="./numeric_keyboard.js?v=teclado-numerico-20261116"></script><script src="./module_health.js?v=v3-wave1-20261116"></script></body></html>')
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)

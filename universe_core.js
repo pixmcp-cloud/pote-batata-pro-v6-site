@@ -111,6 +111,7 @@ function importModels(state,type,seed){
 function switchTo(state,type,seed,{skipTemplates=false}={}){
  if(!VALID.includes(type))throw Error("Negócio inválido");
  const data=state.data;
+ window.POTE_KITCHEN?.capture?.(state);
  const prepared=prepare(state,seed);
  const previous=VALID.includes(data.businessType)?data.businessType:"";
  if(previous && previous!==type){
@@ -123,6 +124,7 @@ function switchTo(state,type,seed,{skipTemplates=false}={}){
  }
  let imported={already:true,recipesAdded:0,ingredientsAdded:0};
  if(!skipTemplates)imported=importModels(state,type,seed);
+ window.POTE_KITCHEN?.project?.(state);
  data.businessUniverses[type]=snapshot(state);
  data.universeDataVersion=UNIVERSE_VERSION;
  return {...imported,previous,current:type,changed:prepared||previous!==type||!imported.already};

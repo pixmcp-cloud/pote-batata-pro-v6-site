@@ -1,4 +1,4 @@
-/* FREE: uma ação/cadastro operacional por grupo em cada universo extra.
+/* FREE: uma ação/cadastro operacional por grupo no conjunto dos universos extras da conta.
    Contas PRO, franquias e ADM não passam por esta validação.
    Fichas e insumos-modelo não contam como cadastros autorais. */
 export const FREE_LIMITED_GROUPS=Object.freeze({
@@ -15,7 +15,7 @@ const custom=(record)=>{
 };
 const quantity=(records,universe,group)=>{
  let n=0;
- for(const rec of records.values())if(rec.universe===universe&&rec.group===group&&custom(rec))n++;
+ for(const rec of records.values())if(rec.universe!=="batataria"&&rec.universe!=="kitchen"&&rec.universe!=="default"&&rec.group===group&&custom(rec))n++;
  return n;
 };
 /** A operação não exige apagar registros anteriores que já ultrapassavam a quota. */

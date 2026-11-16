@@ -113,7 +113,7 @@ pageSuppliers=function(){
  gps=gps.replace('<div class="box"><h2>Pesquisar Fornecedor</h2>','<div class="box" id="poteSupplierSearchSection"><h2>Pesquisar Fornecedor</h2>');
  gps=gps.replace(/O cadastro manual de 1 fornecedor permanece liberado\./,"Os contatos pessoais são cadastrados acima.");
  gps=gps.replace(/FREE permite 1 fornecedor manual\./,"A agenda de contatos pessoais fica na seção acima.");
- return renderPersonal()+gps+renderRegional();
+ return '<section class="box"><h2>Fornecedores & Compras</h2><p>Agenda, cotações, pesquisa de estabelecimentos e Radar de Preços reunidos nesta central.</p><div class="actions"><button type="button" class="btn" onclick="go(\'garimpo\')">📊 Abrir Radar de Preços</button><button type="button" class="btn line" onclick="goSupplierSearch()">🔍 Buscar fornecedores</button></div></section>'+renderPersonal()+gps+renderRegional();
 };
 function changed(){if(typeof persist==="function")persist();if(typeof render==="function")render();}
 function addContact(){

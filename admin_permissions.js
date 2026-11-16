@@ -10,7 +10,7 @@ const services=[
  ["recipes","Receitas"],["ingredients","Ingredientes"],["orders","Vendas e pedidos"],
  ["clients","Clientes"],["suppliers","Fornecedores"],["expenses","Despesas"],
  ["stock","Compras e estoque"],["losses","Perdas"],["pricing","Precificação"],
- ["creatives","Criativos"],["reports","Relatórios"]
+ ["creatives","Criativos"],["reports","Relatórios"],["motoboy","Motoboy"]
 ];
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const root=document.createElement("section");

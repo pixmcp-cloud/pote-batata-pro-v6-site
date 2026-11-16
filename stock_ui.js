@@ -146,6 +146,7 @@ function renderPanel(state,data){
    <div><small>Abaixo do mínimo</small><strong>${low}</strong></div>
   </div>
  </div>
+ ${window.POTE_KITCHEN?.renderPanel?.(state.data)||""}
  ${window.POTE_APP_AUDIT?.panel?.(state.data)||""}
  ${priorityPanel(visible,held,recipeRisk)}
  ${shortages.length?`<section class="stock-shortage-alert" role="status">

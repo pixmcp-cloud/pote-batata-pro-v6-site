@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import {tripAmount,effectiveKm,courierStatement,normalizedPhone,canAssign} from "./motoboy_core.mjs";
+const trip={id:"t1",courierId:"c1",at:"2026-11-16",orderRefs:[{universe:"batataria",id:"x"},{universe:"pastelaria",id:"y"}],
+ km:6,distanceMode:"oneWayReturn",status:"delivered"};
+assert.equal(effectiveKm(trip),12);
+const c={id:"c1",paymentModel:"delivery",rateDelivery:7,rateKm:2,rateDay:50};
+assert.equal(tripAmount(c,trip),14,"Uma viagem pode ter duas entregas");
+assert.equal(courierStatement(c,[trip],[]).trips,1);
+assert.equal(courierStatement(c,[trip],[]).orders,2);
+assert.equal(courierStatement(c,[trip],[]).balance,14);
+assert.equal(courierStatement({...c,paymentModel:"kilometer"},[trip],[]).balance,24);
+assert.equal(courierStatement({...c,paymentModel:"hybrid"},[trip],[]).balance,38);
+assert.equal(courierStatement({...c,paymentModel:"daily"},[trip,{...trip,id:"t2",km:10}],[]).balance,50,"A diária só conta uma vez no mesmo dia");
+assert.equal(courierStatement(c,[trip],[{courierId:"c1",amount:6}]).balance,8);
+assert.equal(courierStatement(c,[trip],[{courierId:"c1",amount:16}]).overpaid,2);
+assert.equal(normalizedPhone("48 99995-1729"),"5548999951729");
+assert.equal(normalizedPhone("telefone"),"");
+assert.equal(canAssign({id:"x",universe:"batataria"},[trip]),false);
+assert.equal(canAssign({id:"z",universe:"pastelaria"},[trip]),true);
+assert.equal(tripAmount(c,{...trip,status:"cancelled"}),0);
+console.log("PASS: Motoboy, viagens agrupadas, km ida/volta, diária única, acertos e isolamento dos pedidos.");

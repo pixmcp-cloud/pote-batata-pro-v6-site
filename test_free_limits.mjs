@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {checkFreeUniverseDelta} from "./free_limits.mjs";
+import {checkFreeUniverseDelta} from "./free_limits.mjs?v=kitchen-motoboy-20261116";
 const sample=(group,id,item={})=>({universe:"pastelaria",group,id,item});
 const mock=(...rows)=>new Map(rows.map((r,i)=>[String(i),r]));
 const seed=mock(sample("recipes","ps-1",{templateOrigin:"pastelaria",modelRecipe:true}),
@@ -16,4 +16,7 @@ const ownRecipe=mock(...seed.values(),sample("recipes","mine",{name:"Meu pastel"
 assert(checkFreeUniverseDelta(seed,ownRecipe,"pastelaria").ok);
 const secondRecipe=mock(...ownRecipe.values(),sample("recipes","mine2",{name:"Outro"}));
 assert.equal(checkFreeUniverseDelta(ownRecipe,secondRecipe,"pastelaria").ok,false);
-console.log("PASS: FREE 1 cadastro por função nos universos extras, modelos não consomem a quota.");
+const pizzaOrder=mock(...seed.values(),{universe:"pizzaria",group:"orders",id:"pizza-o1",item:{id:"pizza-o1"}});
+const crossUniverse=mock(...pizzaOrder.values(),{universe:"pastelaria",group:"orders",id:"pastel-o2",item:{id:"pastel-o2"}});
+assert.equal(checkFreeUniverseDelta(pizzaOrder,crossUniverse,"pastelaria").ok,false,"Trocar de ramo não deve renovar o limite FREE");
+console.log("PASS: FREE 1 cadastro por função no conjunto dos ramos extras; modelos gratuitos não consomem a quota.");

@@ -116,7 +116,7 @@ assert(confirmed>=1&&persisted>=1&&rendered>=1);
 const built=read("public/index.html");
 for(const v of ["stock_delete.js?v=stock-priority-20261115",
  "stock_inventory.js?v=stock-priority-20261115",
- "stock_ui.js?v=estimativa-franquia-60-20261116",
+ "stock_ui.js?v=kitchen-motoboy-20261116",
  "stock_status.js?v=audit-20261115",
  "stock_triage.css?v=stock-priority-20261115",
  "release_news.js?v=pdv-20261116"]){
