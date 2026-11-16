@@ -283,3 +283,25 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
  .ops-grid .ops-supplier-card .ops-icon{padding:9% 7% 22%!important}
  .ops-grid .ops-supplier-card .ops-icon img{max-height:67%!important}
 }
+
+/* Evitar ampliação de ícones pequenos: não esticar 96 px para ocupar o card. */
+.ops-grid .ops-card.ops-losses-card,
+.ops-grid .ops-card.ops-garimpo-card{
+ background:radial-gradient(ellipse at 48% 35%,#2a3545 0%,#0b1524 75%,#080e18 100%)!important;
+}
+.ops-grid .ops-card.ops-losses-card .ops-icon,
+.ops-grid .ops-card.ops-garimpo-card .ops-icon{
+ display:flex!important;justify-content:center!important;align-items:center!important;
+ padding:8px 8px 30px!important;box-sizing:border-box!important;
+}
+.ops-grid .ops-card.ops-losses-card .ops-icon img,
+.ops-grid .ops-card.ops-garimpo-card .ops-icon img{
+ position:relative!important;inset:auto!important;display:block!important;
+ width:min(44%,96px)!important;height:auto!important;max-width:96px!important;max-height:96px!important;
+ aspect-ratio:1/1!important;object-fit:contain!important;object-position:center!important;
+ transform:none!important;filter:drop-shadow(0 5px 12px #000a)!important;
+}
+.ops-grid .ops-card.ops-losses-card:hover .ops-icon img,
+.ops-grid .ops-card.ops-garimpo-card:hover .ops-icon img{transform:scale(1.035)!important}
+.ops-grid{min-width:0;max-width:100%;box-sizing:border-box}
+.ops-grid .ops-card{min-width:0;max-width:100%;box-sizing:border-box}
