@@ -1,0 +1,39 @@
+/* Fornecedores pessoais: CRM de contatos, precificação e WhatsApp */
+.pote-personal-directory{margin-bottom:18px}
+.pote-personal-intro>small{font-size:10px;letter-spacing:.17em;color:var(--gold,#f2c67e);font-weight:800}
+.pote-personal-intro h2{margin:5px 0 7px}
+.pote-personal-intro p{max-width:760px;line-height:1.6;color:var(--muted,#bbb)}
+.pote-personal-stats{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}
+.pote-personal-stats strong{border:1px solid var(--line,#ffffff24);border-radius:12px;padding:10px 14px;font-size:12px}
+.pote-personal-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px;align-items:end;padding:13px 0}
+.pote-personal-form label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:700;min-width:0}
+.pote-personal-form label span{color:var(--muted,#ccc)}
+.pote-personal-form input,.pote-personal-form select{width:100%;min-width:0;box-sizing:border-box;border-radius:12px;border:1px solid var(--line,#ffffff30);background:var(--panel,#251e24);color:var(--text,#fff);padding:12px;font:inherit;min-height:44px}
+.pote-personal-form>.btn{min-height:44px}
+.pote-personal-card{border:1px solid var(--line,#ffffff28);padding:15px;margin:12px 0;border-radius:17px;background:rgba(255,255,255,.035);overflow-wrap:anywhere}
+.pote-personal-heading{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.pote-personal-heading strong{font-size:16px}
+.pote-personal-heading small,.pote-personal-product small,.pote-regional-row small{display:block;font-size:11px;color:var(--muted,#d4d0d0);margin:5px 0;line-height:1.5}
+.pote-personal-products{margin-top:16px;padding-top:8px;border-top:1px solid var(--line,#ffffff25)}
+.pote-personal-products h4{font-size:13px;margin:9px 0}
+.pote-personal-product{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line,#ffffff18);padding:11px 0}
+.pote-personal-product>div:first-child{flex:1;min-width:155px}
+.pote-personal-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pote-personal-actions .btn{font-size:11px;white-space:normal}
+.pote-preferred,.pote-best-price{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:7px;font-size:10px;background:#204f3e;color:#baf7d6}
+.pote-contact-warning{font-size:11px;color:#efc381;max-width:220px}
+.pote-supplier-edit{margin-top:12px;padding:8px 0;border-top:1px solid var(--line,#ffffff27)}
+.pote-supplier-edit summary{cursor:pointer;font-weight:700;font-size:12px;color:var(--gold,#e9c788)}
+.pote-price-comparison{margin:10px 0;display:grid;gap:7px}
+.pote-price-comparison>div{display:grid;grid-template-columns:minmax(100px,1fr) auto minmax(75px,.6fr);align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line,#ffffff25);border-radius:10px}
+.pote-price-comparison strong{white-space:nowrap;color:#a8efd0;font-size:13px}
+.pote-price-comparison small{font-size:11px;color:var(--muted,#bbb)}
+.pote-supplier-regional{margin-top:17px}
+.pote-regional-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid var(--line,#ffffff20)}
+@media(max-width:650px){
+ .pote-personal-form{grid-template-columns:1fr}
+ .pote-price-comparison>div{grid-template-columns:1fr auto;gap:4px}
+ .pote-price-comparison>div>small{grid-column:1 / -1}
+ .pote-personal-actions{width:100%}
+ .pote-personal-actions .btn{flex:1}
+}

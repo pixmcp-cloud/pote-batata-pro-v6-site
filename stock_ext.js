@@ -5,6 +5,14 @@ if(window.POTE_STOCK_EXT)return;
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function beverageMargin(b){
+ const paid=Number(b.purchasePrice),qty=Number(b.purchaseQuantity),price=Number(b.sellPrice);
+ if(!Number.isFinite(paid)||paid<=0||!Number.isFinite(qty)||qty<=0)return {level:"unknown",gross:null,unitCost:null,label:"CUSTO NÃO INFORMADO — confira a margem"};
+ const unitCost=paid/qty,gross=price-unitCost;
+ const level=gross < -0.000001?"loss":gross<=0.000001?"zero":"profit";
+ const label=level==="loss"?"PREJUÍZO BRUTO POR UNIDADE":level==="zero"?"MARGEM BRUTA ZERO — ATENÇÃO":"GANHO BRUTO POR UNIDADE";
+ return {level,gross,unitCost,label};
+}
 const sorted=()=>[...(state.data.beverages||[])].sort((a,b)=>{
  const rank={missing:0,low:1,good:2};
  const wa=rank[beverageHealth(a).level]??3,wb=rank[beverageHealth(b).level]??3;
@@ -38,14 +46,25 @@ function renderBeverages(){
   '<div class="stock-section-head"><div><small>UNIDADES FÍSICAS</small><h2>Águas e refrigerantes</h2></div><span>Separados dos ingredientes e descartáveis</span></div>'+
   '<p>O preço exibido é o de venda. O custo de compra começa zerado até registrar a mercadoria realmente recebida. Latas, garrafas e sabores têm saldos independentes.</p>'+
   (drinks.length?'<div class="stock-beverage-grid">'+drinks.map(b=>
-   '<article class="stock-beverage-card stock-status-'+beverageHealth(b).level+'" data-stock-name="'+esc([b.name,b.size,b.id].join(" ").toLowerCase())+'">'+
+   '<article class="stock-beverage-card stock-status-'+beverageHealth(b).level+' stock-margin-'+beverageMargin(b).level+'" data-stock-name="'+esc([b.name,b.size,b.id].join(" ").toLowerCase())+'">'+
    '<div><button type="button" class="stock-item-open" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.selectBeverage(this.dataset.bevId)">'+esc(b.name)+'</button><small>'+esc(b.size||"Sem volume")+'</small></div>'+
    '<div><small>Estoque físico</small><b class="stock-balance-'+beverageHealth(b).level+'">'+
     Number(b.stock||0).toLocaleString("pt-BR")+" un</b><small>Disponível após reservas: "+beverageHealth(b).available+" un</small></div>"+
    '<div><small>Venda</small><strong>'+esc(money(b.sellPrice))+'</strong></div>'+
    '<div><small>Última compra</small><strong>'+esc(Number(b.purchasePrice)>0?money(b.purchasePrice)+" / "+(b.purchaseQuantity||1)+" un":"Sem custo informado")+'</strong></div>'+
+   '<div class="stock-margin-note '+beverageMargin(b).level+'" role="status"><strong>'+esc(beverageMargin(b).label)+'</strong><small>'+
+    (beverageMargin(b).gross===null?'Cadastre o valor da compra para verificar a rentabilidade.':
+     'Compra por unidade: '+money(beverageMargin(b).unitCost)+' · '+(beverageMargin(b).gross>=0?'+':'−')+money(Math.abs(beverageMargin(b).gross))+' por venda, antes de taxas e despesas.')+
+    '</small></div>'+
    '<span class="stock-health-badge '+beverageHealth(b).level+'">'+beverageHealth(b).label+'</span><button class="btn mini" type="button" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.selectBeverage(this.dataset.bevId)">+ Comprar</button>'+
    '<button class="btn mini line" type="button" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.adjustBeverage(this.dataset.bevId)">Ajustar saldo</button>'+
+   '<details class="stock-beverage-edit"><summary>Editar compra, venda e unidades</summary><div class="stock-beverage-edit-fields">'+
+    '<label>Valor total da última compra (R$)<input type="text" inputmode="decimal" id="bevEditPaid-'+esc(b.id)+'" value="'+esc(b.purchasePrice??0)+'"></label>'+
+    '<label>Unidades da última compra<input type="number" min="1" step="1" id="bevEditQty-'+esc(b.id)+'" value="'+esc(b.purchaseQuantity??1)+'"></label>'+
+    '<label>Preço de venda por unidade (R$)<input type="text" inputmode="decimal" id="bevEditSale-'+esc(b.id)+'" value="'+esc(b.sellPrice??0)+'"></label>'+
+    '<label>Estoque físico atual (un)<input type="number" min="0" step="1" id="bevEditStock-'+esc(b.id)+'" value="'+esc(b.stock??0)+'"></label>'+
+    '</div><p class="stock-beverage-edit-help">Editar custo corrige o valor de referência, sem registrar compra nova. Alterar estoque gera movimentação auditável.</p>'+
+    '<button type="button" class="btn mini" data-bev-id="'+esc(b.id)+'" onclick="POTE_STOCK_EXT.saveBeverageEdit(this.dataset.bevId)">Salvar alterações</button></details>'+
    '</article>').join("")+'</div>':'<p>Nenhuma bebida cadastrada. Você pode cadastrá-las em Combos e Bebidas.</p>')+
   (drinks.length?'<div class="stock-beverage-purchase">'+
    '<h3>Registrar compra de bebida</h3><div class="stock-purchase-fields">'+
@@ -104,6 +123,41 @@ function adjustBeverage(id){
  window.POTE_STOCK_UPDATE?.pulse?.("beverage",id);
  return window.POTE_STOCK_UPDATE?.open?.("beverage",id,"adjust");
 }
-window.POTE_STOCK_EXT={renderBeverages,duplicatePanel,selectBeverage,preview,
+function saveBeverageEdit(id){
+ const b=state.data.beverages.find(x=>String(x.id)===String(id));
+ if(!b)return false;
+ const parse=v=>window.POTE_STOCK?.number?.(v)??Number(v);
+ const paid=parse($("bevEditPaid-"+id)?.value),qty=parse($("bevEditQty-"+id)?.value),
+  sale=parse($("bevEditSale-"+id)?.value),stock=parse($("bevEditStock-"+id)?.value);
+ if(!Number.isFinite(paid)||paid<0||!Number.isSafeInteger(qty)||qty<1||
+  !Number.isFinite(sale)||sale<=0||!Number.isSafeInteger(stock)||stock<0||stock>1000000000){
+  toast("Valores inválidos. Compra não negativa, quantidades inteiras e venda maior que zero.");
+  return false;
+ }
+ const oldStock=Number(b.stock)||0,oldSale=Number(b.sellPrice)||0,oldPaid=Number(b.purchasePrice)||0,
+  oldQty=Number(b.purchaseQuantity)||1;
+ const reserved=Number(window.POTE_STOCK_STATUS?.reserved?.(state.data)?.beverages?.get(b.id)||0);
+ if(stock<reserved&&!window.confirm("Há "+reserved+" unidade(s) reservada(s), mas o saldo informado é "+stock+". Confirmar a divergência?"))return false;
+ if(Math.abs(sale-oldSale)<0.000001&&Math.abs(paid-oldPaid)<0.000001&&qty===oldQty&&stock===oldStock){
+  toast("Não há alterações a salvar.");return true;
+ }
+ const at=new Date().toISOString();
+ if(stock!==oldStock){
+  state.data.stockMovements??=[];
+  state.data.stockMovements.unshift({id:uid(),at,ingredientId:"bev:"+id,ingredientName:b.name,
+   itemKind:"beverage",quantity:stock-oldStock,reason:"Conferência manual no card de bebida",
+   previousStock:oldStock,afterStock:stock,referenceId:"beverage-edit:"+id});
+ }
+ if(sale!==oldSale||paid!==oldPaid||qty!==oldQty){
+  b.priceAudit??=[];
+  b.priceAudit.unshift({at,previousSellPrice:oldSale,previousPurchasePrice:oldPaid,previousPurchaseQuantity:oldQty,
+   newSellPrice:sale,newPurchasePrice:paid,newPurchaseQuantity:qty,reason:"Edição manual de valores de referência"});
+  b.priceAudit=b.priceAudit.slice(0,30);
+ }
+ b.sellPrice=sale;b.purchasePrice=paid;b.purchaseQuantity=qty;b.purchaseUnit="un";b.stock=stock;
+ b.referencePriceEditedAt=at;
+ persist();render();toast("Bebida atualizada: compra, venda e saldo conferidos.");return true;
+}
+window.POTE_STOCK_EXT={renderBeverages,duplicatePanel,selectBeverage,preview,beverageMargin,saveBeverageEdit,
  saveBeveragePurchase,adjustBeverage};
 })();

@@ -47,13 +47,13 @@ for(let i=0;i<inline.length;i++){
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
 for(const module of ["universe_templates.js","universe_core.js","business_setup.js",
- "stock_math.js","stock_ui.js","stock_delete.js","losses.js","beverage_catalog.js","payment_flow.js","stock_inventory.js","stock_ext.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js","cancel_order_flow.js"]){
+ "stock_math.js","stock_ui.js","stock_delete.js","losses.js","beverage_catalog.js","payment_flow.js","stock_inventory.js","stock_ext.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js","cancel_order_flow.js","garimpo.js"]){
  try{vm.runInContext(fs.readFileSync(module,"utf8"),sandbox,{filename:module,timeout:5000})}
  catch(e){errors.push({page:module,error:String(e.stack||e)})}
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
 const tabs=["home","vitrine","recipes","builder","pricing","ingredients","expenses","losses",
- "suppliers","clients","orders","combos","reports","creative","brand","settings","tests","admin"];
+ "suppliers","garimpo","clients","orders","combos","reports","creative","brand","settings","tests","admin"];
 const pages={};
 for(const tab of tabs){
  try{
@@ -67,6 +67,7 @@ for(const tab of tabs){
 assert(errors.length===0,"Falha ao abrir área(s): "+JSON.stringify(errors));
 assert(pages.ingredients.includes("Registrar nova compra"),"Estoque deve apresentar compra real");
 assert(pages.ingredients.includes("Estoque existente"),"Estoque deve mostrar saldos");
+assert(pages.garimpo.includes("Garimpo"),"Garimpo deve abrir na navegação");
 assert(pages.orders.includes("poteOrderAvailability"),"Pedidos devem exibir capacidade durante digitação");
 assert(pages.orders.includes("ordersHistoryTitle"),"Pedidos devem conter lista de finalizados");
 assert(pages.home.includes("Central de Operações"));

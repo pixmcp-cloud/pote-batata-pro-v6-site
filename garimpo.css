@@ -1,0 +1,27 @@
+/* Garimpo — pesquisa local e comparativo legível em telas pequenas */
+.garimpo h2{margin:4px 0 10px}
+.garimpo>small{font-size:10px;letter-spacing:.15em;font-weight:800;color:#f5c679}
+.garimpo>p{color:#c8d5e0;font-size:12px;line-height:1.65}
+.garimpo .actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.garimpo .actions>.btn{flex:1;min-width:150px;min-height:43px}
+#garimpoSearchStatus{background:#162c3e;border:1px solid #55728d;border-radius:11px;padding:12px;color:#e0eafa;font-size:12px}
+#garimpoMarkets{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:12px 0}
+.garimpo-market{display:flex;flex-direction:column;border:1px solid #547b9470;border-radius:12px;padding:10px 12px;gap:5px;font-size:13px;background:#12263a}
+.garimpo-market small{font-size:11px;color:#a9c2d7;line-height:1.4}
+.garimpo-scroll{overflow:auto;width:100%;border:1px solid #71859a80;border-radius:12px;margin:12px 0}
+.garimpo-scroll table{border-collapse:collapse;min-width:720px;width:100%;font-size:12px}
+.garimpo-scroll th,.garimpo-scroll td{text-align:left;padding:10px 12px;border-bottom:1px solid #ffffff24;vertical-align:top;overflow-wrap:anywhere}
+.garimpo-scroll thead{background:#20354d}
+.garimpo-scroll th{color:#f1d69e;font-size:11px}
+.garimpo-scroll td small{display:block;color:#b4d0e0;line-height:1.55;margin-top:5px}
+.garimpo-scroll td a{color:#a9d5fb;text-decoration:underline}
+.garimpo-scroll td button{margin:5px 0;padding:5px 9px;border:1px solid #d58680;border-radius:8px;color:#ffddd9;background:#582530}
+.garimpo-pending{color:#e3ba85}
+.garimpo-status{font-weight:700}
+.garimpo-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0}
+.garimpo-form label{display:flex;flex-direction:column;gap:7px;color:#d8e5ef;font-size:11px;font-weight:750}
+.garimpo-form input,.garimpo-form select{width:100%;min-width:0;box-sizing:border-box;min-height:42px;background:#142941;color:white;border:1px solid #6a839d;border-radius:10px;padding:9px 11px;font:inherit}
+.garimpo-form .garimpo-checkbox{display:flex;flex-direction:row;align-items:center;gap:10px}
+.garimpo-form .garimpo-checkbox input{width:18px;min-height:18px;height:18px}
+.garimpo-form>.btn{min-height:43px;align-self:end}
+@media(max-width:600px){.garimpo .actions{flex-direction:column}.garimpo-form{grid-template-columns:1fr}.garimpo .actions>.btn{min-width:0}}

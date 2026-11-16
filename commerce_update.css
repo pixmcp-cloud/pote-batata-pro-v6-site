@@ -62,3 +62,32 @@
  color:#ffe7b7!important;background:#0e1d2b!important;border:1px solid #8faaba!important;
  border-radius:9px!important;padding:9px!important;font-size:12px}
 .starter-combo-vitrine small{color:#c7dfbe;font-weight:700;font-size:11px}
+
+/* Rentabilidade de bebidas, independente do semáforo de disponibilidade física */
+.stock-beverage-section .stock-beverage-card.stock-margin-zero{
+ border:2px solid #ffbf47!important;
+ background:linear-gradient(145deg,#413018,#261e2c)!important;
+ box-shadow:0 0 0 1px #ffcc6138,inset 0 1px #ffffff26!important;
+}
+.stock-beverage-section .stock-beverage-card.stock-margin-loss{
+ border:2px solid #ff5e60!important;
+ background:linear-gradient(145deg,#59202b,#2b1c30)!important;
+ box-shadow:0 0 0 1px #fa4b504a,inset 0 1px #ffffff26!important;
+}
+.stock-margin-note{grid-column:1 / -1;padding:10px;border-radius:11px;border:1px solid #8b9ab343;background:#ffffff0b;display:flex;flex-direction:column;gap:4px}
+.stock-margin-note strong{font-size:12px!important;letter-spacing:.01em}
+.stock-margin-note small{font-size:11px!important;line-height:1.45}
+.stock-margin-note.zero{border-color:#eabb63;background:#6a4b1e65;color:#ffe7ac}
+.stock-margin-note.zero strong{color:#ffe29b!important}
+.stock-margin-note.loss{border-color:#ff8c88;background:#7a2a3375;color:#ffe1df}
+.stock-margin-note.loss strong{color:#ffbdb4!important}
+.stock-margin-note.profit{border-color:#8bd1ae;background:#1a463360}
+.stock-margin-note.unknown{border-color:#bdaf8c;background:#47422b70}
+.stock-beverage-edit{grid-column:1/-1;margin-top:3px;border-top:1px solid #b0b8c04d;padding-top:10px}
+.stock-beverage-edit summary{cursor:pointer;font-size:12px;font-weight:800;color:#ffdaa0;padding:5px 0}
+.stock-beverage-edit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}
+.stock-beverage-edit-fields label{font-size:11px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.stock-beverage-edit-fields input{width:100%;min-width:0;box-sizing:border-box;border:1px solid #a2acc174;border-radius:10px;background:#142338;color:#fff;font:inherit;padding:11px}
+.stock-beverage-edit-help{font-size:10px;color:#d9cbb9;grid-column:1/-1;line-height:1.55}
+.stock-beverage-edit>.btn{margin-top:7px}
+@media(max-width:410px){.stock-beverage-edit-fields{grid-template-columns:1fr}}

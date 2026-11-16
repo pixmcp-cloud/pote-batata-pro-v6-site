@@ -22,6 +22,10 @@ jobs:
           cp -R assets/generic public/assets/generic
           cp firebase_integration.js public/firebase_integration.js
           cp supplier_integration.js public/supplier_integration.js
+          cp supplier_directory.js public/supplier_directory.js
+          cp supplier_directory.css public/supplier_directory.css
+          cp garimpo.js public/garimpo.js
+          cp garimpo.css public/garimpo.css
           cp simulation_panel.js public/simulation_panel.js
           cp simulation_panel.css public/simulation_panel.css
           cp mobile.css public/mobile.css
@@ -83,6 +87,10 @@ jobs:
           node --input-type=module --check < public/firebase_integration.js
           node --check public/supplier_integration.js
           node test_suppliers.js
+          node --check public/supplier_directory.js
+          node test_supplier_directory.js
+          node --check public/garimpo.js
+          node test_garimpo.js
           node --check public/simulation_panel.js
           node --check public/dashboard_charts.js
           node test_dashboard_charts.js
@@ -124,6 +132,7 @@ jobs:
           node test_stock_delete_priority.js
           node --check public/stock_ext.js
           node test_commerce_v2.js
+          node test_beverage_profit.js
           node --check public/stock_status.js
           node --check public/release_news.js
           node test_stock_alert_release.js
