@@ -81,8 +81,21 @@ const src=read("source/pote_app_base.html");
 assert(src.includes("POTE_PRICING?.validateForm"));
 assert(src.includes("Sobra após custos variáveis"),"Precificação deve separar sobra de lucro");
 assert(src.includes("Lucro estimado por unidade"),"Lucro após despesas fixas precisa ser explícito");
+ingredient.costSource="franchise-estimate-40";
+ingredient.costEstimateOriginalPrice=10;
+recipe.costEstimatePct=40;
+ctx.recipeCostIsEstimated=()=>true;
+const page=el("page");
+page.firstChild={};
+page.insertBefore=child=>{child.parentElement=page;elements.set(child.id,child)};
+P.mount();
+const guide=el("potePricingGuide").innerHTML;
+assert(guide.includes("40%"),"Aviso de custo deve refletir os 40% do modelo atual");
+assert(!guide.includes("custo estimado em 60%"),"Aviso obsoleto de 60% deve ser removido");
+assert(P.missingCosts(recipe).some(x=>x.includes("estimado")),
+ "Custos simulados não devem ser apresentados como compras reais");
 const build=read("public/index.html");
-for(const part of ["pricing_explainer.js?v=estimativa-franquia-60-20261116","pricing_explainer.css?v=price-guide-20261115"]){
+for(const part of ["pricing_explainer.js?v=v3-wave1-20261116","pricing_explainer.css?v=price-guide-20261115"]){
  assert(build.includes(part),"Asset ausente: "+part)
 }
 console.log("PASS: preço discriminado, referência de embalagem individual, custos incompletos e prevenção de taxas/margens inválidas.");

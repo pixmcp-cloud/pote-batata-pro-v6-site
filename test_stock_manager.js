@@ -91,7 +91,7 @@ panel=UI.renderPanel(state,state.data.ingredients);
 assert(panel.includes("Batata oficial"),"Estoque oficial da franquia aparece");
 assert(!panel.includes("Batata modelo"),"Insumos de demonstração da batataria não devem invadir a franquia");
 const built=read("public/index.html");
-assert(built.includes('stock_math.js?v=estimativa-franquia-60-20261116'));
+assert(built.includes('stock_math.js?v=v3-wave1-20261116'));
 assert(built.includes('stock_ui.js?v=estimativa-franquia-60-20261116'));
 assert(built.includes('stock_ui.css?v=stock-clear-20261115'));
 assert(!built.includes("PRO • ACESSO SIMULADO"),"Não pode chamar assinatura real de simulada");

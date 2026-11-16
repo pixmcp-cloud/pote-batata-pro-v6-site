@@ -68,7 +68,10 @@ function purchase({ingredient,quantity,unit,paidTotal,at,supplier,purchases,move
  const priorCost=number(ingredient.averageUnitCost)>0&&ingredient.averageCostKnown===true?
   number(ingredient.averageUnitCost):
   oldCount>0?number(ingredient.purchasePrice??ingredient.price)/(oldCount*oldFactor):NaN;
- const priorKnown=previous===0||(Number.isFinite(priorCost)&&priorCost>0&&ingredient.averageCostKnown!==false);
+ const demoOpening=/^franchise-estimate-/i.test(String(ingredient.costSource||""))||
+  /saldo inicial demonstrativo/i.test(String(ingredient.source||""));
+ const priorKnown=previous===0||(!demoOpening&&Number.isFinite(priorCost)&&priorCost>0&&
+  ingredient.averageCostKnown!==false);
  const newCost=total/add;
  const average=priorKnown&&previous>0?
   (priorCost*previous+newCost*add)/next:newCost;
@@ -82,6 +85,8 @@ function purchase({ingredient,quantity,unit,paidTotal,at,supplier,purchases,move
  ingredient.stock=next;
  ingredient.averageUnitCost=Number(average.toFixed(8));
  ingredient.averageCostKnown=priorKnown;
+ if(!priorKnown)ingredient.requiresPhysicalRecount=true;
+ else ingredient.requiresPhysicalRecount=false;
  // Última compra, não saldo: referência de custo. A próxima compra atualizará este valor.
  ingredient.purchaseQuantity=count;
  ingredient.purchaseUnit=unit;

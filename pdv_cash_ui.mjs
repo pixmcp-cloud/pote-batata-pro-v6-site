@@ -1,7 +1,7 @@
 /* Frente de caixa do Potê Batata Pro.
    Movimentações financeiras por turno, recibo NÃO fiscal e comanda. */
 import {activeSession,openCash,calculateCash,closeCash,registerCashMovement,
- confirmRecordedPayment,settleDeliveryPayment,paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs?v=pdv-20261116";
+ confirmRecordedPayment,settleDeliveryPayment,settlePreviousPayment,listOutstandingPrevious,paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs?v=v3-wave1-20261116";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const brl=x=>Number(x||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const date=x=>{try{return new Date(x).toLocaleString("pt-BR")}catch{return String(x||"")}};
@@ -83,12 +83,14 @@ function render(){
   '<div class="pote-pdv-stat"><span>'+methodNames[key]+'</span><b>'+brl(total)+'</b></div>').join("");
  const recent=(data.orders||[]).filter(o=>o.cashSessionId===s.id).slice(0,40);
  const pending=recent.filter(o=>o.status!=="cancelado"&&!paymentConfirmed(o));
+ const overdue=listOutstandingPrevious(data).slice(0,40);
  body.innerHTML='<div class="pote-pdv-box">'+
   '<p class="pote-pdv-session">Turno aberto em '+esc(date(s.openedAt))+' · '+esc(s.operator)+'</p>'+
   '<div class="pote-pdv-figures"><div><small>Dinheiro esperado no caixa</small><strong>'+brl(summary.expectedCash)+'</strong></div>'+
   '<div><small>A receber / sem confirmação</small><strong>'+brl(summary.pending)+'</strong></div></div>'+
   '<div class="pote-pdv-stat"><span>Troco de abertura</span><b>'+brl(summary.openingCash)+'</b></div>'+
   methodRows+
+  '<div class="pote-pdv-stat"><span>Recebido de turnos anteriores (ajustes)</span><b>'+brl(summary.receivedFromPrevious||0)+'</b></div>'+
   '<div class="pote-pdv-stat"><span>Suprimentos / Sangrias / Reembolsos</span><b>'+
     brl(summary.supply)+' / '+brl(summary.withdraw)+' / '+brl(summary.refunds)+'</b></div>'+
   (summary.cancelledCashAwaitingRefund>0?
@@ -113,6 +115,13 @@ function render(){
        '<button type="button" data-pdv-action="delivery" data-order-id="'+esc(o.id)+'">Registrar recebimento</button>':
        '<span class="pote-pdv-warn">Conferir forma de pagamento</span>'))+'</div>'
   ).join(""):'<p>Sem pagamentos pendentes neste turno.</p>')+'</div>'+
+  '<div class="pote-pdv-box"><h3>A receber de turnos encerrados ('+overdue.length+')</h3>'+
+  '<p class="pote-pdv-note">O recebimento tardio é registrado no turno atual sem reabrir o caixa antigo. Confira o comprovante antes de confirmar.</p>'+
+  (overdue.length?overdue.map(o=>
+   '<div class="pote-pdv-order"><div><b>'+esc(o.name)+'</b>'+
+   '<small>'+brl(orderAmountCents(o)/100)+' · pedido #'+esc(String(o.id).slice(-8))+'</small></div>'+
+   '<button type="button" data-pdv-action="late" data-order-id="'+esc(o.id)+'">Registrar recebimento</button></div>'
+  ).join(""):'<p>Sem recebimentos antigos pendentes.</p>')+'</div>'+
   '<div class="pote-pdv-box"><h3>Comandas e recibos não fiscais</h3>'+
   (recent.length?recent.map(o=>
    '<div class="pote-pdv-order"><div><b>'+esc(o.name)+'</b><small>'+esc(o.status)+' · '+
@@ -174,7 +183,18 @@ function action(name,orderId){
   return;
  }
  try{
-  if(name==="delivery"){
+  if(name==="late"){
+   const selected=window.prompt("Recebimento de turno anterior: dinheiro, Pix ou cartão?","Pix");
+   if(selected===null)return;
+   const method=paymentKind(selected);
+   if(!["cash","pix","card"].includes(method))throw Error("Forma inválida: dinheiro, Pix ou cartão");
+   if(!window.confirm("Você conferiu o recebimento de "+brl(orderAmountCents(order)/100)+
+    "? Este pagamento NÃO modificará o fechamento original."))return;
+   const reference=window.prompt("Referência obrigatória do comprovante/registro da conferência:");
+   if(reference===null)return;
+   mutate(d=>settlePreviousPayment(d,{id:id(),orderId,method:selected,reference}));
+   status("Recebimento anterior conciliado no turno atual; fechamento original preservado.");
+  }else if(name==="delivery"){
    const selected=window.prompt("Recebido na entrega: escolha dinheiro, Pix ou cartão:","Pix");
    if(selected===null)return;
    const kind=paymentKind(selected);

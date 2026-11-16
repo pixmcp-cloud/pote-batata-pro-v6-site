@@ -111,6 +111,14 @@ function perform(action){
   $("poteCancelError").textContent="Não foi possível devolver: "+missing.join(", ");
   return false;
  }
+ // A perda é uma parte obrigatória do cancelamento. Se o módulo falhar,
+ // impedir cancelamento sem contabilização e restaurar a mutação em memória.
+ if(deducted&&action==="discard"&&typeof window.POTE_LOSSES?.recordCancelled!=="function"){
+  $("poteCancelError").hidden=false;
+  $("poteCancelError").textContent="Módulo de perdas indisponível. Pedido e estoque não alterados.";
+  return false;
+ }
+ const rollback=deducted&&action==="discard"?JSON.parse(JSON.stringify(state.data)):null;
  // No generic confirm: selected action is explicit and describes stock consequences.
  const at=new Date().toISOString();
  const changes=[];
@@ -142,8 +150,15 @@ function perform(action){
  if(!recovery){order.status="cancelado";order.canceledAt=at}
  order.cancelStockAction=shallReturn?"devolvido":deducted?"perda":"sem-baixa";
  if(deducted&&action==="discard"){
-  const event=window.POTE_LOSSES?.recordCancelled?.(order);
-  if(event&&!event.ok)console.warn("Perda do pedido pendente:",event.error);
+  let event;
+  try{event=window.POTE_LOSSES.recordCancelled(order)}
+  catch(e){event={ok:false,error:e.message||"Falha desconhecida"}}
+  if(!event?.ok){
+   state.data=rollback;
+   $("poteCancelError").hidden=false;
+   $("poteCancelError").textContent="Cancelamento não efetuado: "+String(event?.error||"falha no registro de perda");
+   return false;
+  }
  }
  state.tab="orders";
  if(typeof persist==="function")persist();

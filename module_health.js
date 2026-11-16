@@ -8,7 +8,8 @@ const critical={
  cancelamentos:"POTE_CANCEL",
  perdas:"POTE_LOSSES",
  pagamentos:"POTE_PAYMENT",
- precificação:"POTE_FINANCE"
+ precificação:"POTE_FINANCE",
+ custoHistorico:"POTE_COST_HISTORY"
 };
 const optional={
  radar:"POTE_GARIMPO",franquias:"POTE_UNIVERSES",

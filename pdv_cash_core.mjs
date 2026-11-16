@@ -55,9 +55,10 @@ export function registerCashMovement(data,{id,kind,amount,reason,orderId,at}){
  if(!id||data.cashMovements?.some(x=>x.id===id))fail("Movimentação duplicada");
  if(kind==="reembolso"){
   const order=data.orders.find(x=>x.id===orderId);
-  if(!order||order.cashSessionId!==session.id||order.status!=="cancelado"||
+  const originalSession=(data.cashSessions||[]).find(s=>s.id===order?.cashSessionId);
+  if(!order||!originalSession||order.status!=="cancelado"||
      !paymentConfirmed(order)||paymentKind(order.paymentMethod)!=="cash")
-   fail("Apenas pedidos cancelados e pagos em dinheiro neste turno permitem reembolso");
+   fail("Somente pedidos cancelados, pagos em dinheiro e vinculados a turno de origem permitem reembolso");
   if((data.cashMovements||[]).some(x=>x.kind==="reembolso"&&x.orderId===orderId))
    fail("Este pedido já recebeu reembolso registrado");
   if(total!==orderAmountCents(order))fail("O reembolso deve corresponder ao valor integral do pedido");
@@ -68,6 +69,7 @@ export function registerCashMovement(data,{id,kind,amount,reason,orderId,at}){
  const movement={id,sessionId:session.id,kind,amount:money(total),
   reason:String(reason||"Devolução ao cliente").trim().slice(0,220),
   orderId:kind==="reembolso"?String(orderId):null,
+  originSessionId:kind==="reembolso"?data.orders.find(o=>o.id===orderId).cashSessionId:null,
   at:asDate(at)};
  arr(data,"cashMovements").unshift(movement);
  return movement;
@@ -77,6 +79,9 @@ export function confirmRecordedPayment(data,{orderId,reference,at}){
  const order=data.orders.find(o=>o.id===orderId);
  if(!order||order.status==="cancelado")fail("Pedido inexistente ou cancelado");
  if(paymentConfirmed(order))fail("Pagamento já confirmado");
+ const origin=(data.cashSessions||[]).find(s=>s.id===order.cashSessionId);
+ if(origin?.status==="closed")
+  fail("Turno de origem encerrado. Não altere um fechamento: lance um ajuste conciliatório no turno atual.");
  const method=paymentKind(order.paymentMethod);
  if(method==="delivery"||method==="other")fail("Escolha a forma de pagamento no pedido antes de confirmar");
  const ref=String(reference||"").trim();
@@ -92,6 +97,9 @@ export function settleDeliveryPayment(data,{orderId,method,reference,at}){
  if(paymentConfirmed(order))fail("Pagamento já registrado");
  if(paymentKind(order.paymentMethod)!=="delivery"&&paymentKind(order.paymentMethod)!=="other")
   fail("Este pedido não está marcado como pagamento na entrega");
+ const origin=(data.cashSessions||[]).find(s=>s.id===order.cashSessionId);
+ if(origin?.status==="closed")
+  fail("Turno de origem encerrado. Não altere um fechamento: lance um ajuste conciliatório no turno atual.");
  const kind=paymentKind(method);
  if(!["cash","pix","card"].includes(kind))fail("Selecione dinheiro, Pix ou cartão");
  const ref=String(reference||"").trim();
@@ -103,18 +111,53 @@ export function settleDeliveryPayment(data,{orderId,method,reference,at}){
   (ref||"Pagamento em espécie");
  return order;
 }
+export function listOutstandingPrevious(data){
+ validateCashData(data);
+ const current=activeSession(data);
+ if(!current)return [];
+ return data.orders.filter(order=>{
+  const source=(data.cashSessions||[]).find(s=>s.id===order.cashSessionId);
+  return source&&source.status==="closed"&&order.status!=="cancelado"&&
+   !paymentConfirmed(order)&&orderAmountCents(order)>0&&
+   !(data.cashMovements||[]).some(m=>m.kind==="late_payment"&&m.orderId===order.id);
+ });
+}
+/* An append-only settlement event belongs to today's turn, not the frozen
+   report of the original shift. A late payment never rewrites old orders. */
+export function settlePreviousPayment(data,{id,orderId,method,reference,at}){
+ validateCashData(data);
+ const current=activeSession(data);
+ if(!current)fail("Abra um novo turno para receber pagamentos atrasados");
+ if(!id||data.cashMovements?.some(x=>x.id===id))fail("Movimentação duplicada");
+ const order=listOutstandingPrevious(data).find(x=>x.id===orderId);
+ if(!order)fail("Pedido antigo não elegível ou pagamento já registrado");
+ const kind=paymentKind(method);
+ if(!["cash","pix","card"].includes(kind))fail("Escolha dinheiro, Pix ou cartão");
+ const ref=String(reference||"").trim();
+ if(!ref)fail("Referência da conferência obrigatória");
+ const value=orderAmountCents(order);
+ const event={id,kind:"late_payment",sessionId:current.id,originSessionId:order.cashSessionId,
+  orderId,amount:money(value),paymentMethod:kind,reference:ref.slice(0,160),at:asDate(at)};
+ arr(data,"cashMovements").unshift(event);
+ return event;
+}
 export function calculateCash(data,sessionId){
  validateCashData(data);
  const session=(data.cashSessions||[]).find(x=>x.id===sessionId);
  if(!session)fail("Turno inexistente");
+ // Após fechar, a conferência histórica não pode ser recalculada por edições posteriores.
+ if(session.status==="closed"&&session.closedSummary)
+  return JSON.parse(JSON.stringify(session.closedSummary));
  const payments={cash:0,pix:0,card:0,delivery:0,other:0};
- let sales=0,unconfirmed=0,cancelledUnrefunded=0,confirmedCount=0,pendingCount=0;
+ let sales=0,unconfirmed=0,cancelledUnrefunded=0,cancelledPaid=0,confirmedCount=0,pendingCount=0;
  for(const order of data.orders){
   if(order.cashSessionId!==sessionId)continue;
   const total=orderAmountCents(order);
   const kind=paymentKind(order.paymentMethod);
   if(paymentConfirmed(order)){
-   payments[kind]+=total;sales+=total;confirmedCount++;
+   payments[kind]+=total;confirmedCount++;
+   if(order.status==="cancelado")cancelledPaid+=total;
+   else sales+=total;
    if(order.status==="cancelado"&&kind==="cash"&&
     !(data.cashMovements||[]).some(m=>m.kind==="reembolso"&&m.orderId===order.id))
      cancelledUnrefunded+=total;
@@ -122,7 +165,8 @@ export function calculateCash(data,sessionId){
    unconfirmed+=total;pendingCount++;
   }
  }
- let supply=0,withdraw=0,refunds=0;
+ let supply=0,withdraw=0,refunds=0,lateCash=0,lateReceived=0;
+ const previousPayments={cash:0,pix:0,card:0};
  for(const m of data.cashMovements||[]){
   if(m.sessionId!==sessionId)continue;
   const c=cents(m.amount);
@@ -130,12 +174,19 @@ export function calculateCash(data,sessionId){
   if(m.kind==="suprimento")supply+=c;
   if(m.kind==="sangria")withdraw+=c;
   if(m.kind==="reembolso")refunds+=c;
+  if(m.kind==="late_payment"){
+   lateReceived+=c;
+   if(m.paymentMethod in previousPayments)previousPayments[m.paymentMethod]+=c;
+   if(m.paymentMethod==="cash")lateCash+=c;
+  }
  }
  const opening=cents(session.openingCash);
- const expected=opening+payments.cash+supply-withdraw-refunds;
+ const expected=opening+payments.cash+lateCash+supply-withdraw-refunds;
  return {sessionId,expectedCashCents:expected,expectedCash:money(expected),
   openingCash:session.openingCash,
-  sales:money(sales),pending:money(unconfirmed),pendingCount,
+  sales:money(sales),cancelledPaid:money(cancelledPaid),pending:money(unconfirmed),pendingCount,
+  receivedFromPrevious:money(lateReceived),
+  previousByMethod:Object.fromEntries(Object.entries(previousPayments).map(([k,v])=>[k,money(v)])),
   confirmedCount,confirmedByMethod:Object.fromEntries(Object.entries(payments).map(([k,v])=>[k,money(v)])),
   supply:money(supply),withdraw:money(withdraw),refunds:money(refunds),
   cancelledCashAwaitingRefund:money(cancelledUnrefunded),

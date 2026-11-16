@@ -48,6 +48,13 @@ function costUnit(ingredient){
  return {cost:price/(quantity*factor),known:true};
 }
 function orderCost(order){
+ if(order?.costSnapshot?.version===1){
+  const snap=order.costSnapshot;
+  const qty=Math.max(1,Number(order.qty)||1);
+  return {cost:Number(snap.totalMaterialCost)||0,known:snap.costKnown===true,
+   estimated:snap.estimated===true,unknown:Array.isArray(snap.missingCosts)?snap.missingCosts:[],
+   uncollectedSale:Number(((Number(order.price)||0)*qty+(Number(order.deliveryFee)||0)).toFixed(2))};
+ }
  let cost=0,unknown=[];
  const quantity=Math.max(1,Number(order?.qty)||1);
  for(const row of order.items||[]){
@@ -145,7 +152,7 @@ function orderLoss({order,reason="cancelamento",note="",fromCancel=false}){
   id:newId(),at:new Date().toISOString(),type:"order",reason,
   description:String(note||"").slice(0,350),
   orderId:order.id,orderName:order.name,quantity:Math.max(1,Number(order.qty)||1),
-  costLost:direct.cost,costKnown:direct.known,missingCosts:direct.unknown,
+  costLost:direct.cost,costKnown:direct.known,costEstimated:direct.estimated===true,missingCosts:direct.unknown,
   uncollectedSale:direct.uncollectedSale,
   stockAlreadyDeducted:true,stockMovement:false
  };

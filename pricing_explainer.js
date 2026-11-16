@@ -22,7 +22,7 @@ function missingCosts(recipe){
   const q=Number(ing.purchaseQuantity),paid=Number(ing.purchasePrice??ing.price);
   if(!Number.isFinite(q)||q<=0||!Number.isFinite(paid)||paid<=0)
    issues.push(ing.name+" sem custo de compra real");
-  else if(ing.costSource==="franchise-estimate-60"&&
+  else if(["franchise-estimate-40","franchise-estimate-60"].includes(ing.costSource)&&
    Math.abs(Number(ing.purchasePrice)-Number(ing.costEstimateOriginalPrice))<0.001)
    issues.push(ing.name+" com custo estimado, sem nota de compra");
  }
@@ -70,9 +70,10 @@ function packageControls(recipe){
 function panelHtml(r){
  const d=report(r);if(!d)return '';
  const estimated=typeof recipeCostIsEstimated==="function"&&recipeCostIsEstimated(r);
+ const estimatePct=Number(r?.costEstimatePct)||40;
  const invalid=(!estimated&&d.missing.length>0)||!Number.isFinite(d.cost)||d.cost<=0;
  const title=estimated?
-  '<div class="pote-price-warning" role="status"><strong>SIMULAÇÃO — custo estimado em 60% do preço final de referência.</strong>'+
+  '<div class="pote-price-warning" role="status"><strong>SIMULAÇÃO — custo-modelo de '+estimatePct+'% do preço final de referência.</strong>'+
   '<p>Os preços dos ingredientes e bebidas são aproximações, não comprovantes de compra. O lucro exibido é estimado; cadastre custos reais antes de operar comercialmente.</p></div>':
   invalid?
   '<div class="pote-price-warning" role="status"><strong>Atenção: o custo não está completo.</strong>'+

@@ -24,4 +24,15 @@ const oldUnknown={id:"x",name:"Sem histórico",measureUnit:"g",stock:1000,
 stock.purchase({...args,ingredient:oldUnknown,quantity:1,unit:"kg",paidTotal:20});
 assert.equal(oldUnknown.averageCostKnown,false);
 assert.equal(finance.unitCost(oldUnknown,"average"),.02,"Sem média confiável usa última compra");
-console.log("PASS: custo médio ponderado, última compra preservada, perdas sem inventar histórico e escolha de critério.");
+const simulated={id:"fr-batata",name:"Batata demo",measureUnit:"g",stock:18000,
+ purchasePrice:110,purchaseQuantity:20,purchaseUnit:"kg",
+ costSource:"franchise-estimate-40",source:"Saldo inicial demonstrativo da franquia"};
+const buy=stock.purchase({...args,ingredient:simulated,quantity:2,unit:"kg",paidTotal:20});
+assert.equal(buy.next,20000);
+assert.equal(simulated.averageCostKnown,false,
+ "Saldo fictício não pode entrar na média ponderada como compra comprovada");
+assert.equal(simulated.requiresPhysicalRecount,true);
+assert.equal(simulated.averageUnitCost,.01);
+assert.equal(simulated.costSource,"real-purchase");
+assert.equal(finance.unitCost(simulated,"average"),.01);
+console.log("PASS: custo médio, estoque demonstrativo excluído da média, compra real preservada e conferência física pendente.");
