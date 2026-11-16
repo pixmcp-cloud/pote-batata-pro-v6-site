@@ -20,7 +20,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  const snapshot=path=>({exists:()=>Object.hasOwn(cloud,path),data:()=>copy(cloud[path]||{}),metadata:{hasPendingWrites:false}});
  let transactions=0,writes=0;
  const context={
-  console,JSON,Number,String,Date,Array,Object,Math,Promise,Map,Set,Intl,Error,Blob,URL,
+  console:{...console,warn(){}},JSON,Number,String,Date,Array,Object,Math,Promise,Map,Set,Intl,Error,Blob,URL,
   stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,
   localStorage:storage,navigator:{userAgent:""},
   document:{getElementById:id=>elements.get(id)||null,createElement:()=>({style:{},addEventListener(){},click(){},remove(){}}),body:{classList:{toggle(){}},appendChild(){}}},

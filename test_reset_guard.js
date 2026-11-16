@@ -9,7 +9,7 @@ const window={
  POTE_APP:{reset(){resets++}},
  confirm:()=>confirmed,prompt:()=>promptAnswer
 };
-const ctx={window,console,toast(){}};
+const ctx={window,console:{warn(){}},toast(){}};
 vm.createContext(ctx);
 vm.runInContext(html.slice(start,end),ctx);
 ctx.resetAll();

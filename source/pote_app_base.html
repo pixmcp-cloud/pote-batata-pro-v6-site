@@ -54,6 +54,29 @@ function commercialDate(time=new Date()){
   return parts.year+'-'+parts.month+'-'+parts.day;
  }catch(e){return time.toISOString().slice(0,10)}
 }
+function validateImportData(v){
+ if(!v||typeof v!=='object'||!Array.isArray(v.recipes)||!Array.isArray(v.ingredients))
+  return {ok:false,error:'O arquivo não contém receitas e ingredientes válidos.'};
+ const lists=['recipes','ingredients','orders','clients','suppliers','expenses',
+  'purchases','stockMovements','losses','beverages','addons','combos','prepBatches','garimpoOffers'];
+ for(const name of lists){
+  const rows=v[name];if(rows===undefined)continue;
+  if(!Array.isArray(rows))return {ok:false,error:'Lista inválida: '+name};
+  const ids=new Set();
+  for(const record of rows){
+   if(!record||typeof record!=='object'||record.id==null||!String(record.id).trim())
+    return {ok:false,error:'Registro sem ID em '+name};
+   const id=String(record.id);
+   if(ids.has(id))return {ok:false,error:'ID duplicado em '+name};
+   ids.add(id);
+  }
+ }
+ if(v.brand!==undefined&&(!v.brand||typeof v.brand!=='object'||Array.isArray(v.brand)))
+  return {ok:false,error:'Marca inválida no backup'};
+ if(v.settings!==undefined&&(!v.settings||typeof v.settings!=='object'||Array.isArray(v.settings)))
+  return {ok:false,error:'Configurações inválidas no backup'};
+ return {ok:true};
+}
 function uid(){return 'local-'+Math.random().toString(36).slice(2,11)}
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>el.style.display='none',3600)}
 function pro(){return state.mode!=='free'}
@@ -639,7 +662,34 @@ function toggleRecipeAvailability(id, unavailable){
 function grantPlan(){const email=document.getElementById('adminEmail').value.trim(),plan=document.getElementById('adminLicense').value;if(!email.includes('@')){toast('Informe e-mail');return}const a=state.accounts.find(x=>x.email===email);if(a)a.plan=plan;else state.accounts.push({email,plan,since:new Date().toISOString()});state.audit.unshift(new Date().toLocaleString('pt-BR')+' • '+email+' → '+plan);render();toast('Licença simulada atualizada')}
 function pageSettings(){const e=state.expansion;if(e&&typeof e==='object'&&e.receiptId){const o=state.data.orders.find(x=>x.id===e.receiptId);return `<div class="box printbox"><div class="actions"><button class="btn line" onclick="state.expansion=null;go('orders')">← Voltar</button><button class="btn" onclick="window.print()">🖨️ Imprimir 58/80 mm pelo navegador</button></div>${receiptHTML(o,e.receiptType)}<p class="help">Bluetooth clássico depende de integração Android nativa, não disponível neste HTML local. Use o diálogo de impressão do aparelho.</p></div>`}return `<div class="box"><h2>Dados e backup</h2><p>Todos os dados de teste são armazenados somente no navegador deste aparelho.</p><div class="actions"><button class="btn" onclick="exportData()">⬇️ Exportar JSON de teste</button><label class="btn line">⬆️ Importar JSON<input type="file" accept="application/json" style="display:none" onchange="importData(this.files?.[0])"></label><button class="btn danger" onclick="resetAll()">♻️ Reiniciar simulação</button></div><div class="notice">Nenhum dado enviado ao Floot. A troca FREE / PRO / ADM é um atalho exclusivo da simulação, não uma autenticação real.</div></div><div class="box"><h2>Impressão térmica e Bluetooth</h2><p>Recibos e comandas da cozinha são renderizados localmente e podem ser impressos pelo navegador. Conexão direta Bluetooth clássica não é simulada.</p><button class="btn line" onclick="go('orders')">Abrir pedidos e comandas</button></div>`}
 function exportData(){const b=new Blob([JSON.stringify(state.data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='pote-simulacao-backup-v6.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
-async function importData(file){if(!file)return;try{const v=JSON.parse(await file.text());if(!Array.isArray(v.recipes)||!Array.isArray(v.ingredients))throw Error('formato');state.data={...v,beverages:Array.isArray(v.beverages)?v.beverages:[],addons:Array.isArray(v.addons)?v.addons:[],combos:Array.isArray(v.combos)?v.combos:[],prepBatches:Array.isArray(v.prepBatches)?v.prepBatches:[]};state.expansion=null;render();toast('Backup importado para o simulador')}catch(e){toast('Arquivo inválido')}}
+async function importData(file){
+ if(!file)return;
+ if(window.POTE_SYNC_GUARD?.blocked){toast('Conflito de sincronização: exporte seu backup antes de importar.');return;}
+ try{
+  if(file.size&&file.size>4000000)throw Error('Arquivo excede 4 MB. Solicite migração assistida.');
+  const raw=JSON.parse(await file.text());
+  const v=raw?.state?.data||raw;
+  const validation=validateImportData(v);
+  if(!validation.ok)throw Error(validation.error);
+  if(window.POTE_AUTH?.uid&&new TextEncoder().encode(JSON.stringify({data:v})).length>850000)
+   throw Error('Backup acima do limite seguro do Firestore. Não será importado sem migração V2.');
+  if(raw?.uid&&window.POTE_AUTH?.uid&&raw.uid!==window.POTE_AUTH.uid&&
+    !confirm('Este backup pertence a outra conta. Deseja continuar a importação?'))return;
+  if(!confirm('Importar este backup SUBSTITUI suas receitas, estoque, pedidos, clientes e outros registros. Baixar uma cópia atual antes de prosseguir?'))return;
+  try{
+   if(window.POTE_SYNC_GUARD?.downloadPending)window.POTE_SYNC_GUARD.downloadPending();
+   else exportData();
+  }catch(error){throw Error('Não foi possível baixar backup dos dados atuais. Importação cancelada.')}
+  const old=state.data;
+  state.data={...v,
+    settings:{...old.settings,...(v.settings||{})},
+    brand:{...old.brand,...(v.brand||{})},
+    orders:v.orders||[],clients:v.clients||[],suppliers:v.suppliers||[],expenses:v.expenses||[],
+    purchases:v.purchases||[],stockMovements:v.stockMovements||[],losses:v.losses||[],
+    beverages:v.beverages||[],addons:v.addons||[],combos:v.combos||[],prepBatches:v.prepBatches||[]};
+  state.expansion=null;render();toast('Backup validado e importado. Confira a sincronização.');
+ }catch(error){toast('Importação cancelada: '+String(error?.message||'arquivo inválido').slice(0,140))}
+}
 function resetAll(){if(!confirm('Reiniciar todos os dados do simulador neste navegador?'))return;localStorage.removeItem('pote-full-local-v3');localStorage.removeItem('pote-full-local-v4');localStorage.removeItem('pote-full-local-v5');localStorage.removeItem('pote-full-local-v6');localStorage.removeItem(KEY);state=original();persist();render();toast('Simulação reiniciada')}
 function pageTests(){
  const d=state.data,orders=d.orders,negStock=d.ingredients.filter(i=>num(i.stock)<-0.00001),negBeverages=d.beverages.filter(b=>num(b.stock)<0),badRefs=d.combos.filter(c=>!recipe(c.recipeId)||(c.beverageId&&!bev(c.beverageId))||(c.addonIds||[]).some(x=>!addon(x))),invalidOrders=orders.filter(o=>num(o.qty)<1||num(o.price)<=0),badDiscount=d.combos.filter(c=>c.discountValue<0||c.discountType==='percent'&&c.discountValue>100);

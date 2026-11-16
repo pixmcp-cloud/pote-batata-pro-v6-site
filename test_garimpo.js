@@ -37,6 +37,7 @@ assert.equal(o.regionVerified,true);
 assert.equal(G.status(o,"2099-11-15"),"conferida manualmente");
 assert.equal(G.status(o,"2099-12-01"),"vencida");
 assert.equal(G.unitPrice(o).price,32.9);
+assert(G.csvSafe('=HYPERLINK("https://phishing.test")').startsWith('"\u0027='),"CSV deve neutralizar fórmulas de células externas");
 assert(G.matcher(o,item));
 assert.equal(G.best(item)?.id,o.id); // current day Nov 16, 2026
 const club={...o,id:"club1",price:19.90,priceCondition:"clube"};

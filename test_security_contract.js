@@ -1,0 +1,14 @@
+const assert=require("node:assert/strict"),fs=require("node:fs");
+const rules=fs.readFileSync("firestore.rules","utf8");
+assert(rules.includes("rules_version = '2'"),"Rules V2 required");
+assert(rules.includes("request.auth.uid == userId"),"Tenant UID isolation required");
+assert(rules.includes("request.auth.token.firebase.sign_in_provider == 'google.com'"),"Google provider gate required");
+assert(rules.includes("request.auth.token.email_verified == true"),"Verified email gate required");
+assert(rules.includes("allow read, write: if canAccess(userId)"),"Tenant document policy must be enforced");
+assert(rules.includes("request.resource.data.diff(resource.data).affectedKeys()"),"Profile updates must limit fields");
+assert(rules.includes("allow update, delete: if false"),"Immutable audit events required");
+assert(rules.includes("match /{document=**}")&&rules.includes("allow read, write: if false"),"Default deny required");
+assert(!/allow\s+(read|write|create|update|delete)\s*:\s*if\s+true\s*;/.test(rules),"Broad access policy forbidden");
+const config=fs.readFileSync("gallery_config.mjs","utf8");
+assert(config.includes("GALLERY_CLOUD_ENABLED=false"),"Cloud gallery must stay disabled without deployed storage rules");
+console.log("PASS: regras versionadas com isolamento por UID, eventos imutáveis, fallback deny e galeria cloud desativada (sem validar produção).");

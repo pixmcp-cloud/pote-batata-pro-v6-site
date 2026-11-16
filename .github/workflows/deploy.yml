@@ -101,6 +101,8 @@ jobs:
           node test_migration_preview.mjs
           node test_commercial_date.js
           node test_reset_guard.js
+          node test_import_guard.js
+          node test_security_contract.js
           node --check public/supplier_integration.js
           node test_suppliers.js
           node --check public/supplier_directory.js

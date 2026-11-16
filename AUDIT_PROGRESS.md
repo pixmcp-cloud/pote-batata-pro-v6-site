@@ -16,7 +16,7 @@ Data: 2026-11-16. Este documento acompanha as 23 melhorias aprovadas.
 - [13] Condições de clube separadas das datas, comparação aberta separada da condição de fidelidade.
 - [19] Datas comerciais calculadas pelo fuso do navegador ou pela configuração explícita da empresa; instantes históricos seguem UTC.
 - [03,07] `migration_preview.mjs`: plano V2 **puramente local e somente leitura**, detectando identificadores problemáticos. Migração real bloqueada até existir backup autenticado e restauração testada.
-- [20] `sync_guard.mjs`: validador de formato e identificadores para uso futuro; a importação legada ainda não foi migrada para esse validador.
+- [20] A importação legada agora valida listas/IDs, aceita backup completo da conta, solicita cópia prévia e bloqueia importação durante conflitos. Teste isolado incluído.
 
 ## Pendências antes da fase de transações e coleções V2
 1. Fazer backup autenticado dos documentos Firestore de produção e testá-lo em ambiente separado.
@@ -41,13 +41,13 @@ Data: 2026-11-16. Este documento acompanha as 23 melhorias aprovadas.
 | 11 | Pendente: separar render de persistência |
 | 12 | Pendente: otimização/cache das buscas externas |
 | 13 | Implementado: regras de clube e preço aberto |
-| 14 | Pendente: verificação automática de evidências |
-| 15 | Pendente: validar e implantar regras Firebase |
+| 14 | Proteção contra fórmulas em CSV incorporada; verificação automática de evidências ainda pendente |
+| 15 | Teste de contrato das regras versionadas incluído; Emulator e regras implantadas ainda pendentes |
 | 16 | Pendente: migrar ativos privados; arquivos públicos inalterados |
 | 17 | Galeria cloud permanece desativada sem custos adicionais |
 | 18 | Pendente: custo médio e custeio por lote |
 | 19 | Implementado: datas comerciais por fuso |
-| 20 | Validador em módulo isolado; integração completa pendente |
+| 20 | Validação e cópia prévia incorporadas à importação; restauração real em ambiente separado ainda pendente |
 | 21 | Pendente: separar legado de demonstração |
 | 22 | Novas funcionalidades não essenciais congeladas durante a auditoria |
 | 23 | Pendente: padronização interna; URLs e identificadores preservados |

@@ -141,10 +141,16 @@ function addOffer(){
 }
 function removeOffer(id){if(!window.confirm("Excluir este registro de preço?"))return false;
  state.data.garimpoOffers=offers().filter(x=>x.id!==id);save();return true;}
+function csvSafe(value){
+ let data=String(value??"");
+ // Planilhas interpretam fórmulas em campos externos, mesmo entre aspas.
+ if(/^[\s]*[=+@-]/.test(data))data="'"+data;
+ return '"'+data.replace(/"/g,'""')+'"';
+}
 function exportCSV(){
  const rows=[["Produto","Marca","Volume","Mercado","Distancia_km","Embalagem","Quantidade","Preco_R$","Preco_Por_Unidade","Unidade_Comparacao","Tipo_Preco","Consultado","Inicio","Fim","Status","Fonte"]];
  for(const o of recent()){const u=unitPrice(o);rows.push([o.itemName,o.brand,o.size,o.market,o.distanceKm??"",o.packageUnit,o.packageQty,o.price,u?.price??"",u?.unit??"",o.priceCondition||"normal",o.checkedAt,o.validFrom,o.validUntil,status(o),o.sourceUrl]);}
- const csv="\ufeff"+rows.map(a=>a.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\r\n");
+ const csv="\ufeff"+rows.map(a=>a.map(csvSafe).join(";")).join("\r\n");
  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob);
  const a=document.createElement("a");a.href=url;a.download="radar_de_preco_historico.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
@@ -522,7 +528,7 @@ function mount(){
   }).catch(()=>{});
  }
 }
-window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,bestClub,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,identifyRegion,
+window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,bestClub,csvSafe,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,identifyRegion,
  setCenter:c=>{center=c},setRegionInfo:v=>{regionInfo=v;renderRegional()},
  setMarketSearch:v=>{marketSearch=v}};
 })();
