@@ -32,6 +32,29 @@ ctx.fetch=async()=>({ok:true,json:async()=>({source:"giassi.com.br",collectedAt:
  ctx.fetch=async()=>({ok:false,json:async()=>({ok:false,error:"STALE_SNAPSHOT",snapshot_reference_date:"2026-11-15",message:"base desatualizada"})});
  els.get("garimpoItem").value="ing:q";
  assert.equal(await G.lookupMPH(),false);
- assert(els.get("garimpoMPHResults").textContent.includes("desatualizada"));
- console.log("PASS: mercados clicáveis com mapa, contato e rota; Giassi com preços online, link e marca; MPH desatualizado sem oferta fictícia.");
+ assert(els.get("garimpoMPHResults").innerHTML.includes("Conferir ofertas desatualizadas?"));
+
+ // Ao clicar no aviso, deve exibir os preços HISTÓRICOS retornados pela fonte, sem salvá-los como atuais.
+ const beforeOffers=G.offers().length;
+ ctx.fetch=async url=>({ok:true,json:async()=>({history:[
+  {descricao:"Queijo mussarela fatiado 400g",mercado:"Supermercado de Lages",marca:"Marca teste",preco_final:21.90,data_inicio:"2026-11-12",data_fim:"2026-11-15",tipo_preco:"PROMOCIONAL",unidade:"400g"},
+  {descricao:"Arroz 5kg",mercado:"Supermercado de Lages",preco_final:35.00,data_fim:"2026-11-15"}
+ ]})});
+ assert.equal(await G.showMPHHistory(),true);
+ const historyHTML=els.get("garimpoMPHResults").innerHTML;
+ assert(historyHTML.includes("HISTÓRICO • NÃO É PREÇO ATUAL"));
+ assert(historyHTML.includes("21,90")&&historyHTML.includes("Supermercado de Lages"));
+ assert(historyHTML.includes("15/11/2026"));
+ assert(!historyHTML.includes("Arroz 5kg"),"Histórico de outro produto não pode entrar na comparação");
+ assert.equal(G.offers().length,beforeOffers,"Consulta histórica não deve alterar ofertas atuais");
+ const archived=G.mphHistoryList({editions:[{reference_date:"2026-11-15",offers:[
+  {descricao:"Queijo Mussarela 1kg",mercado:"Mercado Lages",preco_final:34.50}
+ ]}]});
+ assert.equal(archived.length,1,"Deve interpretar edições históricas com ofertas agrupadas");
+ assert.equal(archived[0].reference_date,"2026-11-15");
+ ctx.fetch=async()=>({ok:true,json:async()=>({history:[]})});
+ assert.equal(await G.showMPHHistory(),false);
+ assert(els.get("garimpoMPHResults").innerHTML.includes("não devolveu ofertas"));
+
+ console.log("PASS: mercados clicáveis, preço online, botão MPH histórico, dados datados sem contaminar ofertas atuais.");
 })().catch(err=>{console.error(err);process.exitCode=1});

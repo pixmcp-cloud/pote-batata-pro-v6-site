@@ -250,6 +250,92 @@ async function discover(){
  }catch(e){progress("Não foi possível pesquisar: "+(e.message||"permita o GPS e tente novamente"))}finally{busy=false}
 }
 let mphRows=[];
+let mphHistoryContext=null;
+const mphHistoryUrl=item=>"https://www.menorprecohoje.com.br/agent/v1/history?product="+encodeURIComponent(item.name);
+function mphHistoryList(payload){
+ // A rota historica nao publica um esquema de itens no OpenAPI: aceitar somente entradas reais com descricao e preco.
+ const roots=[
+  payload?.offers,payload?.history,payload?.historico,payload?.items,payload?.results,payload?.records,
+  payload?.data?.offers,payload?.data?.history,payload?.data?.items,payload?.data?.results,
+  payload?.data?.records,payload?.data,
+  payload?.snapshot?.offers,payload?.snapshot?.items,payload?.snapshot?.records,
+  payload?.editions,payload?.snapshots,payload?.data?.editions,payload?.data?.snapshots
+ ];
+ const rows=[];
+ for(const list of roots){
+  if(!Array.isArray(list))continue;
+  for(const record of list){
+   if(!record||typeof record!=="object")continue;
+   const nested=[record.offers,record.items,record.records,record.products].find(Array.isArray);
+   const subrows=nested||[record];
+   for(const row of subrows){
+   if(!row||typeof row!=="object")continue;
+   const o=row.offer&&typeof row.offer==="object"?row.offer:row;
+   const name=String(o.descricao||o.produto||o.product_name||o.nome||o.name||"").trim();
+   const seller=String(o.mercado||o.estabelecimento||o.store||o.market||"").trim();
+   const raw=o.preco_final??o.preco_promocional??o.preco_normal??o.preco??o.price;
+   const price=typeof raw==="number"?raw:number(raw);
+   if(!name||!seller||!Number.isFinite(price)||price<=0)continue;
+   rows.push({
+    descricao:name,mercado:seller,preco_final:price,marca:String(o.marca||o.brand||""),
+    unidade:String(o.unidade||o.measure||""),data_inicio:String(o.data_inicio||o.validFrom||""),
+    data_fim:String(o.data_fim||o.validUntil||""),
+    tipo_preco:String(o.tipo_preco||o.price_type||"").toUpperCase(),
+    reference_date:String(o.reference_date||o.data_referencia||o.date||record.reference_date||record.data_referencia||""),
+    fonte:String(o.fonte||o.source||"")
+   });
+   }
+  }
+ }
+ const unique=new Map();
+ for(const o of rows){
+  const id=[o.descricao,o.mercado,o.preco_final,o.data_fim].join("|");
+  if(!unique.has(id))unique.set(id,o);
+ }
+ return [...unique.values()];
+}
+function mphHistoryMatches(item,rows){
+ const words=normTokens(item.name);
+ return rows.filter(row=>{
+  const title=norm(row.descricao);
+  return words.length?words.some(w=>title.includes(w)):true;
+ });
+}
+async function showMPHHistory(){
+ const context=mphHistoryContext,host=$("garimpoMPHResults");
+ if(!context||!host)return false;
+ const {item,referenceDate}=context;
+ host.innerHTML='<p class="garimpo-offsite-warning">Consultando histórico do MPH para '+esc(item.name)+' (edição '+esc(dateBR(referenceDate))+')...</p>';
+ const url=mphHistoryUrl(item);
+ try{
+  const response=await fetch(url,{mode:"cors",cache:"no-store"});
+  const payload=await response.json();
+  if(!response.ok||payload?.ok===false){
+   host.innerHTML='<p class="garimpo-offsite-warning">A consulta histórica do MPH não retornou dados acessíveis agora ('+esc(payload?.message||payload?.error||String(response.status))+'). Não é possível exibir preços sem registros fornecidos pela fonte.</p>'+
+    '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">Abrir histórico na fonte</a>';
+   return false;
+  }
+  const rows=mphHistoryMatches(item,mphHistoryList(payload)).slice(0,60);
+  if(!rows.length){
+   host.innerHTML='<p class="garimpo-offsite-warning">A edição de '+esc(dateBR(referenceDate))+' está desatualizada. A rota histórica do MPH não devolveu ofertas com nome de produto, mercado e preço para '+esc(item.name)+'. Não serão exibidos valores presumidos.</p>'+
+    '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">Consultar histórico na fonte</a>';
+   return false;
+  }
+  // Não cadastrar estes valores como oferta vigente ou ranking local.
+  host.innerHTML='<div class="garimpo-history-warning" role="status"><strong>HISTÓRICO • NÃO É PREÇO ATUAL</strong><span>Referência MPH: '+esc(dateBR(referenceDate))+'. Lages/SC, fora do raio de 30 km. Confirme preços e validade com o estabelecimento.</span></div>'+
+   '<div class="garimpo-scroll"><table><thead><tr><th>Produto / marca</th><th>Mercado</th><th>Preço histórico</th><th>Última validade</th><th>Condição</th></tr></thead><tbody>'+
+   rows.map(o=>'<tr><td><strong>'+esc(o.descricao)+'</strong><small>'+esc(o.marca||"Sem marca informada")+' · '+esc(o.unidade)+'</small></td>'+
+   '<td>'+esc(o.mercado)+'</td><td><strong>'+money(o.preco_final)+'</strong></td>'+
+   '<td>'+esc(dateBR(o.data_fim||referenceDate))+'</td>'+
+   '<td>'+esc(o.tipo_preco||"Não informada")+'</td></tr>').join("")+'</tbody></table></div>'+
+   '<p class="muted">Fonte: <a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">MPH / histórico de Lages</a>. Histórico não incluído no cálculo do menor preço vigente.</p>';
+  return true;
+ }catch(error){
+  host.innerHTML='<p class="garimpo-offsite-warning">Não foi possível recuperar o histórico do MPH: '+esc(error?.message||"erro de conexão")+'. Nenhum preço foi inventado.</p>'+
+   '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">Abrir histórico no MPH</a>';
+  return false;
+ }
+}
 async function lookupMPH(){
  // MPH tem dados declarados para Lages: não usar as ofertas em outras regiões.
  const host=$("garimpoMPHResults");
@@ -264,6 +350,14 @@ async function lookupMPH(){
   const fresh=response.ok&&payload?.ok===true&&norm(payload?.meta?.city)==="lages"&&
    payload.meta?.snapshot_current===true&&payload.edge?.freshness==="CURRENT"&&
    payload.temporal_scope==="PRESENTE";
+  if(payload?.error==="STALE_SNAPSHOT"){
+   const referenceDate=String(payload.snapshot_reference_date||payload.meta?.reference_date||"").slice(0,10);
+   mphHistoryContext={item,referenceDate};
+   if(host)host.innerHTML='<div class="garimpo-history-warning" role="status"><strong>AVISO — BASE DESATUALIZADA</strong><span>A edição MPH de '+esc(dateBR(referenceDate))+' não permite consultar ofertas vigentes. Você pode visualizar os registros históricos, sem considerá-los preços atuais.</span></div>'+
+    '<button type="button" class="btn line garimpo-history-trigger" onclick="POTE_GARIMPO.showMPHHistory()">Conferir ofertas desatualizadas?</button>';
+   return false;
+  }
+  mphHistoryContext=null;
   if(!response.ok||payload?.ok!==true||norm(payload?.meta?.city)!=="lages"){
    if(host)host.textContent=payload?.error==="STALE_SNAPSHOT"?
     "AVISO — A API MPH informou que a edição "+dateBR(payload.snapshot_reference_date)+" está desatualizada para a data atual. A fonte bloqueou preços vigentes; não exibimos valores antigos como se fossem ofertas de hoje.":
@@ -342,5 +436,5 @@ function render(){
  '<p class="muted">Oferta conferida manualmente não é verificação automática do site; consulte sempre a fonte antes de sair para comprar. Valores de clube dependem de adesão e não são comparáveis a preço aberto sem ressalva.</p></section>';
 }
 function mount(){selectItem();showMarkets();showComparison();void loadPublicPrices(true)}
-window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,dist,searchUrl,setCenter:c=>{center=c},setMarketSearch:v=>{marketSearch=v}};
+window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,dist,searchUrl,setCenter:c=>{center=c},setMarketSearch:v=>{marketSearch=v}};
 })();

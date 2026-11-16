@@ -25,3 +25,10 @@
 .garimpo-form .garimpo-checkbox input{width:18px;min-height:18px;height:18px}
 .garimpo-form>.btn{min-height:43px;align-self:end}
 @media(max-width:600px){.garimpo .actions{flex-direction:column}.garimpo-form{grid-template-columns:1fr}.garimpo .actions>.btn{min-width:0}}
+
+.garimpo-history-warning{display:flex;flex-direction:column;gap:7px;margin:13px 0;padding:13px 15px;border-radius:12px;border:1px solid #dfa659;background:linear-gradient(120deg,#62431e8e,#282b3494);color:#ffe1ad;font-size:12px;line-height:1.55}
+.garimpo-history-warning strong{letter-spacing:.04em;color:#ffdf9b;font-size:13px}
+.garimpo-history-trigger{display:block;width:100%;margin:10px 0 18px;min-height:46px}
+#garimpoMPHResults .garimpo-scroll{max-height:490px}
+#garimpoMPHResults .garimpo-scroll tbody tr{background:#2f281b5e}
+#garimpoMPHResults .garimpo-scroll td strong{color:#f9dba4}
