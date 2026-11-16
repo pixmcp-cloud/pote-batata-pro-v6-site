@@ -1,0 +1,16 @@
+const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("node:fs");
+const source=fs.readFileSync("source/pote_app_base.html","utf8");
+const start=source.indexOf("function commercialDate("),end=source.indexOf("\nfunction uid(",start);
+assert(start>0&&end>start,"Commercial date helper must exist");
+const sandbox={state:{data:{settings:{timeZone:"America/Sao_Paulo"}}},Date,Intl,Object};
+vm.createContext(sandbox);
+vm.runInContext(source.slice(start,end),sandbox);
+const instant=new Date("2026-11-16T02:30:00.000Z");
+assert.equal(sandbox.commercialDate(instant),"2026-11-15","São Paulo should retain previous commercial date");
+sandbox.state.data.settings.timeZone="America/Rio_Branco";
+assert.equal(sandbox.commercialDate(instant),"2026-11-15","Acre must use own local date");
+sandbox.state.data.settings.timeZone="UTC";
+assert.equal(sandbox.commercialDate(instant),"2026-11-16","UTC should have next date");
+sandbox.state.data.settings.timeZone="Invalid/Timezone";
+assert.equal(sandbox.commercialDate(instant),"2026-11-16","Invalid timezone falls back to ISO");
+console.log("PASS: datas comerciais por fuso da empresa, sem alterar timestamps UTC.");

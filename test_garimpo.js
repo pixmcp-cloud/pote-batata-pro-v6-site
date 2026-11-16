@@ -39,6 +39,15 @@ assert.equal(G.status(o,"2099-12-01"),"vencida");
 assert.equal(G.unitPrice(o).price,32.9);
 assert(G.matcher(o,item));
 assert.equal(G.best(item)?.id,o.id); // current day Nov 16, 2026
+const club={...o,id:"club1",price:19.90,priceCondition:"clube"};
+G.offers().unshift(club);
+assert.equal(G.status(club,"2099-11-15"),"clube vigente — conferida manualmente; exige adesão");
+assert.equal(G.status(club,"2099-12-01"),"vencida","A expiração deve preceder a classificação comercial");
+assert.equal(G.active(club,"2099-11-15"),true);
+assert.equal(G.bestClub(item)?.id,club.id,"Preço de clube deve ser encontrado separadamente");
+assert.equal(G.best(item)?.id,o.id,"Preço de clube não pode ocultar preço aberto");
+assert(fs.readFileSync("garimpo.js","utf8").includes("<th>Preço de clube</th>"));
+G.offers().shift();
 // This receipt must never enter valid/active offer comparisons.
 els.get("garimpoReceipt").checked=true;
 els.get("garimpoPrice").value="25";

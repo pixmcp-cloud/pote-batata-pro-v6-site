@@ -11,7 +11,13 @@ const money=v=>Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"
 const dateBR=v=>v?String(v).slice(0,10).split("-").reverse().join("/"):"—";
 const units={g:["kg",.001],kg:["kg",1],ml:["L",.001],L:["L",1],un:["un",1],caixa:["caixa",1],fardo:["fardo",1],pacote:["pacote",1]};
 const canonical=(qty,unit)=>{const u=units[unit];return u&&Number(qty)>0?{unit:u[0],quantity:Number(qty)*u[1]}:null};
-const today=()=>new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"});
+const today=()=>{
+ const zone=state?.data?.settings?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||"America/Sao_Paulo";
+ try{
+  const p=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return p.year+"-"+p.month+"-"+p.day;
+ }catch(e){return new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"})}
+};
 const stocks=()=>[...(state.data.ingredients||[]).map(i=>({id:"ing:"+i.id,name:i.name,brand:i.brand||"",kind:"ingredient",unit:i.measureUnit==="ml"?"L":i.measureUnit==="un"?"un":"kg"})),
  ...(state.data.beverages||[]).map(b=>({id:"bev:"+b.id,name:b.name,brand:b.brand||"",kind:"beverage",unit:"un",size:b.size||""}))];
 const offers=()=>{state.data.garimpoOffers??=[];return state.data.garimpoOffers};
@@ -81,17 +87,21 @@ function markets(){const map=new Map();for(const s of [...REGIONAL(),...marketSe
 }
 function status(o,at=today()){
  if(o.recordType==="receipt")return "histórico NFC-e (não é oferta atual)";
- if(o.priceCondition==="clube")return "preço de clube — exige adesão";
  if(o.validUntil&&o.validUntil<at)return "vencida";
  if(o.validFrom&&o.validFrom>at)return "futura";
  if(!o.validUntil||!o.sourceUrl||!/^https?:\/\//i.test(o.sourceUrl))return "sem validade/fonte";
  if(o.recordType!=="official"&&o.recordType!=="manual")return "sem confirmação";
- // Conferência de usuário é tratada separadamente de verificação automática.
- if(o.recordType==="manual")return "conferida manualmente";
- if(!o.snapshotCurrent||o.freshness!=="CURRENT")return "fonte desatualizada";
- return "vigente na fonte";
+ // Condição comercial é independente da validade e da verificação da fonte.
+ if(o.recordType==="official"&&(!o.snapshotCurrent||o.freshness!=="CURRENT"))return "fonte desatualizada";
+ if(o.priceCondition==="clube")return o.recordType==="manual"?
+  "clube vigente — conferida manualmente; exige adesão":"clube vigente na fonte — exige adesão";
+ return o.recordType==="manual"?"conferida manualmente":"vigente na fonte";
 }
-const active=(o,at=today())=>["conferida manualmente","vigente na fonte"].includes(status(o,at));
+const active=(o,at=today())=>[
+ "conferida manualmente","vigente na fonte",
+ "clube vigente — conferida manualmente; exige adesão",
+ "clube vigente na fonte — exige adesão"
+].includes(status(o,at));
 function unitPrice(o){const p=number(o.price),q=canonical(o.packageQty,o.packageUnit);
  return Number.isFinite(p)&&p>0&&q?{price:p/q.quantity,unit:q.unit}:null;
 }
@@ -103,7 +113,8 @@ function matcher(o,item){const unit=unitPrice(o);
  return true;
 }
 function validOffers(item){return recent().filter(o=>active(o)&&matcher(o,item)&&o.regionVerified===true&&center&&Number.isFinite(Number(o.marketLat))&&Number.isFinite(Number(o.marketLon))&&dist(center.lat,center.lon,Number(o.marketLat),Number(o.marketLon))<=30);}
-function best(item){return validOffers(item).sort((a,b)=>unitPrice(a).price-unitPrice(b).price)[0]||null;}
+function best(item){return validOffers(item).filter(o=>o.priceCondition!=="clube").sort((a,b)=>unitPrice(a).price-unitPrice(b).price)[0]||null;}
+function bestClub(item){return validOffers(item).filter(o=>o.priceCondition==="clube").sort((a,b)=>unitPrice(a).price-unitPrice(b).price)[0]||null;}
 function save(){if(typeof persist==="function")persist();if(typeof window.render==="function")window.render();}
 function addOffer(){
  const id=$("garimpoItem")?.value,item=stocks().find(i=>i.id===id);
@@ -248,11 +259,12 @@ function showMarkets(){
 function showComparison(){
  const host=$("garimpoComparison");if(!host)return;
  const items=stocks(),all=markets();
- host.innerHTML='<div class="garimpo-scroll"><table><thead><tr><th>Item cadastrado</th><th>Menor preço válido</th><th>Mercado</th><th>Demais fontes</th></tr></thead><tbody>'+
- items.map(item=>{const b=best(item),u=b&&unitPrice(b),others=validOffers(item).length;
+ host.innerHTML='<div class="garimpo-scroll"><table><thead><tr><th>Item cadastrado</th><th>Menor preço aberto</th><th>Preço de clube</th><th>Mercado</th><th>Demais fontes</th></tr></thead><tbody>'+
+ items.map(item=>{const b=best(item),u=b&&unitPrice(b),club=bestClub(item),clubUnit=club&&unitPrice(club),others=validOffers(item).length;
   const searches=all.slice(0,6).map(m=>'<a href="'+esc(searchUrl(item,m))+'" rel="noopener noreferrer" target="_blank">'+esc(m.name)+'</a>').join(" · ");
   return '<tr><td><strong>'+esc(item.name)+'</strong><small>'+esc(item.size||item.brand||item.unit)+'</small></td>'+
-   '<td>'+(b?money(u.price)+'/'+esc(u.unit):'<span class="garimpo-pending">Sem oferta válida confirmada</span>')+'</td>'+
+   '<td>'+(b?money(u.price)+'/'+esc(u.unit):'<span class="garimpo-pending">Sem oferta aberta confirmada</span>')+'</td>'+
+   '<td>'+(club?money(clubUnit.price)+'/'+esc(clubUnit.unit)+'<small>Exige clube/fidelidade · '+esc(club.market)+'</small>':'—')+'</td>'+
    '<td>'+esc(b?.market||"—")+'</td><td>'+(others?others+' oferta(s)':'')+
    '<small>'+ (searches||'Localize mercados com GPS para pesquisar')+'</small></td></tr>';
  }).join("")+'</tbody></table></div>';
@@ -510,7 +522,7 @@ function mount(){
   }).catch(()=>{});
  }
 }
-window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,identifyRegion,
+window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,bestClub,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,identifyRegion,
  setCenter:c=>{center=c},setRegionInfo:v=>{regionInfo=v;renderRegional()},
  setMarketSearch:v=>{marketSearch=v}};
 })();

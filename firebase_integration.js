@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending} from "./sync_guard.mjs?v=safety-20261116";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
 const firebaseConfig = {
@@ -41,6 +42,9 @@ let unsubscribeProfile = null;
 let expiryCheckInterval = null;
 let rawUserLicense = null;
 let rawUserFranchise = null;
+let cloudFingerprint=stableJson(null);
+let syncBlocked=false;
+let pendingThisSession=false;
 window.POTE_APP_READY=false;
 const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
 function showBrowserHint() { if (browserHint) browserHint.hidden = false; }
@@ -60,6 +64,66 @@ function setGate(show) {
   document.body.classList.toggle("pote-auth-locked", show);
 }
 function safeState() { return window.POTE_APP.snapshot(); }
+function existingPending(uid){
+ try{const raw=localStorage.getItem(pendingKey(uid));return raw?JSON.parse(raw):null}
+ catch(e){return null}
+}
+function showBackupButton(){
+ let button=document.getElementById("potePendingSyncBackup");
+ if(!button && syncEl?.parentElement){
+  button=document.createElement("button");
+  button.type="button";
+  button.id="potePendingSyncBackup";
+  button.textContent="Exportar alterações não sincronizadas";
+  button.className="btn mini line";
+  button.style.marginLeft="8px";
+  button.addEventListener("click",downloadPending);
+  syncEl.parentElement.appendChild(button);
+ }
+ if(button)button.hidden=!active||!existingPending(active.uid)&&!syncBlocked;
+ let full=document.getElementById("poteFullAccountBackup");
+ if(!full&&syncEl?.parentElement){
+  full=document.createElement("button");
+  full.type="button";
+  full.id="poteFullAccountBackup";
+  full.textContent="Backup completo";
+  full.title="Baixa um JSON com dados comerciais privados. Guarde o arquivo em local seguro.";
+  full.className="btn mini line";
+  full.style.marginLeft="8px";
+  full.addEventListener("click",downloadPending);
+  syncEl.parentElement.appendChild(full);
+ }
+ if(full)full.hidden=!active;
+}
+function savePending(serialized,reason){
+ if(!active?.uid)return;
+ // Não sobrescrever o único backup de uma sessão anterior com o estado atual do servidor.
+ if(existingPending(active.uid)&&!pendingThisSession){showBackupButton();return}
+ try{
+  const value=JSON.parse(serialized);
+  localStorage.setItem(pendingKey(active.uid),JSON.stringify(makePending(active.uid,value,reason)));
+  pendingThisSession=true;
+ }catch(error){
+  console.warn("Backup local pendente indisponível:",error.message||error);
+  setStatus("Falha de backup local: exporte o JSON da conta antes de sair.");
+ }
+ showBackupButton();
+}
+function downloadPending(){
+ const pending=active?.uid?existingPending(active.uid):null;
+ const value=pending?.state||safeState();
+ const blob=new Blob([JSON.stringify({
+  backupVersion:1,exportedAt:new Date().toISOString(),
+  uid:active?.uid||"",reason:pending?.reason||"manual",state:value
+ },null,2)],{type:"application/json"});
+ const href=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=href;a.download="pote-backup-pendente-"+new Date().toISOString().slice(0,10)+".json";
+ document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(href),10000);
+}
+window.POTE_SYNC_GUARD={downloadPending,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
+window.addEventListener("online",()=>{if(ready&&!syncBlocked)queueSave()});
 function refreshEntitlements() {
   if (!window.POTE_AUTH) return;
   const result = resolveLicense(rawUserLicense, Date.now());
@@ -107,47 +171,112 @@ function observeProfile(user, index) {
 function refFor(user) { return doc(db, "users", user.uid, "appState", "main"); }
 
 async function sync() {
-  if (!ready || !active || auth.currentUser?.uid !== active.uid) return;
-  if (saving) { queued = true; return; }
-  const value = safeState();
-  const serialized = JSON.stringify(value);
-  if (serialized === lastJson) return;
-  saving = true;
-  const user = active;
-  setStatus("Salvando na nuvem...");
-  try {
-    await setDoc(refFor(user), { state: value, updatedAt: serverTimestamp() }, { merge: true });
-    lastJson = serialized;
+  if(!ready||!active||auth.currentUser?.uid!==active.uid)return false;
+  if(saving){queued=true;return false}
+  const value=safeState(),serialized=JSON.stringify(value);
+  if(serialized===lastJson)return true;
+  if(syncBlocked){
+    savePending(serialized,"conflito não resolvido");
+    setStatus("SINCRONIZAÇÃO BLOQUEADA: exporte o backup pendente.");
+    return false;
+  }
+  // O estado antigo ainda é um único documento. Impedir ultrapassar o limite antes da escrita.
+  if(jsonBytes(serialized)>MAX_APPSTATE_BYTES){
+    syncBlocked=true;
+    savePending(serialized,"documento próximo do limite Firestore");
+    setStatus("Limite de armazenamento próximo: exporte backup e contate o suporte.");
+    return false;
+  }
+  const user=active,saveEpoch=epoch,expected=cloudFingerprint;
+  saving=true;setStatus("Salvando na nuvem...");
+  try{
+    // A comparação da versão de TODOS os campos bloqueia gravações antigas ou concorrentes.
+    // Não migra, apaga ou duplica os documentos da conta existente.
+    await runTransaction(db,async tx=>{
+      const reference=refFor(user),document=await tx.get(reference);
+      if(!matchesRemote(document.data()?.state??null,expected)){
+        const error=new Error("Dados alterados em outro dispositivo");
+        error.code="sync/conflict";
+        throw error;
+      }
+      if(saveEpoch!==epoch||auth.currentUser?.uid!==user.uid){
+        const error=new Error("Sessão alterada durante a gravação");
+        error.code="sync/session-changed";
+        throw error;
+      }
+      tx.set(reference,{
+        state:value,updatedAt:serverTimestamp(),
+        syncRevision:nextRevision(document.data()?.syncRevision)
+      },{merge:true});
+    });
+    if(saveEpoch!==epoch||auth.currentUser?.uid!==user.uid)return false;
+    cloudFingerprint=stableJson(value);
+    lastJson=serialized;
+    if(pendingThisSession){
+      try{localStorage.removeItem(pendingKey(user.uid))}catch(e){}
+      pendingThisSession=false;
+    }
     setStatus("Dados salvos na nuvem");
-  } catch (e) {
-    setStatus("Falha ao salvar: mantenha um backup");
-    console.warn("Firestore sync:", e.code || e.message);
-  } finally {
-    saving = false;
-    if (queued) { queued = false; queueSave(); }
+    showBackupButton();
+    if(JSON.stringify(safeState())!==serialized)queued=true;
+    return true;
+  }catch(e){
+    if(saveEpoch!==epoch||auth.currentUser?.uid!==user.uid)return false;
+    if(e.code==="sync/conflict"){
+      syncBlocked=true;
+      setStatus("CONFLITO: outro dispositivo alterou os dados. Exporte backup local.");
+    }else{
+      setStatus("Falha na nuvem. Alterações pendentes: exporte o backup.");
+    }
+    savePending(serialized,e.code||e.message||"falha de sincronização");
+    console.warn("Firestore sync:",e.code||e.message);
+    return false;
+  }finally{
+    saving=false;
+    if(queued&&!syncBlocked){queued=false;queueSave()}
   }
 }
-
-function queueSave() {
-  if (!ready || !active) return;
+function queueSave(){
+  if(!ready||!active)return;
   clearTimeout(timer);
-  timer = setTimeout(sync, 1300);
+  if(syncBlocked){
+    // Nunca tentar sobrescrever a nuvem após descobrir conflito.
+    if(pendingThisSession)savePending(JSON.stringify(safeState()),"conflito pendente");
+    return;
+  }
+  timer=setTimeout(sync,1300);
 }
-window.addEventListener("pote:changed", queueSave);
+window.addEventListener("pote:changed",queueSave);
+window.addEventListener("beforeunload",event=>{
+  if(!ready||!active)return;
+  const serialized=JSON.stringify(safeState());
+  if(serialized===lastJson&&!syncBlocked)return;
+  savePending(serialized,"navegador fechado com alterações pendentes");
+  event.preventDefault();
+  event.returnValue="";
+});
 
 function observeRemote(user, index) {
   if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
   unsubscribeRemote = onSnapshot(refFor(user), snapshot => {
     if (index !== epoch || !ready || auth.currentUser?.uid !== user.uid) return;
     if (snapshot.metadata.hasPendingWrites || saving) return;
-    const remote = snapshot.data()?.state;
-    if (!remote || !remote.data) return;
-    const incoming = JSON.stringify(remote);
-    if (incoming === lastJson) return;
-    // Nunca sobrescrever uma alteração local que ainda não foi salva.
-    if (JSON.stringify(safeState()) !== lastJson) return;
+    const remote=snapshot.data()?.state;
+    if(!remote||!remote.data)return;
+    const incoming=JSON.stringify(remote);
+    const fingerprint=stableJson(remote);
+    if(fingerprint===cloudFingerprint)return;
+    if(syncBlocked){showBackupButton();return}
+    // Outro dispositivo atualizou a nuvem enquanto existiam mudanças locais ainda pendentes.
+    if(JSON.stringify(safeState())!==lastJson){
+      syncBlocked=true;
+      savePending(JSON.stringify(safeState()),"alteração concorrente detectada");
+      setStatus("CONFLITO ENTRE DISPOSITIVOS. Exporte backup local.");
+      return;
+    }
     window.POTE_APP.applyState(remote,{preserveNavigation:true});
-    lastJson = JSON.stringify(safeState());
+    cloudFingerprint=fingerprint;
+    lastJson=JSON.stringify(safeState());
     setStatus("Atualizado entre aplicativos");
   }, error => {
     console.warn("Firestore realtime:", error.code || error.message);
@@ -182,6 +311,7 @@ async function loadUser(user, index) {
   }
   const record = await withDeadline(getDoc(refFor(user)), 15000, "carregamento dos seus dados");
   if (index !== epoch) return;
+  cloudFingerprint=stableJson(record.data()?.state??null);
   if (record.exists() && record.data().state) {
     const remote = record.data().state;
     // Only reset a FREE account automatically when every field matches
@@ -193,6 +323,7 @@ async function loadUser(user, index) {
         state: fresh, demoClearedVersion: 1, updatedAt: serverTimestamp()
       }, {merge: true}), 15000, "remoção de dados demonstrativos da conta FREE");
       lastJson = JSON.stringify(fresh);
+      cloudFingerprint=stableJson(fresh);
     } else {
       window.POTE_APP.applyState(remote);
       lastJson = JSON.stringify(safeState());
@@ -204,6 +335,7 @@ async function loadUser(user, index) {
       state: start, demoClearedVersion: 1, updatedAt: serverTimestamp()
     }), 15000, "primeira gravação");
     lastJson = JSON.stringify(start);
+    cloudFingerprint=stableJson(start);
   }
   if (index !== epoch) return;
   ready = true;
@@ -212,8 +344,12 @@ async function loadUser(user, index) {
   refreshEntitlements();
   loginBtn.disabled = false;
   setMessage("");
-  setStatus("Dados salvos na nuvem");
+  if(existingPending(user.uid)){
+    syncBlocked=true;
+    setStatus("Backup local não sincronizado detectado. Exporte antes de continuar.");
+  }else setStatus("Dados salvos na nuvem");
   setGate(false);
+  showBackupButton();
   observeRemote(user, index);
   observeProfile(user, index);
   window.POTE_BUSINESS?.refresh?.();
@@ -255,7 +391,12 @@ loginBtn.addEventListener("click", async () => {
 exitBtn.addEventListener("click", async () => {
   if(!window.POTE_EXIT?.confirmLogout?.())return;
   clearTimeout(timer);
-  await sync();
+  const synced=await sync();
+  if(!synced&&JSON.stringify(safeState())!==lastJson){
+    setStatus("Saída suspensa: alterações ainda não foram sincronizadas.");
+    showBackupButton();
+    return;
+  }
   ready = false;
   setGate(true);
   setMessage("Saindo...");
@@ -270,6 +411,9 @@ onAuthStateChanged(auth, async user => {
   if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }
   rawUserLicense = null;
   rawUserFranchise=null;
+  cloudFingerprint=stableJson(null);
+  syncBlocked=false;
+  pendingThisSession=false;
   window.POTE_UNIVERSE_MIGRATED=false;
   window.POTE_APP_READY=false;
   window.dispatchEvent(new Event("pote:user-logout"));

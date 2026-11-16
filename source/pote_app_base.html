@@ -47,6 +47,13 @@ function persist(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function money(n){return Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
 function num(v){const n=Number(String(v??'').replace(',','.'));return Number.isFinite(n)?n:0}
+function commercialDate(time=new Date()){
+ const zone=state?.data?.settings?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Sao_Paulo';
+ try{
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(time).map(p=>[p.type,p.value]));
+  return parts.year+'-'+parts.month+'-'+parts.day;
+ }catch(e){return time.toISOString().slice(0,10)}
+}
 function uid(){return 'local-'+Math.random().toString(36).slice(2,11)}
 function toast(m){const el=document.getElementById('toast');el.textContent=m;el.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>el.style.display='none',3600)}
 function pro(){return state.mode!=='free'}
@@ -283,7 +290,7 @@ function checkoutVitrine(openWa){
      ...paymentDetails,deliveryType:document.getElementById('vitrineHasDelivery')?.value==='sim'?'Tele-entrega':'Retirada',id:createdOrderId,name:m.name,recipeId:q.recipe.id,comboId:m.combo?.id||'',qty:m.qty,price:Number(unitPrice.toFixed(2)),
     deliveryFee:idx===0?deliv:0,deliveryCost:idx===0?num(state.data.settings.deliveryCostPerOrder||0):0,
     profit:contrib-fixedPerUnit(),unitContribution:contrib,unitVariableCost:unitVar,feePct:feeRate('direto'),
-    clientName:cName,clientPhone:cPhone,clientAddress:cAddr,status:'recebido',date:new Date().toISOString().slice(0,10),
+    clientName:cName,clientPhone:cPhone,clientAddress:cAddr,status:'recebido',date:commercialDate(),
     createdAt:new Date().toISOString(),paymentMethod:pay,note:`Pgto: ${pay}${obs?' • '+obs:''}`,channel:'direto',items:rows,beverageItems:bevItems,
     addons:idx===0?extraAddons.map(a=>({name:a.name,quantity:a.qty,unit:'un'})):[]
    });
@@ -498,7 +505,7 @@ function newOrder(){
  const order={...paymentDetails,id:uid(),name:q.combo?.name||q.recipe.name,recipeId:q.recipe.id,comboId:q.combo?.id||'',qty,price,deliveryFee,deliveryCost:delivCost,
   profit:contribution-fixedPerUnit(),unitContribution:contribution,unitVariableCost:q.variable,feePct:feeRate(channel),
   clientId:cl?.id||'',clientName:cl?.name||'',clientPhone:cl?.phone||'',clientAddress:document.getElementById('orderAddress').value.trim(),paymentMethod:({pix:'Pix',dinheiro:'Dinheiro',cartao:'Cartão',entrega:'Na entrega',outro:'Outro'})[document.getElementById('orderPayment')?.value]||'Não informado',
-  status:'recebido',date:new Date().toISOString().slice(0,10),createdAt:new Date().toISOString(),note:document.getElementById('orderNote').value,
+  status:'recebido',date:commercialDate(),createdAt:new Date().toISOString(),note:document.getElementById('orderNote').value,
   channel,items:rows,beverageItems:bevItems,discountApplied:q.discount,fullUnitPrice:q.fullPrice,
   removedIngredients:q.removedIngredients||[],customAddons:q.customAddons||[],
   approxWeightG:Math.max(0,num(document.getElementById('orderWeight')?.value||0)||0),
