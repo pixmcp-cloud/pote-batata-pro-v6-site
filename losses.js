@@ -24,9 +24,14 @@ const reasons=[
  ["outro","Outros motivos"]
 ];
 function itemKind(kind){return kind==="beverage"?"beverage":"ingredient"}
-function item(kind,id){return (kind==="beverage"?data().beverages:data().ingredients||[]).find(i=>i.id===id&&!i.archived)}
-function baseUnit(ingredient){return ingredient?.measureUnit==="ml"?"ml":
- ingredient?.measureUnit==="un"?"un":"g"}
+function item(kind,id){return ((kind==="beverage"?data().beverages:data().ingredients)||[]).find(i=>i.id===id&&!i.archived)}
+function baseUnit(ingredient,kind){
+ // Bebidas do catálogo são estocadas por lata/garrafa, normalmente sem measureUnit.
+ // Nunca presumir gramas para esses itens.
+ if(kind==="beverage"||(data().beverages||[]).some(b=>b===ingredient||b.id===ingredient?.id))return "un";
+ return ingredient?.measureUnit==="ml"?"ml":
+  ingredient?.measureUnit==="un"?"un":"g";
+}
 function costUnit(ingredient){
  if(!ingredient)return {cost:0,known:false};
  const price=n(ingredient.purchasePrice??ingredient.price);
@@ -78,6 +83,8 @@ function stockLoss({kind="ingredient",id,quantity,unit,reason="outro",note=""}){
  if(!reasons.some(r=>r[0]===reason))return {ok:false,error:"Motivo da perda inválido."};
  if(!String(note||"").trim()&&reason==="outro")
   return {ok:false,error:"Descreva o motivo quando selecionar Outros."};
+ if(baseUnit(ing,type)==="un"&&(!Number.isInteger(n(quantity))||n(quantity)<1))
+  return {ok:false,error:"Informe um número inteiro de unidades (garrafas, latas, potes etc.)."};
  let base;
  try{base=window.POTE_STOCK.toBase(type==="beverage"?{...ing,measureUnit:"un"}:ing,quantity,unit)}
  catch(e){return {ok:false,error:e.message}}
@@ -91,7 +98,9 @@ function stockLoss({kind="ingredient",id,quantity,unit,reason="outro",note=""}){
  const costBasis=costUnit(ing),event={
   id:newId(),at:new Date().toISOString(),type:"stock",
   reason,description:String(note||"").slice(0,350),
-  itemId:id,itemName:ing.name,itemKind:type,measureUnit:baseUnit(ing),
+  itemId:id,itemName:ing.name,
+  itemKind:type==="ingredient"&&ing.category==="Embalagem"?"packaging":type,
+  measureUnit:baseUnit(ing,type),
   quantityBase:base,enteredQuantity:n(quantity),enteredUnit:unit,
   costLost:costBasis.known?Number((base*costBasis.cost).toFixed(2)):0,
   costKnown:costBasis.known,
@@ -201,15 +210,17 @@ function page(){
  '</div>'+
  '<div class="pote-loss-panel">'+
   '<h3><span>1</span> Ingrediente, embalagem ou bebida descartada</h3>'+
-  '<p>Ex.: batata apodrecida, bacon no chão, descarte por higiene, pote quebrado. O lançamento reduz o estoque físico uma única vez.</p>'+
+  '<p>Ex.: batata apodrecida, bacon no chão, bebida avariada ou pote quebrado. A unidade muda conforme o produto: <b>água e refrigerante em garrafas ou latas são lançados em unidades</b>; líquidos a granel usam L/ml. O estoque é descontado uma única vez.</p>'+
   '<div class="pote-loss-form">'+
-   '<label>Tipo de item<select id="lossStockKind" onchange="POTE_LOSSES.updateStockForm()">'+
-   '<option value="ingredient">Ingrediente ou embalagem</option><option value="beverage">Bebida</option></select></label>'+
-   '<label>Qual produto?<select id="lossStockId" onchange="POTE_LOSSES.updateStockForm()">'+
+   '<label>Tipo de item<select id="lossStockKind" onchange="POTE_LOSSES.updateStockForm(\'kind\')">'+
+   '<option value="ingredient">Alimento / ingrediente</option>'+
+   '<option value="packaging">Embalagem / descartável</option>'+
+   '<option value="beverage">Bebida · lata, garrafa ou água</option></select></label>'+
+   '<label>Qual produto?<select id="lossStockId" onchange="POTE_LOSSES.updateStockForm(\'item\')">'+
    selectOptions(ingredients,x=>x.id,x=>x.name+" · "+window.POTE_STOCK.formatStock(x))+
    '</select></label>'+
-   '<label>Quantidade perdida<input id="lossStockQty" inputmode="decimal" placeholder="Ex.: 1,5" oninput="POTE_LOSSES.preview()"></label>'+
-   '<label>Unidade<select id="lossStockUnit" onchange="POTE_LOSSES.preview()"></select></label>'+
+   '<label>Quantidade perdida<input id="lossStockQty" inputmode="decimal" placeholder="Selecione o tipo e o item" oninput="POTE_LOSSES.preview()"></label>'+
+   '<label>Unidade de medida<select id="lossStockUnit" onchange="POTE_LOSSES.preview()"></select></label>'+
    '<label>Motivo<select id="lossStockReason">'+
     selectOptions(reasons,x=>x[0],x=>x[1])+'</select></label>'+
    '<label class="loss-wide">Observações<input id="lossStockNote" maxlength="350" placeholder="Detalhe o descarte (opcional)"></label>'+
@@ -254,34 +265,69 @@ function page(){
    '<p>Sem perdas registradas nesta conta.</p>')+
  '</section></section>';
 }
-function updateStockForm(){
+function lossOptions(kind){
+ const source=kind==="beverage"?data().beverages:data().ingredients;
+ return (source||[]).filter(i=>!i.archived&&
+  (kind==="beverage"||(kind==="packaging"?
+   i.category==="Embalagem":i.category!=="Embalagem")))
+  .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"pt-BR"));
+}
+function updateStockForm(source="kind"){
  const kind=$("lossStockKind")?.value||"ingredient";
- const items=(kind==="beverage"?data().beverages:data().ingredients||[]).filter(i=>!i.archived)
-  .sort((a,b)=>String(a.name).localeCompare(String(b.name),"pt-BR"));
- const selector=$("lossStockId"),unit=$("lossStockUnit");
+ const selector=$("lossStockId"),unit=$("lossStockUnit"),quantity=$("lossStockQty");
  if(!selector||!unit)return;
+ const list=lossOptions(kind);
  const previous=selector.value;
- selector.innerHTML=selectOptions(items,x=>x.id,x=>x.name+" · "+
-  window.POTE_STOCK.formatStock(kind==="beverage"?{...x,measureUnit:"un"}:x));
- if(items.some(i=>i.id===previous))selector.value=previous;
- const selected=item(kind,selector.value),base=baseUnit(selected);
- unit.innerHTML=selectOptions(base==="g"?["kg","g"]:base==="ml"?["L","ml"]:["un"],x=>x,x=>x);
+ if(source!=="item"){
+  selector.innerHTML=selectOptions(list,x=>x.id,x=>x.name+
+   (x.size?" · "+x.size:"")+" · "+
+   window.POTE_STOCK.formatStock(kind==="beverage"?{...x,measureUnit:"un"}:x));
+  selector.value=list.some(i=>i.id===previous)?previous:list[0]?.id||"";
+ }
+ const selected=item(kind,selector.value);
+ if(!selected){
+  unit.innerHTML='<option value="">Nenhum produto nesta categoria</option>';
+  unit.value="";
+  if(quantity){quantity.value="";quantity.disabled=true;quantity.placeholder="Cadastre o produto no estoque primeiro";}
+  preview();
+  return;
+ }
+ if(quantity)quantity.disabled=false;
+ const base=baseUnit(selected,kind);
+ const names=base==="g"?[["kg","Quilograma (kg)"],["g","Grama (g)"]]:
+  base==="ml"?[["L","Litro (L)"],["ml","Mililitro (ml)"]]:
+  [["un","Unidade (garrafa, lata, pote etc.)"]];
+ unit.innerHTML=names.map(([v,label])=>'<option value="'+esc(v)+'">'+esc(label)+'</option>').join("");
  unit.value=base==="g"?"kg":base==="ml"?"L":"un";
+ if(quantity){
+  quantity.value="";
+  quantity.placeholder=base==="g"?"Ex.: 0,5 kg":base==="ml"?"Ex.: 250 ml":"Ex.: 1 unidade";
+  quantity.inputMode=base==="un"?"numeric":"decimal";
+ }
  preview();
 }
 function preview(){
  const kind=$("lossStockKind")?.value||"ingredient";
  const selected=item(kind,$("lossStockId")?.value);
- const preview=$("lossStockPreview");
- if(!preview||!selected)return;
- const entered=n($("lossStockQty")?.value);
- const factor=unit.value==="kg"||unit.value==="L"?1000:1;
- const amount=Number.isFinite(entered)&&entered>=0?entered*factor:NaN;
+ const output=$("lossStockPreview"),unit=$("lossStockUnit")?.value;
+ if(!output)return;
+ if(!selected||!unit){
+  output.textContent="Selecione um produto cadastrado no estoque para registrar a perda.";
+  return;
+ }
+ const display=kind==="beverage"?{...selected,measureUnit:"un"}:selected;
+ const quantityText=String($("lossStockQty")?.value||"").trim();
+ const entered=n(quantityText),factor=unit==="kg"||unit==="L"?1000:1;
+ const amount=quantityText&&Number.isFinite(entered)&&entered>0?entered*factor:NaN;
  const rate=costUnit(selected);
- preview.textContent="Estoque atual: "+window.POTE_STOCK.formatStock(selected)+
-  (Number.isFinite(amount)&&amount>0?
-    " · Perda estimada: "+window.POTE_STOCK.formatStock(selected,amount)+
-    (rate.known?" · Custo "+money(amount*rate.cost):" · Custo não cadastrado"):"");
+ const bottle=kind==="beverage"?(selected.size||"garrafa/lata"):"";
+ output.textContent="Estoque físico atual: "+window.POTE_STOCK.formatStock(display)+
+  (bottle?" · Produto: "+bottle+" · Baixa por garrafas ou latas inteiras.":"")+
+  (Number.isFinite(amount)?
+   " · Quantidade a retirar: "+window.POTE_STOCK.formatStock(display,amount)+
+   (rate.known?" · Prejuízo estimado: "+money(amount*rate.cost):
+     " · Custo ainda não cadastrado"):
+   " · Informe a quantidade perdida.");
 }
 function submitStock(){
  const result=stockLoss({kind:$("lossStockKind")?.value,

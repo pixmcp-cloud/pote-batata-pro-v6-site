@@ -145,7 +145,7 @@ N.close();
 // Uma versão nova deve reabrir o aviso mesmo para quem dispensou a anterior.
 delete window.POTE_RELEASE_NEWS;
 const next=read("release_news.js").replace(
- 'id:"2026-11-15-perdas-financeiro-05"',
+ 'id:"2026-11-15-perdas-unidades-contextuais-06"',
  'id:"2026-11-16-outro-aviso-02"');
 window.POTE_AUTH.uid="user1";
 vm.runInContext(next,ctx,{filename:"next-release-news.js"});
@@ -156,8 +156,8 @@ for(const path of ["stock_status.js?v=audit-20261115",
  "stock_ui.js?v=audit-20261115",
  "stock_ext.js?v=audit-20261115",
  "order_guard.js?v=audit-20261115",
- "release_news.js?v=news-20261115-05",
- "release_news.css?v=news-20261115-05",
+ "release_news.js?v=news-20261115-06",
+ "release_news.css?v=news-20261115-06",
  "stock_triage.css?v=stock-priority-20261115"]){
  assert(built.includes(path),"Build público sem "+path);
 }

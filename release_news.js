@@ -3,11 +3,12 @@
 "use strict";
 if(window.POTE_RELEASE_NEWS)return;
 const RELEASE={
- id:"2026-11-15-perdas-financeiro-05",
+ id:"2026-11-15-perdas-unidades-contextuais-06",
  date:"15/11/2026",
  title:"Novidades da Gestão Pro",
  items:[
-  ["Perdas e prejuízos","Nova área para registrar ingredientes estragados, quedas, descartes por higiene, cancelamentos após produção e pedidos não pagos."],
+  ["Unidade certa para cada perda","Água, refrigerante e outras bebidas embaladas agora usam garrafa/lata por unidade. Embalagens usam unidades; leite e molhos em L/ml; alimentos sólidos em kg/g."],
+  ["Perdas e prejuízos","Registre descarte de ingredientes, avaria de bebidas, cancelamentos após produção e pedidos não pagos, sem baixar duas vezes."],
   ["Sobra e lucro separados","Os relatórios passam a separar contribuição da venda, despesas fixas, custo perdido e valor não recebido."],
   ["Reposição da franquia","Potes, talheres e sacolas usados na produção ficam visíveis na lista de estoque. Use Repor estoque faltante para abrir a compra correspondente."],
   ["Atualização de estoque","Nova janela para compras por unidade, dúzia, pacote de 10, quilogramas, litros ou lote personalizado, sempre registrando quanto foi pago."],
