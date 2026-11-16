@@ -81,6 +81,25 @@ admin.window.POTE_BUSINESS.choose("batataria");
 assert.equal(admin.state.data.brand.name,"POTÊ BATATA","Logo ou marca mestre alterada");
 assert.equal(admin.state.data.recipes.length,1,"Arquivos da conta mestre foram sobrescritos");
 assert.equal(admin.state.data.recipes[0].imageUrl,"./assets/recipes/r01.webp");
+admin.state.data.orders=[{id:"adm-batata-sale",total:89}];
+admin.state.data.ingredients=[{id:"adm-batata-stock",stock:3000,price:5.99}];
+for(const [type,expected] of [["pizzaria",30],["hamburgueria",30],["hotdog",20],["lancheria",0]]){
+ admin.window.POTE_BUSINESS.choose(type);
+ assert.equal(admin.window.POTE_AUTH.role,"admin","O ADM precisa continuar ADM em todos os universos");
+ assert.equal(admin.state.data.businessType,type);
+ assert.equal(admin.state.data.recipes.length,expected,"Quantidade de receitas incorreta em "+type);
+ assert.equal(admin.state.data.orders.length,0,"Vendas de outro ramo apareceram em "+type);
+ assert.equal(admin.state.data.brand.logoUrl.startsWith("./assets/generic/"),true,"Logo da matriz vazou em "+type);
+ assert.equal(admin.document.getElementById("poteHeadSubtitle").textContent.includes("ADM"),true,"Identidade ADM deveria aparecer");
+}
+admin.window.POTE_BUSINESS.choose("batataria");
+assert.equal(admin.state.data.brand.name,"POTÊ BATATA","Marca da matriz alterada");
+assert.equal(admin.state.data.recipes.find(r=>r.id==="r01").name,"Receita original","Receita original alterada");
+assert.equal(admin.state.data.orders[0].id,"adm-batata-sale","Venda ADM original perdida");
+assert.equal(admin.state.data.ingredients.find(i=>i.id==="adm-batata-stock").stock,3000,"Estoque original perdido");
+admin.window.POTE_BUSINESS.choose("pizzaria");
+assert.equal(admin.state.data.recipes.length,30,"Ao voltar, o catálogo de Pizzaria foi duplicado");
+admin.window.POTE_BUSINESS.choose("batataria");
 const legacy=setup("free");
 legacy.state.data.brand={...seed.brand,logoUrl:"./assets/pote-logo-original.jpg",phone:"4899999999"};
 assert.equal(legacy.window.POTE_BUSINESS.normalizeAccountBrand(),true);
@@ -94,7 +113,7 @@ assert(src.includes("window.POTE_AUTH?.role==='admin'"),"Fotos originais não es
 const menu=fs.readFileSync("floating_menu.js","utf8");
 assert(menu.includes('["business","Negócio"]'));
 const result=fs.readFileSync("public/index.html","utf8");
-assert(result.includes("business_setup.js?v=business-universes-20261115"));
+assert(result.includes("business_setup.js?v=admin-all-universes-20261116"));
 assert(result.includes("business_setup.css?v=business-universes-20261115"));
 assert(result.includes("GESTÃO PRO"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));

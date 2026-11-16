@@ -48,7 +48,7 @@ function normalizeAccountBrand(){
  return changed;
 }
 function normalizePageCopy(){
- if(master()||current()==="batataria")return;
+ if(current()==="batataria")return;
  const page=$("page");
  if(!page||!document.createTreeWalker||!window.NodeFilter)return;
  const category=currentItem()?.label||"seu negócio";
@@ -97,7 +97,7 @@ function refreshUniverseBanner(){
  if(!visible){if(banner)banner.remove();return}
  if(!banner){banner=document.createElement("div");banner.id="poteUniverseBanner";
    banner.className="pote-universe-banner";page.insertBefore(banner,page.firstChild)}
- const title=master()?"MATRIZ · BATATARIA":window.POTE_AUTH?.franchiseActive?
+ const title=master()?(current()==="batataria"?"MATRIZ · BATATARIA":"ADM · "+type.label.toUpperCase()):window.POTE_AUTH?.franchiseActive?
   "FRANQUIA · BATATARIA":type.label.toUpperCase();
  const total=state.data?.recipes?.filter(r=>!r.franchiseLocked&&
   !(window.POTE_AUTH?.franchiseActive&&r.templateOrigin==="batataria")).length||0;
@@ -107,16 +107,16 @@ function refreshUniverseBanner(){
 }
 function refreshIdentity(){
  const on=master();
- const isBranded=on||window.POTE_AUTH?.franchiseActive;
+ const isBranded=(on&&current()==="batataria")||!!window.POTE_AUTH?.franchiseActive;
  const brand=(typeof state!=="undefined"&&state.data?.brand)||neutralBrand();
  const topLogo=$("poteHeadLogo"),topName=$("poteHeadName"),topSub=$("poteHeadSubtitle");
  if(topLogo)topLogo.src=isBranded?"./assets/pote-logo-original.jpg":(brand.logoUrl||GENERIC_LOGO);
  const favicon=document.querySelector('link[rel="icon"]');
  if(favicon)favicon.href=isBranded?"./assets/pote-logo-original.jpg":GENERIC_LOGO;
- if(topName)topName.textContent=isBranded?"POTÊ BATATA PRO":"GESTÃO PRO";
- if(topSub)topSub.textContent=isBranded?(on?"GESTÃO ONLINE":"FRANQUIA OFICIAL"):(currentItem()?.label?.toUpperCase()||"ESCOLHA SEU NEGÓCIO");
+ if(topName)topName.textContent=isBranded?"POTÊ BATATA PRO":on?"GESTÃO PRO · ADM":"GESTÃO PRO";
+ if(topSub)topSub.textContent=isBranded?(on?"GESTÃO ONLINE":"FRANQUIA OFICIAL"):(on?"ADM · ":"")+(currentItem()?.label?.toUpperCase()||"ESCOLHA SEU NEGÓCIO");
  const floatTitle=$("poteFloatBrand");
- if(floatTitle)floatTitle.textContent=isBranded?"POTÊ BATATA PRO":"GESTÃO PRO";
+ if(floatTitle)floatTitle.textContent=isBranded?"POTÊ BATATA PRO":on?"GESTÃO PRO · ADM":"GESTÃO PRO";
  const footer=document.querySelector(".foot");
  if(footer?.firstChild?.nodeType===Node.TEXT_NODE){
   const newText=isBranded?"Potê Batata Pro · Gestão Online. ":"Gestão Pro · Plataforma para negócios de alimentação. ";
@@ -125,7 +125,7 @@ function refreshIdentity(){
  const businessDesc=$("poteBusinessCurrent");
  if(businessDesc)businessDesc.textContent=currentItem()?.label||"Escolher tipo de negócio";
  const businessHero=$("poteBusinessHeroHint");
- if(businessHero)businessHero.textContent=on?"Batataria · Conta mestre preservada":window.POTE_AUTH?.franchiseActive?"Batataria · Franquia oficial":"Ramo: "+(currentItem()?.label||"Escolha seu negócio");
+ if(businessHero)businessHero.textContent=on?(current()==="batataria"?"Batataria · Conta mestre preservada":(currentItem()?.label||"Negócio")+" · Acesso ADM"):window.POTE_AUTH?.franchiseActive?"Batataria · Franquia oficial":"Ramo: "+(currentItem()?.label||"Escolha seu negócio");
  const businessImage=$("poteBusinessImage");
  if(businessImage)businessImage.src=currentItem()?.photo||"./assets/generic/business-neutral.svg";
  normalizePageCopy();
@@ -199,13 +199,10 @@ function select(type){
    window.POTE_UNIVERSES?.switchTo(state,"batataria",SEED,{skipTemplates:true});
    persist();render();show(false);return}
  const choice=TYPES.find(x=>x.id===type);if(!choice)return;
- if(master()){
-  if(type!=="batataria"){alert("A conta mestre mantém o universo Batataria e o catálogo oficial da matriz, para não misturar receitas de outras empresas.");return}
-  // Importação explícita e não destrutiva: acrescenta somente modelos ausentes.
-   if(!state.data.recipes?.length && window.POTE_UNIVERSES)
-    window.POTE_UNIVERSES.switchTo(state,"batataria",SEED);
-   if(!state.data.recipes?.length){alert("Nenhuma receita disponível. Verifique a recuperação antes de continuar.");return}
-   state.data.businessType="batataria";persist();render();show(false);return;
+ // ADM pode gerir todos os universos. Reabrir a matriz já preenchida não
+ // deve importar modelos demonstrativos sobre as receitas originais.
+ if(master()&&type==="batataria"&&current()==="batataria"&&state.data.recipes?.length){
+  state.data.businessType="batataria";persist();render();show(false);return;
  }
  const previous=current(),existing=(state.data.recipes?.length||0)+(state.data.orders?.length||0)+(state.data.ingredients?.length||0);
  if(previous!==type && existing>0 &&

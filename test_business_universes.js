@@ -101,7 +101,7 @@ assert(source.includes("Franquia oficial Potê Batata"));
 const built=read("public/index.html");
 assert(built.includes('universe_templates.js?v=universes-20261115'));
 assert(built.includes('universe_core.js?v=v3-wave1-20261116'));
-assert(built.includes('business_setup.js?v=business-universes-20261115'));
+assert(built.includes('business_setup.js?v=admin-all-universes-20261116'));
 const firebase=read("firebase_integration.js");
 assert(firebase.includes("POTE_UNIVERSE_MIGRATED"));
 console.log("PASS: 30 pizzas, 30 hambúrgueres, 20 Hot Dogs, Lancheria vazia, sem receitas misturadas, custos próprios e dados preservados.");

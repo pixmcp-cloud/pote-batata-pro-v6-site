@@ -42,6 +42,12 @@ export function buildFranchiseCatalog(state,imageMap={}){
 }
 
 /** Protect the official menu from an accidentally empty or partial publish. */
+/** Only Batataria data from the matrix can be shared with its franchises. */
+export function canPublishMatrixSource(state){
+ const data=state?.data;
+ if(data?.businessType!=="batataria"||!Array.isArray(data?.recipes))return false;
+ return !data.recipes.some(r=>["pizzaria","hamburgueria","hotdog","lancheria"].includes(r?.templateOrigin));
+}
 export function canPublishFranchiseCatalog(catalog){
  if(catalog?.brandId!==FRANCHISE_BRAND_ID||!Array.isArray(catalog?.recipes)||!Array.isArray(catalog?.ingredients))
   return {ok:false,reason:"estrutura inválida"};

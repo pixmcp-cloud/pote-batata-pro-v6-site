@@ -1,7 +1,7 @@
 import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp,onSnapshot} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,canPublishFranchiseCatalog,FRANCHISE_CATALOG_ID} from "./franchise_catalog.mjs?v=starter-20261116";
+import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,canPublishFranchiseCatalog,canPublishMatrixSource,FRANCHISE_CATALOG_ID} from "./franchise_catalog.mjs?v=admin-all-universes-20261116";
 import {initializeFranchiseStarterStock} from "./franchise_stock_core.mjs?v=starter-20261116";
 import {initializeFranchiseEstimatedCosts} from "./franchise_cost_estimates.mjs?v=estimate-40-20261116";
 
@@ -12,6 +12,7 @@ let latestCatalog=null,publicationTimer=null,publishing=false,publishQueued=fals
 function master(){return window.POTE_AUTH?.role==="admin"&&!!window.POTE_APP_READY}
 function franchise(){return !!window.POTE_APP_READY&&!!window.POTE_AUTH?.franchiseActive&&!master()}
 function userId(){return window.POTE_AUTH?.uid||null}
+function matrixWorkspace(){return master()&&canPublishMatrixSource(window.POTE_APP?.snapshot?.())}
 function notify(message,error=false){
  const session=document.getElementById("poteSyncStatus");
  if(session&&document.body&&!document.body.classList.contains("pote-auth-locked")){
@@ -27,11 +28,13 @@ function disconnect(){
  if(publicationTimer){clearTimeout(publicationTimer);publicationTimer=null}
 }
 async function publish(){
- if(!master()||!window.POTE_APP?.snapshot)return;
+ if(!matrixWorkspace())return;
  if(publishing){publishQueued=true;return}
  publishing=true;
  try{
-  const catalog=buildFranchiseCatalog(window.POTE_APP.snapshot(),window.POTE_RECIPE_IMAGES||{});
+  const source=window.POTE_APP.snapshot();
+  if(!canPublishMatrixSource(source))return;
+  const catalog=buildFranchiseCatalog(source,window.POTE_RECIPE_IMAGES||{});
   const validated=canPublishFranchiseCatalog(catalog);
   if(!validated.ok){
    console.error("Publicação do catálogo bloqueada:",validated.reason);
@@ -46,7 +49,8 @@ async function publish(){
    lastPublishedServer=existing.exists()?existing.data().fingerprint||"":"";
   }
   if(lastPublishedServer===fingerprint){lastPublished=fingerprint;return}
-  if(!master()||auth.currentUser?.uid!==userId())return;
+  // The administrator might switch workspaces while Firestore is loading.
+  if(!matrixWorkspace()||auth.currentUser?.uid!==userId())return;
   await setDoc(catalogRef,{
    ...catalog,fingerprint,publisherUid:auth.currentUser.uid,
    updatedAt:serverTimestamp()
@@ -62,8 +66,8 @@ async function publish(){
  }
 }
 function schedulePublish(){
- if(!master())return;
- if(publicationTimer)clearTimeout(publicationTimer);
+ if(publicationTimer){clearTimeout(publicationTimer);publicationTimer=null}
+ if(!matrixWorkspace())return;
  publicationTimer=setTimeout(()=>{publicationTimer=null;void publish()},1400);
 }
 function applyCatalog(catalog,active=true){

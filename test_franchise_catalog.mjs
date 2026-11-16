@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,franchiseActive,canPublishFranchiseCatalog,FRANCHISE_LOGO} from "./franchise_catalog.mjs";
+import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,franchiseActive,canPublishFranchiseCatalog,canPublishMatrixSource,FRANCHISE_LOGO} from "./franchise_catalog.mjs";
 const read=p=>readFileSync(p,"utf8");
 const originalData=JSON.parse(read("source/pote_app_base.html").match(/<script id="backup" type="application\/json">([\s\S]*?)<\/script>/)[1]);
 const matrix={data:structuredClone(originalData)};
 matrix.data.brand.logoUrl=FRANCHISE_LOGO;
 const images={r01:"./assets/recipes/r01.webp",r02:"./assets/recipes/r02.webp"};
 const catalog=buildFranchiseCatalog(matrix,images);
+assert.equal(canPublishMatrixSource({data:{...matrix.data,businessType:"batataria"}}),true);
+assert.equal(canPublishMatrixSource({data:{...matrix.data,businessType:"pizzaria"}}),false,"Pizzaria jamais publica fichas na franquia");
+assert.equal(canPublishMatrixSource({data:{businessType:"batataria",recipes:[{templateOrigin:"hamburgueria"}]}}),false,"Fichas externas não pertencem ao catálogo da matriz");
 assert.equal(canPublishFranchiseCatalog(catalog).ok,true);
 assert.equal(canPublishFranchiseCatalog({...catalog,recipes:[]}).ok,false,"Catálogo vazio bloqueado");
 assert.equal(canPublishFranchiseCatalog({...catalog,ingredients:[]}).ok,false,"Ingredientes vazios bloqueados");
@@ -77,6 +80,7 @@ assert.equal(fresh.data.brand.logoUrl,"./assets/generic/business-neutral.svg");
 assert.equal(fresh.data.clients.length,1);
 assert.equal(fresh.data.orders.length,1);
 const adminUI=read("admin_console.js"),firebase=read("firebase_integration.js"),module=read("franchise_sync.js");
+assert(module.includes("if(!matrixWorkspace()||auth.currentUser?.uid!==userId())return"),"Publicação tardia sem verificar universo");
 for(const marker of ["poteAdmFranchiseActivate","poteAdmFranchiseRevoke","changeFranchise","franchiseAudit",
   "brandId:\"potebatata\""]){assert(adminUI.includes(marker),"Controles ADM ausentes: "+marker)}
 assert(adminUI.includes('batch.update(ref,{franchise,updatedAt:now})'));
@@ -99,6 +103,6 @@ assert(src.includes("state.data.recipes.filter(r=>!r.franchiseLocked&&!(window.P
 const business=read("business_setup.js");
 assert(business.includes("window.POTE_AUTH?.franchiseActive"));
 const html=read("public/index.html");
-assert(html.includes('franchise_sync.js?v=prices-40-20261116'));
+assert(html.includes('franchise_sync.js?v=admin-all-universes-20261116'));
 assert(html.includes('adm-franchise-20261115'));
 console.log("PASS: franquia com marca/fotos oficiais, novos sabores automáticos, custos e estoque exclusivos, revogação e auditoria ADM.");
