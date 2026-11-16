@@ -35,16 +35,56 @@ export function recordPathParts(encodedId){
  if(!RECORD_GROUPS.includes(group))throw Error("Grupo desconhecido");
  return {universe,group,id};
 }
-function rankFor(entries,index,previousRecords,assigned){
- const left=entries.slice(0,index).reverse().map(x=>assigned.get(x.key)?.rank).find(Number.isFinite);
- const right=entries.slice(index+1).map(x=>previousRecords.get(x.key)?.rank).find(Number.isFinite);
- if(Number.isFinite(left)&&Number.isFinite(right)){
-  if(right-left<1e-10)throw Error("Ordenação sem espaço: precisa recalibrar posições");
-  return (left+right)/2;
+// Mantém o maior conjunto possível de posições anteriores, mas persiste
+// reordenações reais. Inserir um pedido novo não deve regravar pedidos antigos.
+function assignRanks(entries,previousRecords){
+ const n=entries.length;
+ const prior=entries.map(e=>previousRecords.get(e.key)?.rank);
+ const tails=[],indices=[],links=new Array(n).fill(-1);
+ // Longest Increasing Subsequence das posições antigas em O(n log n).
+ for(let i=0;i<n;i++){
+  const rank=prior[i];
+  if(!Number.isFinite(rank))continue;
+  let lo=0,hi=tails.length;
+  while(lo<hi){
+   const mid=(lo+hi)>>1;
+   if(tails[mid]<rank)lo=mid+1;else hi=mid;
+  }
+  if(lo>0)links[i]=indices[lo-1];
+  tails[lo]=rank;indices[lo]=i;
  }
- if(Number.isFinite(right))return right-1;
- if(Number.isFinite(left))return left+1;
- return index;
+ const anchors=[];
+ if(indices.length){
+  let index=indices[indices.length-1];
+  while(index!==-1){anchors.push(index);index=links[index]}
+  anchors.reverse();
+ }
+ const ranks=new Array(n);
+ for(const i of anchors)ranks[i]=prior[i];
+ let start=-1;
+ for(const end of [...anchors,n]){
+  const count=end-start-1;
+  if(count){
+   const left=start>=0?ranks[start]:null;
+   const right=end<n?ranks[end]:null;
+   if(left===null&&right===null){
+    for(let j=start+1;j<end;j++)ranks[j]=j;
+   }else if(left===null){
+    for(let j=start+1;j<end;j++)ranks[j]=right-(end-j);
+   }else if(right===null){
+    for(let j=start+1;j<end;j++)ranks[j]=left+(j-start);
+   }else{
+    const step=(right-left)/(count+1);
+    const minStep=Number.EPSILON*Math.max(1,Math.abs(left),Math.abs(right));
+    if(!(step>minStep))throw Error("Ordenação saturada: requer rebalanceamento seguro");
+    for(let j=start+1;j<end;j++)ranks[j]=left+step*(j-start);
+   }
+  }
+  start=end;
+ }
+ for(let i=1;i<n;i++)if(!(ranks[i]>ranks[i-1]))
+  throw Error("Ordenação sem espaço: requires rebalanceamento seguro");
+ return ranks;
 }
 function rowInfo(item,idx){
  const source=item&&typeof item==="object"?item:{value:item};
@@ -74,16 +114,13 @@ export function splitState(state,previousRecords=new Map()){
     const key=recordId(universe,group,id);
     return {key,id,item,idx};
    });
-   const seen=new Set(),assigned=new Map();
+   const seen=new Set(),assignedRanks=assignRanks(entries,previousRecords);
    for(const entry of entries){
     if(seen.has(entry.key)){errors.push("ID duplicado em "+universe+"/"+group+"/"+entry.id);continue}
     seen.add(entry.key);
-    const prior=previousRecords.get(entry.key);
-    const rank=prior?.rank??rankFor(entries,entry.idx,previousRecords,assigned);
-    const record={universe,group,id:entry.id,item:copy(entry.item),rank};
+    const record={universe,group,id:entry.id,item:copy(entry.item),rank:assignedRanks[entry.idx]};
     if(jsonBytes(record)>MAX_APPSTATE_BYTES){errors.push("Registro muito grande: "+universe+"/"+group+"/"+entry.id);continue}
     records.set(entry.key,record);
-    assigned.set(entry.key,record);
    }
    branchMeta[group]=empty();
   }

@@ -69,3 +69,9 @@ Regra de liberação: **nunca publicar em main sem testes e homologação da ver
 - Movimentos de caixa existentes não podem ter o conteúdo financeiro reescrito; movimentos/turnos não podem ser excluídos. Turnos fechados não podem ser reabertos ou alterados pela API de registros V2.
 - Essa é **proteção parcial**, ainda não é ledger financeiro append-only com backend confiável. O documento legado `appState` permanece liberado às contas próprias para compatibilidade; limites FREE de outros grupos também dependem de regras adicionais.
 - Testes em `test_v3_rules_emulator.cjs` com `V3_RULES_FILE=firestore_v3.rules` no CI isolado. Antes de qualquer implantação, validar migração, fluxos existentes e permissões em todos os grupos.
+
+### V3 order persistence (candidate)
+- Fix 13: V2 record ranks now preserve actual reorder operations without rewriting existing records on insert.
+- Verified scenarios: swap, reverse, insert at head, insert in middle, stable no-op, 350 previous orders.
+- Local complete suite: 51/51 PASS. Changes are on candidate branch only; production main remains unchanged.
+
