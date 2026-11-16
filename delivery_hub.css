@@ -37,3 +37,37 @@
 .hub-locked{color:#ffc1a7;font-size:11px;font-weight:700}
 @media(max-width:850px){.hub-platforms{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.hub-platforms,.hub-inputs{grid-template-columns:1fr}.hub-numbers{gap:5px}.hub-numbers strong{font-size:19px}.hub-platform p{min-height:0}.hub-product-tools{width:100%}.hub-product-tools select{max-width:100%;flex:1}}
+
+/* Branded cards: images sourced from the official sites' identity icons. */
+.hub-platform{position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease;
+ background:linear-gradient(145deg,#2a3e51,#142334)}
+.hub-platform:hover{transform:translateY(-3px);box-shadow:0 13px 24px #0008}
+.hub-platform:before{content:"";position:absolute;inset:0 0 auto;height:4px;background:var(--hub-accent,#c79a54)}
+.hub-platform[data-channel="ifood"]{--hub-accent:#e9272e}
+.hub-platform[data-channel="99food"]{--hub-accent:#ffcc00}
+.hub-platform[data-channel="aiqfome"]{--hub-accent:#a820ba}
+.hub-platform[data-channel="rappi"]{--hub-accent:#ff714f}
+.hub-platform[data-channel="keeta"]{--hub-accent:#ffcc00}
+.hub-platform[data-channel="deliverymuch"]{--hub-accent:#d92a1d}
+.hub-platform[data-channel="maisdelivery"]{--hub-accent:#f1a629}
+.hub-platform[data-channel="cardapioai"]{--hub-accent:#38b7ad}
+.hub-platform[data-channel="olaclick"]{--hub-accent:#f18a54}
+.hub-platform[data-channel="goomer"]{--hub-accent:#7469ce}
+.hub-platform[data-channel="deliverydireto"]{--hub-accent:#c94b6a}
+.hub-platform[data-channel="beefood"]{--hub-accent:#f4c223}
+.hub-platform-identity{display:flex;align-items:center;gap:11px;margin-bottom:11px;min-height:67px}
+.hub-platform-identity>strong{font-size:16px;overflow-wrap:anywhere;color:#fbe8c6}
+.hub-platform-logo{display:grid;place-items:center;background:#fff;border-radius:17px;
+ box-shadow:inset 0 0 0 1px #d6d6d6,0 6px 18px #0007;width:66px;height:66px;
+ padding:9px;box-sizing:border-box;flex:0 0 auto}
+.hub-platform-logo img{display:block;width:100%;height:100%;object-fit:contain}
+.hub-platform-logo img[hidden]{display:none}
+.hub-logo-fallback{display:none;color:#292b35;font-size:20px;font-weight:900}
+.hub-platform-logo.brand-missing .hub-logo-fallback{display:block}
+.hub-connection-state{display:inline-block;font-size:10px;border-radius:13px;
+ color:#ffdbc8;background:#733e3399;padding:5px 9px;font-weight:800}
+.hub-platform .hub-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.hub-platform .hub-partner-note{display:block;color:#9faebd;font-size:9px;line-height:1.5;margin-top:9px}
+.hub-platform p{margin-top:12px;min-height:32px}
+@media(max-width:540px){.hub-platform-logo{height:57px;width:57px;border-radius:14px}
+ .hub-platform-identity{min-height:57px}}

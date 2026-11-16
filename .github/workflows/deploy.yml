@@ -80,6 +80,11 @@ jobs:
           cp delivery_hub.js public/delivery_hub.js
           cp delivery_hub_core.mjs public/delivery_hub_core.mjs
           cp delivery_hub.css public/delivery_hub.css
+          cp notifications.js public/notifications.js
+          cp notifications.css public/notifications.css
+          cp admin_broadcast.js public/admin_broadcast.js
+          cp admin_broadcast.css public/admin_broadcast.css
+          cp notification_core.mjs public/notification_core.mjs
           cp kitchen_inventory.js public/kitchen_inventory.js
           cp kitchen_inventory.css public/kitchen_inventory.css
           cp losses.css public/losses.css
@@ -115,6 +120,7 @@ jobs:
           cp recipe_images.js public/recipe_images.js
           cp -R assets/recipes public/assets/recipes
           cp -R assets/operations public/assets/operations
+          cp -R assets/integrations public/assets/integrations
           python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
           python3 -c 'import pathlib,re; s=pathlib.Path("public/beta.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
@@ -192,6 +198,14 @@ jobs:
           node --check public/motoboy.js
           node test_motoboy_core.mjs
           node test_delivery_hub_core.mjs
+          node test_notification_core.mjs
+          node test_notifications_ui.mjs
+          node test_admin_broadcast_ui.mjs
+          node test_notification_integration.js
+          node test_hub_official_logos.js
+          node --input-type=module --check < public/notifications.js
+          node --input-type=module --check < public/admin_broadcast.js
+          node --check public/notification_core.mjs
           node test_delivery_hub_persistence.mjs
           node test_delivery_hub_ui.mjs
           node --check public/delivery_hub.js

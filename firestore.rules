@@ -263,6 +263,45 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Comunicados globais. Não armazenam dados de clientes nem destinatários.
+    // Somente a conta Google administradora pode publicar ou desativar.
+    match /announcements/{noticeId} {
+      allow get, list: if googleVerified();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.keys().hasAll([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 4
+        && request.resource.data.title.size() <= 110
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 8
+        && request.resource.data.body.size() <= 700
+        && request.resource.data.type in ['info', 'promo', 'urgent']
+        && request.resource.data.url is string
+        && request.resource.data.url.size() <= 350
+        && (request.resource.data.url == '' ||
+            request.resource.data.url.matches('https://.*'))
+        && (request.resource.data.expiresAt == null ||
+            (request.resource.data.expiresAt is timestamp
+             && request.resource.data.expiresAt > request.time))
+        && request.resource.data.active == true
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['active', 'updatedAt'])
+        && request.resource.data.active == false
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
     // Deny everything not explicitly listed.
     match /{document=**} {
       allow read, write: if false;

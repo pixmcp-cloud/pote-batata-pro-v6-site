@@ -32,7 +32,7 @@ await import("./delivery_hub.js?ui-test=1");
 const hub=window.POTE_DELIVERY_HUB;
 const start=hub.render();
 assert(start.includes("12")&&start.includes("Hub de Delivery")&&start.includes("Cardapio.ai"));
-assert(start.includes("🔒 Sem conexão ativa"));
+assert(start.includes("Ainda não conectado"),"Status deve ser correto até autenticar API");
 assert(start.includes("Importação sem chave de API"));
 assert(start.includes("Nenhum pedido externo registrado"));
 assert(!start.includes("olk_live_")&&!start.includes("client_secret"));

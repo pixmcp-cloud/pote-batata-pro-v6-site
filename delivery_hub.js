@@ -25,10 +25,14 @@ function canWrite(){
  return true;
 }
 const channelSelect=(selected)=>CHANNELS.map(p=>'<option value="'+p.id+'" '+(p.id===selected?"selected":"")+'>'+esc(p.name)+'</option>').join("");
-const platformCard=p=>'<article class="hub-platform"><header><strong>'+esc(p.name)+'</strong>'+
- '<small>🔒 Sem conexão ativa</small></header><p>'+esc(p.access)+'</p>'+
- '<div><button class="btn mini line" type="button" data-channel="'+p.id+'" onclick="POTE_DELIVERY_HUB.select(this.dataset.channel)">Selecionar</button> '+
- '<a href="'+esc(p.doc)+'" target="_blank" rel="noopener noreferrer" class="btn mini line">Documentação oficial</a></div></article>';
+const platformCard=p=>'<article class="hub-platform" data-channel="'+esc(p.id)+'">'+
+ '<div class="hub-platform-identity"><span class="hub-platform-logo"><img alt="Logo '+esc(p.name)+'" loading="lazy" src="./assets/integrations/'+esc(p.id)+'.png?v=logos-20261116" onerror="this.hidden=true;this.parentNode.classList.add(\'brand-missing\')">'+
+ '<span class="hub-logo-fallback" aria-hidden="true">'+esc(p.name.slice(0,2).toUpperCase())+'</span></span>'+
+ '<strong>'+esc(p.name)+'</strong></div>'+
+ '<div class="hub-connection-state">🔒 Ainda não conectado</div><p>'+esc(p.access)+'</p>'+
+ '<div class="hub-card-actions"><button class="btn mini line" type="button" data-channel="'+p.id+'" onclick="POTE_DELIVERY_HUB.select(this.dataset.channel)">Selecionar</button> '+
+ '<a href="'+esc(p.doc)+'" target="_blank" rel="noopener noreferrer" class="btn mini line">Documentação oficial</a></div>'+
+ '<small class="hub-partner-note">Identificação visual da plataforma; não indica parceria nem integração ativa.</small></article>';
 function inboxItem(row,orderIndex,item,index){
  const branchOpts=options().flatMap(x=>{
   const items=(x.branch?.recipes||[]).filter(r=>!r.franchiseLocked&&r.id&&r.name);
@@ -159,7 +163,7 @@ function commit(){
  if(!answer)return;
  try{
   const info=stageOrders(h,preview.rows,{free:!pro()});
-  preview=null;persist();renderApp();
+  preview=null;persist();window.dispatchEvent(new Event("pote:notice-update"));renderApp();
   f(info.imported+" novo(s), "+info.duplicates+" duplicado(s) ignorado(s).");
  }catch(e){f(String(e.message))}
 }
