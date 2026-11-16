@@ -151,3 +151,16 @@ Cobranças, assinaturas, licenças comerciais e concessão de plano PRO não est
 - Para itens de estoque unitário, quantidades fracionárias são bloqueadas (meia garrafa aberta e descartada deve ser registrada como **uma garrafa** se o recipiente inteiro sai do estoque; líquidos a granel podem ser cadastrados em ml/L).
 - O cálculo de custo de bebidas com cadastro antigo sem `measureUnit` usa corretamente unidade, em vez de interpretar gramas; o histórico de baixas grava a unidade correta.
 - Regressão em `test_losses.js`: troca entre alimentos sólidos, líquidos, embalagens e bebidas; água mineral 500 ml sem campo `measureUnit`; baixa de 1 garrafa e prejuízo proporcional; bloqueio para kg e frações em bebidas; categoria vazia; histórico e movimentações.
+
+
+## Banco V2 de teste — 16/11/2026
+
+O aplicativo autenticado inicia contas no armazenamento V2 (`users/{uid}/appState/v2` e `users/{uid}/records/*`), mantendo o documento legado `appState/main` inalterado. Por autorização expressa do proprietário, **pedidos, receitas e estoque antigos das contas de teste não são migrados**: a V2 começa vazia para essas contas.
+
+Pedidos e inventário são salvos juntos em transações com controle de concorrência, que bloqueia uma sessão cujo saldo ficou desatualizado. A atualização remota pode requerer releitura de registros; esse desenho é adequado para piloto e precisa de otimização antes de uma grande base pagante.
+
+Regra importante: confira a mensagem de sincronização após lançar pedidos, iniciar produção ou ajustar estoque. Se houver conflito, não continue operando em mais de um aparelho; exporte o backup local e atualize a sessão.
+
+As regras de segurança V2 foram compiladas e publicadas em 16/11/2026. O custo foi mantido na camada gratuita, sem ativação de Firebase Storage ou Cloud Functions. A galeria permanece local. Testes automatizados simulam concorrência, mas **não substituem validação com dois navegadores Google reais**.
+
+A auditoria detalhada e os itens ainda pendentes estão em `AUDIT_PROGRESS.md`.

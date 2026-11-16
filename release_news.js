@@ -3,21 +3,16 @@
 "use strict";
 if(window.POTE_RELEASE_NEWS)return;
 const RELEASE={
- id:"2026-11-15-perdas-unidades-contextuais-06",
- date:"15/11/2026",
- title:"Novidades da Gestão Pro",
+ id:"2026-11-16-radar-preco-v2-01",
+ date:"16/11/2026",
+ title:"Atualização de segurança e Radar de Preço",
  items:[
-  ["Unidade certa para cada perda","Água, refrigerante e outras bebidas embaladas agora usam garrafa/lata por unidade. Embalagens usam unidades; leite e molhos em L/ml; alimentos sólidos em kg/g."],
-  ["Perdas e prejuízos","Registre descarte de ingredientes, avaria de bebidas, cancelamentos após produção e pedidos não pagos, sem baixar duas vezes."],
-  ["Sobra e lucro separados","Os relatórios passam a separar contribuição da venda, despesas fixas, custo perdido e valor não recebido."],
-  ["Reposição da franquia","Potes, talheres e sacolas usados na produção ficam visíveis na lista de estoque. Use Repor estoque faltante para abrir a compra correspondente."],
-  ["Atualização de estoque","Nova janela para compras por unidade, dúzia, pacote de 10, quilogramas, litros ou lote personalizado, sempre registrando quanto foi pago."],
-  ["Cancelamento de pedidos","Escolha entre devolver ingredientes/embalagens e bebidas ao estoque ou registrar a perda. A mesma devolução não pode acontecer duas vezes."],
-  ["Adicionais sem duplicação","Uma única área de adicionais, com quantidade livre para bacon 2×, 3× ou mais, e preço e baixa proporcionais."],
-  ["Estoque prioritário","Itens faltantes agora aparecem primeiro. Vermelho: faltante, laranja: baixo e verde: saldo suficiente, descontadas as reservas."],
-  ["Lixeira de produtos","Excluir ou restaurar cadastros do estoque. Para potes duplicados, transferir o saldo e substituir nas receitas sem apagar o histórico."],
-  ["Pedidos e recibos","Comandas completas, personalização dos ingredientes e pagamento com troco automático."],
-  ["Combos e bebidas","Águas, refrigerantes e combo de batata + refri com desconto de 5%."]
+  ["Nova base para contas de teste","A operação passou a utilizar registros V2 separados por conta e negócio. Os pedidos e cadastros antigos de teste não são importados automaticamente. O código anterior continua preservado."],
+  ["Estoque e pedidos mais protegidos","Gravações de estoque e pedidos utilizam transações com detecção de conflitos entre dispositivos. Caso haja divergência, exporte o backup e entre novamente."],
+  ["Custos e lucros","É possível calcular custo de reposição ou custo médio ponderado. A precificação distingue sobra antes dos custos fixos e lucro estimado após rateio."],
+  ["Radar de Preço nacional","Os mercados são buscados conforme GPS, com cache temporário e fontes regionais. Ofertas de clube têm comparação separada."],
+  ["Backups e auditoria","Importação exige confirmação, cópia prévia e validação. Uma falha de módulo essencial bloqueia operações críticas."],
+  ["Galeria e imagens","A galeria ainda mantém imagens locais no dispositivo. A sincronização em nuvem não foi ativada para evitar custos adicionais."]
  ]
 };
 const $=id=>document.getElementById(id);

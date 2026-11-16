@@ -26,6 +26,8 @@ const dist=(a,b,c,d)=>{let rad=Math.PI/180,dl=(c-a)*rad,dn=(d-b)*rad;
  let h=Math.sin(dl/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dn/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(h)))};
 const REGIONAL=()=> (state.data.suppliers||[]).filter(s=>s.osmId||s.externalId||s.supplierType==="regional"||s.type==="Local");
 let center=null,marketSearch=[],searchMessage="",busy=false,searchRegion="gps",regionInfo=null;
+let marketCache=null,autoLocationAsked=false;
+const CACHE_MS=12*60*1000;
 const geoDist=(a,b)=>center?dist(center.lat,center.lon,a,b):Infinity;
 const geoNearby=(lat,lon,km)=>geoDist(lat,lon)<=km;
 function regionalLinks(){
@@ -300,17 +302,33 @@ async function discover(region="gps"){
    const p=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:13000,maximumAge:120000}));
    coords={lat:p.coords.latitude,lon:p.coords.longitude};center=coords;
   }
+  if(marketCache&&Date.now()-marketCache.at<CACHE_MS&&
+     dist(coords.lat,coords.lon,marketCache.coords.lat,marketCache.coords.lon)<1){
+    marketSearch=marketCache.markets.map(x=>({...x}));
+    regionInfo={...marketCache.region};
+    progress(marketSearch.length+" mercados encontrados (cache local, até 12 minutos).");
+    showMarkets();showComparison();renderRegional();return true;
+  }
   await identifyRegion(coords);
   const terms=["supermercado","atacado","mercado","atacadista","hipermercado",...(["SC","RS"].includes(regionInfo?.state||"")?["Stok Center","Giassi","Combo","Bistek","Asun"]:[])];
   const found=new Map();
-  for(const term of terms){
-   progress("Pesquisando "+term+" no raio de 30 km...");
-   const url=new URL("https://photon.komoot.io/api/");
-   url.searchParams.set("q",term);url.searchParams.set("lat",coords.lat);url.searchParams.set("lon",coords.lon);url.searchParams.set("limit","40");
-   let response;
-   try{response=await fetch(url.href,{mode:"cors"});if(!response.ok)continue;}catch(e){continue}
-   const json=await response.json();
-   for(const f of json.features||[]){
+  // Consultas em pares para reduzir a latência, sem sobrecarregar o Photon público.
+  for(let offset=0;offset<terms.length;offset+=2){
+   progress("Pesquisando mercados próximos: "+Math.min(terms.length,offset+2)+"/"+terms.length+" consultas...");
+   const replies=await Promise.all(terms.slice(offset,offset+2).map(async term=>{
+    const url=new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q",term);url.searchParams.set("lat",coords.lat);
+    url.searchParams.set("lon",coords.lon);url.searchParams.set("limit","40");
+    const control=typeof AbortController==="function"?new AbortController():null;
+    const watchdog=control&&typeof setTimeout==="function"?setTimeout(()=>control.abort(),9000):null;
+    try{
+     const response=await fetch(url.href,{mode:"cors",...(control?{signal:control.signal}:{})});
+     return response.ok?await response.json():null;
+    }catch(e){return null}
+    finally{if(watchdog)clearTimeout(watchdog)}
+   }));
+   for(const json of replies){
+    for(const f of json?.features||[]){
     const p=f.properties||{},c=f.geometry?.coordinates;
     if(!p.name||!Array.isArray(c)||dist(coords.lat,coords.lon,c[1],c[0])>30)continue;
     const isStore=/^(supermarket|wholesale|convenience|grocery|greengrocer|beverages|department_store)$/i.test(p.osm_value||"")||
@@ -321,8 +339,10 @@ async function discover(region="gps"){
      address:[p.street,p.housenumber,p.city,p.state].filter(Boolean).join(", "),lat:c[1],lon:c[0],
      osmId:String(p.osm_type)+":"+String(p.osm_id),supplierType:"regional"};
     found.set(m.osmId,m);
+    }
    }
   }
+  marketCache={at:Date.now(),coords:{...coords},region:{...regionInfo},markets:[...found.values()]};
   marketSearch=[...found.values()];progress(marketSearch.length+" mercados encontrados dentro de 30 km da localização selecionada. Preços dependem de fontes verificáveis.");
   showMarkets();showComparison();renderRegional();
  }catch(e){progress("Não foi possível pesquisar: "+(e.message||"permita o GPS e tente novamente"))}finally{busy=false}
@@ -517,7 +537,8 @@ function render(){
 function mount(){
  selectItem();showMarkets();showComparison();renderRegional();
  // Nunca fazer consulta online regional automaticamente para uma região desconhecida.
- if(navigator.permissions?.query&&navigator.geolocation){
+ if(!autoLocationAsked&&navigator.permissions?.query&&navigator.geolocation){
+  autoLocationAsked=true;
   navigator.permissions.query({name:"geolocation"}).then(p=>{
    if(p.state==="granted"&&navigator.geolocation){
     navigator.geolocation.getCurrentPosition(pos=>{
@@ -528,6 +549,10 @@ function mount(){
   }).catch(()=>{});
  }
 }
+window.addEventListener?.("pote:user-logout",()=>{
+ center=null;regionInfo=null;marketSearch=[];marketCache=null;autoLocationAsked=false;
+ mphRows=[];mphHistoryContext=null;
+});
 window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,bestClub,csvSafe,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,identifyRegion,
  setCenter:c=>{center=c},setRegionInfo:v=>{regionInfo=v;renderRegional()},
  setMarketSearch:v=>{marketSearch=v}};

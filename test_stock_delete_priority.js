@@ -119,7 +119,7 @@ for(const v of ["stock_delete.js?v=stock-priority-20261115",
  "stock_ui.js?v=audit-20261115",
  "stock_status.js?v=audit-20261115",
  "stock_triage.css?v=stock-priority-20261115",
- "release_news.js?v=news-20261115-06"]){
+ "release_news.js?v=seguranca-v2-20261116"]){
  assert(built.includes(v),"Página gerada sem "+v);
 }
 console.log("PASS: reposição remove aviso antigo; faltantes no topo; nome clicável; lixeira, mesclagem protegida, histórico preservado e restauração.");

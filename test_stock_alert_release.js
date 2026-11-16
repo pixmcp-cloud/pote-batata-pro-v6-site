@@ -131,7 +131,7 @@ assert(N,"News module loaded");
 assert.equal(N.open(),true,"Novidade deve aparecer após autenticação");
 assert.equal(element("poteReleaseNews").hidden,false);
 assert(element("poteReleaseNews").innerHTML.includes("Não mostrar novamente esta notícia"));
-assert(element("poteReleaseNews").innerHTML.includes("Repor estoque faltante"));
+assert(element("poteReleaseNews").innerHTML.includes("Estoque e pedidos mais protegidos"));
 element("poteNewsDontShow").checked=true;
 N.close();
 assert.equal(N.dismissed(),true);
@@ -145,7 +145,7 @@ N.close();
 // Uma versão nova deve reabrir o aviso mesmo para quem dispensou a anterior.
 delete window.POTE_RELEASE_NEWS;
 const next=read("release_news.js").replace(
- 'id:"2026-11-15-perdas-unidades-contextuais-06"',
+ 'id:"2026-11-16-radar-preco-v2-01"',
  'id:"2026-11-16-outro-aviso-02"');
 window.POTE_AUTH.uid="user1";
 vm.runInContext(next,ctx,{filename:"next-release-news.js"});
@@ -156,7 +156,7 @@ for(const path of ["stock_status.js?v=audit-20261115",
  "stock_ui.js?v=audit-20261115",
  "stock_ext.js?v=audit-20261115",
  "order_guard.js?v=audit-20261115",
- "release_news.js?v=news-20261115-06",
+ "release_news.js?v=seguranca-v2-20261116",
  "release_news.css?v=news-20261115-06",
  "stock_triage.css?v=stock-priority-20261115"]){
  assert(built.includes(path),"Build público sem "+path);

@@ -1,56 +1,70 @@
-# Execução da auditoria técnica — Potê Batata Pro
+# Auditoria e implementação — Potê Batata Pro, 16/11/2026
 
-Data: 2026-11-16. Este documento acompanha as 23 melhorias aprovadas.
+## Proteção e ponto de recuperação
+- Código V1 preservado na tag GitHub `before-audit-20261116` (commit `181557c`).
+- Bundle Git validado: `../pote-batata-before-audit-20261116.bundle`, na máquina autorizada.
+- Firestore: projeto `potobatata-b71f3`, região `southamerica-east1`, camada gratuita na última consulta.
+- O usuário confirmou explicitamente que contas e registros anteriores eram **apenas de teste e descartáveis**.
+- A V2 cria um novo banco lógico `users/{uid}/appState/v2` e documentos `users/{uid}/records/{key}`.
+- **V1 não foi apagado**: `users/{uid}/appState/main` permanece para recuperação técnica; a V2 inicia contas de teste vazias.
+- As regras adicionais `/users/{uid}/records/{key}` foram compiladas e publicadas no Firebase. Regras de produção não foram testadas no Emulator Suite (Java indisponível).
+- Nenhum Cloud Storage pago, Cloud Function ou outro recurso faturável foi habilitado.
 
-## Ponto de retorno e limites
-- Tag imutável do código anterior: `before-audit-20261116` (commit `181557c`).
-- Backup offline Git Bundle validado em `../pote-batata-before-audit-20261116.bundle` na máquina de desenvolvimento.
-- Firestore real: projeto `potobatata-b71f3`, base padrão na região `southamerica-east1`, identificada como **freeTier=true** com proteção de exclusão habilitada.
-- **Nenhuma migração, exclusão ou exportação de dados de usuários do Firestore foi executada.**
-- Consulta somente leitura indicou **PITR desativado** e nenhum backup gerenciado listado em `southamerica-east1`. Isso não equivale a uma cópia recuperável. Sem backup não será feita migração V2.
-- Um backup de Git não substitui cópia autenticada de clientes, pedidos e estoque no Firestore.
-- O modelo V2 segue **somente em prévia**, sem migração de contas nem mudança de regras publicada.
+## Arquitetura V2
+- `v2_store_core.mjs`: normaliza registros por tipo de negócio e entidade e reconstrói estado em memória.
+- `v2_storage.mjs`: grava somente entidades alteradas em transação, preserva alterações independentes e compara revisões.
+- `appState/v2InventoryGuard`: protege transações sensíveis de pedidos, ingredientes, bebidas, compras, perdas e movimentações. Se dois dispositivos editarem em paralelo, um deve sincronizar novamente antes de prosseguir.
+- `appState/v2Pulse`: avisa outros dispositivos. Limitação: atualmente a atualização remota relê a coleção para garantir consistência; otimizar leituras antes de muitos usuários.
+- `firebase_integration.js`: usa V2 por padrão; fluxo V1 permanece isolado para recuperação técnica. Sincronização pendente oferece backup JSON por UID e bloqueia operações críticas.
+- Os dados só são considerados persistidos quando a transação retorna sucesso. A interface ainda é otimista durante o tempo da requisição; conferir o status de sincronização.
+- A sincronização real com múltiplos dispositivos e autenticação Google ainda exige teste de campo. Os testes automatizados usam Firebase simulado.
 
-## Implementado na primeira etapa (sujeito aos testes de publicação)
-- [01] Bloqueio de sobrescrita concorrente com transação otimista em `firebase_integration.js`, mantendo o documento legado. Implementação inicial; não resolve a atomicidade de operações distintas.
-- [04] Backup local pendente por UID, exportação manual completa, aviso de saída e proteção adicional ao reset da conta. **Não substitui backup de produção validado**.
-- [13] Condições de clube separadas das datas, comparação aberta separada da condição de fidelidade.
-- [19] Datas comerciais calculadas pelo fuso do navegador ou pela configuração explícita da empresa; instantes históricos seguem UTC.
-- [03,07] `migration_preview.mjs`: plano V2 **puramente local e somente leitura**, detectando identificadores problemáticos. Migração real bloqueada até existir backup autenticado e restauração testada.
-- [20] A importação legada agora valida listas/IDs, aceita backup completo da conta inclusive criativos e campos permitidos, solicita cópia prévia e bloqueia importação durante conflitos. Teste isolado incluído.
+## Correções funcionais
+- `finance_core.js`: custo unitário, cálculo de taxas, preço sugerido, lucro e contribuição centralizados.
+- `stock_math.js`: custo médio ponderado conhecido e custo de reposição da última compra separados; não inventa custo médio sem histórico.
+- `pricing_explainer.js`: seletor de critério de custo, contribuição antes de despesas fixas e lucro estimado depois do rateio.
+- `garimpo.js`: preço de clube separado do preço aberto; validade verificada antes da condição, cache temporário de mercados, requisições limitadas, menor repetição de GPS e limpeza de localização ao trocar de conta.
+- `source/pote_app_base.html`: fluxo único de cancelamento, bloqueio por falha de sincronização e datas comerciais locais.
+- `module_health.js`: verifica os módulos essenciais após login e bloqueia operações se algum deles não carregar.
+- Importação e redefinição de dados possuem validação, confirmações e exportação prévia.
 
-## Pendências antes da fase de transações e coleções V2
-1. Fazer backup autenticado dos documentos Firestore de produção e testá-lo em ambiente separado.
-2. Definir estratégia de coexistência e exclusão de clientes com versões antigas abertas.
-3. Testar regras do Firestore no Emulator Suite e confirmar as regras realmente implantadas.
-4. Introduzir coleções independentes, operações idempotentes e transações de estoque no servidor.
-5. Medir custo em leituras/gravações e obter aprovação explícita antes de serviços pagos.
-
-## Status consolidado das 23 sugestões
-| Nº | Estado |
+## Matriz honesta das 23 melhorias
+| Nº | Situação |
 |---|---|
-| 01 | Proteção inicial implementada; testes reais multi-dispositivo pendentes |
-| 02 | Pendente: transações de estoque/pedidos |
-| 03 | Apenas prévia de particionamento, sem migração |
-| 04 | Proteção local e reset mais seguro; backup autenticado Firestore pendente |
-| 05 | Pendente: motor financeiro centralizado |
-| 06 | Pendente: movimentações de estoque unificadas |
-| 07 | Prévia V2; arquivos atuais de universos mantidos |
-| 08 | Pendente: utilitários compartilhados completos |
-| 09 | Pendente: modularizar HTML monolítico |
-| 10 | Pendente: contratos obrigatórios dos módulos |
-| 11 | Pendente: separar render de persistência |
-| 12 | Pendente: otimização/cache das buscas externas |
-| 13 | Implementado: regras de clube e preço aberto |
-| 14 | Proteção contra fórmulas em CSV incorporada; verificação automática de evidências ainda pendente |
-| 15 | Teste de contrato das regras versionadas incluído; Emulator e regras implantadas ainda pendentes |
-| 16 | Pendente: migrar ativos privados; arquivos públicos inalterados |
-| 17 | Galeria cloud permanece desativada sem custos adicionais |
-| 18 | Pendente: custo médio e custeio por lote |
-| 19 | Implementado: datas comerciais por fuso |
-| 20 | Validação e cópia prévia incorporadas à importação; restauração real em ambiente separado ainda pendente |
-| 21 | Pendente: separar legado de demonstração |
-| 22 | Novas funcionalidades não essenciais congeladas durante a auditoria |
-| 23 | Pendente: padronização interna; URLs e identificadores preservados |
+| 01 | **Implementado na V2; validação com dois dispositivos reais pendente** |
+| 02 | **Gravação atômica em transações V2**; interface ainda otimista até confirmação |
+| 03 | **Concluído**: entidades em documentos próprios, sem apagar legado |
+| 04 | **Proteção local e backup JSON implementados**; sem backup gerenciado do Firestore |
+| 05 | **Motor de cálculo centralizado** nas rotas principais; auditoria de relatórios ainda necessária |
+| 06 | **Cancelamento unificado e transação V2**; outras rotinas internas ainda compartilham lógica legada |
+| 07 | **Concluído no armazenamento V2**: registros por universo sem duplicação em documento |
+| 08 | **Parcial**: custos/precificação unificados; outras funções utilitárias ainda repetidas |
+| 09 | **Parcial**: módulos V2 e financeiro extraídos; HTML principal ainda é monolítico |
+| 10 | **Concluído**: verificador de dependências operacionais |
+| 11 | **Parcial**: não salva em navegação sem alteração; renderização global permanece |
+| 12 | **Concluído**: cache efêmero e pesquisas externas em pares |
+| 13 | **Concluído**: preços de clube e ofertas vencidas separados corretamente |
+| 14 | **Parcial**: fontes manuais identificadas; validação automática da página externa indisponível |
+| 15 | **Regras V2 publicadas e compiladas**; testes em emulador pendentes |
+| 16 | **Pendente**: ativos exclusivos permanecem acessíveis por URLs públicas; precisa Storage protegido |
+| 17 | **Mantido desativado**: galeria Cloud Storage exige infraestrutura e aprovação de custos |
+| 18 | **Média ponderada e reposição concluídas**; custeio FIFO por lote não implementado |
+| 19 | **Concluído**: datas comerciais por fuso |
+| 20 | **Concluído para backup JSON atual**: validação, confirmação e prevenção de conflito |
+| 21 | **Parcial**: simulação isolada de dados, mas arquivos legados ainda no HTML-base |
+| 22 | **Suspensa expansão secundária**; funcionalidades existentes mantidas para não quebrar o uso |
+| 23 | **Parcial**: interface Radar de Preço; IDs internos preservados por compatibilidade |
 
-**Regra de segurança:** não habilitar migração V2 nem deletar `appState/main` sem backup real verificado e teste de restauração.
+## Limitações para comercialização ampla
+1. Provar o funcionamento com autenticação Google em dois dispositivos físicos, incluindo conflito e reconexão.
+2. Validar regras no Emulator Suite e impor limites FREE/PRO de forma não burlável no servidor antes de cobrar.
+3. Implementar dados realmente privados em Storage autorizado; não ativar serviço pago sem orçamento e autorização.
+4. Otimizar reconsulta V2 da coleção em clientes com muitos pedidos e confirmar despesas do Firestore.
+5. Completar modularização do HTML, remoção de código legado e verificação de relatórios.
+6. As imagens da galeria que existem somente no dispositivo não migram entre aparelhos.
+
+## Testes e publicação
+- Execução local em 16/11/2026: conjunto de testes `test_*.js`/`test_*.mjs`, sem falhas na última bateria (ver GitHub Actions para CI).
+- `firebase deploy --only firestore:rules --project potobatata-b71f3`: regras publicadas com sucesso.
+- Nenhum dado Firestore de contas foi apagado pela execução; a primeira entrada na V2 usa novo espaço lógico vazio.
+- Retornar o site para a tag V1 não recupera automaticamente dados criados na V2.

@@ -24,7 +24,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
   stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,
   localStorage:storage,navigator:{userAgent:""},
   document:{getElementById:id=>elements.get(id)||null,createElement:()=>({style:{},addEventListener(){},click(){},remove(){}}),body:{classList:{toggle(){}},appendChild(){}}},
-  window:{
+  window:{POTE_USE_V2:false,
    POTE_APP:{snapshot:()=>copy(local),applyState:x=>{local=copy(x)},reset:()=>{local=mk()},isPristineDemo:()=>false},
    POTE_BUSINESS:{refresh(){}},addEventListener:(name,cb)=>{listens[name]=cb},
    dispatchEvent(){}},

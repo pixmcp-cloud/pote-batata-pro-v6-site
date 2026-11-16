@@ -42,12 +42,13 @@ function report(recipe){
   price=typeof sellPrice==="function"?sellPrice(recipe,channel):0,
   fee=(channel==="marketplace"?n(s.marketplaceFee):n(s.fee))+n(s.tax),
   fees=price*fee/100,
-  contribution=price-fees-cost,
-  margin=price>0?contribution/price*100:0,
-  markup=cost>0?contribution/cost*100:0,
+  contribution=price-fees-(ingredient+packageCost+other+variable),
+  profit=contribution-fixed,
+  margin=price>0?profit/price*100:0,
+  markup=cost>0?profit/cost*100:0,
   costs=missingCosts(recipe);
  return {recipe,ingredient,packageCost,fixed,other,variable,cost,channel,price,fee,fees,
-  contribution,margin,markup,missing:costs,
+  contribution,profit,margin,markup,missing:costs,
   delivery:n(s.deliveryCostPerOrder)};
 }
 function packageControls(recipe){
@@ -74,7 +75,13 @@ function panelHtml(r){
   '<div class="pote-price-guide-header"><div><small>PRECIFICAÇÃO EXPLICADA</small><h2>Entenda seu preço de venda</h2></div>'+
   '<span>'+esc(d.recipe.name)+'</span></div>'+
   '<p>O preço é calculado a partir dos ingredientes e embalagens, somando despesas por unidade e uma parcela das despesas fixas. Depois, são considerados taxas, impostos e o ganho desejado.</p>'+
-  title+'<div class="pote-price-grid">'+
+  title+'<label class="field">Critério de custo para precificação'+
+   '<select id="poteCostBasis" onchange="POTE_PRICING.chooseCostBasis()">'+
+   '<option value="replacement" '+(state.data.settings.costBasis!=="average"?"selected":"")+
+   '>Última compra (reposição; recomendado)</option>'+
+   '<option value="average" '+(state.data.settings.costBasis==="average"?"selected":"")+
+   '>Custo médio ponderado (quando conhecido)</option></select></label>'+
+   '<div class="pote-price-grid">'+
    '<div><small>Custo dos ingredientes</small><strong>'+money(d.ingredient)+'</strong></div>'+
    '<div><small>Embalagens</small><strong>'+money(d.packageCost)+'</strong></div>'+
    '<div><small>Despesas fixas por unidade</small><strong>'+money(d.fixed)+'</strong></div>'+
@@ -82,7 +89,8 @@ function panelHtml(r){
    '<div><small>Custo estimado por unidade</small><strong>'+money(d.cost)+'</strong></div>'+
    '<div><small>Preço sugerido ('+esc(d.channel)+')</small><strong>'+ (invalid?"A conferir":money(d.price))+'</strong></div>'+
    '<div><small>Taxas + impostos estimados</small><strong>'+money(d.fees)+'</strong></div>'+
-   '<div><small>Resultado estimado por unidade</small><strong>'+ (invalid?"A conferir":money(d.contribution))+'</strong></div>'+
+   '<div><small>Sobra após custos variáveis (contribuição)</small><strong>'+ (invalid?"A conferir":money(d.contribution))+'</strong></div>'+
+   '<div><small>Lucro estimado por unidade após rateio fixo</small><strong>'+ (invalid?"A conferir":money(d.profit))+'</strong></div>'+
   '</div><details class="pote-price-explanation"><summary>Qual a diferença entre markup e margem?</summary>'+
   '<p><strong>Markup (ganho sobre custo)</strong> compara o ganho ao custo. Exemplo: custo de R$ 10 com ganho de 100% significa preço de R$ 20 antes de taxas.</p>'+
   '<p><strong>Margem sobre venda</strong> compara o resultado ao preço cobrado. Nesse mesmo exemplo de R$ 20, a margem é 50% antes das taxas.</p>'+
@@ -109,6 +117,14 @@ function choosePackaging(){
  if(typeof persist==="function")persist();
  if(typeof render==="function")render();
  if(typeof toast==="function")toast("Embalagens atualizadas para este produto.");
+}
+function chooseCostBasis(){
+ const basis=$("poteCostBasis")?.value;
+ if(basis!=="average"&&basis!=="replacement")return false;
+ state.data.settings.costBasis=basis;
+ if(typeof persist==="function")persist();
+ if(typeof render==="function")render();
+ return true;
 }
 function validateForm(){
  const recipes=state.data.recipes||[],r=selectedRecipe();
@@ -141,5 +157,5 @@ function validateForm(){
  if(errors.length){alert("Revise os dados da precificação:\n\n"+errors.join("\n"));return false}
  return true;
 }
-window.POTE_PRICING={report,missingCosts,mount,choosePackaging,validateForm};
+window.POTE_PRICING={report,missingCosts,mount,choosePackaging,chooseCostBasis,validateForm};
 })();

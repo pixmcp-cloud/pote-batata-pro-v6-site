@@ -59,6 +59,40 @@ service cloud.firestore {
       match /appState/{id} {
         allow read, write: if canAccess(userId);
       }
+      // V2: um documento por registro operacional. Impede acesso entre contas
+      // e restringe o formato, sem interferir nos documentos V1 já existentes.
+      match /records/{recordId} {
+        allow get, list: if canAccess(userId);
+        allow create, update: if canAccess(userId)
+          && request.resource.data.keys().hasOnly(['record', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['record', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.record is map
+          && request.resource.data.record.keys().hasOnly([
+            'universe', 'group', 'id', 'item', 'rank'
+          ])
+          && request.resource.data.record.keys().hasAll([
+            'universe', 'group', 'id', 'item', 'rank'
+          ])
+          && request.resource.data.record.universe is string
+          && request.resource.data.record.id is string
+          && request.resource.data.record.rank is number
+          && request.resource.data.record.group in [
+            'recipes', 'ingredients', 'orders', 'clients', 'suppliers',
+            'expenses', 'recipeVersions', 'recipeTrash', 'purchases',
+            'stockMovements', 'beverages', 'addons', 'combos', 'prepBatches',
+            'checklist', 'losses', 'garimpoOffers'
+          ]
+          && (
+            !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
+            || (
+              request.resource.data.record.universe == resource.data.record.universe
+              && request.resource.data.record.group == resource.data.record.group
+              && request.resource.data.record.id == resource.data.record.id
+            )
+          );
+        allow delete: if canAccess(userId);
+      }
     }
 
     // Only the verified administrator can create immutable license change events.

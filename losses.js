@@ -34,6 +34,8 @@ function baseUnit(ingredient,kind){
 }
 function costUnit(ingredient){
  if(!ingredient)return {cost:0,known:false};
+ if(data().settings?.costBasis==="average"&&ingredient.averageCostKnown===true&&Number(ingredient.averageUnitCost)>0)
+  return {cost:Number(ingredient.averageUnitCost),known:true};
  const price=n(ingredient.purchasePrice??ingredient.price);
  const quantity=n(ingredient.purchaseQuantity),unit=ingredient.purchaseUnit;
  if(!Number.isFinite(price)||price<=0||!Number.isFinite(quantity)||quantity<=0)

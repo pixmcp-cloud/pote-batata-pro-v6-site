@@ -27,6 +27,10 @@ jobs:
           cp -R assets/generic public/assets/generic
           cp firebase_integration.js public/firebase_integration.js
           cp sync_guard.mjs public/sync_guard.mjs
+          cp v2_store_core.mjs public/v2_store_core.mjs
+          cp v2_storage.mjs public/v2_storage.mjs
+          cp finance_core.js public/finance_core.js
+          cp module_health.js public/module_health.js
           cp supplier_integration.js public/supplier_integration.js
           cp supplier_directory.js public/supplier_directory.js
           cp supplier_directory.css public/supplier_directory.css
@@ -98,6 +102,15 @@ jobs:
           node --check public/sync_guard.mjs
           node test_sync_guard.mjs
           node test_sync_integration.js
+          node test_v2_store.mjs
+          node test_v2_storage.mjs
+          node test_auth_v2_integration.js
+          node test_finance_core.js
+          node test_module_health.js
+          node test_average_cost.js
+          node --check public/finance_core.js
+          node --check public/v2_store_core.mjs
+          node --check public/v2_storage.mjs
           node test_migration_preview.mjs
           node test_commercial_date.js
           node test_reset_guard.js

@@ -61,13 +61,27 @@ function purchase({ingredient,quantity,unit,paidTotal,at,supplier,purchases,move
  const previous=Math.max(0,Number(ingredient.stock)||0);
  const next=Number((previous+add).toFixed(5));
  if(!Number.isFinite(next))throw Error("Saldo de estoque inválido.");
+ // Média ponderada considera o saldo anterior e o valor unitário conhecido.
+ // Sem custo histórico confiável, mostrar referência da última compra sem inventar custo médio.
+ const oldCount=number(ingredient.purchaseQuantity);
+ const oldFactor=(ingredient.purchaseUnit==="kg"||ingredient.purchaseUnit==="L")?1000:1;
+ const priorCost=number(ingredient.averageUnitCost)>0&&ingredient.averageCostKnown===true?
+  number(ingredient.averageUnitCost):
+  oldCount>0?number(ingredient.purchasePrice??ingredient.price)/(oldCount*oldFactor):NaN;
+ const priorKnown=previous===0||(Number.isFinite(priorCost)&&priorCost>0&&ingredient.averageCostKnown!==false);
+ const newCost=total/add;
+ const average=priorKnown&&previous>0?
+  (priorCost*previous+newCost*add)/next:newCost;
  const count=number(quantity);
  const date=at||new Date().toISOString(),id=makeId();
  const receipt={id,at:date,ingredientId:ingredient.id,name:ingredient.name,added:add,
   enteredQuantity:count,enteredUnit:unit,previousStock:previous,afterStock:next,
   totalPaid:total,pricePaid:total,unitPrice:Number((total/count).toFixed(6)),
+  averageUnitCost:Number(average.toFixed(8)),averageCostKnown:priorKnown,
   supplier:String(supplier||"").slice(0,130),origin:"purchase-real"};
  ingredient.stock=next;
+ ingredient.averageUnitCost=Number(average.toFixed(8));
+ ingredient.averageCostKnown=priorKnown;
  // Última compra, não saldo: referência de custo. A próxima compra atualizará este valor.
  ingredient.purchaseQuantity=count;
  ingredient.purchaseUnit=unit;

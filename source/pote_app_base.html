@@ -85,6 +85,18 @@ function allowed(r){return !!r&&!r.franchiseLocked&&!(window.POTE_AUTH?.franchis
 function chosenExpenses(){return state.data.expenses.filter(e=>e.enabled)}
 function freeCustom(){return state.data.recipes.filter(r=>!SEED.recipes.some(x=>x.id===r.id))}
 function ingredientCustom(){return state.data.ingredients.filter(i=>!i.archived&&!SEED.ingredients.some(x=>x.id===i.id))}
+function operationReady(){
+ if(!window.POTE_AUTH?.uid)return true; // laboratório local
+ if(window.POTE_MODULE_HEALTH?.safeToOperate===false){
+  toast('Operação bloqueada: módulo essencial não carregou. Atualize o aplicativo e confira a conexão.');
+  return false;
+ }
+ if(window.POTE_SYNC_GUARD?.blocked||navigator.onLine===false){
+  toast('Operação suspensa: há conflito de sincronização ou falta de conexão. Exporte seu backup e confira a nuvem.');
+  return false;
+ }
+ return true;
+}
 function canOperate(recipeId){if(!pro()&&(!recipeId||!allowed(recipe(recipeId)))){toast('🔒 Você só pode operar com a receita liberada ou sua receita própria.');return false}return true}
 function label(txt){return `<span class="pill">${escapeHtml(txt)}</span>`}
 function field(name,id,value,type='text',extra=''){return `<label class="field">${name}<input id="${id}" type="${type}" value="${escapeHtml(value??'')}" ${extra}></label>`}
@@ -105,7 +117,7 @@ function imageSource(r){
   return SEED.recipes.some(x=>x.id===r?.id)?"./assets/generic/recipe-"+r.id+".svg":"";
 }
 function img(r){return imageSource(r)?`<img src="${escapeHtml(imageSource(r))}" alt="${escapeHtml(r.name)}" onerror="this.outerHTML='<span class=\'emoji\'>${icon(r)}</span>'">`:`<span class="emoji">${icon(r)}</span>`}
-function baseUnit(i){const pu=i?.purchaseUnit||'kg';const q=Math.max(0.0001,num(i?.purchaseQuantity)||1);return num(i?.purchasePrice??i?.price)/(q*(pu==='kg'||pu==='L'?1000:1))}
+function baseUnit(i){if(window.POTE_FINANCE)return window.POTE_FINANCE.unitCost(i,state.data.settings?.costBasis||'replacement');const pu=i?.purchaseUnit||'kg';const q=Math.max(0.0001,num(i?.purchaseQuantity)||1);return num(i?.purchasePrice??i?.price)/(q*(pu==='kg'||pu==='L'?1000:1))}
 function packagingIngredients(){return state.data.ingredients.filter(i=>i.category==='Embalagem'&&!i.archived)}
 function packagingForRecipe(r){const all=packagingIngredients();return Array.isArray(r?.packagingIngredientIds)?all.filter(i=>r.packagingIngredientIds.includes(i.id)):[]}
 function effectivePackageCost(r){
@@ -115,9 +127,10 @@ function effectivePackageCost(r){
  }
  return num(state.data.settings.packageCost);
 }
-function costOf(r){if(!r)return 0;return r.items.reduce((a,x)=>{const i=ingredient(x.id);return a+(i?num(x.g)*baseUnit(i)/(Math.max(1,num(i.yield))/100):0)},0)}
+function costOf(r){if(!r)return 0;if(window.POTE_FINANCE)return window.POTE_FINANCE.recipeMaterialCost(r,state.data.ingredients,state.data.settings?.costBasis||'replacement');return r.items.reduce((a,x)=>{const i=ingredient(x.id);return a+(i?num(x.g)*baseUnit(i)/(Math.max(1,num(i.yield))/100):0)},0)}
 function totalCost(r){if(!r)return 0;const d=state.data;const enabled=d.expenses.filter(e=>e.enabled),fixed=enabled.filter(e=>e.mode==='mensal').reduce((a,e)=>a+num(e.amount)*Math.max(1,num(e.repeat)),0)/Math.max(1,num(d.settings.estimatedMonthlyUnits)||1);const variable=enabled.filter(e=>e.mode==='unidade').reduce((a,e)=>a+num(e.amount)*Math.max(1,num(e.repeat)),0);return costOf(r)+effectivePackageCost(r)+num(d.settings.otherCost)+fixed+variable}
 function roundUpCommercial(v){
+ if(window.POTE_FINANCE)return window.POTE_FINANCE.roundPrice(v);
  const value=num(v);
  if(value<=0)return 0;
  const cents=Math.ceil(value*100-1e-8),whole=Math.floor(cents/100),fraction=cents%100;
@@ -127,6 +140,7 @@ function sellPrice(r,channelOverride){
  if(!r)return 0;
  const s=state.data.settings,b=totalCost(r),ch=channelOverride||s.channel||'direto';
  const feePct=ch==='marketplace'?num(s.marketplaceFee??19):num(s.fee),fees=feePct+num(s.tax);
+ if(window.POTE_FINANCE)return window.POTE_FINANCE.suggest({cost:b,feePct:fees,mode:r.pricingMode||'margin',gainPct:r.targetGainPct??100,marginPct:s.margin});
  const unrounded=r.pricingMode==='gain'
   ?b*(1+Math.max(0,num(r.targetGainPct??100))/100)/Math.max(0.05,1-fees/100)
   :b/Math.max(0.05,1-(fees+num(s.margin))/100);
@@ -135,10 +149,10 @@ function sellPrice(r,channelOverride){
 function fixedMonthly(){return state.data.expenses.filter(e=>e.enabled&&e.mode==='mensal').reduce((a,e)=>a+num(e.amount)*Math.max(1,num(e.repeat)),0)}
 function fixedPerUnit(){return fixedMonthly()/Math.max(1,num(state.data.settings.estimatedMonthlyUnits)||1)}
 function variableUnitCost(r){const d=state.data;return costOf(r)+effectivePackageCost(r)+num(d.settings.otherCost)+d.expenses.filter(e=>e.enabled&&e.mode==='unidade').reduce((a,e)=>a+num(e.amount)*Math.max(1,num(e.repeat)),0)}
-function feeRate(channel){const s=state.data.settings;return (channel==='marketplace'?num(s.marketplaceFee??19):num(s.fee))+num(s.tax)}
+function feeRate(channel){const s=state.data.settings;return window.POTE_FINANCE?window.POTE_FINANCE.fees(s,channel):(channel==='marketplace'?num(s.marketplaceFee??19):num(s.fee))+num(s.tax)}
 function bev(id){return state.data.beverages.find(x=>x.id===id)}
 function addon(id){return state.data.addons.find(x=>x.id===id)}
-function beverageCost(b){return b?num(b.purchasePrice)/Math.max(1,num(b.purchaseQuantity)):0}
+function beverageCost(b){return window.POTE_FINANCE?window.POTE_FINANCE.beverageCost(b):(b?num(b.purchasePrice)/Math.max(1,num(b.purchaseQuantity)):0)}
 function addonCost(a){const i=ingredient(a?.ingredientId);return a&&i?num(a.quantity)*baseUnit(i)/(Math.max(1,num(i.yield))/100):0}
 function comboQuote(c,channel='direto'){
  const r=recipe(c.recipeId),b=bev(c.beverageId),adds=(c.addonIds||[]).map(addon).filter(Boolean);
@@ -261,6 +275,7 @@ function updateVitrineTotal(){
  if(el)el.innerHTML=`Subtotal: <b>${money(sub)}</b> • Total c/ entrega: <b>${money(sub+deliv)}</b>`;
 }
 function checkoutVitrine(openWa){
+ if(!operationReady())return;
  if(!cart.length)return;
  if(!window.POTE_ORDER?.acceptCart?.(cart,{requireMain:true}))return;
  if(openWa&&!confirm('Enviar pedido pelo WhatsApp? Ele poderá abrir outro aplicativo. O pedido será registrado no caixa e permanecerá em Pedidos.'))return;
@@ -506,6 +521,7 @@ function updateOrderSuggestedPrice(){
  window.POTE_PAYMENT?.sync?.();
 }
 function newOrder(){
+ if(!operationReady())return;
  const item=document.getElementById('orderItem')?.value||'',channel=document.getElementById('orderChannel').value;
  const baseQuote=optionQuote(item,channel,document.getElementById('orderExtraBev')?.value||'','');
  const q=window.POTE_ORDER_CUSTOM?.adjustQuote?.(baseQuote)||baseQuote;
@@ -537,6 +553,7 @@ function newOrder(){
  state.data.orders.unshift(order);state.tab='orders';window.POTE_ORDER_CUSTOM?.reset?.();render();window.POTE_ORDER?.scrollToOrders?.(order.id);toast('Pedido registrado! Confira a seção Pedidos.');window.POTE_ORDER?.lowAfterOrder?.(order);
 }
 function produce(id){
+ if(!operationReady())return;
  window.POTE_STOCK?.normalizeInventory?.(state.data);
  const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='recebido'||!canOperate(o.recipeId))return;
   if(!window.POTE_ORDER?.checkBeforeProduce?.(o))return;
@@ -551,17 +568,15 @@ function produce(id){
  for(const [k,n] of needBevs){const b=bev(k);if(!b){if(o.stockOverrideApproved){o.stockShortages.push({id:k,kind:'beverage',needed:n,consumed:0});continue;}toast('Bebida não encontrada: '+k);return;}const before=Math.max(0,num(b.stock)),used=o.stockOverrideApproved?Math.min(before,n):n;b.stock=Math.max(0,before-used);if(o.stockOverrideApproved){o.stockActualConsumed.beverages[k]=used;if(n>used)o.stockShortages.push({id:k,kind:'beverage',needed:n,consumed:used,missing:n-used});}state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:'bev:'+k,ingredientName:b.name,quantity:-used,reason:'Bebida vendida',referenceId:id,previousStock:before,afterStock:b.stock})}
  o.status='em_producao';o.producedAt=new Date().toISOString();o.stockDeducted=true;state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Produção iniciada: estoque descontado.');window.POTE_ORDER?.lowAfterOrder?.(o);
 }
-function finishOrder(id){const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Pedido finalizado. Você permanece na seção Pedidos.')}
+function finishOrder(id){if(!operationReady())return;const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Pedido finalizado. Você permanece na seção Pedidos.')}
 function cancelOrder(id){
- if(window.POTE_CANCEL?.open)return window.POTE_CANCEL.open(id);
- const o=state.data.orders.find(x=>x.id===id);if(!o||o.status==='cancelado'||!canOperate(o.recipeId))return;
- const consumed=o.stockDeducted??(o.status==='em_producao'||o.status==='entregue');
- if(consumed&&confirm('O estoque já foi consumido. Deseja devolver os ingredientes, embalagens e bebidas ao estoque?')){
-  const qty=Math.max(1,num(o.qty));for(const row of o.items||[]){const i=ingredient(row.id);if(!i)continue;const restore=num(row.g)*qty/Math.max(.01,num(row.yieldPct??i?.yield)/100);i.stock=num(i.stock)+restore;state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:row.id,ingredientName:i.name,quantity:restore,reason:'Estorno cancelamento',referenceId:id})}
-  for(const b of o.beverageItems||[]){const target=bev(b.id);if(!target)continue;const n=num(b.qty)*qty;target.stock=num(target.stock)+n;state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:'bev:'+b.id,ingredientName:target.name,quantity:n,reason:'Estorno bebida',referenceId:id})}
-  o.stockRestored=true;
+ if(!operationReady())return false;
+ // Um único fluxo de cancelamento, incluindo estoque, perda e idempotência.
+ if(!window.POTE_CANCEL?.open){
+  toast('Cancelamento indisponível: o módulo de segurança não foi carregado. Nenhum estoque foi alterado.');
+  return false;
  }
- o.status='cancelado';o.canceledAt=new Date().toISOString();state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Pedido cancelado'+(o.stockRestored?' e estoque estornado':''));
+ return window.POTE_CANCEL.open(id);
 }
 function showReceipt(id,type){const o=state.data.orders.find(x=>x.id===id);if(!o||!canOperate(o.recipeId))return;
  if(window.POTE_RECEIPTS?.open){window.POTE_RECEIPTS.open(id,type);return;}

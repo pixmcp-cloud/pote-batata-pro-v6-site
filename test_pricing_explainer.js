@@ -59,6 +59,10 @@ assert.equal(recipe.packagingIngredientIds.length,1);
 assert.equal(recipe.packagingIngredientIds[0],"pot500");
 assert.equal(ctx.effectivePackageCost(recipe),.5,"Selecionar embalagem individual evita dupla cobrança");
 assert.equal(rendered,1);
+el("poteCostBasis").value="average";
+assert.equal(P.chooseCostBasis(),true);
+assert.equal(state.data.settings.costBasis,"average");
+assert.equal(rendered,2);
 ingredient.purchasePrice=0;
 assert(P.missingCosts(recipe).some(x=>x.includes("Batata")));
 ingredient.purchasePrice=10;
@@ -78,7 +82,7 @@ assert(src.includes("POTE_PRICING?.validateForm"));
 assert(src.includes("Sobra após custos variáveis"),"Precificação deve separar sobra de lucro");
 assert(src.includes("Lucro estimado por unidade"),"Lucro após despesas fixas precisa ser explícito");
 const build=read("public/index.html");
-for(const part of ["pricing_explainer.js?v=audit-20261115","pricing_explainer.css?v=price-guide-20261115"]){
+for(const part of ["pricing_explainer.js?v=custo-medio-20261116","pricing_explainer.css?v=price-guide-20261115"]){
  assert(build.includes(part),"Asset ausente: "+part)
 }
 console.log("PASS: preço discriminado, referência de embalagem individual, custos incompletos e prevenção de taxas/margens inválidas.");

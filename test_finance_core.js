@@ -1,0 +1,25 @@
+const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("node:fs");
+const ctx={window:{},Number,Math,String,Map,Array};vm.createContext(ctx);
+vm.runInContext(fs.readFileSync("finance_core.js","utf8"),ctx);
+const F=ctx.window.POTE_FINANCE;
+assert(F,"Financial core must initialize");
+assert.equal(F.unitCost({purchasePrice:180,purchaseQuantity:20,purchaseUnit:"kg"}),.009);
+assert.equal(F.beverageCost({purchasePrice:24,purchaseQuantity:12}),2);
+assert.equal(F.roundPrice(19.06),19.5);
+assert.equal(F.roundPrice(19.66),19.9);
+assert.equal(F.roundPrice(19.91),20.5);
+assert.equal(F.fees({fee:2,tax:1},'direto'),3);
+assert.equal(F.suggest({cost:10,feePct:0,mode:"gain",gainPct:100}),20.5);
+assert.equal(F.recipeMaterialCost({items:[{id:"a",g:500}]},[{id:"a",purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",yield:100}]),5);
+const result=F.result({unitPrice:25,unitVariableCost:10,unitFixedCost:3,feePct:4,quantity:2,
+ deliveryRevenue:5,deliveryCost:3});
+assert.equal(result.grossRevenue,55);
+assert.equal(result.fees,2.2);
+assert.equal(result.variableCost,23);
+assert.equal(result.contributionBeforeFixed,29.8);
+assert.equal(result.estimatedProfit,23.8);
+const unpaid=F.result({unitPrice:25,unitVariableCost:10,unitFixedCost:3,quantity:1,paymentStatus:"nao_pago"});
+assert.equal(unpaid.receivedRevenue,0);
+assert.equal(unpaid.uncollectedSale,25);
+assert.equal(unpaid.contributionBeforeFixed,15,"Contribution is economic before collection and must not hide receivables");
+console.log("PASS: cálculo financeiro único de custo unitário, markup, margem, preço, lucro e inadimplência.");

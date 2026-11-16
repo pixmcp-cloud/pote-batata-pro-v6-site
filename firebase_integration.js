@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {createV2Store} from "./v2_storage.mjs?v=normalized-20261116";
 import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending} from "./sync_guard.mjs?v=safety-20261116";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
@@ -45,6 +46,9 @@ let rawUserFranchise = null;
 let cloudFingerprint=stableJson(null);
 let syncBlocked=false;
 let pendingThisSession=false;
+let v2Store=null;
+// A versão V2 inicia contas de teste limpas em coleções por registro, sem migrar appState/main.
+const useV2=window.POTE_USE_V2!==false;
 window.POTE_APP_READY=false;
 const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
 function showBrowserHint() { if (browserHint) browserHint.hidden = false; }
@@ -170,7 +174,45 @@ function observeProfile(user, index) {
 }
 function refFor(user) { return doc(db, "users", user.uid, "appState", "main"); }
 
+async function syncV2(){
+  if(!ready||!active||!v2Store||auth.currentUser?.uid!==active.uid)return false;
+  if(saving){queued=true;return false}
+  const serialized=JSON.stringify(safeState());
+  if(serialized===lastJson)return true;
+  if(syncBlocked){savePending(serialized,"conflito V2 não resolvido");return false}
+  saving=true;
+  const currentEpoch=epoch,currentUid=active.uid;
+  setStatus("Sincronizando registros V2...");
+  try{
+    const result=await v2Store.save();
+    if(epoch!==currentEpoch||auth.currentUser?.uid!==currentUid)return false;
+    if(!result.ok){
+      if(result.code==="sync/conflict"||result.code==="sync/invalid-state")syncBlocked=true;
+      setStatus(result.code==="sync/conflict"?"CONFLITO DE ESTOQUE/PEDIDOS — exporte backup.":
+       "Alterações ainda não sincronizadas: "+String(result.error||"sem conexão").slice(0,90));
+      savePending(serialized,result.code||result.error||"erro V2");
+      return false;
+    }
+    lastJson=serialized;
+    if(pendingThisSession){
+      try{localStorage.removeItem(pendingKey(currentUid))}catch(e){}
+      pendingThisSession=false;
+    }
+    setStatus("Dados V2 salvos com segurança");showBackupButton();
+    if(JSON.stringify(safeState())!==serialized)queued=true;
+    return true;
+  }catch(e){
+    if(epoch!==currentEpoch)return false;
+    savePending(serialized,e.message||"falha V2");
+    setStatus("Erro de sincronização V2: exporte backup");
+    return false;
+  }finally{
+    saving=false;
+    if(queued&&!syncBlocked){queued=false;queueSave()}
+  }
+}
 async function sync() {
+  if(useV2)return syncV2();
   if(!ready||!active||auth.currentUser?.uid!==active.uid)return false;
   if(saving){queued=true;return false}
   const value=safeState(),serialized=JSON.stringify(value);
@@ -238,6 +280,8 @@ async function sync() {
 }
 function queueSave(){
   if(!ready||!active)return;
+  // Renderização e navegação não precisam gerar gravações se o estado não mudou.
+  if(!syncBlocked&&JSON.stringify(safeState())===lastJson)return;
   clearTimeout(timer);
   if(syncBlocked){
     // Nunca tentar sobrescrever a nuvem após descobrir conflito.
@@ -309,6 +353,20 @@ async function loadUser(user, index) {
       updatedAt: serverTimestamp()
     }), 15000, "criação do perfil");
   }
+  if(useV2){
+    v2Store?.dispose();
+    v2Store=createV2Store({
+      uid:user.uid,db,
+      sdk:{doc,collection,getDoc,getDocs,runTransaction,onSnapshot,serverTimestamp},
+      fresh:()=>window.POTE_APP.reset(),
+      snapshot:safeState,
+      apply:next=>window.POTE_APP.applyState(next,{preserveNavigation:true}),
+      status:setStatus
+    });
+    await withDeadline(v2Store.load(),25000,"inicialização do banco V2");
+    if(index!==epoch)return;
+    lastJson=JSON.stringify(safeState());
+  }else{
   const record = await withDeadline(getDoc(refFor(user)), 15000, "carregamento dos seus dados");
   if (index !== epoch) return;
   cloudFingerprint=stableJson(record.data()?.state??null);
@@ -337,6 +395,7 @@ async function loadUser(user, index) {
     lastJson = JSON.stringify(start);
     cloudFingerprint=stableJson(start);
   }
+  }
   if (index !== epoch) return;
   ready = true;
   window.POTE_APP_READY=true;
@@ -350,7 +409,15 @@ async function loadUser(user, index) {
   }else setStatus("Dados salvos na nuvem");
   setGate(false);
   showBackupButton();
-  observeRemote(user, index);
+  if(useV2){
+    v2Store?.subscribe(result=>{
+      if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
+      if(result.ok){lastJson=JSON.stringify(safeState());return}
+      syncBlocked=true;
+      savePending(JSON.stringify(safeState()),result.code||result.error||"atualização V2");
+      setStatus("DIVERGÊNCIA ENTRE DISPOSITIVOS. Exporte backup e entre novamente.");
+    });
+  }else observeRemote(user, index);
   observeProfile(user, index);
   window.POTE_BUSINESS?.refresh?.();
   window.dispatchEvent(new Event("pote:user-ready"));
@@ -406,6 +473,7 @@ exitBtn.addEventListener("click", async () => {
 });
 onAuthStateChanged(auth, async user => {
   const myEpoch = ++epoch;
+  if(v2Store){v2Store.dispose();v2Store=null}
   if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
   if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
   if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }

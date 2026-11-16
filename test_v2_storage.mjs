@@ -1,0 +1,90 @@
+import assert from "node:assert/strict";
+import {createV2Store} from "./v2_storage.mjs";
+const copy=x=>JSON.parse(JSON.stringify(x));
+const db=new Map(),listeners=new Map();
+const ref=(prefix,...parts)=>parts.join("/");
+const snap=path=>({
+ exists:()=>db.has(path),data:()=>db.has(path)?copy(db.get(path)):undefined,
+ metadata:{hasPendingWrites:false}
+});
+const fire={
+ doc:ref,
+ collection:ref,
+ getDoc:async path=>snap(path),
+ getDocs:async path=>({docs:[...db.entries()].filter(([key])=>key.startsWith(path+"/"))
+  .map(([key])=>({id:key.slice(path.length+1),data:()=>copy(db.get(key))}))}),
+ serverTimestamp:()=>({timestamp:"SERVER"}),
+ runTransaction:async(database,fn)=>{
+  const mutations=[];
+  const tx={
+   get:async path=>snap(path),
+   set:(path,value,options)=>mutations.push({path,value,merge:options?.merge}),
+   delete:path=>mutations.push({path,remove:true})
+  };
+  const result=await fn(tx);
+  for(const m of mutations){
+   if(m.remove)db.delete(m.path);
+   else db.set(m.path,{...(m.merge?db.get(m.path)||{}:{}),...copy(m.value)});
+  }
+  for(const m of mutations)if(m.path.endsWith("/v2Pulse")){
+   for(const cb of listeners.get(m.path)||[])cb(snap(m.path));
+  }
+  return result;
+ },
+ onSnapshot:(path,cb)=>{
+  if(!listeners.has(path))listeners.set(path,new Set());
+  listeners.get(path).add(cb);
+  cb(snap(path));
+  return ()=>listeners.get(path)?.delete(cb);
+ }
+};
+const empty=()=>({data:{businessType:"batataria",businessUniverses:{},settings:{margin:50},brand:{name:"Potê"},
+ orders:[],ingredients:[],beverages:[],recipes:[],clients:[],suppliers:[],expenses:[],
+ purchases:[],stockMovements:[],losses:[]}});
+const make=()=>{
+ let state=empty(),messages=[];
+ const store=createV2Store({uid:"u",db:null,sdk:fire,
+  fresh(){state=empty()},
+  snapshot(){return copy(state)},
+  apply(value){state=copy(value)},
+  status:x=>messages.push(x)});
+ return {store,read:()=>copy(state),mutate:fn=>fn(state),messages};
+};
+const a=make(),b=make();
+const loaded=await a.store.load();
+assert.equal(loaded.created,true);
+assert.equal(db.has("users/u/appState/main"),false,"Legacy document must remain untouched");
+await b.store.load();
+a.mutate(s=>s.data.ingredients.push({id:"batata",stock:20000,measureUnit:"g"}));
+let result=await a.store.save();
+assert(result.ok&&result.changed===1);
+assert.equal(a.store.guardRevision,1);
+b.mutate(s=>s.data.orders.push({id:"venda2",qty:1,status:"recebido"}));
+result=await b.store.save();
+assert.equal(result.code,"sync/conflict","Concurrent sale must fail if inventory guard changed");
+assert.equal([...db.keys()].filter(k=>k.includes("/records/")).length,1);
+const update=await b.store.refresh();
+assert.equal(update.code,"sync/conflict","Sessão com rascunho não pode receber atualização destrutiva");
+const b2=make();await b2.store.load();
+assert.equal(b2.read().data.ingredients[0].stock,20000);
+// Parallel independent changes must not overwrite each other.
+a.mutate(s=>s.data.clients.push({id:"cliente1",name:"Ana"}));
+b2.mutate(s=>s.data.suppliers.push({id:"fornecedor1",name:"Mercado"}));
+assert((await a.store.save()).ok);
+assert((await b2.store.save()).ok);
+await a.store.refresh();
+assert.equal(a.read().data.clients.length,1);
+assert.equal(a.read().data.suppliers.length,1);
+// Two devices attempt to consume the same inventory.
+await b2.store.refresh();
+a.mutate(s=>{s.data.ingredients[0].stock=10000;s.data.orders.unshift({id:"o10",status:"em_producao",stockDeducted:true})});
+b2.mutate(s=>{s.data.ingredients[0].stock=8000;s.data.orders.unshift({id:"o11",status:"em_producao",stockDeducted:true})});
+assert((await a.store.save()).ok);
+const clash=await b2.store.save();
+assert.equal(clash.code,"sync/conflict");
+const verified=make();await verified.store.load();
+assert.equal(verified.read().data.orders.length,1);
+assert.equal(verified.read().data.orders[0].id,"o10");
+assert.equal(verified.read().data.ingredients[0].stock,10000);
+a.store.dispose();b.store.dispose();b2.store.dispose();verified.store.dispose();
+console.log("PASS: Firebase V2 simulado cria conta limpa, separa documentos, preserva edições independentes e bloqueia corrida de estoque.");
