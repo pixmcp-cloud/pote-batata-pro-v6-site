@@ -81,15 +81,28 @@ async function main(){
    });
   });
   await assertSucceeds(setDoc(cashRef,cashOpening));
+  await assertFails(setDoc(cashRef,financialDoc("cashSessions","s1",{
+   id:"s1",status:"open",openingCash:900,openedAt:"2026-11-16T12:00:00"
+  })));
+  await assertFails(setDoc(doc(owner,"users","owner","records","cash-invalid-amount"),
+   financialDoc("cashMovements","invalid",{id:"invalid",sessionId:"s1",kind:"sangria",amount:-10})));
+  await assertFails(setDoc(doc(owner,"users","owner","records","cash-spoofed"),
+   financialDoc("cashMovements","spoofed",{id:"another",sessionId:"s1",kind:"sangria",amount:10})));
   await assertSucceeds(setDoc(movementRef,financialDoc("cashMovements","m1",{
    id:"m1",sessionId:"s1",kind:"sangria",amount:10,reason:"banco"
   })));
   await assertFails(setDoc(movementRef,financialDoc("cashMovements","m1",{
    id:"m1",sessionId:"s1",kind:"sangria",amount:500,reason:"fraude"
   })));
+  await assertFails(setDoc(movementRef,{record:{
+    universe:"batataria",group:"cashMovements",id:"m1",
+    item:{id:"m1",sessionId:"s1",kind:"sangria",amount:10,reason:"banco"},
+    rank:900},updatedAt:serverTimestamp()}));
   await assertFails(deleteDoc(movementRef));
   await assertSucceeds(setDoc(cashRef,financialDoc("cashSessions","s1",{
-   id:"s1",status:"closed",openingCash:100,closedAt:"2026-11-16T16:00:00"
+   id:"s1",status:"closed",openingCash:100,openedAt:"2026-11-16T12:00:00",
+   closedAt:"2026-11-16T16:00:00",closedBy:"QA",countedCash:100,
+   expectedCash:100,difference:0,closedSummary:{expectedCash:100}
   })));
   await assertFails(setDoc(cashRef,financialDoc("cashSessions","s1",{
    id:"s1",status:"open",openingCash:100

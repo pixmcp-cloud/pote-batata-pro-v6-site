@@ -124,14 +124,45 @@ service cloud.firestore {
               && request.resource.data.record.id == resource.data.record.id
             )
           )
+          // Payloads financeiros devem ser consistentes e com valores válidos.
+          && (
+            !isFinancialGroup(request.resource.data.record.group)
+            || (
+              request.resource.data.record.item is map
+              && request.resource.data.record.item.id == request.resource.data.record.id
+            )
+          )
+          && (
+            request.resource.data.record.group != 'cashMovements'
+            || (
+              request.resource.data.record.item.kind in [
+                'suprimento', 'sangria', 'reembolso', 'late_payment'
+              ]
+              && request.resource.data.record.item.amount is number
+              && request.resource.data.record.item.amount > 0
+              && request.resource.data.record.item.amount <= 100000000
+              && request.resource.data.record.item.sessionId is string
+            )
+          )
           // Movimentações de caixa já registradas não são reescritas.
           && (
             !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
             || (
               (request.resource.data.record.group != 'cashMovements'
-               || request.resource.data.record.item == resource.data.record.item)
+               || request.resource.data.record == resource.data.record)
               && (request.resource.data.record.group != 'cashSessions'
-               || resource.data.record.item.status != 'closed')
+               || (
+                  resource.data.record.item.status == 'open'
+                  && request.resource.data.record.item.status == 'closed'
+                  && request.resource.data.record.rank == resource.data.record.rank
+                  && request.resource.data.record.item.diff(resource.data.record.item)
+                    .affectedKeys().hasOnly([
+                      'status', 'closedAt', 'closedBy', 'countedCash',
+                      'expectedCash', 'difference', 'closedSummary'
+                    ])
+                  && request.resource.data.record.item.closedAt is string
+                  && request.resource.data.record.item.closedSummary is map
+               ))
             )
           )
           // Um turno nasce aberto; após o fechamento não pode ser reaberto.
