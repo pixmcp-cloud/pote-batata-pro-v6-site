@@ -7,8 +7,8 @@ if(window.POTE_UNIVERSES)return;
 const VALID=["batataria","pizzaria","hamburgueria","hotdog","lancheria"];
 const LISTS=["recipes","ingredients","orders","clients","suppliers","expenses",
  "recipeVersions","recipeTrash","purchases","stockMovements","beverages","addons",
- "combos","prepBatches","checklist","losses"];
-const UNIVERSE_VERSION=2;
+ "combos","prepBatches","checklist","losses","cashSessions","cashMovements","garimpoOffers"];
+const UNIVERSE_VERSION=3;
 const copy=v=>JSON.parse(JSON.stringify(v));
 function snapshot(state){
  const data=state.data,result={};

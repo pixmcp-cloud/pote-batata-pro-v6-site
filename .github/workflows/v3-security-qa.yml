@@ -1,0 +1,36 @@
+name: V3 security QA (no deployment)
+
+on:
+  push:
+    branches:
+      - v3-audit-37-20261116
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firestore-rules:
+    name: Firestore rules isolated emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout V3 branch
+        uses: actions/checkout@v4
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Java 21 (Firestore emulator only)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install test dependencies only (never deploy)
+        run: |
+          printf '{"private":true,"name":"v3-security-qa","version":"1.0.0"}\n' > package.json
+          npm install --no-save --no-package-lock firebase-tools@15.36.0 firebase@13.3.0 @firebase/rules-unit-testing@6.0.0
+      - name: Test Firebase rules on demo project
+        env:
+          CI: 'true'
+        run: ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-pote-batata-v3 --non-interactive "node test_v3_rules_emulator.cjs"

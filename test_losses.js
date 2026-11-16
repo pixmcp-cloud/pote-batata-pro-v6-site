@@ -115,7 +115,7 @@ const saveCount=data.losses.length;
 assert.equal(saveCount,5);
 assert(saved>0&&rendered>0);
 const moduleUniv=read("universe_core.js");
-assert(moduleUniv.includes('"losses"]'),"Universos devem isolar as perdas");
+assert(/const LISTS=[\s\S]*?"losses"/.test(moduleUniv),"Universos devem isolar as perdas");
 const build=read("public/index.html");
 assert(build.includes("losses.js?v=custo-medio-20261116"));
 assert(build.includes("losses.css?v=losses-20261116"));

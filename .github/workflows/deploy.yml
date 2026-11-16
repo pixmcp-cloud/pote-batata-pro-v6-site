@@ -115,6 +115,7 @@ jobs:
           node test_auth_v2_integration.js
           node test_finance_core.js
           node test_pdv_cash_core.mjs
+          node test_v3_cash_reconciliation.mjs
           node test_pdv_cash_ui.mjs
           node test_numeric_keyboard.js
           node --check public/numeric_keyboard.js
@@ -155,6 +156,7 @@ jobs:
           node --check public/universe_templates.js
           node --check public/universe_core.js
           node test_business_universes.js
+          node test_v3_universe_financial_isolation.js
           node --check public/stock_math.js
           node --check public/stock_ui.js
           node --check public/stock_update_modal.js
