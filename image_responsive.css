@@ -44,3 +44,43 @@ img{max-width:100%}
  .card .photo{height:clamp(120px,34vw,170px)}
 }
 @media(prefers-reduced-motion:reduce){.photo img,.card .photo img{transition:none!important}}
+
+/* RECEITAS E FICHAS: moldura exatamente 1:1 e imagem integral sem recortar.
+   Aplicação restrita ao catálogo de receitas e à ficha técnica; não altera vitrines nem criativos. */
+.recipe-catalog-card .photo{
+  width:100%;
+  aspect-ratio:1 / 1;
+  height:auto!important;
+  min-height:0;
+  padding:7px;
+  overflow:hidden;
+}
+.recipe-catalog-card .photo img{
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain!important;
+  object-position:center!important;
+  transform:none!important;
+}
+.recipe-detail-photo{
+  aspect-ratio:1 / 1;
+  width:100%;
+  max-width:420px;
+  height:auto!important;
+  max-height:none;
+  min-height:0;
+  margin:0 auto 20px;
+}
+.recipe-detail-photo img{
+  width:100%;
+  height:100%;
+  object-fit:contain!important;
+  object-position:center!important;
+}
+@media(max-width:450px){
+ .recipe-catalog-card .photo{height:auto!important;aspect-ratio:1 / 1}
+ .recipe-detail-photo{height:auto!important;aspect-ratio:1 / 1;max-width:100%;margin:0 auto 16px}
+}
