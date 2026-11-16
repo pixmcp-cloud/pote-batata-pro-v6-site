@@ -77,3 +77,13 @@
 - `franchise_shopping_list.mjs` e CSS exibem botão fixo **Lista de Compras** em todas as telas da franquia, com meta, saldo disponível, reservas e quantidade faltante.
 - Não há reabastecimento automático após vendas nem reaplicação dos saldos iniciais em novas sessões; catálogo futuro altera a meta de compra, não o estoque físico.
 - Testes: `test_franchise_stock.mjs` e `test_franchise_shopping_ui.mjs`.
+
+## Custos estimados para franquias — 60% (16/11/2026)
+
+Por decisão do proprietário, as unidades com franquia ativa recebem valores **estimados** para custos ainda não cadastrados, equivalentes a **60% do preço final de referência**. Não são compras reais e não geram saída de caixa nem histórico de aquisições. O módulo `franchise_cost_estimates.mjs` usa apenas a tabela demonstrativa SEED para derivar preços de referência dos 26 sabores, sem distribuir custos reais da matriz para franqueados. Para os 11 modelos de bebida, usa 60% do preço de venda já configurado.
+
+A primeira aplicação preenche preços e unidades dos 41 ingredientes oficiais ainda sem custo, marca `costSource: franchise-estimate-60` e registra `estimatedSalePrice` e `estimatedUnitCost` nas receitas. Valores existentes ou alterados manualmente não são substituídos. Compras reais e preços informados manualmente assumem prioridade.
+
+Durante a simulação, o preço de venda de referência de cada receita fica disponível e o custo unitário total da receita é apresentado como 60% dele, sem duplicar embalagem. Quando um pedido for registrado com preço diferente do de referência, se todos seus componentes ainda forem simulados, o custo informado no pedido será 60% do preço final digitado. Taxas, impostos e rateios fixos permanecem separados do custo estimado. Os relatórios devem ser interpretados como **simulação**, não como lucro realizado. Se o negócio começar a operar, cadastre custos reais para obter indicadores confiáveis.
+
+A correção de sintaxe dos literais de quebra de linha no `source/pote_app_base.html` também foi incluída, com teste específico para impedir regressões.

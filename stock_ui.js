@@ -311,6 +311,7 @@ function saveReference(button){
  }
  item.purchasePrice=price;item.price=price;item.purchaseQuantity=quantity;
  item.purchaseUnit=unit;item.yield=yld;item.source="Preço informado manualmente";
+ item.costSource="manual-price";
  persist();render();toast("Custo de referência atualizado. Saldo de estoque preservado.");
 }
 function normalized(text){

@@ -87,6 +87,6 @@ assert.equal(data.ingredients.some(i=>i.id==="missing-abc"),false,"Não inventar
 assert(pers>=4&&renders>=4);
 const pub=source("public/index.html");
 for(const script of ["stock_update_modal.js?v=stock-update-20261115",
- "stock_math.js?v=custo-medio-20261116"])
+ "stock_math.js?v=estimativa-franquia-60-20261116"])
  assert(pub.includes(script),"Script ausente: "+script);
 console.log("PASS: compra por dúzia/atacado 10 kg, valor pago, saldo físico, bebida, conferência zero e recuperação sem estoque fictício.");

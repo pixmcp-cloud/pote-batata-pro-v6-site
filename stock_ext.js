@@ -112,6 +112,7 @@ function saveBeveragePurchase(){
   });
   // A compra é validada antes de alterar o objeto real: os dados devem ser aplicados juntos.
   b.stock=result.next;b.purchasePrice=result.totalPaid;b.purchaseQuantity=qty;
+  b.costSource="real-purchase";
   b.purchaseUnit="un";b.catalogPurchaseAt=result.receipt.at;
   result.receipt.itemKind="beverage";
   state.data.stockMovements[0].itemKind="beverage";
@@ -155,6 +156,7 @@ function saveBeverageEdit(id){
   b.priceAudit=b.priceAudit.slice(0,30);
  }
  b.sellPrice=sale;b.purchasePrice=paid;b.purchaseQuantity=qty;b.purchaseUnit="un";b.stock=stock;
+ if(paid!==oldPaid||qty!==oldQty)b.costSource="manual-price";
  b.referencePriceEditedAt=at;
  persist();render();toast("Bebida atualizada: compra, venda e saldo conferidos.");return true;
 }

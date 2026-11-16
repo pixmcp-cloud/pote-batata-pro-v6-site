@@ -3,13 +3,13 @@
 "use strict";
 if(window.POTE_RELEASE_NEWS)return;
 const RELEASE={
- id:"2026-11-16-radar-preco-v2-01",
+ id:"2026-11-16-franquia-custos60-02",
  date:"16/11/2026",
- title:"Atualização de segurança e Radar de Preço",
+ title:"Franquias: custos estimados de 60%",
  items:[
   ["Nova base para contas de teste","A operação passou a utilizar registros V2 separados por conta e negócio. Os pedidos e cadastros antigos de teste não são importados automaticamente. O código anterior continua preservado."],
   ["Estoque e pedidos mais protegidos","Gravações de estoque e pedidos utilizam transações com detecção de conflitos entre dispositivos. Caso haja divergência, exporte o backup e entre novamente."],
-  ["Custos e lucros","É possível calcular custo de reposição ou custo médio ponderado. A precificação distingue sobra antes dos custos fixos e lucro estimado após rateio."],
+  ["Custo estimado de 60%","Para contas de franquia em simulação, valores de compra ausentes foram preenchidos como estimativas, equivalentes a 60% do preço final de referência. Não representam notas fiscais nem compras reais."],
   ["Radar de Preço nacional","Os mercados são buscados conforme GPS, com cache temporário e fontes regionais. Ofertas de clube têm comparação separada."],
   ["Backups e auditoria","Importação exige confirmação, cópia prévia e validação. Uma falha de módulo essencial bloqueia operações críticas."],
   ["Galeria e imagens","A galeria ainda mantém imagens locais no dispositivo. A sincronização em nuvem não foi ativada para evitar custos adicionais."]

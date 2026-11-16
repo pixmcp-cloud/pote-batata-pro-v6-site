@@ -172,3 +172,13 @@ Ao sincronizar o catálogo da franquia pela primeira vez, a unidade inicia com q
 A inicialização ocorre uma única vez por universo comercial, preservando alterações e vendas posteriores. Novas receitas publicadas pela matriz não geram estoque novo automaticamente: o que faltar aparece na lista.
 
 Para contas com franquia ativa, o botão fixo **Lista de Compras** acompanha a navegação no celular e no desktop. Ele compara o saldo livre (já subtraindo reservas de pedidos) com a meta de cada ingrediente e bebida, lista quanto comprar e oferece atalho para registrar a compra. Conta FREE comum não vê o botão.
+
+## Custos estimados para franquias — 60% (16/11/2026)
+
+Por decisão do proprietário, as unidades com franquia ativa recebem valores **estimados** para custos ainda não cadastrados, equivalentes a **60% do preço final de referência**. Não são compras reais e não geram saída de caixa nem histórico de aquisições. O módulo `franchise_cost_estimates.mjs` usa apenas a tabela demonstrativa SEED para derivar preços de referência dos 26 sabores, sem distribuir custos reais da matriz para franqueados. Para os 11 modelos de bebida, usa 60% do preço de venda já configurado.
+
+A primeira aplicação preenche preços e unidades dos 41 ingredientes oficiais ainda sem custo, marca `costSource: franchise-estimate-60` e registra `estimatedSalePrice` e `estimatedUnitCost` nas receitas. Valores existentes ou alterados manualmente não são substituídos. Compras reais e preços informados manualmente assumem prioridade.
+
+Durante a simulação, o preço de venda de referência de cada receita fica disponível e o custo unitário total da receita é apresentado como 60% dele, sem duplicar embalagem. Quando um pedido for registrado com preço diferente do de referência, se todos seus componentes ainda forem simulados, o custo informado no pedido será 60% do preço final digitado. Taxas, impostos e rateios fixos permanecem separados do custo estimado. Os relatórios devem ser interpretados como **simulação**, não como lucro realizado. Se o negócio começar a operar, cadastre custos reais para obter indicadores confiáveis.
+
+A correção de sintaxe dos literais de quebra de linha no `source/pote_app_base.html` também foi incluída, com teste específico para impedir regressões.

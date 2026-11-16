@@ -87,6 +87,7 @@ function purchase({ingredient,quantity,unit,paidTotal,at,supplier,purchases,move
  ingredient.purchaseUnit=unit;
  ingredient.purchasePrice=total;
  ingredient.price=total;
+ ingredient.costSource="real-purchase";
  ingredient.source="Compra real registrada em "+date.slice(0,10);
  purchases.unshift(receipt);
  movements.unshift({id:makeId(),at:date,ingredientId:ingredient.id,

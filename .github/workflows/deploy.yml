@@ -90,6 +90,7 @@ jobs:
           cp franchise_sync.js public/franchise_sync.js
           cp franchise_catalog.mjs public/franchise_catalog.mjs
           cp franchise_stock_core.mjs public/franchise_stock_core.mjs
+          cp franchise_cost_estimates.mjs public/franchise_cost_estimates.mjs
           cp franchise_shopping_list.mjs public/franchise_shopping_list.mjs
           cp franchise_shopping_list.css public/franchise_shopping_list.css
           cp visual_refresh.css public/visual_refresh.css
@@ -179,6 +180,9 @@ jobs:
           node --input-type=module --check < public/franchise_sync.js
           node test_franchise_catalog.mjs
           node test_franchise_stock.mjs
+          node test_franchise_cost_estimates.mjs
+          node test_franchise_source_syntax.js
+          node --check public/franchise_cost_estimates.mjs
           node test_franchise_shopping_ui.mjs
           node --check public/franchise_stock_core.mjs
           node --check public/franchise_shopping_list.mjs

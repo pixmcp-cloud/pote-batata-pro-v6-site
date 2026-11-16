@@ -127,7 +127,17 @@ function effectivePackageCost(r){
  }
  return num(state.data.settings.packageCost);
 }
-function costOf(r){if(!r)return 0;if(window.POTE_FINANCE)return window.POTE_FINANCE.recipeMaterialCost(r,state.data.ingredients,state.data.settings?.costBasis||'replacement');return r.items.reduce((a,x)=>{const i=ingredient(x.id);return a+(i?num(x.g)*baseUnit(i)/(Math.max(1,num(i.yield))/100):0)},0)}
+function recipeCostIsEstimated(r){
+ return !!r&&r.costEstimateMode==='estimated'&&num(r.costEstimatePct)===60&&
+  (r.items||[]).every(x=>{
+   const i=ingredient(x.id);
+   return i&&i.costSource==='franchise-estimate-60'&&
+    Math.abs(num(i.purchasePrice)-num(i.costEstimateOriginalPrice))<0.001;
+  });
+}
+function costOf(r){if(!r)return 0;
+ if(recipeCostIsEstimated(r))return Math.max(0,num(r.estimatedUnitCost)-effectivePackageCost(r)-num(state.data.settings.otherCost));
+if(window.POTE_FINANCE)return window.POTE_FINANCE.recipeMaterialCost(r,state.data.ingredients,state.data.settings?.costBasis||'replacement');return r.items.reduce((a,x)=>{const i=ingredient(x.id);return a+(i?num(x.g)*baseUnit(i)/(Math.max(1,num(i.yield))/100):0)},0)}
 function totalCost(r){if(!r)return 0;const d=state.data;const enabled=d.expenses.filter(e=>e.enabled),fixed=enabled.filter(e=>e.mode==='mensal').reduce((a,e)=>a+num(e.amount)*Math.max(1,num(e.repeat)),0)/Math.max(1,num(d.settings.estimatedMonthlyUnits)||1);const variable=enabled.filter(e=>e.mode==='unidade').reduce((a,e)=>a+num(e.amount)*Math.max(1,num(e.repeat)),0);return costOf(r)+effectivePackageCost(r)+num(d.settings.otherCost)+fixed+variable}
 function roundUpCommercial(v){
  if(window.POTE_FINANCE)return window.POTE_FINANCE.roundPrice(v);
@@ -138,6 +148,8 @@ function roundUpCommercial(v){
 }
 function sellPrice(r,channelOverride){
  if(!r)return 0;
+ if(recipeCostIsEstimated(r)&&num(r.estimatedSalePrice)>0&&r.targetGainPct===100)
+  return num(r.estimatedSalePrice);
  const s=state.data.settings,b=totalCost(r),ch=channelOverride||s.channel||'direto';
  const feePct=ch==='marketplace'?num(s.marketplaceFee??19):num(s.fee),fees=feePct+num(s.tax);
  if(window.POTE_FINANCE)return window.POTE_FINANCE.suggest({cost:b,feePct:fees,mode:r.pricingMode||'margin',gainPct:r.targetGainPct??100,marginPct:s.margin});
@@ -334,8 +346,7 @@ function checkoutVitrine(openWa){
    });
   });
  }
- const lines=cart.map(x=>`• ${x.qty}x ${x.name} — ${money(x.price*x.qty)}`).join('
-');
+ const lines=cart.map(x=>`• ${x.qty}x ${x.name} — ${money(x.price*x.qty)}`).join('\n');
  const msg=`*NOVO PEDIDO • ${state.data.brand?.name||'Meu Negócio'}*
 
 ${lines}
@@ -346,8 +357,7 @@ Entrega: ${money(deliv)}
 
 *Cliente:* ${cName}
 *Endereço:* ${cAddr}
-*Pagamento:* ${pay}${obs?'
-*Obs:* '+obs:''}`;
+*Pagamento:* ${pay}${obs?'\n*Obs:* '+obs:''}`;
  cart=[];
  persist();
  if(openWa){
@@ -374,11 +384,9 @@ function editRecipe(id){const r=recipe(id);if(r?.templateOrigin==='franchise'){t
 function renderDraftItems(){if(!draftItems.length)return '<div class="muted">Nenhum ingrediente na lista. Adicione acima.</div>';return `<div class="tablewrap"><table class="table" style="min-width:360px"><thead><tr><th>Ingrediente</th><th>Qtd</th><th>Custo parcial</th><th>Ação</th></tr></thead><tbody>${draftItems.map((x,idx)=>{const i=ingredient(x.id);const c=i?num(x.g)*baseUnit(i)/Math.max(.01,num(i.yield)/100):0;return `<tr><td>${escapeHtml(i?.name||x.id)}</td><td><input type="text" inputmode="decimal" style="max-width:80px;background:#170f0b;color:#f8e8d4;border:1px solid #806044;border-radius:6px;padding:4px 6px" value="${num(x.g)}" onchange="updateDraftQty(${idx},this.value)"> ${escapeHtml(i?.measureUnit||'g')}</td><td>${money(c)}</td><td><button class="btn mini danger" onclick="removeDraftItem(${idx})">Remover</button></td></tr>`}).join('')}</tbody></table></div>`}
 function updateDraftQty(idx,val){const q=num(val);if(q<=0){removeDraftItem(idx);return}draftItems[idx].g=q;const el=document.getElementById('builderItems');if(el)el.innerHTML=renderDraftItems()}
 function removeDraftItem(idx){draftItems.splice(idx,1);const el=document.getElementById('builderItems');if(el)el.innerHTML=renderDraftItems()}
-function pageBuilder(){let edit=String(state.expansion||'').startsWith('edit:');const r=edit?recipe(state.expansion.slice(5)):null;if(edit&&r&&!draftItems.length)draftItems=copy(r.items||[]);return `<div class="box"><h2>${edit?'Editar receita: '+escapeHtml(r?.name||''):'Montar receita autoral'}</h2><p>${!pro()?'Free: você pode cadastrar uma receita própria e um ingrediente próprio.':'Adicione ou edite sabores com seus insumos cadastrados.'}</p><div class="fields">${field('Nome','builderName',r?.name||'')}${select('Categoria','builderCategory',[['Simples','Simples'],['Gourmet','Gourmet'],['Doces','Doces'],['Autorais','Autorais']],r?.category||'Autorais')}${field('Descrição','builderTagline',r?.tagline||'')}${field('Tempo (min)','builderTime',r?.time||30,'number')}${field('Peso aproximado por unidade (g) - opcional','builderApproxWeight',r?.portionWeightG||'', 'number','min="0" max="100000" placeholder="Ex.: 250 ou 500"')}${select(master()?'Imagem original do catálogo':'Imagem ilustrativa genérica','builderImageUrl',[['','Sem foto vinculada'],...SEED.recipes.map(({id,name})=>[master()?(window.POTE_RECIPE_IMAGES?.[id]||''):('./assets/generic/recipe-'+id+'.svg'),name])],r?.imageUrl||(master()?window.POTE_RECIPE_IMAGES?.[r?.id]:r?'./assets/generic/recipe-'+r.id+'.svg':'')||'')}</div><div class="fields">${select('Ingrediente','builderIng',[...state.data.ingredients].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR',{sensitivity:'base'})).map(i=>[i.id,`${i.name} (${i.measureUnit||'g'})`]),'batata')}${field('Quantidade (g, ml ou un)','builderQty','','text','inputmode="decimal" placeholder="Ex: 120"')}</div><div class="actions"><button class="btn line" onclick="appendBuilderIng()">+ Adicionar / Somar ingrediente</button><button class="btn line" onclick="go('ingredients')">Gerenciar insumos</button></div><div id="builderItems" class="notice">${renderDraftItems()}</div><label class="field">Modo de preparo (uma etapa por linha)<textarea rows="5" id="builderSteps">${escapeHtml(r?.steps?.join('
-')||'')}</textarea></label><div class="actions"><button class="btn" onclick="saveBuilder()">Salvar receita</button>${edit?`<button class="btn line" onclick="openRecipe('${r.id}')">Cancelar edição</button>`:''}</div></div>`}
+function pageBuilder(){let edit=String(state.expansion||'').startsWith('edit:');const r=edit?recipe(state.expansion.slice(5)):null;if(edit&&r&&!draftItems.length)draftItems=copy(r.items||[]);return `<div class="box"><h2>${edit?'Editar receita: '+escapeHtml(r?.name||''):'Montar receita autoral'}</h2><p>${!pro()?'Free: você pode cadastrar uma receita própria e um ingrediente próprio.':'Adicione ou edite sabores com seus insumos cadastrados.'}</p><div class="fields">${field('Nome','builderName',r?.name||'')}${select('Categoria','builderCategory',[['Simples','Simples'],['Gourmet','Gourmet'],['Doces','Doces'],['Autorais','Autorais']],r?.category||'Autorais')}${field('Descrição','builderTagline',r?.tagline||'')}${field('Tempo (min)','builderTime',r?.time||30,'number')}${field('Peso aproximado por unidade (g) - opcional','builderApproxWeight',r?.portionWeightG||'', 'number','min="0" max="100000" placeholder="Ex.: 250 ou 500"')}${select(master()?'Imagem original do catálogo':'Imagem ilustrativa genérica','builderImageUrl',[['','Sem foto vinculada'],...SEED.recipes.map(({id,name})=>[master()?(window.POTE_RECIPE_IMAGES?.[id]||''):('./assets/generic/recipe-'+id+'.svg'),name])],r?.imageUrl||(master()?window.POTE_RECIPE_IMAGES?.[r?.id]:r?'./assets/generic/recipe-'+r.id+'.svg':'')||'')}</div><div class="fields">${select('Ingrediente','builderIng',[...state.data.ingredients].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR',{sensitivity:'base'})).map(i=>[i.id,`${i.name} (${i.measureUnit||'g'})`]),'batata')}${field('Quantidade (g, ml ou un)','builderQty','','text','inputmode="decimal" placeholder="Ex: 120"')}</div><div class="actions"><button class="btn line" onclick="appendBuilderIng()">+ Adicionar / Somar ingrediente</button><button class="btn line" onclick="go('ingredients')">Gerenciar insumos</button></div><div id="builderItems" class="notice">${renderDraftItems()}</div><label class="field">Modo de preparo (uma etapa por linha)<textarea rows="5" id="builderSteps">${escapeHtml(r?.steps?.join('\n')||'')}</textarea></label><div class="actions"><button class="btn" onclick="saveBuilder()">Salvar receita</button>${edit?`<button class="btn line" onclick="openRecipe('${r.id}')">Cancelar edição</button>`:''}</div></div>`}
 function appendBuilderIng(){const id=document.getElementById('builderIng').value,g=num(document.getElementById('builderQty').value);if(!id||g<=0){toast('Informe uma quantidade válida.');return}const existing=draftItems.find(x=>x.id===id);if(existing)existing.g=num(existing.g)+g;else draftItems.push({id,g});document.getElementById('builderQty').value='';document.getElementById('builderItems').innerHTML=renderDraftItems()}
-function saveBuilder(){const name=document.getElementById('builderName').value.trim();if(!name){toast('Informe o nome da receita');return}const editing=String(state.expansion||'').startsWith('edit:');const old=editing?recipe(state.expansion.slice(5)):null;if(!pro()&&!editing&&freeCustom().length>=1){toast('🔒 Free: limite de uma receita autoral.');return}if(!pro()&&old&&SEED.recipes.some(x=>x.id===old.id)){toast('🔒 Receita demonstrativa bloqueada para edição no Free.');return}if(!draftItems.length){toast('Adicione ao menos um ingrediente.');return}const r={id:old?.id||uid(),name,category:document.getElementById('builderCategory').value,tagline:document.getElementById('builderTagline').value,time:num(document.getElementById('builderTime').value)||30,difficulty:old?.difficulty||'Fácil',portionWeightG:Math.max(0,num(document.getElementById('builderApproxWeight')?.value)||0),items:copy(draftItems),steps:document.getElementById('builderSteps').value.split('
-').map(s=>s.trim()).filter(Boolean),imageUrl:document.getElementById('builderImageUrl')?.value||old?.imageUrl||'',pricingMode:old?.pricingMode||'gain',targetGainPct:old?.targetGainPct??100,unavailable:!!old?.unavailable};state.data.recipes=old?state.data.recipes.map(x=>x.id===r.id?r:x):[...state.data.recipes,r];draftItems=[];state.tab='recipes';state.expansion=r.id;render();toast('Receita salva com sucesso!')}
+function saveBuilder(){const name=document.getElementById('builderName').value.trim();if(!name){toast('Informe o nome da receita');return}const editing=String(state.expansion||'').startsWith('edit:');const old=editing?recipe(state.expansion.slice(5)):null;if(!pro()&&!editing&&freeCustom().length>=1){toast('🔒 Free: limite de uma receita autoral.');return}if(!pro()&&old&&SEED.recipes.some(x=>x.id===old.id)){toast('🔒 Receita demonstrativa bloqueada para edição no Free.');return}if(!draftItems.length){toast('Adicione ao menos um ingrediente.');return}const r={id:old?.id||uid(),name,category:document.getElementById('builderCategory').value,tagline:document.getElementById('builderTagline').value,time:num(document.getElementById('builderTime').value)||30,difficulty:old?.difficulty||'Fácil',portionWeightG:Math.max(0,num(document.getElementById('builderApproxWeight')?.value)||0),items:copy(draftItems),steps:document.getElementById('builderSteps').value.split('\n').map(s=>s.trim()).filter(Boolean),imageUrl:document.getElementById('builderImageUrl')?.value||old?.imageUrl||'',pricingMode:old?.pricingMode||'gain',targetGainPct:old?.targetGainPct??100,unavailable:!!old?.unavailable};state.data.recipes=old?state.data.recipes.map(x=>x.id===r.id?r:x):[...state.data.recipes,r];draftItems=[];state.tab='recipes';state.expansion=r.id;render();toast('Receita salva com sucesso!')}
 function pagePricing(){if(window.POTE_PRICING?.renderPage)return window.POTE_PRICING.renderPage();const available=state.data.recipes.filter(allowed),s=state.data.settings;if(!available.length)return `<div class="box" style="text-align:center"><h2>🔒 Precificação</h2><p>Desbloqueie uma receita para calcular custos. Assine o modo Pro para liberar todas.</p><button class="btn" onclick="go('recipes')">Ir às receitas</button></div>`;const selId=state.expansion&&available.some(x=>x.id===state.expansion)?state.expansion:available[0].id;const cur=recipe(selId)||available[0];const pMode=cur.pricingMode==='gain'?'gain':'margin';return `<div class="box"><h2>Precificação inteligente</h2><p>Compare margem sobre venda e markup sobre custo na venda direta e no marketplace.</p><div class="notice green">✅ Padrão inicial: <b>100% de ganho sobre o custo</b> com arredondamento comercial (<b>,50</b> ou <b>,90</b>). O custo de embalagens pode ser puxado direto do estoque real (${money(effectivePackageCost())}/pote).</div><div class="fields">${select('Selecione a ficha liberada','priceRecipe',available.map(r=>[r.id,r.name]),cur.id,'onchange="onChangePriceRecipe(this.value)"')}${select('Modo de cálculo da receita','priceMode',[['margin','Margem líquida sobre venda (%)'],['gain','Markup / Ganho sobre custo (%)']],pMode)}${select('Canal simulado','priceChannel',[['direto','Venda Direta / Balcão'],['marketplace','App / Marketplace']],s.channel||'direto')}${field('Meta mensal (potes para rateio fixo)','priceUnits',s.estimatedMonthlyUnits||300,'text','inputmode="numeric"')}</div><div class="fields">${select('Custo de embalagem','priceUsePkgStock',[['1','Usar estoque real de embalagens ('+money(packagingIngredients().reduce((a,i)=>a+baseUnit(i),0))+')'],['0','Usar valor fixo manual abaixo']],s.usePackagingStock?'1':'0')}${field('Embalagem manual (R$)','pricePkg',s.packageCost,'text','inputmode="decimal"')}${field('Outros custos por pote (R$)','priceOther',s.otherCost,'text','inputmode="decimal"')}${field('Custo médio motoboy/entrega (R$)','priceDelivCost',s.deliveryCostPerOrder||0,'text','inputmode="decimal"')}${field('Taxa direta / cartão (%)','priceFee',s.fee,'text','inputmode="decimal"')}${field('Taxa Marketplace (%)','priceMktFee',s.marketplaceFee??19,'text','inputmode="decimal"')}${field('Impostos (%)','priceTax',s.tax,'text','inputmode="decimal"')}${field('Margem alvo (%)','priceMargin',s.margin,'text','inputmode="decimal"')}${field('Markup / Ganho alvo (%)','priceGain',cur.targetGainPct??100,'text','inputmode="decimal"')}</div><div class="actions"><button class="btn" onclick="savePrices()">Atualizar e calcular</button></div><div id="priceResult">${renderPriceMetrics(cur)}</div></div><div class="box"><h2>Comparativo de preços das fichas liberadas</h2><div class="tablewrap"><table class="table"><thead><tr><th>Receita</th><th>Modo</th><th>Custo Total</th><th>Preço Direto</th><th>Preço Marketplace</th></tr></thead><tbody>${available.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${r.pricingMode==='gain'?label('Markup '+num(r.targetGainPct??100)+'%'):label('Margem '+num(s.margin)+'%')}</td><td>${money(totalCost(r))}</td><td><b>${money(sellPrice(r,'direto'))}</b></td><td><b>${money(sellPrice(r,'marketplace'))}</b></td></tr>`).join('')}</tbody></table></div></div>`}
 function onChangePriceRecipe(id){state.expansion=id;render()}
 function renderPriceMetrics(r){if(!r)return '';const s=state.data.settings,cost=totalCost(r),ch=s.channel||'direto',sale=sellPrice(r,ch),profit=orderUnitProfit(r,sale,ch);return `<div class="grid" style="margin-top:14px"><div class="kpi"><small>Insumos da ficha</small><strong>${money(costOf(r))}</strong></div><div class="kpi"><small>Custo completo (c/ emb. e rateio)</small><strong>${money(cost)}</strong></div><div class="kpi"><small>Venda sugerida (${ch})</small><strong>${money(sale)}</strong></div><div class="kpi"><small>Sobra após custos variáveis</small><strong>${money(sale*(1-feeRate(ch)/100)-variableUnitCost(r))}</strong></div><div class="kpi"><small>Lucro estimado por unidade (após rateio fixo)</small><strong>${money(profit)}</strong></div></div>`}
@@ -420,8 +428,7 @@ function shoppingLines(productValue,quantity){
 function buildShoppingList(){const value=document.getElementById('shoppingProduct').value,qty=num(document.getElementById('shoppingQty').value);if(qty<0||!Number.isInteger(qty)){toast('Meta precisa ser número inteiro não negativo');return}const lines=shoppingLines(value,qty),labelProduct=value?(value.startsWith('combo:')?state.data.combos.find(c=>c.id===value.slice(6))?.name:recipe(value.slice(7))?.name):'Estoque mínimo';const out=`LISTA DE COMPRAS • ${state.data.brand?.name||'Meu Negócio'}
 ${labelProduct||'Estoque mínimo'}${value?' • '+qty+' unidades':''}
 
-${lines.length?lines.join('
-'):'Nenhum item precisa ser comprado.'}
+${lines.length?lines.join('\n'):'Nenhum item precisa ser comprado.'}
 
 Confira quantidade por embalagem, unidade e preço antes de comprar.`;document.getElementById('shoppingOutput').value=out;state.lastShopping=out;persist();toast('Lista gerada localmente!')}
 async function copyShoppingList(){const v=document.getElementById('shoppingOutput')?.value||state.lastShopping||'';if(!v){toast('Gere uma lista primeiro.');return}try{await navigator.clipboard.writeText(v);toast('Lista copiada! Cole no WhatsApp do fornecedor.')}catch(e){document.getElementById('shoppingOutput').focus();document.getElementById('shoppingOutput').select();document.execCommand('copy');toast('Lista selecionada para copiar.')}}
@@ -515,8 +522,17 @@ function updateOrderSuggestedPrice(){
  window.POTE_DRINKS?.mount?.();
  window.POTE_ORDER_CUSTOM?.mount?.();
  const q=window.POTE_ORDER_CUSTOM?.adjustQuote?.(optionQuote(item,channel,extraB,''))||optionQuote(item,channel,extraB,'');
- if(!q){window.POTE_ORDER?.refresh?.();return;}document.getElementById('orderPrice').value=q.price.toFixed(2);
- const e=document.getElementById('orderQuote');if(e)e.innerHTML='Preço sugerido: <b>'+money(q.price)+'</b> · Itens separados: '+money(q.fullPrice)+' · Desconto: '+money(q.discount)+' · Sobra para despesas fixas e lucro: '+money(q.contribution)+' · Lucro estimado após despesas fixas: '+money(q.estimatedProfit)+(q.contribution<=0?'<br>⚠️ Preço abaixo do custo variável':'');
+ if(!q){window.POTE_ORDER?.refresh?.();return;}
+ const costMissing=Boolean(window.POTE_AUTH?.franchiseActive)&&(
+  (q.recipe?.items||[]).some(x=>{const i=ingredient(x.id);
+   return !i||!(num(i.purchasePrice??i.price)>0&&num(i.purchaseQuantity)>0)})
+  ||(q.beverages||[]).some(b=>!(num(b.purchasePrice)>0&&num(b.purchaseQuantity)>0))
+ );
+ const input=document.getElementById('orderPrice');
+ if(input)input.value=costMissing?'':q.price.toFixed(2);
+ const e=document.getElementById('orderQuote');if(e)e.innerHTML=costMissing?
+ '<div class="notice red"><strong>Preço sugerido indisponível: custos de compra não cadastrados.</strong> O estoque inicial da franquia é demonstrativo. Cadastre custos reais em Estoque e Compras. Para teste, informe o preço manualmente; o lucro estimado sem custos não é confiável.</div>':
+ (recipeCostIsEstimated(q.recipe)?'<strong>SIMULAÇÃO: custo estimado em 60% do preço de venda. Não representa compras reais.</strong><br>':'')+'Preço sugerido: <b>'+money(q.price)+'</b> · Itens separados: '+money(q.fullPrice)+' · Desconto: '+money(q.discount)+' · Sobra para despesas fixas e lucro: '+money(q.contribution)+' · Lucro estimado após despesas fixas: '+money(q.estimatedProfit)+(q.contribution<=0?'<br>⚠️ Preço abaixo do custo variável':'');
  window.POTE_ORDER?.refresh?.();
  window.POTE_PAYMENT?.sync?.();
 }
@@ -531,7 +547,11 @@ function newOrder(){
  const paymentDetails=window.POTE_PAYMENT?.validate?.();
  if(!paymentDetails)return;
   if(!window.POTE_ORDER?.checkBeforeRegister?.())return;
- const contribution=price*(1-feeRate(channel)/100)-q.variable;
+ const estimateActive=recipeCostIsEstimated(q.recipe)&&
+  q.beverages.every(b=>b.costSource==='franchise-estimate-60'&&
+   Math.abs(num(b.purchasePrice)-num(b.costEstimateOriginalPrice))<0.001);
+ const unitVariable=estimateActive?Math.round(price*0.60*100)/100:q.variable;
+ const contribution=price*(1-feeRate(channel)/100)-unitVariable;
  if(contribution<=0&&!confirm('⚠️ Este pedido não cobre os custos variáveis e taxas. Deseja continuar?'))return;
  const cl=client(document.getElementById('orderClient').value),itemRows=copy(q.recipe.items);
  for(const a of q.addons)itemRows.push({id:a.ingredientId,g:a.quantity,addonName:a.name});
@@ -542,7 +562,8 @@ function newOrder(){
  const bevItems=q.beverages.map(b=>({id:b.id,name:b.name,qty:1,unitCost:beverageCost(b)}));
  const delivCost=deliveryFee>0?num(state.data.settings.deliveryCostPerOrder||0):0;
  const order={...paymentDetails,id:uid(),name:q.combo?.name||q.recipe.name,recipeId:q.recipe.id,comboId:q.combo?.id||'',qty,price,deliveryFee,deliveryCost:delivCost,
-  profit:contribution-fixedPerUnit(),unitContribution:contribution,unitVariableCost:q.variable,feePct:feeRate(channel),
+  profit:contribution-fixedPerUnit(),unitContribution:contribution,unitVariableCost:unitVariable,feePct:feeRate(channel),
+  costEstimatePct:estimateActive?60:null,costEstimateLabel:estimateActive?'Simulado: 60% do preço final':'' ,
   clientId:cl?.id||'',clientName:cl?.name||'',clientPhone:cl?.phone||'',clientAddress:document.getElementById('orderAddress').value.trim(),paymentMethod:({pix:'Pix',dinheiro:'Dinheiro',cartao:'Cartão',entrega:'Na entrega',outro:'Outro'})[document.getElementById('orderPayment')?.value]||'Não informado',
   status:'recebido',date:commercialDate(),createdAt:new Date().toISOString(),note:document.getElementById('orderNote').value,
   channel,items:rows,beverageItems:bevItems,discountApplied:q.discount,fullUnitPrice:q.fullPrice,
