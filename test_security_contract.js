@@ -9,6 +9,11 @@ assert(rules.includes("match /records/{recordId}"),"V2 per-entity record collect
 assert(rules.includes("allow get, list: if canAccess(userId)"),"V2 reads must enforce tenant isolation");
 assert(rules.includes("request.resource.data.record.group in"),"V2 must whitelist record groups");
 assert(rules.includes("'cashSessions'")&&rules.includes("'cashMovements'"),"PDV records require Firestore rules");
+assert(rules.includes("function canUseFinancialRecords(userId)"),"Licenças do caixa devem ser verificadas no servidor");
+assert(rules.includes("request.resource.data.record.item.kind in"),"Movimentações financeiras devem validar tipo");
+assert(rules.includes("request.resource.data.record == resource.data.record"),"Movimentações financeiras devem ser imutáveis");
+assert(rules.includes("resource.data.record.item.status == 'open'"),"Fechamento do caixa deve ser irreversível");
+assert(rules.includes("request.resource.data.record.item.id == request.resource.data.record.id"),"ID financeiro deve coincidir");
 assert(rules.includes("request.resource.data.updatedAt == request.time"),"V2 updatedAt must be server-generated");
 assert(rules.includes("request.resource.data.diff(resource.data).affectedKeys()"),"Profile updates must limit fields");
 assert(rules.includes("allow update, delete: if false"),"Immutable audit events required");

@@ -28,3 +28,14 @@ Esta publicação contém somente correções com regressão automatizada aprova
 ## Reversão
 
 Ponto de partida: tag `before-v3-20261116` / commit `abdc516`. Reverter código pelo GitHub não reverte operações comerciais realizadas posteriormente. Não apagar registros para desfazer uma publicação.
+
+## Onda 2 — Regras de segurança no Firestore
+
+Regras candidatas `firestore_v3.rules` homologadas no Firebase Emulator em projeto demo isolado (CI da branch V3 commit `c231e1c`), conferidas também por dry-run de compilação na CLI para o projeto real. Cópia SHA-256 das regras anteriores salva fora do GitHub em `Documents/PoteBatataBackups/firestore-rules-before-v3-wave2-20261116.rules`.
+
+- A conta FREE não pode criar/alterar registros de caixa; PRO/FRANQUIA dependem de licença ativa armazenada no perfil protegido e verificada pelo servidor.
+- Movimentações de caixa confirmadas não podem ter conteúdo, posição ou identificador alterados, nem ser excluídas pela API de registros.
+- Turnos fechados não podem reabrir; durante o turno, não é permitido adulterar o fundo inicial; o fechamento registra campos auditáveis determinados.
+- Eventos financeiros exigem ID consistente com registro, tipo válido e valor positivo.
+
+**Limite:** essas regras são proteção adicional, não um ledger inviolável com backend independente. O estado legado V1 continua permitido para compatibilidade, e ordens/pedidos ainda são documentos editáveis do próprio usuário. Reversão do texto das regras é possível sem apagar documentos.
