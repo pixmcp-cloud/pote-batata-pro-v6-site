@@ -40,6 +40,23 @@ export function buildFranchiseCatalog(state,imageMap={}){
  };
  return {brandId:FRANCHISE_BRAND_ID,version:1,branding,recipes,ingredients};
 }
+
+/** Protect the official menu from an accidentally empty or partial publish. */
+export function canPublishFranchiseCatalog(catalog){
+ if(catalog?.brandId!==FRANCHISE_BRAND_ID||!Array.isArray(catalog?.recipes)||!Array.isArray(catalog?.ingredients))
+  return {ok:false,reason:"estrutura inválida"};
+ if(!catalog.recipes.length||!catalog.ingredients.length)
+  return {ok:false,reason:"cardápio vazio ou sem ingredientes"};
+ const ingredients=new Set(catalog.ingredients.map(i=>String(i.id)));
+ for(const recipe of catalog.recipes){
+  if(!recipe.id||!Array.isArray(recipe.items)||!recipe.items.length)
+   return {ok:false,reason:"ficha incompleta: "+String(recipe.id||"sem ID")};
+  if(recipe.items.some(i=>!ingredients.has(String(i.id))))
+   return {ok:false,reason:"ingrediente ausente: "+String(recipe.id)};
+ }
+ return {ok:true,recipes:catalog.recipes.length,ingredients:catalog.ingredients.length};
+}
+
 export function catalogFingerprint(catalog){
  const str=JSON.stringify(catalog);
  let hash=2166136261;

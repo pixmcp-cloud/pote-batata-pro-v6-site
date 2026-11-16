@@ -1,7 +1,7 @@
 import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp,onSnapshot} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,FRANCHISE_CATALOG_ID} from "./franchise_catalog.mjs?v=starter-20261116";
+import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,canPublishFranchiseCatalog,FRANCHISE_CATALOG_ID} from "./franchise_catalog.mjs?v=starter-20261116";
 import {initializeFranchiseStarterStock} from "./franchise_stock_core.mjs?v=starter-20261116";
 import {initializeFranchiseEstimatedCosts} from "./franchise_cost_estimates.mjs?v=estimate-40-20261116";
 
@@ -32,6 +32,12 @@ async function publish(){
  publishing=true;
  try{
   const catalog=buildFranchiseCatalog(window.POTE_APP.snapshot(),window.POTE_RECIPE_IMAGES||{});
+  const validated=canPublishFranchiseCatalog(catalog);
+  if(!validated.ok){
+   console.error("Publicação do catálogo bloqueada:",validated.reason);
+   notify("Catálogo NÃO publicado: "+validated.reason,true);
+   return;
+  }
   const fingerprint=catalogFingerprint(catalog);
   if(lastPublished===fingerprint)return;
   // Uma leitura na primeira publicação evita regravar o mesmo catálogo após recarregar.

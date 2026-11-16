@@ -201,7 +201,11 @@ function select(type){
  const choice=TYPES.find(x=>x.id===type);if(!choice)return;
  if(master()){
   if(type!=="batataria"){alert("A conta mestre mantém o universo Batataria e o catálogo oficial da matriz, para não misturar receitas de outras empresas.");return}
-  state.data.businessType="batataria";persist();render();show(false);return;
+  // Importação explícita e não destrutiva: acrescenta somente modelos ausentes.
+   if(!state.data.recipes?.length && window.POTE_UNIVERSES)
+    window.POTE_UNIVERSES.switchTo(state,"batataria",SEED);
+   if(!state.data.recipes?.length){alert("Nenhuma receita disponível. Verifique a recuperação antes de continuar.");return}
+   state.data.businessType="batataria";persist();render();show(false);return;
  }
  const previous=current(),existing=(state.data.recipes?.length||0)+(state.data.orders?.length||0)+(state.data.ingredients?.length||0);
  if(previous!==type && existing>0 &&

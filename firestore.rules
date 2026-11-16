@@ -219,7 +219,9 @@ service cloud.firestore {
         ])
         && request.resource.data.brandId == 'potebatata'
         && request.resource.data.publisherUid == request.auth.uid
-        && request.resource.data.recipes.size() <= 150
+        && request.resource.data.recipes.size() > 0
+         && request.resource.data.ingredients.size() > 0
+         && request.resource.data.recipes.size() <= 150
         && request.resource.data.ingredients.size() <= 250
         && request.resource.data.updatedAt == request.time;
       allow delete: if false;
