@@ -18,6 +18,11 @@ function wasDeducted(order){
 function canRecover(order){return !!order&&order.status==="cancelado"&&wasDeducted(order)&&order.stockRestored!==true&&order.stockReturnDeclined!==true}
 function needs(order){
  const qty=Math.max(1,Number(order.qty)||1),ins=new Map(),drinks=new Map();
+ if(order.stockOverrideApproved&&order.stockActualConsumed){
+  for(const [id,n] of Object.entries(order.stockActualConsumed.ingredients||{}))ins.set(id,Math.max(0,Number(n)||0));
+  for(const [id,n] of Object.entries(order.stockActualConsumed.beverages||{}))drinks.set(id,Math.max(0,Number(n)||0));
+  return {ins,drinks};
+ }
  for(const item of order.items||[]){
   const ratio=Math.max(.01,Number(item.yieldPct||100)/100);
   ins.set(item.id,(ins.get(item.id)||0)+(Number(item.g)||0)*qty/ratio);

@@ -498,13 +498,14 @@ function produce(id){
  const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='recebido'||!canOperate(o.recipeId))return;
   if(!window.POTE_ORDER?.checkBeforeProduce?.(o))return;
  const qty=Math.max(1,num(o.qty)),needed=new Map(),needBevs=new Map();
- for(const row of o.items||[]){const i=ingredient(row.id);if(!i){toast('Item não encontrado: '+row.ingredientName);return}const y=Math.max(.01,num(row.yieldPct??i.yield)/100);needed.set(row.id,(needed.get(row.id)||0)+num(row.g)*qty/y)}
+ for(const row of o.items||[]){const i=ingredient(row.id);if(!i&&!o.stockOverrideApproved){toast('Item não encontrado: '+row.ingredientName);return}const y=Math.max(.01,num(row.yieldPct??i?.yield)/100);needed.set(row.id,(needed.get(row.id)||0)+num(row.g)*qty/y)}
  for(const b of o.beverageItems||[])needBevs.set(b.id,(needBevs.get(b.id)||0)+num(b.qty)*qty);
  const lacks=[...needed].filter(([k,n])=>num(ingredient(k)?.stock)<n).map(([k])=>ingredient(k)?.name||k);
  for(const [k,n] of needBevs)if(!bev(k)||num(bev(k).stock)<n)lacks.push(bev(k)?.name||'Bebida excluída');
- if(lacks.length){toast('Estoque insuficiente: '+lacks.join(', '));return}
- for(const [k,n] of needed){const i=ingredient(k);i.stock=num(i.stock)-n;state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:k,ingredientName:i.name,quantity:-n,reason:'Produção',referenceId:id})}
- for(const [k,n] of needBevs){bev(k).stock=num(bev(k).stock)-n;state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:'bev:'+k,ingredientName:bev(k).name,quantity:-n,reason:'Bebida vendida',referenceId:id})}
+ if(lacks.length&&!o.stockOverrideApproved){toast('Estoque insuficiente: '+lacks.join(', '));return}
+ if(o.stockOverrideApproved){o.stockActualConsumed={ingredients:{},beverages:{}};o.stockShortages=[];}
+ for(const [k,n] of needed){const i=ingredient(k);if(!i){if(o.stockOverrideApproved){o.stockShortages.push({id:k,kind:'ingredient',needed:n,consumed:0});continue;}toast('Insumo não encontrado: '+k);return;}const before=Math.max(0,num(i.stock)),used=o.stockOverrideApproved?Math.min(before,n):n;i.stock=Math.max(0,before-used);if(o.stockOverrideApproved){o.stockActualConsumed.ingredients[k]=used;if(n>used)o.stockShortages.push({id:k,kind:'ingredient',needed:n,consumed:used,missing:n-used});}state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:k,ingredientName:i.name,quantity:-used,reason:o.stockOverrideApproved?'Produção com divergência':'Produção',referenceId:id,previousStock:before,afterStock:i.stock})}
+ for(const [k,n] of needBevs){const b=bev(k);if(!b){if(o.stockOverrideApproved){o.stockShortages.push({id:k,kind:'beverage',needed:n,consumed:0});continue;}toast('Bebida não encontrada: '+k);return;}const before=Math.max(0,num(b.stock)),used=o.stockOverrideApproved?Math.min(before,n):n;b.stock=Math.max(0,before-used);if(o.stockOverrideApproved){o.stockActualConsumed.beverages[k]=used;if(n>used)o.stockShortages.push({id:k,kind:'beverage',needed:n,consumed:used,missing:n-used});}state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:'bev:'+k,ingredientName:b.name,quantity:-used,reason:'Bebida vendida',referenceId:id,previousStock:before,afterStock:b.stock})}
  o.status='em_producao';o.producedAt=new Date().toISOString();o.stockDeducted=true;state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Produção iniciada: estoque descontado.');window.POTE_ORDER?.lowAfterOrder?.(o);
 }
 function finishOrder(id){const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Pedido finalizado. Você permanece na seção Pedidos.')}
@@ -513,7 +514,7 @@ function cancelOrder(id){
  const o=state.data.orders.find(x=>x.id===id);if(!o||o.status==='cancelado'||!canOperate(o.recipeId))return;
  const consumed=o.stockDeducted??(o.status==='em_producao'||o.status==='entregue');
  if(consumed&&confirm('O estoque já foi consumido. Deseja devolver os ingredientes, embalagens e bebidas ao estoque?')){
-  const qty=Math.max(1,num(o.qty));for(const row of o.items||[]){const i=ingredient(row.id);if(!i)continue;const restore=num(row.g)*qty/Math.max(.01,num(row.yieldPct??i.yield)/100);i.stock=num(i.stock)+restore;state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:row.id,ingredientName:i.name,quantity:restore,reason:'Estorno cancelamento',referenceId:id})}
+  const qty=Math.max(1,num(o.qty));for(const row of o.items||[]){const i=ingredient(row.id);if(!i)continue;const restore=num(row.g)*qty/Math.max(.01,num(row.yieldPct??i?.yield)/100);i.stock=num(i.stock)+restore;state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:row.id,ingredientName:i.name,quantity:restore,reason:'Estorno cancelamento',referenceId:id})}
   for(const b of o.beverageItems||[]){const target=bev(b.id);if(!target)continue;const n=num(b.qty)*qty;target.stock=num(target.stock)+n;state.data.stockMovements.unshift({id:uid(),at:new Date().toISOString(),ingredientId:'bev:'+b.id,ingredientName:target.name,quantity:n,reason:'Estorno bebida',referenceId:id})}
   o.stockRestored=true;
  }

@@ -199,11 +199,12 @@ function refresh(){
  const check=calc(quote,qty);
  status.className="pote-order-availability "+(check.ok?(check.low.length?"low":"ok"):"blocked");
  if(!check.ok){
-  status.innerHTML='<strong>Pedido bloqueado: estoque insuficiente.</strong><span>'+
+  status.innerHTML='<strong>Aviso de estoque divergente — é possível registrar com confirmação.</strong><span>'+
    esc(reportText(check))+'</span><small>Capacidade disponível: '+fmtQty(check.maxUnits)+
    ' unidade(s), já descontados os pedidos aguardando produção.</small>';
-  button.disabled=true;
-  button.title="Reponha o estoque antes de registrar este pedido.";
+  button.disabled=false;
+  button.title="Permite registrar após confirmar divergência de estoque.";
+  button.textContent="+ Registrar pedido (confirmar estoque)";
  }else{
   if(check.low.length){
    status.innerHTML='<strong>Estoque baixo: restam menos de 5 unidades deste produto.</strong>'+
@@ -214,7 +215,7 @@ function refresh(){
     'Capacidade restante após registrar: '+fmtQty(check.maxUnits-check.requested)+
     ' unidade(s), considerando os pedidos já recebidos.</span>';
   }
-  button.disabled=false;button.title="";
+  button.disabled=false;button.title="";button.textContent="+ Registrar pedido";
  }
  return check;
 }
@@ -289,9 +290,10 @@ function checkBeforeRegister(){
  const q=currentQuote(),qty=$("orderQty")?.value;
  const result=calc(q,qty);
  if(!result.ok){
-  showAlert("Pedido não registrado — estoque insuficiente",
-   reportText(result)+". Reponha ou ajuste o estoque antes de aceitar o pedido.",result);
-  refresh();return false;
+  if(result.errors.some(x=>!x.id)){
+   showAlert("Pedido inválido",reportText(result),result);refresh();return false;
+  }
+  return window.confirm("ESTOQUE DIVERGENTE\n"+reportText(result)+"\n\nRegistrar pedido mesmo assim? O estoque será conferido na produção.");
  }
  return true;
 }
@@ -322,9 +324,12 @@ function checkBeforeProduce(order){
     available,needed,reserved:n(held.beverages.get(id)),unit:"un"});
  }
  if(errors.length){
-  showAlert("Produção bloqueada — estoque comprometido",
-   reportText({errors})+". Confira as reservas e reponha o estoque antes de produzir.",{errors,sourceOrderId:order.id});
-  return false;
+  const approved=window.confirm("ESTOQUE DIVERGENTE NA PRODUÇÃO\n"+reportText({errors})+"\n\nProduzir mesmo assim? O saldo ficará no mínimo em zero e a falta será registrada.");
+  if(!approved){showAlert("Produção não iniciada",reportText({errors}),{errors,sourceOrderId:order.id});return false;}
+  order.stockOverrideApproved=true;
+  order.stockOverrideAt=new Date().toISOString();
+  order.stockOverrideItems=errors.map(x=>({...x}));
+  return true;
  }
  return true;
 }
