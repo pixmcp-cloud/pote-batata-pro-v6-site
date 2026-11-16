@@ -5,8 +5,9 @@ Data: 2026-11-16. Este documento acompanha as 23 melhorias aprovadas.
 ## Ponto de retorno e limites
 - Tag imutável do código anterior: `before-audit-20261116` (commit `181557c`).
 - Backup offline Git Bundle validado em `../pote-batata-before-audit-20261116.bundle` na máquina de desenvolvimento.
-- Firestore real: projeto `potobatata-b71f3`, base padrão na região `southamerica-east1`.
+- Firestore real: projeto `potobatata-b71f3`, base padrão na região `southamerica-east1`, identificada como **freeTier=true** com proteção de exclusão habilitada.
 - **Nenhuma migração, exclusão ou exportação de dados de usuários do Firestore foi executada.**
+- Consulta somente leitura indicou **PITR desativado** e nenhum backup gerenciado listado em `southamerica-east1`. Isso não equivale a uma cópia recuperável. Sem backup não será feita migração V2.
 - Um backup de Git não substitui cópia autenticada de clientes, pedidos e estoque no Firestore.
 - O modelo V2 segue **somente em prévia**, sem migração de contas nem mudança de regras publicada.
 
@@ -16,7 +17,7 @@ Data: 2026-11-16. Este documento acompanha as 23 melhorias aprovadas.
 - [13] Condições de clube separadas das datas, comparação aberta separada da condição de fidelidade.
 - [19] Datas comerciais calculadas pelo fuso do navegador ou pela configuração explícita da empresa; instantes históricos seguem UTC.
 - [03,07] `migration_preview.mjs`: plano V2 **puramente local e somente leitura**, detectando identificadores problemáticos. Migração real bloqueada até existir backup autenticado e restauração testada.
-- [20] A importação legada agora valida listas/IDs, aceita backup completo da conta, solicita cópia prévia e bloqueia importação durante conflitos. Teste isolado incluído.
+- [20] A importação legada agora valida listas/IDs, aceita backup completo da conta inclusive criativos e campos permitidos, solicita cópia prévia e bloqueia importação durante conflitos. Teste isolado incluído.
 
 ## Pendências antes da fase de transações e coleções V2
 1. Fazer backup autenticado dos documentos Firestore de produção e testá-lo em ambiente separado.

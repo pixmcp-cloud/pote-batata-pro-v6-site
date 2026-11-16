@@ -22,13 +22,16 @@ const file=data=>({size:JSON.stringify(data).length,text:async()=>JSON.stringify
  await ctx.importData(file({...initial,orders:[{id:"replacement"}]}));
  assert.equal(downloads,0);assert.equal(resets,0);
  allow=true;
- await ctx.importData(file({backupVersion:1,uid:"u1",state:{data:{
+ await ctx.importData(file({backupVersion:1,uid:"u1",state:{unlocked:"new",creatives:[{id:"art1",name:"Arte"}],audit:["importante"],data:{
   recipes:[{id:"new"}],ingredients:[{id:"newi",stock:50}],orders:[{id:"replacement"}],
   clients:[],suppliers:[],expenses:[],brand:{name:"Restaurado"}
  }}}));
  assert.equal(downloads,1);assert.equal(resets,1);
  assert.equal(state.data.orders[0].id,"replacement");
  assert.equal(state.data.brand.name,"Restaurado");
+ assert.equal(state.unlocked,"new");
+ assert.equal(state.creatives[0].id,"art1");
+ assert.equal(state.audit[0],"importante");
  assert.equal(state.data.settings.fee,4,"Missing settings must retain old compatible defaults");
  window.POTE_SYNC_GUARD.blocked=true;
  await ctx.importData(file(initial));

@@ -687,6 +687,16 @@ async function importData(file){
     orders:v.orders||[],clients:v.clients||[],suppliers:v.suppliers||[],expenses:v.expenses||[],
     purchases:v.purchases||[],stockMovements:v.stockMovements||[],losses:v.losses||[],
     beverages:v.beverages||[],addons:v.addons||[],combos:v.combos||[],prepBatches:v.prepBatches||[]};
+  // Backup completo inclui dados de personalização fora das listas operacionais.
+  // Jamais importar mode, role ou permissões: essas informações dependem do Firebase Auth.
+  if(raw?.state?.data){
+   const restored=raw.state;
+   if(Array.isArray(restored.creatives))state.creatives=JSON.parse(JSON.stringify(restored.creatives));
+   if(Array.isArray(restored.audit))state.audit=JSON.parse(JSON.stringify(restored.audit));
+   for(const key of ['unlocked','freeCreativeRecipeId','pricingPreset100V1','freeCreativeCount']){
+    if(Object.prototype.hasOwnProperty.call(restored,key))state[key]=restored[key];
+   }
+  }
   state.expansion=null;render();toast('Backup validado e importado. Confira a sincronização.');
  }catch(error){toast('Importação cancelada: '+String(error?.message||'arquivo inválido').slice(0,140))}
 }
