@@ -10,6 +10,7 @@ const catalog=buildFranchiseCatalog(matrix,images);
 assert.equal(catalog.brandId,"potebatata");
 assert.equal(catalog.recipes.length,26);
 assert.equal(catalog.ingredients.length,41,"Somente insumos usados em receitas devem ser compartilhados");
+assert.equal(catalog.ingredients.find(i=>i.id==="batata").yield,83,"A matriz publica o rendimento técnico do ingrediente");
 assert.equal(catalog.branding.logoUrl,FRANCHISE_LOGO);
 assert.equal(catalog.recipes[0].imageUrl,images.r01);
 assert(catalog.recipes[0].items.length>0);
@@ -91,6 +92,6 @@ assert(src.includes("state.data.recipes.filter(r=>!r.franchiseLocked&&!(window.P
 const business=read("business_setup.js");
 assert(business.includes("window.POTE_AUTH?.franchiseActive"));
 const html=read("public/index.html");
-assert(html.includes('franchise_sync.js?v=franchise-sync-20261115'));
+assert(html.includes('franchise_sync.js?v=starter-20261116'));
 assert(html.includes('adm-franchise-20261115'));
 console.log("PASS: franquia com marca/fotos oficiais, novos sabores automáticos, custos e estoque exclusivos, revogação e auditoria ADM.");

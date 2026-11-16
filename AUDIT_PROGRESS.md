@@ -70,3 +70,10 @@
 - `firebase deploy --only firestore:rules --project potobatata-b71f3`: regras publicadas com sucesso.
 - Nenhum dado Firestore de contas foi apagado pela execução; a primeira entrada na V2 usa novo espaço lógico vazio.
 - Retornar o site para a tag V1 não recupera automaticamente dados criados na V2.
+
+## Atualização adicional — estoque inicial de franquia e compras
+- `franchise_stock_core.mjs` introduz saldo inicial demonstrativo, uma única vez, para cinco porções de cada receita oficial e dez unidades de cada bebida.
+- Insumos são somados entre receitas (compartilhados) e rendimentos de preparo considerados; preços e histórico de compras não são inventados.
+- `franchise_shopping_list.mjs` e CSS exibem botão fixo **Lista de Compras** em todas as telas da franquia, com meta, saldo disponível, reservas e quantidade faltante.
+- Não há reabastecimento automático após vendas nem reaplicação dos saldos iniciais em novas sessões; catálogo futuro altera a meta de compra, não o estoque físico.
+- Testes: `test_franchise_stock.mjs` e `test_franchise_shopping_ui.mjs`.

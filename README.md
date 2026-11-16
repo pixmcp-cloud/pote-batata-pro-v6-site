@@ -164,3 +164,11 @@ Regra importante: confira a mensagem de sincronização após lançar pedidos, i
 As regras de segurança V2 foram compiladas e publicadas em 16/11/2026. O custo foi mantido na camada gratuita, sem ativação de Firebase Storage ou Cloud Functions. A galeria permanece local. Testes automatizados simulam concorrência, mas **não substituem validação com dois navegadores Google reais**.
 
 A auditoria detalhada e os itens ainda pendentes estão em `AUDIT_PROGRESS.md`.
+
+## Franquias: estoque inicial e Lista de Compras (16/11/2026)
+
+Ao sincronizar o catálogo da franquia pela primeira vez, a unidade inicia com quantidades calculadas para **5 porções de cada sabor oficial ativo**, considerando rendimentos das receitas, e **10 unidades de cada bebida** cadastrada (os modelos atuais incluem 11 tipos). Os valores são demonstrativos; **não correspondem a compras reais nem comprovam posse física**. Conferir o estoque antes de vender.
+
+A inicialização ocorre uma única vez por universo comercial, preservando alterações e vendas posteriores. Novas receitas publicadas pela matriz não geram estoque novo automaticamente: o que faltar aparece na lista.
+
+Para contas com franquia ativa, o botão fixo **Lista de Compras** acompanha a navegação no celular e no desktop. Ele compara o saldo livre (já subtraindo reservas de pedidos) com a meta de cada ingrediente e bebida, lista quanto comprar e oferece atalho para registrar a compra. Conta FREE comum não vê o botão.

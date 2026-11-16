@@ -1,0 +1,47 @@
+/* Botão de compras sempre visível na franquia, inclusive em telas pequenas. */
+#poteShoppingListButton[hidden],#poteShoppingListDialog[hidden]{display:none!important}
+.pote-shopping-trigger{position:fixed;right:calc(15px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));z-index:65;
+ display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;
+ padding:10px 15px;border:1px solid #e8bf72;border-radius:16px;
+ background:linear-gradient(145deg,#ecc479,#c58b3b);color:#211405;font-weight:850;
+ box-shadow:0 8px 28px #0009;cursor:pointer;white-space:nowrap;max-width:calc(100vw - 24px)}
+.pote-shopping-trigger:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.pote-shopping-count{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;
+ padding:0 5px;border-radius:999px;background:#2b1c13;color:#fae9cb;font-size:12px}
+.pote-shopping-trigger.has-shortage .pote-shopping-count{background:#91291f;color:#fff}
+.pote-shopping-cover{position:fixed;inset:0;z-index:90;display:flex;justify-content:center;
+ align-items:center;padding:12px;background:#100b0be0;backdrop-filter:blur(4px)}
+.pote-shopping-dialog{color:#f5e9d3;width:min(630px,100%);max-height:min(88vh,780px);max-height:min(88dvh,780px);
+ background:#211712;border:1px solid #98734d;border-radius:20px;box-shadow:0 20px 70px #000b;
+ display:flex;flex-direction:column;overflow:hidden}
+.pote-shopping-dialog header{display:flex;justify-content:space-between;align-items:center;padding:17px 19px;
+ border-bottom:1px solid #644a33}
+.pote-shopping-dialog header small{font-size:10px;color:#e3be7a;letter-spacing:.15em}
+.pote-shopping-dialog h2{font:700 24px Georgia,serif;margin:1px 0;color:#ffe3aa}
+#poteShoppingClose{border:1px solid #77583e;color:#ffe9d3;background:#37271c;min-width:36px;
+ min-height:36px;border-radius:10px;font-size:18px;cursor:pointer}
+#poteShoppingSummary{padding:13px 19px 0;margin:0;color:#d9c6ad;font-size:13px}
+.pote-shopping-items{overflow-y:auto;min-height:60px;padding:12px 19px 16px;display:grid;gap:9px}
+.pote-shopping-item{border:1px solid #815f3d;background:#302115;padding:12px;border-radius:12px}
+.pote-shopping-item.missing{border-color:#ba6352}
+.pote-shopping-item>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pote-shopping-item strong{font-weight:750}
+.pote-shopping-item span{font-size:10px;color:#ecc080}
+.pote-shopping-item.missing span{color:#ffad9f}
+.pote-shopping-item p{color:#d8c4a8;margin:8px 0;font-size:12px}
+.pote-shopping-item-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pote-shopping-item-foot b{color:#ffe2a1;font-size:13px}
+.pote-shopping-item-foot button,#poteShoppingCopy{background:#d9a55b;border:0;border-radius:9px;
+ color:#23180e;padding:9px 12px;font-weight:800;cursor:pointer}
+.pote-shopping-dialog footer{padding:13px 19px 17px;border-top:1px solid #614731;display:grid;gap:9px}
+.pote-shopping-dialog footer small{font-size:11px;color:#bfae98;line-height:1.5}
+.pote-shopping-empty{padding:25px 12px;text-align:center;color:#9fe2b2}
+.pote-shopping-text{width:100%;min-height:120px;color:#fff;background:#1c130f;border:1px solid #96704c;border-radius:10px;padding:10px}
+@media(max-width:650px){.pote-shopping-trigger{left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));
+ width:calc(100% - 24px);border-radius:14px;min-height:46px}
+ .pote-shopping-dialog{max-height:90dvh}
+ .pote-shopping-cover{padding:9px}
+ .pote-shopping-item-foot button{width:100%}
+ body:has(#poteShoppingListButton:not([hidden])) .content{padding-bottom:76px}
+}
+@media print{#poteShoppingListButton,#poteShoppingListDialog{display:none!important}}

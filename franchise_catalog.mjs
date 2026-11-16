@@ -31,7 +31,8 @@ export function buildFranchiseCatalog(state,imageMap={}){
  const ingredients=(Array.isArray(data.ingredients)?data.ingredients:[])
   .filter(i=>inUse.has(i?.id)&&cleanId(i?.id)).slice(0,250)
   .map(i=>({id:cleanId(i.id),name:value(i.name,120),
-    category:value(i.category,45),measureUnit:value(i.measureUnit||"g",12)}));
+    category:value(i.category,45),measureUnit:value(i.measureUnit||"g",12),
+    yield:Number.isFinite(Number(i.yield))?Math.max(1,Math.min(100,Number(i.yield))):100}));
  const branding={
   name:"POTÊ BATATA",subtitle:"BATATA RECHEADA NO POTE",
   slogan:value(data.brand?.slogan||"Especialidades em batatas recheadas",140),
@@ -71,10 +72,14 @@ export function mergeFranchiseCatalog(state,catalog,{active=true}={}){
   if(!existing){
    const next={id,name:value(incoming.name,120),category:value(incoming.category,45),
     measureUnit:value(incoming.measureUnit||"g",12),price:0,purchasePrice:0,stock:0,minimum:0,
-    yield:100,source:"Atualize os custos da sua unidade",imageUrl:"",templateOrigin:"franchise"};
+    yield:Number.isFinite(Number(incoming.yield))?Math.max(1,Math.min(100,Number(incoming.yield))):100,
+    source:"Atualize os custos da sua unidade",imageUrl:"",templateOrigin:"franchise"};
    data.ingredients.push(next);localIngredients.set(id,next);ingredientsAdded++;changed=true;
   }else{
    const updated={...existing,name:value(incoming.name,120),category:value(incoming.category,45)};
+   // Contas antigas com rendimento padrão recebem o rendimento técnico publicado.
+   if(Number(existing.yield||100)===100&&Number(incoming.yield)>0)
+    updated.yield=Math.max(1,Math.min(100,Number(incoming.yield)));
    if(JSON.stringify(existing)!==JSON.stringify(updated)){Object.assign(existing,updated);changed=true}
   }
  }

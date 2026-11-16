@@ -1,7 +1,8 @@
 import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp,onSnapshot} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,FRANCHISE_CATALOG_ID} from "./franchise_catalog.mjs?v=franchise-20261115";
+import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,FRANCHISE_CATALOG_ID} from "./franchise_catalog.mjs?v=starter-20261116";
+import {initializeFranchiseStarterStock} from "./franchise_stock_core.mjs?v=starter-20261116";
 
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const catalogRef=doc(db,"franchiseCatalog",FRANCHISE_CATALOG_ID);
@@ -64,7 +65,22 @@ function applyCatalog(catalog,active=true){
  try{
   if(active&&state.data.businessType!=="batataria"&&window.POTE_UNIVERSES)
     window.POTE_UNIVERSES.switchTo(state,"batataria",window.POTE_SEED,{skipTemplates:true});
-  const result=mergeFranchiseCatalog(state,catalog,{active});
+  // Catálogos antigos podem não trazer rendimento; usar a ficha local como fallback.
+  const reference=new Map((window.POTE_SEED?.ingredients||[]).map(i=>[String(i.id),Number(i.yield)||100]));
+  const normalized=active&&Array.isArray(catalog?.ingredients)?
+   {...catalog,ingredients:catalog.ingredients.map(i=>
+    Number.isFinite(Number(i.yield))&&Number(i.yield)>0?i:
+    {...i,yield:reference.get(String(i.id))||100}
+   )}:catalog;
+  const result=mergeFranchiseCatalog(state,normalized,{active});
+  if(active&&franchise()){
+   const beverages=window.POTE_DRINKS?.ensure?.(state);
+   const seed=initializeFranchiseStarterStock(state);
+   if(seed.changed||beverages?.beveragesAdded||beverages?.combosAdded){
+    result.changed=true;
+    if(seed.changed)console.info("Estoque inicial da franquia preparado",seed);
+   }
+  }
   if(!result.changed)return;
   window.POTE_APP.applyState(state,{preserveNavigation:true});
   window.POTE_BUSINESS?.refresh?.();
