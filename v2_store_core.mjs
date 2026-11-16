@@ -5,9 +5,10 @@ import {stableJson,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
 export const RECORD_GROUPS=[
  "recipes","ingredients","orders","clients","suppliers","expenses",
  "recipeVersions","recipeTrash","purchases","stockMovements","beverages",
- "addons","combos","prepBatches","checklist","losses","garimpoOffers"
+ "addons","combos","prepBatches","checklist","losses","garimpoOffers",
+ "cashSessions","cashMovements"
 ];
-export const INVENTORY_GROUPS=new Set(["orders","ingredients","beverages","purchases","stockMovements","losses","prepBatches"]);
+export const INVENTORY_GROUPS=new Set(["orders","ingredients","beverages","purchases","stockMovements","losses","prepBatches","cashSessions","cashMovements"]);
 export const MAX_CHANGES_PER_TX=290;
 const copy=v=>JSON.parse(JSON.stringify(v));
 const asList=v=>Array.isArray(v)?v:[];

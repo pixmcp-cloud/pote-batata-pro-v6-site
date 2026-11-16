@@ -1,0 +1,55 @@
+/* Caixa PDV — painel integrado, legível em celular e desktop. */
+#potePdvTrigger[hidden],#potePdvDialog[hidden]{display:none!important}
+#potePdvTrigger{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom));
+ left:calc(15px + env(safe-area-inset-left));z-index:66;min-height:48px;
+ display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 15px;
+ background:linear-gradient(135deg,#284c3b,#38785a);color:#f3fff8;
+ border:1px solid #77c39a;border-radius:15px;
+ box-shadow:0 7px 25px #000a;cursor:pointer;font-weight:800}
+#potePdvTrigger small{font-weight:600;border-radius:100px;background:#10291d;padding:4px 7px;color:#bce9cc}
+#potePdvTrigger.open{background:linear-gradient(135deg,#22573d,#449e65)}
+#potePdvDialog{position:fixed;inset:0;z-index:99;display:flex;justify-content:center;
+ align-items:center;padding:14px;background:#0b1011df;backdrop-filter:blur(5px)}
+.pote-pdv-container{background:#1c1c1c;color:#f7f8f5;border:1px solid #536e5a;
+ border-radius:19px;width:min(730px,100%);max-height:92dvh;overflow-y:auto;
+ box-shadow:0 18px 66px #000a}
+.pote-pdv-container>header{position:sticky;top:0;z-index:1;display:flex;align-items:center;
+ justify-content:space-between;background:#223028;padding:16px 19px;border-bottom:1px solid #4f7660}
+.pote-pdv-container header h2{font-size:22px;color:#e9ffe8;margin:2px 0}
+.pote-pdv-container header small{font-size:10px;letter-spacing:2px;color:#9ed5ad}
+.pote-pdv-container button{background:#b9e1c1;color:#11271b;border:0;border-radius:9px;
+ padding:9px 12px;cursor:pointer;font-weight:700}
+.pote-pdv-container input,.pote-pdv-container select{display:block;width:100%;padding:11px;
+ border:1px solid #68806d;background:#151d18;color:#fff;border-radius:9px;
+ margin:5px 0 9px;font-size:16px}
+.pote-pdv-container label{font-size:12px;color:#dde9dd}
+.pote-pdv-disclaimer{color:#dfc899;border-left:2px solid #d1b178;padding:9px 13px;margin:12px 17px;
+ background:#29271d;font-size:12px}
+#potePdvMessage{color:#eec178;min-height:0;padding:0 18px;font-size:12px}
+#potePdvBody{padding:0 16px 22px;display:grid;gap:12px}
+.pote-pdv-box{background:#272c29;border:1px solid #45564b;border-radius:13px;padding:15px}
+.pote-pdv-box h3{font-size:16px;color:#e3f9e4;margin:0 0 12px}
+.pote-pdv-box form{display:grid;gap:8px}
+.pote-pdv-session{color:#b7d3c5;font-size:12px;margin-top:0}
+.pote-pdv-figures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:12px}
+.pote-pdv-figures>div{background:#1b3929;border-radius:10px;padding:12px}
+.pote-pdv-figures small{display:block;color:#a3d7b6;font-size:11px}
+.pote-pdv-figures strong{display:block;color:#e3ffed;font-size:22px;margin-top:5px}
+.pote-pdv-stat{display:flex;align-items:center;justify-content:space-between;gap:16px;
+ padding:9px 0;border-bottom:1px solid #3e4b41;font-size:13px}
+.pote-pdv-note{color:#b9c7b9;font-size:12px}
+.pote-pdv-warn{color:#ffbf9e;font-size:12px}
+.pote-pdv-order{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+ border-top:1px solid #435348;padding:9px 0}
+.pote-pdv-order small{display:block;color:#bdc9c0;font-size:11px}
+.pote-pdv-actions{display:flex;gap:6px;flex-wrap:wrap}
+.pote-pdv-actions button{font-size:12px;padding:7px 10px}
+.pote-pdv-history{padding:10px 13px;background:#232924;border-radius:9px;font-size:12px;color:#d4e2d7}
+@media(max-width:650px){
+ #potePdvTrigger{bottom:calc(68px + env(safe-area-inset-bottom));left:12px;right:12px;max-width:calc(100% - 24px)}
+ body:not(:has(#poteShoppingListButton:not([hidden]))) #potePdvTrigger{bottom:calc(14px + env(safe-area-inset-bottom))}
+ .pote-pdv-figures{grid-template-columns:1fr}
+ .pote-pdv-container{max-height:96dvh}
+ #potePdvDialog{padding:7px}
+}
+@media print{#potePdvTrigger,#potePdvDialog{display:none!important}}

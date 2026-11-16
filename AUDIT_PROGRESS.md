@@ -118,3 +118,22 @@ Os 41 ingredientes que ainda não tinham custos recebem preços unitários aprox
 Contas de franquia que já receberam a tabela estimada antiga de 60% são convertidas para 40% somente quando os valores ainda estiverem marcados como simulação e não tiverem sido alterados manualmente. Os registros históricos de vendas não são reescritos.
 
 A margem de contribuição simulada no canal direto é próxima de 52% após os 40% de custo direto e 8% de taxas/impostos padrão do laboratório, **antes** de despesas fixas, mão de obra adicional, frete, perdas e impostos efetivos. Não confundir com lucro líquido. Cadastre custos reais antes de usar os preços em operação comercial.
+
+## Caixa PDV operacional — 16/11/2026
+
+A versão **Gestão + PDV** introduz módulo de caixa visível em contas PRO, ADMIN e franquias licenciadas. O botão fixo **Caixa PDV** permite:
+
+- Abrir um turno com fundo de troco e operador, impedindo dois turnos abertos na mesma conta/universo.
+- Vincular automaticamente novos pedidos do balcão e da vitrine ao turno aberto.
+- Registrar sangrias e suprimentos com justificativa; bloquear saídas superiores ao dinheiro registrado.
+- Separar dinheiro, Pix, cartão e demais métodos. Pix e cartão informados no pedido não são considerados recebidos até conferência manual do comprovante.
+- Registrar pagamento na entrega após conferência; nenhum pagamento eletrônico é realizado pelo aplicativo.
+- Registrar reembolso físico de pedido cancelado pago em dinheiro uma única vez.
+- Conferir o dinheiro contado, diferença e histórico do fechamento de cada turno.
+- Imprimir pelo navegador **comanda de cozinha** ou **recibo comercial não fiscal**, em layout de 80 mm. A impressora depende do diálogo de impressão e dos drivers instalados.
+
+**Persistência**: os dados ficam em `cashSessions` e `cashMovements`, grupos separados da V2. A gravação dos movimentos usa o bloqueio de concorrência da mesma transação do estoque/pedido. O caixa é operacional e não é um livro-caixa contábil inviolável nem substitui a conciliação financeira bancária. Vendas feitas fora de um turno não são atribuídas retroativamente. Cancelamentos e devoluções entre turnos devem ser revisados; chargebacks, reembolso Pix/cartão e múltiplos terminais ainda não possuem integração automatizada.
+
+**Fiscal Santa Catarina**: o PDV **NÃO emite NFC-e/NF-e** e a comanda/recibo gerada indica expressamente que não é documento fiscal. A SEF/SC exige o credenciamento de fornecedor de PAF-NFC-e conforme Ato DIAT 54/2026. A [Nota Fiscal Fácil para MEI](https://www.sef.sc.gov.br/orientacoes/nff-nota-fiscal-facil-mei-microempreendedor-individual) é alternativa oficial sem mensalidade para MEI com IE em SC e Gov.br nível prata/ouro, quando elegível. Eventual integração com PAF credenciado ou adquirente dependerá de documentação, acesso autorizado, homologação e possíveis custos; não foi ativada.
+
+**Validação**: `test_pdv_cash_core.mjs`, `test_pdv_cash_ui.mjs` e `test_pdv_v2_storage.mjs` e teste manual automatizado no Chrome em ambiente isolado, além da suíte geral. Não foram testadas credenciais bancárias, emissão fiscal real, impressora física ou autenticação Google em dois caixas simultâneos.

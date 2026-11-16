@@ -31,6 +31,9 @@ jobs:
           cp v2_storage.mjs public/v2_storage.mjs
           cp finance_core.js public/finance_core.js
           cp module_health.js public/module_health.js
+          cp pdv_cash_core.mjs public/pdv_cash_core.mjs
+          cp pdv_cash_ui.mjs public/pdv_cash_ui.mjs
+          cp pdv_cash.css public/pdv_cash.css
           cp supplier_integration.js public/supplier_integration.js
           cp supplier_directory.js public/supplier_directory.js
           cp supplier_directory.css public/supplier_directory.css
@@ -110,6 +113,11 @@ jobs:
           node test_v2_storage.mjs
           node test_auth_v2_integration.js
           node test_finance_core.js
+          node test_pdv_cash_core.mjs
+          node test_pdv_cash_ui.mjs
+          node test_pdv_v2_storage.mjs
+          node --check public/pdv_cash_core.mjs
+          node --check public/pdv_cash_ui.mjs
           node test_module_health.js
           node test_average_cost.js
           node --check public/finance_core.js

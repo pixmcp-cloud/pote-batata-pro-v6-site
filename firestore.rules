@@ -81,7 +81,7 @@ service cloud.firestore {
             'recipes', 'ingredients', 'orders', 'clients', 'suppliers',
             'expenses', 'recipeVersions', 'recipeTrash', 'purchases',
             'stockMovements', 'beverages', 'addons', 'combos', 'prepBatches',
-            'checklist', 'losses', 'garimpoOffers'
+            'checklist', 'losses', 'garimpoOffers', 'cashSessions', 'cashMovements'
           ]
           && (
             !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))

@@ -1,0 +1,58 @@
+﻿import assert from "node:assert/strict";
+import {openCash,activeSession,registerCashMovement,confirmRecordedPayment,calculateCash,
+ closeCash,settleDeliveryPayment,paymentKind,paymentConfirmed,orderAmountCents} from "./pdv_cash_core.mjs";
+const d={orders:[],ingredients:[],beverages:[]};
+assert.equal(paymentKind("Cartão"),"card");
+assert.equal(paymentKind("Na entrega"),"delivery");
+assert.equal(paymentKind("Dinheiro"),"cash");
+assert.equal(paymentKind("PIX"),"pix");
+assert.equal(openCash(d,{id:"turno1",openingCash:100,operator:"Operador",at:"2026-11-16T09:00:00"}).openingCash,100);
+assert.throws(()=>openCash(d,{id:"turno2",openingCash:200}),/Já existe/);
+const order=(id,method,status,price=25,qty=2)=>({
+ id,paymentMethod:method,paymentStatus:status,price,qty,deliveryFee:0,
+ cashSessionId:"turno1",status:"entregue"});
+d.orders.push(order("c1","Dinheiro","Pago em dinheiro"));
+d.orders.push(order("p1","Pix","Informado",34.9,1));
+d.orders.push(order("c2","Cartão","Informado",20,1));
+d.orders.push(order("p2","Pix","Pendente",40,1));
+d.orders.push(order("d1","Na entrega","Pendente",12,1));
+let summary=calculateCash(d,"turno1");
+assert.equal(summary.expectedCash,150);
+assert.equal(summary.pending,106.9);
+assert.equal(summary.pendingCount,4);
+assert.equal(paymentConfirmed(d.orders[1]),false);
+assert.throws(()=>confirmRecordedPayment(d,{orderId:"p1",reference:""}),/Confirme/);
+confirmRecordedPayment(d,{orderId:"p1",reference:"extrato consultado"});
+assert.equal(paymentConfirmed(d.orders[1]),true);
+assert.throws(()=>confirmRecordedPayment(d,{orderId:"p1",reference:"outro"}),/já confirmado/);
+confirmRecordedPayment(d,{orderId:"c2",reference:"comprovante"});
+summary=calculateCash(d,"turno1");
+assert.equal(summary.confirmedByMethod.cash,50);
+assert.equal(summary.confirmedByMethod.pix,34.9);
+assert.equal(summary.confirmedByMethod.card,20);
+assert.equal(summary.pending,52);
+registerCashMovement(d,{id:"in",kind:"suprimento",amount:20,reason:"Troco extra"});
+registerCashMovement(d,{id:"out",kind:"sangria",amount:30,reason:"Retirada para banco"});
+assert.throws(()=>registerCashMovement(d,{id:"error",kind:"sangria",amount:200,reason:"teste"}),/insuficiente/);
+assert.equal(calculateCash(d,"turno1").expectedCash,140);
+assert.throws(()=>settleDeliveryPayment(d,{orderId:"d1",method:"Pix",reference:""}),/comprovante/);
+settleDeliveryPayment(d,{orderId:"d1",method:"Dinheiro"});
+assert.equal(paymentConfirmed(d.orders.at(-1)),true);
+assert.equal(calculateCash(d,"turno1").expectedCash,152);
+d.orders[0].status="cancelado";
+assert.equal(calculateCash(d,"turno1").cancelledCashAwaitingRefund,50);
+assert.equal(calculateCash(d,"turno1").expectedCash,152,
+ "Cancelamento sozinho não prova que o dinheiro foi devolvido");
+registerCashMovement(d,{id:"refund1",kind:"reembolso",amount:50,orderId:"c1"});
+assert.throws(()=>registerCashMovement(d,{id:"refund2",kind:"reembolso",amount:50,orderId:"c1"}),/já recebeu/);
+assert.equal(calculateCash(d,"turno1").expectedCash,102);
+const closed=closeCash(d,{countedCash:89.5,operator:"Operador"});
+assert.equal(closed.status,"closed");
+assert.equal(closed.difference,-12.5);
+assert.equal(activeSession(d),null);
+assert.throws(()=>registerCashMovement(d,{id:"later",kind:"sangria",amount:2,reason:"teste"}),/Abra/);
+const second=openCash(d,{id:"turno2",openingCash:55,operator:"Outro"});
+assert.equal(calculateCash(d,"turno2").expectedCash,55,"Pedidos antigos não podem afetar outro turno");
+assert.equal(calculateCash(d,"turno1").expectedCash,102);
+assert.equal(orderAmountCents(d.orders[1]),3490);
+console.log("PASS PDV: abertura, turno isolado, confirmação manual Pix/cartão, sangria, suprimento, reembolso idempotente e fechamento com diferença.");

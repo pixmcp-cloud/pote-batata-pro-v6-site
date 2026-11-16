@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import {splitState,combineState,diffState,validateChangeSet,INVENTORY_GROUPS} from "./v2_store_core.mjs";
+const base={data:{businessType:"batataria",cashSessions:[],cashMovements:[],
+ orders:[],ingredients:[],recipes:[],beverages:[],businessUniverses:{},settings:{}}};
+const old=splitState(base);
+assert(INVENTORY_GROUPS.has("cashSessions")&&INVENTORY_GROUPS.has("cashMovements"));
+const state=structuredClone(base);
+state.data.cashSessions.push({id:"s1",status:"open",openingCash:100,openedAt:"2026-11-16T09:00:00"});
+state.data.cashMovements.push({id:"m1",sessionId:"s1",kind:"sangria",amount:20,at:"2026-11-16T09:00:00"});
+state.data.orders.push({id:"o1",cashSessionId:"s1",name:"Batata",qty:1,price:29.9,paymentStatus:"pago"});
+const next=splitState(state,old.records);
+assert.equal(next.records.size,3);
+assert.equal(next.meta.data.cashSessions.length,0,"Caixa deve estar fora do documento monolítico");
+const changes=diffState(old,next);
+assert.equal(changes.changes.length,3);
+assert.equal(changes.sensitive,true,"O caixa precisa do mesmo bloqueio transacional do estoque");
+assert(validateChangeSet(changes));
+assert.deepEqual(combineState(next.meta,next.records).data.cashSessions,state.data.cashSessions);
+assert.deepEqual(combineState(next.meta,next.records).data.cashMovements,state.data.cashMovements);
+console.log("PASS: caixa, movimentos e pedidos isolados por documento e protegidos pelo guard transacional V2.");

@@ -8,6 +8,7 @@ assert(rules.includes("allow read, write: if canAccess(userId)"),"Tenant documen
 assert(rules.includes("match /records/{recordId}"),"V2 per-entity record collection required");
 assert(rules.includes("allow get, list: if canAccess(userId)"),"V2 reads must enforce tenant isolation");
 assert(rules.includes("request.resource.data.record.group in"),"V2 must whitelist record groups");
+assert(rules.includes("'cashSessions'")&&rules.includes("'cashMovements'"),"PDV records require Firestore rules");
 assert(rules.includes("request.resource.data.updatedAt == request.time"),"V2 updatedAt must be server-generated");
 assert(rules.includes("request.resource.data.diff(resource.data).affectedKeys()"),"Profile updates must limit fields");
 assert(rules.includes("allow update, delete: if false"),"Immutable audit events required");

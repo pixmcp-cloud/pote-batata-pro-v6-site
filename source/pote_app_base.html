@@ -346,7 +346,7 @@ function checkoutVitrine(openWa){
    const contrib=unitPrice*(1-feeRate('direto')/100)-unitVar;
    const createdOrderId=uid();if(!firstOrderId)firstOrderId=createdOrderId;
    state.data.orders.unshift({
-     ...paymentDetails,deliveryType:document.getElementById('vitrineHasDelivery')?.value==='sim'?'Tele-entrega':'Retirada',id:createdOrderId,name:m.name,recipeId:q.recipe.id,comboId:m.combo?.id||'',qty:m.qty,price:Number(unitPrice.toFixed(2)),
+     ...paymentDetails,cashSessionId:window.POTE_PDV?.getSessionId?.()||null,deliveryType:document.getElementById('vitrineHasDelivery')?.value==='sim'?'Tele-entrega':'Retirada',id:createdOrderId,name:m.name,recipeId:q.recipe.id,comboId:m.combo?.id||'',qty:m.qty,price:Number(unitPrice.toFixed(2)),
     deliveryFee:idx===0?deliv:0,deliveryCost:idx===0?num(state.data.settings.deliveryCostPerOrder||0):0,
     profit:contrib-fixedPerUnit(),unitContribution:contrib,unitVariableCost:unitVar,feePct:feeRate('direto'),
     clientName:cName,clientPhone:cPhone,clientAddress:cAddr,status:'recebido',date:commercialDate(),
@@ -572,7 +572,7 @@ function newOrder(){
  const rows=itemRows.map(x=>({...x,ingredientName:ingredient(x.id)?.name||x.id,measureUnit:ingredient(x.id)?.measureUnit||'g',yieldPct:ingredient(x.id)?.yield||100}));
  const bevItems=q.beverages.map(b=>({id:b.id,name:b.name,qty:1,unitCost:beverageCost(b)}));
  const delivCost=deliveryFee>0?num(state.data.settings.deliveryCostPerOrder||0):0;
- const order={...paymentDetails,id:uid(),name:q.combo?.name||q.recipe.name,recipeId:q.recipe.id,comboId:q.combo?.id||'',qty,price,deliveryFee,deliveryCost:delivCost,
+ const order={...paymentDetails,cashSessionId:window.POTE_PDV?.getSessionId?.()||null,id:uid(),name:q.combo?.name||q.recipe.name,recipeId:q.recipe.id,comboId:q.combo?.id||'',qty,price,deliveryFee,deliveryCost:delivCost,
   profit:contribution-fixedPerUnit(),unitContribution:contribution,unitVariableCost:unitVariable,feePct:feeRate(channel),
   costEstimatePct:estimateActive?40:null,costEstimateLabel:estimateActive?'Custo simulado: 40% do preço de referência, sem ajuste por desconto':'' ,
   clientId:cl?.id||'',clientName:cl?.name||'',clientPhone:cl?.phone||'',clientAddress:document.getElementById('orderAddress').value.trim(),paymentMethod:({pix:'Pix',dinheiro:'Dinheiro',cartao:'Cartão',entrega:'Na entrega',outro:'Outro'})[document.getElementById('orderPayment')?.value]||'Não informado',
