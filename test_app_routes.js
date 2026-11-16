@@ -25,10 +25,11 @@ const doc={
  querySelector:()=>null,querySelectorAll:()=>[],addEventListener(){},
  createTreeWalker(){return {nextNode(){return false}}}
 };
+let stockApproval=false;
 const window={POTE_AUTH:{uid:"test-admin",email:"admin@example.com",role:"admin",proActive:true,
  franchiseActive:false},POTE_RECIPE_IMAGES:{},POTE_RECIPE_LABELS:{},
  POTE_APP_READY:false,addEventListener(){},dispatchEvent(){},open(){},
- confirm(){return true},scrollTo(){},NodeFilter:{SHOW_TEXT:4},Node:{TEXT_NODE:3}};
+ confirm(){return stockApproval},scrollTo(){},NodeFilter:{SHOW_TEXT:4},Node:{TEXT_NODE:3}};
 const sandbox={window,document:doc,location:{href:"http://localhost/test"},history:{pushState(){}},
  navigator:{},localStorage:{getItem(){return null},setItem(){},removeItem(){}},
  console,setTimeout(){return 1},clearTimeout(){},setInterval(){return 1},
@@ -122,7 +123,11 @@ vm.runInContext("newOrder();",sandbox);
 assert.equal(current().data.orders.length,2);
 setOrder(4);
 vm.runInContext("newOrder();",sandbox);
-assert.equal(current().data.orders.length,2,"Pedido pendente reserva estoque e bloqueia outro pedido excessivo");
+assert.equal(current().data.orders.length,2,"Sem confirmação o pedido excessivo não deve ser registrado");
+stockApproval=true;
+vm.runInContext("newOrder();",sandbox);
+assert.equal(current().data.orders.length,3,"Confirmação explícita deve permitir registro com divergência");
+stockApproval=false;
 console.log("PASS: fluxo real de pedidos — registrar, reservar, produzir, concluir, bloquear excesso e permanecer na sessão Pedidos.");
 
 const vitState=structuredClone(testState);
