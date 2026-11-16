@@ -27,6 +27,8 @@
 - `source/pote_app_base.html`: fluxo único de cancelamento, bloqueio por falha de sincronização e datas comerciais locais.
 - `module_health.js`: verifica os módulos essenciais após login e bloqueia operações se algum deles não carregar.
 - Importação e redefinição de dados possuem validação, confirmações e exportação prévia.
+- Conflitos agora oferecem botão de recuperação: exportação do JSON pendente, confirmação explícita de descarte local e recarga do estado remoto.
+- Smoke test com Chrome headless da candidata: HTML de login e módulos carregados, saída do navegador sem erros detectados.
 
 ## Matriz honesta das 23 melhorias
 | Nº | Situação |

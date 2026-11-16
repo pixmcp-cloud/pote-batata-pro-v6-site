@@ -98,6 +98,31 @@ function showBackupButton(){
   syncEl.parentElement.appendChild(full);
  }
  if(full)full.hidden=!active;
+ let recovery=document.getElementById("poteSyncResolve");
+ if(!recovery&&syncEl?.parentElement){
+  recovery=document.createElement("button");
+  recovery.type="button";
+  recovery.id="poteSyncResolve";
+  recovery.textContent="Resolver conflito";
+  recovery.title="Exporta as alterações pendentes e recarrega os dados atuais da nuvem.";
+  recovery.className="btn mini line";
+  recovery.style.marginLeft="8px";
+  recovery.addEventListener("click",resolvePendingConflict);
+  syncEl.parentElement.appendChild(recovery);
+ }
+ if(recovery)recovery.hidden=!active||!syncBlocked;
+}
+function resolvePendingConflict(){
+ if(!active||!syncBlocked)return false;
+ // Exportação é explícita; não é possível verificar se o navegador salvou o arquivo.
+ try{downloadPending()}catch(error){setStatus("Falha ao exportar backup. Conflito preservado.");return false}
+ if(!window.confirm("Foi solicitado o download do backup pendente. Confira se o arquivo foi salvo. Recarregar a versão da nuvem descarta estas alterações locais, que só poderão ser recuperadas pelo JSON exportado. Continuar?"))return false;
+ try{localStorage.removeItem(pendingKey(active.uid))}catch(error){setStatus("Não foi possível liberar o backup pendente.");return false}
+ ready=false;
+ syncBlocked=false;
+ pendingThisSession=false;
+ window.location.reload();
+ return true;
 }
 function savePending(serialized,reason){
  if(!active?.uid)return;
@@ -126,7 +151,7 @@ function downloadPending(){
  document.body.appendChild(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(href),10000);
 }
-window.POTE_SYNC_GUARD={downloadPending,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
+window.POTE_SYNC_GUARD={downloadPending,resolvePendingConflict,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
 window.addEventListener("online",()=>{if(ready&&!syncBlocked)queueSave()});
 function refreshEntitlements() {
   if (!window.POTE_AUTH) return;

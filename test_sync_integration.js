@@ -4,7 +4,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  const source=fs.readFileSync("firebase_integration.js","utf8").split("\n").filter(s=>!/^import /.test(s)).join("\n");
  const copy=x=>JSON.parse(JSON.stringify(x));
  const mk=()=>({data:{orders:[],ingredients:[],recipes:[],clients:[],suppliers:[],expenses:[],losses:[]}});
- let local=mk();
+ let local=mk(),reloads=0;
  const cloud={};
  cloud["users/u"]={email:"test@example.com"};
  cloud["users/u/appState/main"]={state:copy(local),updatedAt:{seconds:100}};
@@ -24,7 +24,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
   stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,
   localStorage:storage,navigator:{userAgent:""},
   document:{getElementById:id=>elements.get(id)||null,createElement:()=>({style:{},addEventListener(){},click(){},remove(){}}),body:{classList:{toggle(){}},appendChild(){}}},
-  window:{POTE_USE_V2:false,
+  window:{POTE_USE_V2:false,confirm:()=>true,location:{reload(){reloads++}},
    POTE_APP:{snapshot:()=>copy(local),applyState:x=>{local=copy(x)},reset:()=>{local=mk()},isPristineDemo:()=>false},
    POTE_BUSINESS:{refresh(){}},addEventListener:(name,cb)=>{listens[name]=cb},
    dispatchEvent(){}},
@@ -92,5 +92,10 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  listens["pote:changed"]();
  assert.equal(transactions,previous,"Blocked state must never attempt new transactions");
  assert(elements.get("potePendingSyncBackup").hidden===false);
+ assert(elements.get("poteSyncResolve").hidden===false);
+ assert.equal(context.window.POTE_SYNC_GUARD.resolvePendingConflict(),true);
+ assert.equal(reloads,1);
+ assert.equal(store.has(pendingKey("u")),false);
+ assert.equal(context.window.POTE_SYNC_GUARD.blocked,false);
  console.log("PASS: login real simulado, escrita atômica, conflito entre dispositivos bloqueado, rascunho local isolado e exportação.");
 })().catch(e=>{console.error(e);process.exitCode=1});
