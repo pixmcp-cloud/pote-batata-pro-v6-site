@@ -124,6 +124,7 @@ jobs:
           node test_sync_guard.mjs
           node test_sync_integration.js
           node test_v2_store.mjs
+          node test_v2_active_archive_regression.mjs
           node test_v2_storage.mjs
           node test_auth_v2_integration.js
           node test_finance_core.js

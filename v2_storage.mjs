@@ -1,7 +1,7 @@
 /* Firebase V2 repository. Store one logical record per document.
    No legacy deletes. In test-only cutover, old appState/main remains untouched.
    All inventory-sensitive edits serialize through the same transaction guard. */
-import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=v3-wave1-20261116";
+import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=adm-v2-recipes-20261116";
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
 import {checkFreeUniverseDelta} from "./free_limits.mjs?v=kitchen-motoboy-20261116";
 

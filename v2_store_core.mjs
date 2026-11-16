@@ -135,7 +135,8 @@ export function combineState(meta,records){
  const result=copy(meta),data=result.data;
  if(!data||typeof data!=="object")throw Error("Metadados V2 incompletos");
  data.businessUniverses??={};
- const active=branchId(data),all={[active]:data,...data.businessUniverses};
+ // The active workspace has priority over a stale archived copy with the same ID.
+ const active=branchId(data),all={...(data.businessUniverses||{}),[active]:data};
  for(const branch of Object.values(all))
   for(const group of RECORD_GROUPS)branch[group]=[];
  const sorted=[...records.values()].sort((a,b)=>a.universe.localeCompare(b.universe)||
