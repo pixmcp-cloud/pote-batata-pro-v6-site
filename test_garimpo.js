@@ -63,9 +63,9 @@ console.log("PASS: GPS 30 km, itens cadastrados, margem por unidade, histórico 
     preco_final:29.9,unidade:"1KG",tipo_preco:"PROMOCIONAL",data_inicio:"2026-11-01",
     data_fim:"2099-12-31",temporal_status:"VIGENTE"}]})});
   assert.equal(await G.lookupMPH(),true,"API MPH atual para Lages deve abrir resultados");
-  assert(els.get("garimpoMPHResults").innerHTML.includes("Conferir e cadastrar"));
+  assert(els.get("garimpoMPHResults").innerHTML.includes("Conferir e registrar referência de Lages"));
   assert.equal(G.fillFromMPH(0),true);
-  assert.equal(els.get("garimpoMarket").value,"Atacadão");
+  assert.equal(els.get("garimpoMarket").value,"Atacadão — Lages/SC");
   assert.equal(els.get("garimpoPrice").value,"29.9");
   assert.equal(els.get("garimpoCondition").value,"promocional");
   assert.equal(els.get("garimpoQty").value,"","Quantidade deve exigir conferência da embalagem");

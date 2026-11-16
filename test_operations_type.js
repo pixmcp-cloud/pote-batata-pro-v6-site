@@ -15,5 +15,5 @@ assert(!css.includes('content:attr(data-outline)'),'Camada duplicada deve ser re
 assert(!source.includes('data-outline'),'Duplicação do texto deve ser removida da Home');
 assert(source.includes('<strong>${label}</strong>'),'O título normal deve permanecer');
 assert(final.includes('font-size:clamp(17px,4.8vw,21px)!important'),'Texto deve se adaptar ao celular');
-assert(html.includes('visual_refresh.css?v=home-nav-20261116'),'Cache novo não conectado');
+assert(html.includes('visual_refresh.css?v=profit-compare-20261116'),'Cache novo não conectado');
 console.log('PASS: texto branco sem contorno, inferior e centralizado na horizontal.');

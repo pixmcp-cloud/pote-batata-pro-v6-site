@@ -242,3 +242,24 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
 .home-hero-button:focus-visible{outline:3px solid #ffe1a0;outline-offset:3px}
 #poteOpsCards{scroll-margin-top:18px}
 @media(max-width:450px){.home-hero-button{min-width:56px;min-height:64px;padding:5px}.home-hero-button svg{width:36px;height:36px}}
+
+/* Lucro x Sobras — barras independentes, sem gráfico de rosca enganoso. */
+.ops-profit-card{border-color:#6e92aa85;background:linear-gradient(145deg,#182c3e,#101c2b)!important}
+.ops-profit-compare{display:grid;gap:18px;margin:15px 0}
+.ops-profit-row{display:flex;flex-direction:column;gap:8px}
+.ops-profit-row-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ops-profit-row-top>span{display:inline-flex;align-items:center;gap:9px;color:#edf6fc;font-size:13px}
+.ops-profit-row-top i{width:12px;height:12px;border-radius:4px;background:#f3b64d;box-shadow:0 0 0 3px #f3b64d18}
+.ops-profit-row.profit .ops-profit-row-top i{background:#36d89e;box-shadow:0 0 0 3px #36d89e26}
+.ops-profit-row.loss .ops-profit-row-top i{background:#ff6679;box-shadow:0 0 0 3px #ff667926}
+.ops-profit-row-top strong{font-size:clamp(15px,2.1vw,19px);font-variant-numeric:tabular-nums;color:#f0cc8f}
+.ops-profit-row.profit .ops-profit-row-top strong{color:#69e8bc}
+.ops-profit-row.loss .ops-profit-row-top strong{color:#ff9fa7}
+.ops-profit-track{background:#091827;border:1px solid #56738b7a;border-radius:99px;height:15px;overflow:hidden}
+.ops-profit-track>span{display:block;height:100%;min-width:0;border-radius:99px;background:linear-gradient(90deg,#d98e36,#f4c776);box-shadow:0 0 14px #f4b64c4f}
+.ops-profit-row.profit .ops-profit-track>span{background:linear-gradient(90deg,#168761,#38e0a2);box-shadow:0 0 14px #23d6935b}
+.ops-profit-row.loss .ops-profit-track>span{background:linear-gradient(90deg,#b9344e,#ff7082);box-shadow:0 0 14px #ff708256}
+.ops-profit-row>small{font-size:10px;line-height:1.5;color:#afc7d9}
+.ops-profit-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 13px;border:1px solid #728ca95c;border-radius:12px;background:#0b1e2c8e;font-size:11px;color:#d0e1ed}
+.ops-profit-summary strong{white-space:nowrap;font-variant-numeric:tabular-nums;color:#f2dbb2;font-size:13px}
+.ops-chart-note{font-size:10px;line-height:1.55;color:#b7cbd9;margin:10px 0 0}

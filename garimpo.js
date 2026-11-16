@@ -89,10 +89,105 @@ function searchUrl(item,market){
  const query=[item.name,item.size,item.brand,market.name,market.city||"SC","preço encarte"].filter(Boolean).join(" ");
  return "https://www.google.com/search?q="+encodeURIComponent(query);
 }
+let onlineCatalog=null,onlineInfo="Catálogo online ainda não consultado.";
+const officialCatalogs=[
+ {test:/giassi/i,name:"Giassi Supermercados",url:"https://www.giassi.com.br/"},
+ {test:/combo/i,name:"Combo Atacadista",url:"https://www.comboatacadista.com.br/ofertas"},
+ {test:/\bfort\b/i,name:"Fort Atacadista",url:"https://www.fortatacadista.com.br/encartes"},
+ {test:/\bl[ií]der\b/i,name:"Supermercado Líder",url:"https://www.supermercadolider.com.br/produtos.php"}
+];
+function storeOfficial(m){return officialCatalogs.find(x=>x.test.test(m.name))||null}
+function marketDetails(index){
+ const m=markets()[Number(index)],host=$("garimpoMarketDetails");
+ if(!m||!host)return false;
+ const geo=Number(m.lat)+","+Number(m.lon),route="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(geo);
+ const map="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(m.name+" "+(m.address||m.city||""));
+ const official=storeOfficial(m),web=m.website&&/^https?:\/\//i.test(m.website)?m.website:official?.url;
+ const phone=String(m.phone||"").replace(/[^\d+]/g,"");
+ const msg=encodeURIComponent("Olá! Qual o preço e disponibilidade de produtos para meu negócio?");
+ const waDigits=phone.replace(/\D/g,"");
+ const wa=/^55\d{10,11}$/.test(waDigits)?waDigits: /^\d{10,11}$/.test(waDigits)?"55"+waDigits:"";
+ const buttons=[
+  '<a class="btn mini" target="_blank" rel="noopener noreferrer" href="'+esc(route)+'">Traçar rota</a>',
+  '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(map)+'">Ver no mapa</a>',
+  phone?'<a class="btn mini line" href="tel:'+esc(phone)+'">Ligar</a>':'',
+  wa?'<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+wa+'?text='+msg+'">WhatsApp</a>':'',
+  web?'<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(web)+'">Site / encarte oficial</a>':'',
+  '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc("https://www.google.com/search?q="+encodeURIComponent(m.name+" "+m.city+" ofertas encarte"))+'">Pesquisar ofertas</a>'
+ ];
+ host.innerHTML='<section class="garimpo-market-details"><h4>'+esc(m.name)+'</h4>'+
+  '<p>'+esc(m.address||m.city||"Endereço não informado")+' · '+m.distanceKm.toFixed(1)+' km do GPS</p>'+
+  '<p>Contato: '+esc(phone||"não cadastrado no mapa")+'. '+(official?'Rede identificada: '+esc(official.name)+'.':'Dados provenientes do mapa; conferir o estabelecimento.')+'</p>'+
+  '<div class="actions">'+buttons.filter(Boolean).join("")+'</div>'+
+  '<div id="garimpoMarketProducts"><p>Pesquisando preços cadastrados e referências online disponíveis...</p></div></section>';
+ const products=offers().filter(o=>norm(o.market)===norm(m.name));
+ const target=$("garimpoMarketProducts");
+ if(target)target.innerHTML='<h4>Portfólio e preços conhecidos</h4>'+
+  (products.length?products.map(o=>'<div class="garimpo-online-row"><span><strong>'+esc(o.itemName)+' · '+esc(o.brand||"")+
+   '</strong><small>'+esc(status(o))+' · validade '+esc(dateBR(o.validUntil))+'</small></span><span class="garimpo-online-price">'+money(o.price)+'</span></div>').join(""):
+   '<p>Nenhum preço confirmado desta loja foi cadastrado.</p>')+
+  (official?.name==="Giassi Supermercados"?'<p>Preços de e-commerce podem ser diferentes dos da loja física. Veja as referências online abaixo.</p>'+
+   '<div id="garimpoSelectedOnline"></div>':'<p>Para conferir preços deste estabelecimento, consulte o encarte ou site oficial. Os resultados não são simulados.</p>');
+ if(official?.name==="Giassi Supermercados")void loadPublicPrices(true);
+ host.scrollIntoView?.({behavior:"smooth",block:"start"});
+ return true;
+}
+function normTokens(v){return norm(v).split(/[^a-z0-9]+/).filter(x=>x.length>2&&!["com","sem","para","de","tipo","produto","fatiado","cozido","em","pacote"].includes(x));}
+function onlineMatches(item){
+ if(!onlineCatalog?.products?.length||!item)return [];
+ const terms=normTokens(item.name),brand=norm(item.brand);
+ return onlineCatalog.products.filter(p=>{
+  if(brand&&!norm(p.brand).includes(brand))return false;
+  const hay=norm(p.name);
+  let hits=terms.filter(t=>hay.includes(t)).length;
+  if(!hits||hits<Math.max(1,Math.ceil(terms.length*0.6)))return false;
+  if(item.kind==="beverage"&&item.size){
+   const amount=/(\d+(?:[.,]\d+)?)\s*(ml|l)\b/i.exec(item.size);
+   if(amount&&!hay.includes(norm(amount[1]+amount[2]))&&!new RegExp("\\b"+amount[1]+"\\s*"+amount[2]+"\\b","i").test(hay))return false;
+  }
+  return p.price>0&&(!p.validUntil||p.validUntil>=today());
+ }).sort((a,b)=>a.price-b.price).slice(0,35);
+}
+function onlineRows(item){
+ const rows=onlineMatches(item),t=onlineCatalog?.collectedAt||"",hostName=item?.name||"";
+ return rows.length?'<p class="garimpo-offsite-warning">Giassi ONLINE • consultado '+esc(t.slice(0,16).replace("T"," "))+
+  ' UTC. Para preço local, entre no site, faça login e escolha a loja. A consulta automática não confirma estoque ou preço na loja física.</p>'+
+  rows.slice(0,20).map(p=>'<div class="garimpo-online-row"><div><strong>'+esc(p.name)+'</strong><small>'+
+   esc(p.brand||"Sem marca")+' · preço online, não da loja física'+
+   (p.validUntil?' · referência técnica até '+esc(dateBR(p.validUntil)):"")+'</small>'+
+   '<a target="_blank" rel="noopener noreferrer" href="'+esc(p.url)+'">Ver preço no Giassi</a></div>'+
+   '<span class="garimpo-online-price">'+money(p.price)+'</span></div>').join(""):
+  '<p class="muted">Nenhum preço online compatível com '+esc(hostName)+' disponível no catálogo capturado. Confira a busca oficial.</p>'+
+  '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc("https://www.giassi.com.br/"+encodeURIComponent(hostName)+"?map=ft")+'">Pesquisar no Giassi</a>';
+}
+async function loadPublicPrices(silent=false){
+ const info=$("garimpoOnlineStatus");
+ if(info&&!silent)info.textContent="Consultando catálogo público...";
+ try{
+  const res=await fetch("./garimpo_catalog.json?v="+encodeURIComponent(today()),{cache:"no-store"});
+  if(!res.ok)throw Error("catálogo ainda não disponível");
+  const json=await res.json();
+  const ts=Date.parse(json.collectedAt||"");
+  const ageH=(Date.now()-ts)/3600000;
+  if(json.source!=="giassi.com.br"||!Array.isArray(json.products)||!(ageH>=0&&ageH<=24)){
+   throw Error("catálogo ausente ou com mais de 24 horas");
+  }
+  onlineCatalog=json;onlineInfo=json.products.length+" preços online identificados e datados (sem confirmação na loja física).";
+ }catch(e){onlineCatalog=null;onlineInfo="Sem preços online recentes: "+(e.message||"indisponível");}
+ if(info)info.textContent=onlineInfo;
+ const item=stocks().find(x=>x.id===($("garimpoOnlineItem")?.value||$("garimpoItem")?.value))||stocks()[0];
+ const online=$("garimpoOnlineResults");if(online)online.innerHTML=onlineRows(item);
+ const selected=$("garimpoSelectedOnline");if(selected)selected.innerHTML=onlineRows(item);
+ return !!onlineCatalog?.products?.length;
+}
+function selectOnlineItem(){const item=stocks().find(x=>x.id===$("garimpoOnlineItem")?.value);const online=$("garimpoOnlineResults");
+ if(online)online.innerHTML=onlineRows(item);
+}
+
 function showMarkets(){
  const host=$("garimpoMarkets");if(!host)return;
  const all=markets();
- host.innerHTML=all.length?all.map(m=>'<div class="garimpo-market"><strong>'+esc(m.name)+'</strong><small>'+esc(m.city||"SC")+' · '+m.distanceKm.toFixed(1)+' km · '+esc(m.address||"")+'</small></div>').join(""):
+ host.innerHTML=all.length?all.map((m,i)=>'<div class="garimpo-market"><button type="button" class="garimpo-market-click" onclick="POTE_GARIMPO.marketDetails('+i+')"><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.city||"SC")+' · '+m.distanceKm.toFixed(1)+' km · '+esc(m.address||"")+'</small></span><span class="garimpo-chevron">›</span></button></div>').join(""):
  '<p class="muted">Nenhum estabelecimento com coordenadas confirmado até 30 km. Ative o GPS e faça uma busca.</p>';
  const sel=$("garimpoMarketList");if(sel)sel.innerHTML=all.map(m=>'<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>').join("");
 }
@@ -144,6 +239,7 @@ async function discover(){
      /supermercado|mercado|atacado|giassi|combo|líder|lider|forte|salvetti/i.test(p.name);
     if(!isStore)continue;
     const m={id:"osm:"+p.osm_type+":"+p.osm_id,name:p.name,city:p.city||p.district||"",
+     phone:String(p.extra?.phone||p.extra?.['contact:phone']||p.phone||""),website:String(p.extra?.website||p.extra?.['contact:website']||""),
      address:[p.street,p.housenumber,p.city,p.state].filter(Boolean).join(", "),lat:c[1],lon:c[0],
      osmId:String(p.osm_type)+":"+String(p.osm_id),supplierType:"regional"};
     found.set(m.osmId,m);
@@ -156,11 +252,8 @@ async function discover(){
 let mphRows=[];
 async function lookupMPH(){
  // MPH tem dados declarados para Lages: não usar as ofertas em outras regiões.
- const ref=markets(),host=$("garimpoMPHResults");
- if(!ref.some(m=>norm(m.city).includes("lages"))){
-  alert("A API MPH tem cobertura declarada para Lages/SC. Não é fonte validada para os mercados deste raio de 30 km.");
-  return false;
- }
+ const host=$("garimpoMPHResults");
+ // Consulta de Lages é independente do GPS e nunca entra no ranking dos mercados próximos.
  const item=stocks().find(x=>x.id===$("garimpoItem")?.value);
  if(!item){alert("Escolha um produto para consultar.");return false;}
  const url="https://www.menorprecohoje.com.br/agent/v1/search?product="+encodeURIComponent(item.name);
@@ -168,25 +261,29 @@ async function lookupMPH(){
  try{
   const response=await fetch(url,{mode:"cors"});
   const payload=await response.json();
-  const fresh=response.ok&&payload?.ok===true&&norm(payload.meta?.city)==="lages"&&
+  const fresh=response.ok&&payload?.ok===true&&norm(payload?.meta?.city)==="lages"&&
    payload.meta?.snapshot_current===true&&payload.edge?.freshness==="CURRENT"&&
-   payload.meta?.reference_date===today()&&payload.temporal_scope==="PRESENTE";
-  if(!fresh){
-   if(host)host.textContent="MPH sem snapshot atual e verificável. Nenhum preço será importado como vigente.";
+   payload.temporal_scope==="PRESENTE";
+  if(!response.ok||payload?.ok!==true||norm(payload?.meta?.city)!=="lages"){
+   if(host)host.textContent=payload?.error==="STALE_SNAPSHOT"?
+    "AVISO — A API MPH informou que a edição "+dateBR(payload.snapshot_reference_date)+" está desatualizada para a data atual. A fonte bloqueou preços vigentes; não exibimos valores antigos como se fossem ofertas de hoje.":
+    "AVISO — API MPH indisponível para consulta de Lages. "+String(payload?.message||"Nenhum preço atualizado retornado.").slice(0,190);
    return false;
   }
+  const updated=String(payload.meta?.reference_date||payload?.snapshot_reference_date||"").slice(0,10);
+  const baseFresh=fresh&&updated===today();
   mphRows=(Array.isArray(payload.offers)?payload.offers:[]).filter(o=>
    o.temporal_status==="VIGENTE"&&o.data_fim>=today()&&o.data_inicio<=today()&&
    Number.isFinite(Number(o.preco_final))&&Number(o.preco_final)>0).map(o=>({...o,itemId:item.id,sourceUrl:url}));
-  if(host)host.innerHTML=mphRows.length?'<p><strong>'+mphRows.length+' oferta(s) atuais retornadas pela API de Lages.</strong> Confira a descrição, marca e tamanho antes de associar ao seu produto. Somente mercados localizados no raio podem ser comparados.</p>'+
+  if(host)host.innerHTML=mphRows.length?'<p class="garimpo-offsite-warning"><strong>'+mphRows.length+' preço(s) de Lages/SC obtidos na API MPH.</strong> Base de '+esc(dateBR(updated))+'. '+(baseFresh?'Atualizada hoje.':'Não atualizada hoje: conferir validade antes de comprar.')+' Estes preços NÃO pertencem aos mercados no raio de 30 km do seu GPS.</p>'+
    mphRows.slice(0,30).map((o,index)=>{
-    const matched=markets().some(m=>norm(m.name)===norm(o.mercado));
+    const normPrice=o.comparacao?.preco_normalizado,baseUnit=o.comparacao?.base,normalized=Number(normPrice)>0?money(normPrice)+"/"+esc(baseUnit||"un"):"";
     return '<div class="garimpo-market"><strong>'+esc(o.descricao)+'</strong><small>'+esc(o.mercado)+' · '+money(o.preco_final)+
      ' · '+esc(o.marca||"Marca não indicada")+' · '+esc(o.unidade||"")+
      ' · válido até '+esc(dateBR(o.data_fim))+
-     (matched?' · mercado dentro dos 30 km':' · mercado ainda não identificado nos 30 km')+
+     ' · Lages/SC (fora da pesquisa local) '+(normalized?' · '+normalized:'')+
      '</small><a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Ver resposta MPH</a> '+
-     (matched?'<button class="btn mini line" onclick="POTE_GARIMPO.fillFromMPH('+index+')">Conferir e cadastrar</button>':'')+'</div>';
+     '<button class="btn mini line" onclick="POTE_GARIMPO.fillFromMPH('+index+')">Conferir e registrar referência de Lages</button></div>';
    }).join(""):'<p class="muted">Nenhuma oferta vigente encontrada no MPH para este item.</p>';
   return true;
  }catch(err){
@@ -196,12 +293,11 @@ async function lookupMPH(){
 }
 function fillFromMPH(index){
  const o=mphRows[index];if(!o)return false;
- const market=markets().find(m=>norm(m.name)===norm(o.mercado));
- if(!market){alert("Mercado ainda não confirmado dentro do raio de 30 km.");return false;}
+ // Lages: preço registrado separadamente, sem autenticar como preço de loja local.
  const current=stocks().find(i=>i.id===o.itemId);
  if(!current){alert("Produto do estoque não encontrado.");return false;}
  if($("garimpoItem"))$("garimpoItem").value=current.id;
- if($("garimpoMarket"))$("garimpoMarket").value=market.name;
+ if($("garimpoMarket"))$("garimpoMarket").value=o.mercado+" — Lages/SC";
  if($("garimpoBrand"))$("garimpoBrand").value=o.marca||"";
  if($("garimpoSize"))$("garimpoSize").value=o.unidade||"";
  if($("garimpoPrice"))$("garimpoPrice").value=String(o.preco_final);
@@ -213,7 +309,7 @@ function fillFromMPH(index){
  // A apresentação da embalagem varia na API; usuário confirma quantidade e unidade.
  if($("garimpoQty"))$("garimpoQty").value="";
  if($("garimpoReceipt"))$("garimpoReceipt").checked=false;
- alert("Preço e datas preenchidos. Confira se é exatamente o mesmo produto, marca e embalagem. Informe a quantidade e unidade antes de registrar.");
+ window.POTE_NOTICE?.show?.("Preço de Lages preenchido. Verifique produto, marca, embalagem e quantidade. Esta referência não será classificada como oferta local.");
  $("garimpoQty")?.focus?.();
  return true;
 }
@@ -226,8 +322,9 @@ function render(){
  '<button class="btn line" onclick="POTE_GARIMPO.exportCSV()">Exportar planilha CSV</button>'+
  '<button class="btn line" onclick="POTE_GARIMPO.lookupMPH()">Consultar API MPH (Lages)</button></div><div id="garimpoMPHResults" aria-live="polite"></div>'+
  '<div role="status" id="garimpoSearchStatus">'+esc(searchMessage||"Autorize o GPS para conferir a distância real. A busca não garante que cada loja publique seus preços.")+'</div>'+
- '<h3>Mercados próximos</h3><div id="garimpoMarkets">'+(known.length?known.map(m=>'<div class="garimpo-market">'+esc(m.name)+'</div>').join(""):'Ative a pesquisa para ver mercados.')+'</div>'+
+ '<h3>Mercados próximos</h3><p class="muted">Toque em qualquer mercado para ver ficha, rota, telefone, site e referências de preços.</p><div id="garimpoMarkets">'+(known.length?known.map(m=>'<div class="garimpo-market">'+esc(m.name)+'</div>').join(""):'Ative a pesquisa para ver mercados.')+'</div><div id="garimpoMarketDetails"></div>'+
  '<h3>Planilha comparativa por insumo</h3><div id="garimpoComparison"></div>'+
+ '<h3>Preços online disponíveis — Giassi</h3><p class="muted">Referências verificáveis de e-commerce. Os valores não são declarados como preços das lojas físicas.</p><div class="garimpo-form"><label>Item para consultar<select id="garimpoOnlineItem" onchange="POTE_GARIMPO.selectOnlineItem()">'+items.map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+'</option>').join("")+'</select></label><button type="button" class="btn line" onclick="POTE_GARIMPO.loadPublicPrices()">Carregar preços online</button></div><div role="status" id="garimpoOnlineStatus">'+esc(onlineInfo)+'</div><div id="garimpoOnlineResults"></div>'+
  '<h3>Registrar oferta ou preço de nota fiscal</h3><p class="muted">Para considerar uma oferta válida, registre fonte HTTPS e data final do encarte. Nota fiscal representa somente preço histórico, nunca promoção atual.</p>'+
  '<div class="garimpo-form"><label>Item do seu estoque<select id="garimpoItem" onchange="POTE_GARIMPO.selectItem()">'+items.map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name+(i.size?' · '+i.size:''))+'</option>').join("")+'</select></label>'+
  '<label>Mercado com GPS confirmado<input id="garimpoMarket" list="garimpoMarketList" placeholder="Giassi, Combo, Líder..."><datalist id="garimpoMarketList"></datalist></label>'+
@@ -244,6 +341,6 @@ function render(){
  '<h3>Histórico de preços e validade</h3><div id="garimpoHistory"></div>'+
  '<p class="muted">Oferta conferida manualmente não é verificação automática do site; consulte sempre a fonte antes de sair para comprar. Valores de clube dependem de adesão e não são comparáveis a preço aberto sem ressalva.</p></section>';
 }
-function mount(){selectItem();showMarkets();showComparison()}
-window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,fillFromMPH,selectItem,stocks,offers,markets,status,active,unitPrice,matcher,best,dist,searchUrl,setCenter:c=>{center=c},setMarketSearch:v=>{marketSearch=v}};
+function mount(){selectItem();showMarkets();showComparison();void loadPublicPrices(true)}
+window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,dist,searchUrl,setCenter:c=>{center=c},setMarketSearch:v=>{marketSearch=v}};
 })();
