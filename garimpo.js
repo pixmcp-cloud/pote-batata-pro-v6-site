@@ -19,7 +19,58 @@ const recent=()=>offers().slice().sort((a,b)=>String(b.checkedAt).localeCompare(
 const dist=(a,b,c,d)=>{let rad=Math.PI/180,dl=(c-a)*rad,dn=(d-b)*rad;
  let h=Math.sin(dl/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dn/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(h)))};
 const REGIONAL=()=> (state.data.suppliers||[]).filter(s=>s.osmId||s.externalId||s.supplierType==="regional"||s.type==="Local");
-let center=null,marketSearch=[],searchMessage="",busy=false,searchRegion="gps";
+let center=null,marketSearch=[],searchMessage="",busy=false,searchRegion="gps",regionInfo=null;
+const geoDist=(a,b)=>center?dist(center.lat,center.lon,a,b):Infinity;
+const geoNearby=(lat,lon,km)=>geoDist(lat,lon)<=km;
+function regionalLinks(){
+ const state=regionInfo?.state||"";
+ const links=[];
+ if(state==="SC")links.push({url:"https://www.sef.sc.gov.br/servicos/instalar-o-aplicativo-menor-preco-brasil",label:"Menor Preço Brasil · Santa Catarina",desc:"Consultar preços de notas fiscais da sua região no serviço oficial; exige acesso Gov.br"});
+ if(state==="RS")links.push({url:"https://nfg.sefaz.rs.gov.br/site/MenorPreco.aspx",label:"Menor Preço Nota Gaúcha · Rio Grande do Sul",desc:"Preços praticados por estabelecimentos gaúchos; escolha sua localização no aplicativo oficial"});
+ if(geoNearby(-29.3389427,-49.7271564,70)){
+  links.push({url:"https://stokonline.com.br/",label:"Stok Center / Stok Online",desc:"Referência regional; lojas físicas e online podem praticar preços diferentes. Confira a unidade"});
+  links.push({url:"https://portal.qrofertas.com/torres-rs",label:"Encartes de mercados próximos",desc:"Consultar encartes, validade e condições de clube ou CNPJ"});
+  links.push({url:"https://www.precomelhor.com.br/s/11159-asun-supermercados-torres",label:"Preços publicados por mercado",desc:"Conferir preço, data e disponibilidade antes de comprar"});
+ }
+ return links;
+}
+function regionFromAddress(address){
+ const code=String(address?.state_code||address?.["ISO3166-2-lvl4"]||"").toUpperCase();
+ if(code.endsWith("-SC")||code==="SC")return "SC";
+ if(code.endsWith("-RS")||code==="RS")return "RS";
+ const name=norm(address?.state||"");
+ if(name==="santa catarina")return "SC";
+ if(name==="rio grande do sul")return "RS";
+ return code.match(/-([A-Z]{2})$/)?.[1]||"";
+}
+function renderRegional(){
+ const links=regionalLinks();
+ const action=$("garimpoRegionalActions");
+ if(action)action.innerHTML=geoNearby(-29.3389427,-49.7271564,70)?
+  '<button type="button" class="btn line" onclick="POTE_GARIMPO.discover(\'torres\')">Pesquisar mercados da região vizinha</button>':"";
+ const source=$("garimpoRegionalSources");
+ if(source)source.innerHTML=links.length?
+  '<section class="garimpo-sources"><h3>Fontes e encartes disponíveis na região</h3><p class="muted">Acesso externo aos serviços. Estes links não confirmam automaticamente preços da loja física.</p><div class="garimpo-source-grid">'+
+  links.map(x=>'<a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer"><strong>'+esc(x.label)+'</strong><small>'+esc(x.desc)+'</small></a>').join("")+'</div></section>':
+  '<p class="muted">Ative a pesquisa por localização para identificar fontes disponíveis na sua região. Os resultados nunca serão preenchidos com preços de outra cidade.</p>';
+ const mph=$("garimpoMPHAction");
+ if(mph)mph.innerHTML=geoNearby(-27.816,-50.327,40)?
+  '<button class="btn line" onclick="POTE_GARIMPO.lookupMPH()">Consultar preços MPH desta região</button>':"";
+ const giassi=$("garimpoGiassiOnline");
+ if(giassi)giassi.hidden=!["SC","RS"].includes(regionInfo?.state||"");
+}
+async function identifyRegion(coords){
+ // A localização e o estado não ficam salvos no servidor. Falha de geocodificação não atribui SC ou RS por suposição.
+ try{
+  const u="https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=8&addressdetails=1&lat="+encodeURIComponent(coords.lat)+"&lon="+encodeURIComponent(coords.lon);
+  const response=await fetch(u,{mode:"cors"});
+  if(!response.ok)throw Error("Estado indisponível");
+  const payload=await response.json();
+  regionInfo={state:regionFromAddress(payload.address),city:String(payload.address?.city||payload.address?.town||payload.address?.municipality||"")};
+ }catch(e){regionInfo={state:"",city:""};}
+ renderRegional();
+ return regionInfo;
+}
 const TORRES_CENTER={lat:-29.3389427,lon:-49.7271564}; // Centro urbano de Torres/RS (Praca Quinze de Novembro)
 function markets(){const map=new Map();for(const s of [...REGIONAL(),...marketSearch]){
  const key=norm(s.name)+"|"+norm(s.city||"");if(!map.has(key))map.set(key,s);
@@ -87,11 +138,12 @@ function exportCSV(){
  const a=document.createElement("a");a.href=url;a.download="garimpo_preco_historico.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 function searchUrl(item,market){
- const query=[item.name,item.size,item.brand,market.name,market.city||"SC","preço encarte"].filter(Boolean).join(" ");
+ const query=[item.name,item.size,item.brand,market.name,market.city||"Brasil","preço encarte"].filter(Boolean).join(" ");
  return "https://www.google.com/search?q="+encodeURIComponent(query);
 }
 let onlineCatalog=null,onlineInfo="Catálogo online ainda não consultado.";
 const officialCatalogs=[
+ {test:/stok\s*(?:center|atacadista)/i,name:"Stok Center",url:"https://stokonline.com.br/"},
  {test:/giassi/i,name:"Giassi Supermercados",url:"https://www.giassi.com.br/"},
  {test:/combo/i,name:"Combo Atacadista",url:"https://www.comboatacadista.com.br/ofertas"},
  {test:/\bfort\b/i,name:"Fort Atacadista",url:"https://www.fortatacadista.com.br/encartes"},
@@ -121,7 +173,8 @@ function marketDetails(index){
   '<p>Contato: '+esc(phone||"não cadastrado no mapa")+'. '+(official?'Rede identificada: '+esc(official.name)+'.':'Dados provenientes do mapa; conferir o estabelecimento.')+'</p>'+
   '<div class="actions">'+buttons.filter(Boolean).join("")+'</div>'+
   '<div id="garimpoMarketProducts"><p>Pesquisando preços cadastrados e referências online disponíveis...</p></div></section>';
- const products=offers().filter(o=>norm(o.market)===norm(m.name));
+ const products=offers().filter(o=>norm(o.market)===norm(m.name)&&o.marketLat!=null&&o.marketLon!=null&&
+  dist(Number(o.marketLat),Number(o.marketLon),Number(m.lat),Number(m.lon))<1);
  const target=$("garimpoMarketProducts");
  if(target)target.innerHTML='<h4>Portfólio e preços conhecidos</h4>'+
   (products.length?products.map(o=>'<div class="garimpo-online-row"><span><strong>'+esc(o.itemName)+' · '+esc(o.brand||"")+
@@ -188,7 +241,7 @@ function selectOnlineItem(){const item=stocks().find(x=>x.id===$("garimpoOnlineI
 function showMarkets(){
  const host=$("garimpoMarkets");if(!host)return;
  const all=markets();
- host.innerHTML=all.length?all.map((m,i)=>'<div class="garimpo-market"><button type="button" class="garimpo-market-click" onclick="POTE_GARIMPO.marketDetails('+i+')"><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.city||"SC")+' · '+m.distanceKm.toFixed(1)+' km · '+esc(m.address||"")+'</small></span><span class="garimpo-chevron">›</span></button></div>').join(""):
+ host.innerHTML=all.length?all.map((m,i)=>'<div class="garimpo-market"><button type="button" class="garimpo-market-click" onclick="POTE_GARIMPO.marketDetails('+i+')"><span><strong>'+esc(m.name)+'</strong><small>'+esc(m.city||"Brasil")+' · '+m.distanceKm.toFixed(1)+' km · '+esc(m.address||"")+'</small></span><span class="garimpo-chevron">›</span></button></div>').join(""):
  '<p class="muted">Nenhum estabelecimento com coordenadas confirmado até 30 km. Ative o GPS e faça uma busca.</p>';
  const sel=$("garimpoMarketList");if(sel)sel.innerHTML=all.map(m=>'<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>').join("");
 }
@@ -216,8 +269,10 @@ function showComparison(){
 async function discover(region="gps"){
  if(busy)return;busy=true;
  searchRegion=region==="torres"?"torres":"gps";
+ if(searchRegion==="torres"&&!geoNearby(TORRES_CENTER.lat,TORRES_CENTER.lon,70)){busy=false;return false;}
  if(searchRegion==="torres")center={...TORRES_CENTER};
  else center=null;
+ regionInfo=null;
  const note=$("garimpoSearchStatus");const progress=s=>{searchMessage=s;if(note)note.textContent=s};
  let coords=center;
  try{
@@ -227,7 +282,8 @@ async function discover(region="gps"){
    const p=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:13000,maximumAge:120000}));
    coords={lat:p.coords.latitude,lon:p.coords.longitude};center=coords;
   }
-  const terms=["supermercado","atacado","Giassi","Combo","Líder","Forte","Salvetti","Stok Center","Bistek","Asun","Mix Atacado"];
+  await identifyRegion(coords);
+  const terms=["supermercado","atacado","mercado","atacadista","hipermercado",...(["SC","RS"].includes(regionInfo?.state||"")?["Stok Center","Giassi","Combo","Bistek","Asun"]:[])];
   const found=new Map();
   for(const term of terms){
    progress("Pesquisando "+term+" no raio de 30 km...");
@@ -240,7 +296,7 @@ async function discover(region="gps"){
     const p=f.properties||{},c=f.geometry?.coordinates;
     if(!p.name||!Array.isArray(c)||dist(coords.lat,coords.lon,c[1],c[0])>30)continue;
     const isStore=/^(supermarket|wholesale|convenience|grocery|greengrocer|beverages|department_store)$/i.test(p.osm_value||"")||
-     /supermercado|mercado|atacado|giassi|combo|líder|lider|forte|salvetti/i.test(p.name);
+     /supermercado|mercado|atacado|atacadista|hipermercado|stok center|giassi|combo|lider|bistek|asun/i.test(p.name);
     if(!isStore)continue;
     const m={id:"osm:"+p.osm_type+":"+p.osm_id,name:p.name,city:p.city||p.district||"",
      phone:String(p.extra?.phone||p.extra?.['contact:phone']||p.phone||""),website:String(p.extra?.website||p.extra?.['contact:website']||""),
@@ -249,8 +305,8 @@ async function discover(region="gps"){
     found.set(m.osmId,m);
    }
   }
-  marketSearch=[...found.values()];progress(marketSearch.length+" mercados encontrados no raio de 30 km de "+(searchRegion==="torres"?"Torres/RS":"seu GPS")+". Preços dependem de fontes verificáveis.");
-  showMarkets();showComparison();
+  marketSearch=[...found.values()];progress(marketSearch.length+" mercados encontrados dentro de 30 km da localização selecionada. Preços dependem de fontes verificáveis.");
+  showMarkets();showComparison();renderRegional();
  }catch(e){progress("Não foi possível pesquisar: "+(e.message||"permita o GPS e tente novamente"))}finally{busy=false}
 }
 let mphRows=[];
@@ -415,25 +471,18 @@ function selectItem(){const item=stocks().find(i=>i.id===$("garimpoItem")?.value
 function render(){
  const items=stocks(),known=markets();
  return '<section class="box garimpo" id="poteGarimpoPanel"><small>INTELIGÊNCIA DE COMPRAS</small><h2>Garimpo · preços e validade</h2>'+
- '<p>Pesquisa de estabelecimentos até <strong>30 km</strong> do GPS. Cruza seus insumos e bebidas com preços comprovados; não inventa promoções nem mistura peso, embalagem ou marca.</p>'+
+ '<p>Busca mercados próximos à localização autorizada em todo o Brasil, num raio de <strong>30 km</strong>. Fontes e ofertas são selecionadas por região; preços históricos não são exibidos como vigentes.</p>'+
  '<div class="actions"><button class="btn" onclick="POTE_GARIMPO.discover()">Garimpar mercados em 30 km do meu GPS</button>'+
- '<button class="btn line" onclick="POTE_GARIMPO.discover(\'torres\')">Pesquisar Torres/RS e arredores (30 km)</button>'+
  '<button class="btn line" onclick="POTE_GARIMPO.exportCSV()">Exportar planilha CSV</button>'+
- '<button class="btn line" onclick="POTE_GARIMPO.lookupMPH()">Consultar API MPH (Lages)</button></div><div id="garimpoMPHResults" aria-live="polite"></div>'+
- '<section class="garimpo-sources"><h3>Fontes oficiais e encartes por região</h3><p class="muted">Os links abrem a fonte em outra aba. Consulta no site ou app original; não há importação automática de preços de serviços sem API pública autorizada.</p>'+
- '<div class="garimpo-source-grid">'+
- '<a href="https://www.sef.sc.gov.br/servicos/instalar-o-aplicativo-menor-preco-brasil" target="_blank" rel="noopener noreferrer"><strong>SC · Menor Preço Brasil</strong><small>Notas fiscais em Santa Catarina · atualização conforme vendas · login Gov.br</small></a>'+
- '<a href="https://nfg.sefaz.rs.gov.br/site/MenorPreco.aspx" target="_blank" rel="noopener noreferrer"><strong>RS · Menor Preço Nota Gaúcha</strong><small>Consultar preços em Torres e região usando localização definida no aplicativo</small></a>'+
- '<a href="https://stokonline.com.br/" target="_blank" rel="noopener noreferrer"><strong>Torres · Stok Center / Stok Online</strong><small>Av. Castelo Branco, 2380 · São Jorge · Stok Online: compra virtual. Na loja física, verifique ofertas separadas no Clube Stok Center; os preços podem ser diferentes</small></a>'+
- '<a href="https://portal.qrofertas.com/torres-rs" target="_blank" rel="noopener noreferrer"><strong>Torres · QR Ofertas</strong><small>Encarte de mercados/atacados · verificar prazo, clube e condições de CNPJ</small></a>'+
- '<a href="https://www.precomelhor.com.br/s/11159-asun-supermercados-torres" target="_blank" rel="noopener noreferrer"><strong>Torres · PreçoMelhor</strong><small>Preço de referência por estabelecimento · confirme data e disponibilidade</small></a></div></section>'+
+ '</div><div id="garimpoRegionalActions" class="actions"></div><div id="garimpoMPHAction"></div><div id="garimpoMPHResults" aria-live="polite"></div>'+
+ '<div id="garimpoRegionalSources"></div>'+
  '<div role="status" id="garimpoSearchStatus">'+esc(searchMessage||"Autorize o GPS para conferir a distância real. A busca não garante que cada loja publique seus preços.")+'</div>'+
- '<h3>Mercados próximos · '+(searchRegion==="torres"?"Torres/RS":"GPS")+'</h3><p class="muted">Toque em qualquer mercado para ver ficha, rota, telefone, site e referências de preços.</p><div id="garimpoMarkets">'+(known.length?known.map(m=>'<div class="garimpo-market">'+esc(m.name)+'</div>').join(""):'Ative a pesquisa para ver mercados.')+'</div><div id="garimpoMarketDetails"></div>'+
+ '<h3>Mercados próximos</h3><p class="muted">Toque em qualquer mercado para ver ficha, rota, telefone, site e referências de preços.</p><div id="garimpoMarkets">'+(known.length?known.map(m=>'<div class="garimpo-market">'+esc(m.name)+'</div>').join(""):'Ative a pesquisa para ver mercados.')+'</div><div id="garimpoMarketDetails"></div>'+
  '<h3>Planilha comparativa por insumo</h3><div id="garimpoComparison"></div>'+
- '<h3>Preços online disponíveis — Giassi</h3><p class="muted">Referências verificáveis de e-commerce. Os valores não são declarados como preços das lojas físicas.</p><div class="garimpo-form"><label>Item para consultar<select id="garimpoOnlineItem" onchange="POTE_GARIMPO.selectOnlineItem()">'+items.map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+'</option>').join("")+'</select></label><button type="button" class="btn line" onclick="POTE_GARIMPO.loadPublicPrices()">Carregar preços online</button></div><div role="status" id="garimpoOnlineStatus">'+esc(onlineInfo)+'</div><div id="garimpoOnlineResults"></div>'+
+ '<div id="garimpoGiassiOnline" hidden><h3>Preços online disponíveis — Giassi</h3><p class="muted">Referências verificáveis de e-commerce. Os valores não são declarados como preços das lojas físicas.</p><div class="garimpo-form"><label>Item para consultar<select id="garimpoOnlineItem" onchange="POTE_GARIMPO.selectOnlineItem()">'+items.map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+'</option>').join("")+'</select></label><button type="button" class="btn line" onclick="POTE_GARIMPO.loadPublicPrices()">Carregar preços online</button></div><div role="status" id="garimpoOnlineStatus">'+esc(onlineInfo)+'</div><div id="garimpoOnlineResults"></div></div>'+
  '<h3>Registrar oferta ou preço de nota fiscal</h3><p class="muted">Para considerar uma oferta válida, registre fonte HTTPS e data final do encarte. Nota fiscal representa somente preço histórico, nunca promoção atual.</p>'+
  '<div class="garimpo-form"><label>Item do seu estoque<select id="garimpoItem" onchange="POTE_GARIMPO.selectItem()">'+items.map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name+(i.size?' · '+i.size:''))+'</option>').join("")+'</select></label>'+
- '<label>Mercado com GPS confirmado<input id="garimpoMarket" list="garimpoMarketList" placeholder="Giassi, Combo, Líder..."><datalist id="garimpoMarketList"></datalist></label>'+
+ '<label>Mercado com localização confirmada<input id="garimpoMarket" list="garimpoMarketList" placeholder="Nome do estabelecimento"><datalist id="garimpoMarketList"></datalist></label>'+
  '<label>Marca<input id="garimpoBrand" placeholder="Marca da embalagem"></label><label>Volume / peso descritivo<input id="garimpoSize" placeholder="Ex.: lata 350 ml"></label>'+
  '<label>Quantidade na embalagem<input id="garimpoQty" inputmode="decimal" value="1"></label>'+
  '<label>Unidade<select id="garimpoUnit">'+Object.keys(units).map(x=>'<option>'+x+'</option>').join("")+'</select></label>'+
@@ -447,6 +496,21 @@ function render(){
  '<h3>Histórico de preços e validade</h3><div id="garimpoHistory"></div>'+
  '<p class="muted">Oferta conferida manualmente não é verificação automática do site; consulte sempre a fonte antes de sair para comprar. Valores de clube dependem de adesão e não são comparáveis a preço aberto sem ressalva.</p></section>';
 }
-function mount(){selectItem();showMarkets();showComparison();void loadPublicPrices(true)}
-window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,dist,searchUrl,setCenter:c=>{center=c},setMarketSearch:v=>{marketSearch=v}};
+function mount(){
+ selectItem();showMarkets();showComparison();renderRegional();
+ // Nunca fazer consulta online regional automaticamente para uma região desconhecida.
+ if(navigator.permissions?.query&&navigator.geolocation){
+  navigator.permissions.query({name:"geolocation"}).then(p=>{
+   if(p.state==="granted"&&navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+     center={lat:pos.coords.latitude,lon:pos.coords.longitude};
+     identifyRegion(center).then(()=>{showMarkets();showComparison();});
+    },()=>{}, {enableHighAccuracy:false,timeout:7000,maximumAge:120000});
+   }
+  }).catch(()=>{});
+ }
+}
+window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,identifyRegion,
+ setCenter:c=>{center=c},setRegionInfo:v=>{regionInfo=v;renderRegional()},
+ setMarketSearch:v=>{marketSearch=v}};
 })();

@@ -101,6 +101,7 @@ jobs:
           node --check public/pote_notice.js
           node test_garimpo.js
           node test_garimpo_online.js
+          node test_garimpo_national.js
           node --check public/simulation_panel.js
           node --check public/dashboard_charts.js
           node test_dashboard_charts.js
