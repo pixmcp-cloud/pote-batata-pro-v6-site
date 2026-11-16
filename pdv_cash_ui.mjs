@@ -54,7 +54,11 @@ function mutate(fn){
  return result;
 }
 function textField(label,name,placeholder="",type="text"){
- return '<label>'+esc(label)+'<input type="'+esc(type)+'" name="'+esc(name)+'" placeholder="'+esc(placeholder)+'" required></label>';
+ const isAmount=type==="money"||["openingCash","countedCash","amount"].includes(name);
+ const inputType=isAmount?"text":type;
+ return '<label>'+esc(label)+'<input type="'+esc(inputType)+'" name="'+esc(name)+'" placeholder="'+esc(placeholder)+'"'+
+  (isAmount?' inputmode="decimal" enterkeyhint="done" autocomplete="off" data-numeric="decimal"':'')+
+  ' required></label>';
 }
 function render(){
  ensure();
@@ -237,7 +241,15 @@ function open(){
  modal.querySelector('button[data-pdv-action="hide"]')?.focus();
 }
 function close(){visible=false;if(modal)modal.hidden=true}
-function refresh(){ensure();render()}
+function refresh(){
+ ensure();
+ // Evita substituir o input focado no celular: isso fecharia/reabriria o teclado.
+ // Renderização completa ocorre após qualquer ação efetiva no formulário.
+ const active=document.activeElement;
+ if(visible&&access()&&modal?.contains?.(active)&&
+    active?.matches?.("input,textarea,select,[contenteditable=true]"))return;
+ render();
+}
 for(const event of ["pote:user-ready","pote:changed","pote:license-updated","pote:user-logout"])
  window.addEventListener(event,()=>{
   clearTimeout(delay);delay=setTimeout(refresh,120);

@@ -34,6 +34,7 @@ jobs:
           cp pdv_cash_core.mjs public/pdv_cash_core.mjs
           cp pdv_cash_ui.mjs public/pdv_cash_ui.mjs
           cp pdv_cash.css public/pdv_cash.css
+          cp numeric_keyboard.js public/numeric_keyboard.js
           cp supplier_integration.js public/supplier_integration.js
           cp supplier_directory.js public/supplier_directory.js
           cp supplier_directory.css public/supplier_directory.css
@@ -115,6 +116,8 @@ jobs:
           node test_finance_core.js
           node test_pdv_cash_core.mjs
           node test_pdv_cash_ui.mjs
+          node test_numeric_keyboard.js
+          node --check public/numeric_keyboard.js
           node test_pdv_v2_storage.mjs
           node --check public/pdv_cash_core.mjs
           node --check public/pdv_cash_ui.mjs

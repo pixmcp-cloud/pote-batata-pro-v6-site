@@ -35,6 +35,18 @@ assert.equal(button.hidden,false,"PRO should see PDV button");
 api.open();
 assert.equal(panel.hidden,false);
 assert(panel.querySelector("#potePdvBody").innerHTML.includes("Abrir turno"));
+assert(panel.querySelector("#potePdvBody").innerHTML.includes('name="openingCash" placeholder="Ex.: 100,00" inputmode="decimal"'),
+ "O fundo de troco deve chamar o teclado decimal");
+const openingBody=panel.querySelector("#potePdvBody");
+const originalHTML=openingBody.innerHTML;
+document.activeElement={matches:selector=>selector.includes("input")};
+panel.contains=element=>element===document.activeElement;
+api.refresh();
+assert.equal(openingBody.innerHTML,originalHTML,
+ "Atualização de dados não deve destruir o campo focado no celular");
+document.activeElement=null;
+api.refresh();
+assert.equal(openingBody.innerHTML,originalHTML,"O painel deve voltar a renderizar ao perder o foco");
 assert.equal(api.getSessionId(),null);
 assert(api.ticketHtml({id:"p1",name:"Batata",qty:1,price:29.9,items:[{id:"i",ingredientName:"Batata",g:250}],paymentStatus:"Informado",paymentMethod:"Pix"},
  {kitchen:false,brand:"Test"}).includes("COMPROVANTE NÃO FISCAL"));
@@ -50,6 +62,10 @@ assert(html.includes("R$")&&html.includes("Marcar")===false);
 assert(html.includes("29,90"));
 assert(html.includes("Cozinha")&&html.includes("Recibo"));
 assert(html.includes("Fechar caixa"));
+assert(html.includes('name="countedCash" placeholder="Ex.: 150,00" inputmode="decimal"'),
+ "A contagem final deve abrir o teclado decimal");
+assert(html.includes('name="amount" placeholder="Ex.: 50,00" inputmode="decimal"'),
+ "O valor de sangrias e suprimentos deve abrir o teclado decimal");
 window.POTE_AUTH.role="free";window.POTE_AUTH.proActive=false;
 api.refresh();
 assert.equal(button.hidden,true);

@@ -232,3 +232,7 @@ A versão **Gestão + PDV** introduz módulo de caixa visível em contas PRO, AD
 **Fiscal Santa Catarina**: o PDV **NÃO emite NFC-e/NF-e** e a comanda/recibo gerada indica expressamente que não é documento fiscal. A SEF/SC exige o credenciamento de fornecedor de PAF-NFC-e conforme Ato DIAT 54/2026. A [Nota Fiscal Fácil para MEI](https://www.sef.sc.gov.br/orientacoes/nff-nota-fiscal-facil-mei-microempreendedor-individual) é alternativa oficial sem mensalidade para MEI com IE em SC e Gov.br nível prata/ouro, quando elegível. Eventual integração com PAF credenciado ou adquirente dependerá de documentação, acesso autorizado, homologação e possíveis custos; não foi ativada.
 
 **Validação**: `test_pdv_cash_core.mjs`, `test_pdv_cash_ui.mjs` e `test_pdv_v2_storage.mjs` e teste manual automatizado no Chrome em ambiente isolado, além da suíte geral. Não foram testadas credenciais bancárias, emissão fiscal real, impressora física ou autenticação Google em dois caixas simultâneos.
+
+## Teclado numérico no celular (16/11/2026)
+
+Entradas de dinheiro, preços, estoque, quantidade, percentuais e medidas usam `inputmode=decimal`/`numeric`, preservando vírgula decimal em valores de R$. Telefones usam teclado próprio de telefone; nomes, endereços e observações permanecem no teclado alfabético. Campos criados dinamicamente recebem o modo correto sem mudar seus valores nem bloquear outros formulários. No Caixa PDV, a atualização automática não substitui o campo que estiver em foco, evitando que o teclado desapareça durante a digitação.
