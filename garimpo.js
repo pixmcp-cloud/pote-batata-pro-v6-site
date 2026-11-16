@@ -19,7 +19,8 @@ const recent=()=>offers().slice().sort((a,b)=>String(b.checkedAt).localeCompare(
 const dist=(a,b,c,d)=>{let rad=Math.PI/180,dl=(c-a)*rad,dn=(d-b)*rad;
  let h=Math.sin(dl/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dn/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(h)))};
 const REGIONAL=()=> (state.data.suppliers||[]).filter(s=>s.osmId||s.externalId||s.supplierType==="regional"||s.type==="Local");
-let center=null,marketSearch=[],searchMessage="",busy=false;
+let center=null,marketSearch=[],searchMessage="",busy=false,searchRegion="gps";
+const TORRES_CENTER={lat:-29.3389427,lon:-49.7271564}; // Centro urbano de Torres/RS (Praca Quinze de Novembro)
 function markets(){const map=new Map();for(const s of [...REGIONAL(),...marketSearch]){
  const key=norm(s.name)+"|"+norm(s.city||"");if(!map.has(key))map.set(key,s);
  }return [...map.values()].filter(s=>{
@@ -50,7 +51,7 @@ function matcher(o,item){const unit=unitPrice(o);
  if(item.kind==="beverage"&&item.size&&norm(item.size)!==norm(o.size))return false;
  return true;
 }
-function validOffers(item){return recent().filter(o=>active(o)&&matcher(o,item)&&o.regionVerified===true);}
+function validOffers(item){return recent().filter(o=>active(o)&&matcher(o,item)&&o.regionVerified===true&&center&&Number.isFinite(Number(o.marketLat))&&Number.isFinite(Number(o.marketLon))&&dist(center.lat,center.lon,Number(o.marketLat),Number(o.marketLon))<=30);}
 function best(item){return validOffers(item).sort((a,b)=>unitPrice(a).price-unitPrice(b).price)[0]||null;}
 function save(){if(typeof persist==="function")persist();if(typeof window.render==="function")window.render();}
 function addOffer(){
@@ -212,8 +213,11 @@ function showComparison(){
  ' <button type="button" data-id="'+esc(o.id)+'" onclick="POTE_GARIMPO.removeOffer(this.dataset.id)">Excluir</button></td></tr>'}).join("")+'</tbody></table></div>':
  '<p class="muted">Nenhum preço registrado. O Garimpo não cria preços fictícios.</p>';
 }
-async function discover(){
+async function discover(region="gps"){
  if(busy)return;busy=true;
+ searchRegion=region==="torres"?"torres":"gps";
+ if(searchRegion==="torres")center={...TORRES_CENTER};
+ else center=null;
  const note=$("garimpoSearchStatus");const progress=s=>{searchMessage=s;if(note)note.textContent=s};
  let coords=center;
  try{
@@ -223,7 +227,7 @@ async function discover(){
    const p=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:13000,maximumAge:120000}));
    coords={lat:p.coords.latitude,lon:p.coords.longitude};center=coords;
   }
-  const terms=["supermercado","atacado","Giassi","Combo","Líder","Forte","Salvetti"];
+  const terms=["supermercado","atacado","Giassi","Combo","Líder","Forte","Salvetti","Stok Center","Bistek","Asun","Mix Atacado"];
   const found=new Map();
   for(const term of terms){
    progress("Pesquisando "+term+" no raio de 30 km...");
@@ -245,7 +249,7 @@ async function discover(){
     found.set(m.osmId,m);
    }
   }
-  marketSearch=[...found.values()];progress(marketSearch.length+" mercados encontrados no raio de 30 km. Preços dependem de fontes verificáveis.");
+  marketSearch=[...found.values()];progress(marketSearch.length+" mercados encontrados no raio de 30 km de "+(searchRegion==="torres"?"Torres/RS":"seu GPS")+". Preços dependem de fontes verificáveis.");
   showMarkets();showComparison();
  }catch(e){progress("Não foi possível pesquisar: "+(e.message||"permita o GPS e tente novamente"))}finally{busy=false}
 }
@@ -412,11 +416,19 @@ function render(){
  const items=stocks(),known=markets();
  return '<section class="box garimpo" id="poteGarimpoPanel"><small>INTELIGÊNCIA DE COMPRAS</small><h2>Garimpo · preços e validade</h2>'+
  '<p>Pesquisa de estabelecimentos até <strong>30 km</strong> do GPS. Cruza seus insumos e bebidas com preços comprovados; não inventa promoções nem mistura peso, embalagem ou marca.</p>'+
- '<div class="actions"><button class="btn" onclick="POTE_GARIMPO.discover()">Garimpar mercados em 30 km</button>'+
+ '<div class="actions"><button class="btn" onclick="POTE_GARIMPO.discover()">Garimpar mercados em 30 km do meu GPS</button>'+
+ '<button class="btn line" onclick="POTE_GARIMPO.discover(\'torres\')">Pesquisar Torres/RS e arredores (30 km)</button>'+
  '<button class="btn line" onclick="POTE_GARIMPO.exportCSV()">Exportar planilha CSV</button>'+
  '<button class="btn line" onclick="POTE_GARIMPO.lookupMPH()">Consultar API MPH (Lages)</button></div><div id="garimpoMPHResults" aria-live="polite"></div>'+
+ '<section class="garimpo-sources"><h3>Fontes oficiais e encartes por região</h3><p class="muted">Os links abrem a fonte em outra aba. Consulta no site ou app original; não há importação automática de preços de serviços sem API pública autorizada.</p>'+
+ '<div class="garimpo-source-grid">'+
+ '<a href="https://www.sef.sc.gov.br/servicos/instalar-o-aplicativo-menor-preco-brasil" target="_blank" rel="noopener noreferrer"><strong>SC · Menor Preço Brasil</strong><small>Notas fiscais em Santa Catarina · atualização conforme vendas · login Gov.br</small></a>'+
+ '<a href="https://nfg.sefaz.rs.gov.br/site/MenorPreco.aspx" target="_blank" rel="noopener noreferrer"><strong>RS · Menor Preço Nota Gaúcha</strong><small>Consultar preços em Torres e região usando localização definida no aplicativo</small></a>'+
+ '<a href="https://stokonline.com.br/" target="_blank" rel="noopener noreferrer"><strong>Torres · Stok Center / Stok Online</strong><small>Av. Castelo Branco, 2380 · São Jorge · Stok Online: compra virtual. Na loja física, verifique ofertas separadas no Clube Stok Center; os preços podem ser diferentes</small></a>'+
+ '<a href="https://portal.qrofertas.com/torres-rs" target="_blank" rel="noopener noreferrer"><strong>Torres · QR Ofertas</strong><small>Encarte de mercados/atacados · verificar prazo, clube e condições de CNPJ</small></a>'+
+ '<a href="https://www.precomelhor.com.br/s/11159-asun-supermercados-torres" target="_blank" rel="noopener noreferrer"><strong>Torres · PreçoMelhor</strong><small>Preço de referência por estabelecimento · confirme data e disponibilidade</small></a></div></section>'+
  '<div role="status" id="garimpoSearchStatus">'+esc(searchMessage||"Autorize o GPS para conferir a distância real. A busca não garante que cada loja publique seus preços.")+'</div>'+
- '<h3>Mercados próximos</h3><p class="muted">Toque em qualquer mercado para ver ficha, rota, telefone, site e referências de preços.</p><div id="garimpoMarkets">'+(known.length?known.map(m=>'<div class="garimpo-market">'+esc(m.name)+'</div>').join(""):'Ative a pesquisa para ver mercados.')+'</div><div id="garimpoMarketDetails"></div>'+
+ '<h3>Mercados próximos · '+(searchRegion==="torres"?"Torres/RS":"GPS")+'</h3><p class="muted">Toque em qualquer mercado para ver ficha, rota, telefone, site e referências de preços.</p><div id="garimpoMarkets">'+(known.length?known.map(m=>'<div class="garimpo-market">'+esc(m.name)+'</div>').join(""):'Ative a pesquisa para ver mercados.')+'</div><div id="garimpoMarketDetails"></div>'+
  '<h3>Planilha comparativa por insumo</h3><div id="garimpoComparison"></div>'+
  '<h3>Preços online disponíveis — Giassi</h3><p class="muted">Referências verificáveis de e-commerce. Os valores não são declarados como preços das lojas físicas.</p><div class="garimpo-form"><label>Item para consultar<select id="garimpoOnlineItem" onchange="POTE_GARIMPO.selectOnlineItem()">'+items.map(i=>'<option value="'+esc(i.id)+'">'+esc(i.name)+'</option>').join("")+'</select></label><button type="button" class="btn line" onclick="POTE_GARIMPO.loadPublicPrices()">Carregar preços online</button></div><div role="status" id="garimpoOnlineStatus">'+esc(onlineInfo)+'</div><div id="garimpoOnlineResults"></div>'+
  '<h3>Registrar oferta ou preço de nota fiscal</h3><p class="muted">Para considerar uma oferta válida, registre fonte HTTPS e data final do encarte. Nota fiscal representa somente preço histórico, nunca promoção atual.</p>'+

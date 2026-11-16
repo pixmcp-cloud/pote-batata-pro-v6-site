@@ -32,3 +32,11 @@
 #garimpoMPHResults .garimpo-scroll{max-height:490px}
 #garimpoMPHResults .garimpo-scroll tbody tr{background:#2f281b5e}
 #garimpoMPHResults .garimpo-scroll td strong{color:#f9dba4}
+
+.garimpo-sources{margin:18px 0 10px;padding:14px;border:1px solid #7a8ea46b;border-radius:15px;background:#102034}
+.garimpo-sources h3{margin:0 0 7px;color:#f1d59b}
+.garimpo-source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;margin-top:13px}
+.garimpo-source-grid a{display:flex;flex-direction:column;gap:7px;min-height:100px;box-sizing:border-box;background:linear-gradient(135deg,#182e45,#0e1c2b);border:1px solid #6c869c80;border-radius:12px;padding:12px 14px;color:#f3d7a6;text-decoration:none;line-height:1.35}
+.garimpo-source-grid a:hover,.garimpo-source-grid a:focus-visible{border-color:#e3b66e;box-shadow:0 0 0 2px #e3b66e24}
+.garimpo-source-grid a strong{font-size:13px}
+.garimpo-source-grid a small{font-size:11px;color:#c0d2e0;line-height:1.5}
