@@ -6,12 +6,16 @@ function init(){
  const sandbox={window,Date,JSON,Object,Array,Math,Number,String,Map,Set,console};
  vm.createContext(sandbox);
  vm.runInContext(read("universe_templates.js"),sandbox);
+ vm.runInContext(read("pastelaria_templates.js"),sandbox);
  vm.runInContext(read("universe_core.js"),sandbox);
  return window;
 }
 const w=init(),U=w.POTE_UNIVERSES,T=w.POTE_UNIVERSE_TEMPLATES;
-assert.deepEqual(Object.keys(T).sort(),["hamburgueria","hotdog","lancheria","pizzaria","stats"].sort());
+assert.deepEqual(Object.keys(T).sort(),["hamburgueria","hotdog","lancheria","pizzaria","pastelaria","stats"].sort());
 assert.equal(T.pizzaria.recipes.length,30);
+assert.equal(T.pastelaria.recipes.length,50);
+assert.equal(T.pastelaria.recipes.filter(x=>x.category==="Salgados").length,40);
+assert.equal(T.pastelaria.recipes.filter(x=>x.category==="Doces").length,10);
 assert.equal(T.hamburgueria.recipes.length,30);
 assert.equal(T.hotdog.recipes.length,20);
 assert.equal(T.lancheria.recipes.length,0);
@@ -20,7 +24,7 @@ assert.deepEqual(Array.from(T.pizzaria.recipes.slice(0,5).map(x=>x.name)),
  ["Calabresa","Frango com Requeijão","Marguerita","Muçarela","Portuguesa"]);
 assert.deepEqual(Array.from(T.hamburgueria.recipes.slice(0,4).map(x=>x.name)),
  ["Cheeseburger Clássico","X-Salada","X-Tudo","X-Bacon"]);
-for(const type of ["pizzaria","hamburgueria","hotdog"]){
+for(const type of ["pizzaria","hamburgueria","hotdog","pastelaria"]){
  const data=T[type],ids=new Set(data.ingredients.map(x=>x.id));
  assert(data.recipes.every(x=>x.items.length>=3&&x.steps.length>=4),"Cada ficha precisa de ingredientes e modo de preparo");
  assert(data.recipes.every(x=>x.items.every(i=>ids.has(i.id))),"Todos os insumos devem existir");
@@ -100,8 +104,8 @@ assert(source.includes("POTE_UNIVERSES.switchTo(state,type,SEED)"));
 assert(source.includes("Franquia oficial Potê Batata"));
 const built=read("public/index.html");
 assert(built.includes('universe_templates.js?v=universes-20261115'));
-assert(built.includes('universe_core.js?v=v3-wave1-20261116'));
-assert(built.includes('business_setup.js?v=admin-all-universes-20261116'));
+assert(built.includes('universe_core.js?v=pastelaria-20261116'));
+assert(built.includes('business_setup.js?v=pastelaria-20261116'));
 const firebase=read("firebase_integration.js");
 assert(firebase.includes("POTE_UNIVERSE_MIGRATED"));
 console.log("PASS: 30 pizzas, 30 hambúrgueres, 20 Hot Dogs, Lancheria vazia, sem receitas misturadas, custos próprios e dados preservados.");

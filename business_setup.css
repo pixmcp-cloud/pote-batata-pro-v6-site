@@ -116,3 +116,19 @@ html.pote-business-open{overflow:hidden}
  .pote-universe-banner strong{font-size:16px}
  .pote-universe-banner span{font-size:10px}
 }
+
+
+/* FREE abre todos os ramos por padrão; a gestão ADM pode bloquear por conta. */
+.pote-business-access{display:block;margin-top:8px;font-size:10px;letter-spacing:.03em;
+ color:#baf2d7;font-weight:800}
+.pote-business-options button.pote-business-disabled{border-color:#bb6b60a6;opacity:.8}
+.pote-business-options button.pote-business-disabled .pote-business-access{color:#ffb8a9}
+.pote-access-panel{margin-top:18px;padding:16px;border:1px solid #718ead75;border-radius:14px}
+.pote-access-universes,.pote-access-services{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.pote-access-toggle{padding:10px 11px;min-height:60px;border-radius:10px;border:1px solid #8cadc2;background:#1b3043;color:#f2e3c9;
+ text-align:left;cursor:pointer;font-weight:780;font-size:12px}
+.pote-access-toggle small{display:block;font-size:10px;margin-top:4px;color:#bad5e0;font-weight:500}
+.pote-access-toggle.is-locked{background:#3b242b;border-color:#b8797a;color:#ffd5cc}
+.pote-access-toggle:disabled{opacity:.55;cursor:not-allowed}
+#poteAccessMessage{font-size:11px;color:#d7e6ed}
+@media(max-width:530px){.pote-access-universes,.pote-access-services{grid-template-columns:1fr}}

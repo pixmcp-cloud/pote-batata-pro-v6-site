@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 300" role="img" aria-label="Pastelaria">
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#302116"/><stop offset="1" stop-color="#110d09"/></linearGradient><linearGradient id="crust" x2="0" y2="1"><stop stop-color="#ffd789"/><stop offset=".55" stop-color="#eaa538"/><stop offset="1" stop-color="#a95813"/></linearGradient><filter id="shadow"><feGaussianBlur stdDeviation="13"/></filter></defs>
+<rect width="520" height="300" rx="24" fill="url(#bg)"/>
+<ellipse cx="270" cy="231" rx="166" ry="30" fill="#000" opacity=".5" filter="url(#shadow)"/>
+<g transform="rotate(-9 270 150)"><path d="M98 166 Q95 103 150 80 Q253 48 364 98 Q420 128 410 184 Q300 225 172 207Z" fill="url(#crust)" stroke="#7c3f16" stroke-width="6"/>
+<path d="M105 164 Q236 211 405 182" fill="none" stroke="#ffecb3" stroke-width="10" stroke-dasharray="9 11" stroke-linecap="round"/>
+<path d="M148 124q12-17 27-2m16 20q11-12 27 1m21-30q13-8 23 5m37 25q12-14 24 3m-123 18q12-9 23 3" fill="none" stroke="#fff1c4" stroke-opacity=".55" stroke-width="6" stroke-linecap="round"/>
+</g><text x="260" y="274" font-family="Arial,sans-serif" font-size="23" font-weight="900" text-anchor="middle" fill="#f5d49b" letter-spacing="2">PASTELARIA</text></svg>

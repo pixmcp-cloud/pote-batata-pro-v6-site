@@ -3,6 +3,7 @@
    All inventory-sensitive edits serialize through the same transaction guard. */
 import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=v3-wave1-20261116";
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
+import {checkFreeUniverseDelta} from "./free_limits.mjs";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
 const fail=(code,message)=>{const error=new Error(message);error.code=code;throw error};
@@ -76,6 +77,14 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   let next,delta;
   try{
    next=splitState(snapshot(),baseline.records);
+   // O FREE tem uma ação/cadastro por grupo operacional em cada ramo extra.
+   // Conferimos o delta antes de qualquer transação, sem reescrever legados.
+   const client=typeof window!=="undefined"?window.POTE_AUTH:null;
+   if(client?.uid&&!client.proActive){
+    const branch=String(snapshot()?.data?.businessType||"");
+    const quota=checkFreeUniverseDelta(baseline.records,next.records,branch);
+    if(!quota.ok)return {ok:false,code:"free/limit",error:quota.error};
+   }
    delta=diffState(baseline,next);
    validateChangeSet(delta);
   }catch(e){return {ok:false,error:e.message,code:"sync/invalid-state"}}

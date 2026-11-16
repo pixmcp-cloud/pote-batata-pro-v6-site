@@ -48,6 +48,26 @@ service cloud.firestore {
       return group in ['cashSessions', 'cashMovements'];
     }
 
+    // Bloqueios de universo e de serviço são administrados no perfil,
+    // nunca definidos pelos campos editáveis no navegador do cliente.
+    function recordService(group) {
+      return group in ['recipeVersions','recipeTrash'] ? 'recipes'
+        : group in ['stockMovements','purchases','prepBatches','beverages','addons','combos'] ? 'stock'
+        : group in ['cashSessions','cashMovements'] ? 'orders'
+        : group;
+    }
+    function canEditOperationalRecord(userId, record) {
+      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+      return isAdmin() || !profile.keys().hasAny(['accessPolicy']) ||
+        (
+          (!profile.accessPolicy.keys().hasAny(['blockedUniverses']) ||
+            !profile.accessPolicy.blockedUniverses.hasAny([record.universe]))
+          && (!profile.accessPolicy.keys().hasAny(['blockedServices']) ||
+            !profile.accessPolicy.blockedServices.hasAny([
+              record.universe + ':' + recordService(record.group)
+            ]))
+        );
+    }
     match /users/{userId} {
       allow get: if canAccess(userId);
       allow list: if isAdmin();
@@ -95,6 +115,7 @@ service cloud.firestore {
       match /records/{recordId} {
         allow get, list: if canAccess(userId);
         allow create, update: if canAccess(userId)
+          && canEditOperationalRecord(userId,request.resource.data.record)
           && (!isFinancialGroup(request.resource.data.record.group)
               || canUseFinancialRecords(userId))
           && request.resource.data.keys().hasOnly(['record', 'updatedAt'])
@@ -178,6 +199,7 @@ service cloud.firestore {
             )
           );
         allow delete: if canAccess(userId)
+          && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group);
       }
     }

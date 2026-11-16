@@ -29,6 +29,7 @@ jobs:
           cp sync_guard.mjs public/sync_guard.mjs
           cp v2_store_core.mjs public/v2_store_core.mjs
           cp v2_storage.mjs public/v2_storage.mjs
+          cp free_limits.mjs public/free_limits.mjs
           cp finance_core.js public/finance_core.js
           cp cost_history.js public/cost_history.js
           cp module_health.js public/module_health.js
@@ -60,6 +61,9 @@ jobs:
           cp floating_menu.js public/floating_menu.js
           cp business_setup.js public/business_setup.js
           cp universe_templates.js public/universe_templates.js
+          cp pastelaria_templates.js public/pastelaria_templates.js
+          cp access_control.js public/access_control.js
+          cp admin_permissions.js public/admin_permissions.js
           cp universe_core.js public/universe_core.js
           cp stock_math.js public/stock_math.js
           cp stock_ui.js public/stock_ui.js
@@ -131,6 +135,7 @@ jobs:
           node --check public/finance_core.js
           node --check public/v2_store_core.mjs
           node --check public/v2_storage.mjs
+          node test_free_limits.mjs
           node test_migration_preview.mjs
           node test_commercial_date.js
           node test_reset_guard.js
@@ -158,6 +163,11 @@ jobs:
           node --check public/business_setup.js
           node test_business_setup.js
           node --check public/universe_templates.js
+          node --check public/pastelaria_templates.js
+          node test_pastelaria_catalog.js
+          test -f public/assets/recipes/pastelaria-cardapio.jpg
+          node --check public/access_control.js
+          node --input-type=module --check < public/admin_permissions.js
           node --check public/universe_core.js
           node test_business_universes.js
           node test_v3_universe_financial_isolation.js

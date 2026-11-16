@@ -4,7 +4,7 @@
 (function(){
 "use strict";
 if(window.POTE_UNIVERSES)return;
-const VALID=["batataria","pizzaria","hamburgueria","hotdog","lancheria"];
+const VALID=["batataria","pizzaria","hamburgueria","hotdog","lancheria","pastelaria"];
 const LISTS=["recipes","ingredients","orders","clients","suppliers","expenses",
  "recipeVersions","recipeTrash","purchases","stockMovements","beverages","addons",
  "combos","prepBatches","checklist","losses","cashSessions","cashMovements","garimpoOffers"];
@@ -27,9 +27,9 @@ function empty(state,type){
  branch.businessTemplates={};
  branch.unlocked=null;branch.freeCreativeRecipeId=null;branch.creatives=[];
  branch.settings={...branch.settings,estimatedMonthlyUnits:0,
-  portion:{batataria:500,pizzaria:700,hamburgueria:320,hotdog:260,lancheria:300}[type]};
+  portion:{batataria:500,pizzaria:700,hamburgueria:320,hotdog:260,lancheria:300,pastelaria:260}[type]};
  const name={batataria:"Minha Batataria",pizzaria:"Minha Pizzaria",
-  hamburgueria:"Minha Hamburgueria",hotdog:"Meu Hot Dog",lancheria:"Minha Lancheria"}[type];
+  hamburgueria:"Minha Hamburgueria",hotdog:"Meu Hot Dog",lancheria:"Minha Lancheria",pastelaria:"Minha Pastelaria"}[type];
  branch.brand={...branch.brand,name,subtitle:type.toUpperCase(),
   logoUrl:"./assets/generic/business-"+type+".svg"};
  return branch;

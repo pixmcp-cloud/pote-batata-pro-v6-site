@@ -25,6 +25,7 @@ function setup(role="free"){
  const ctx={SEED:seed,state,window,document,Node:{TEXT_NODE:3},Date,Math,JSON,String,Array,Object,
   confirm:()=>true,alert:()=>{},persist:()=>{persisted++},render:()=>{rendered++},toast:()=>{},console};
  vm.createContext(ctx);vm.runInContext(templates,ctx,{filename:"universe_templates.js"});
+ vm.runInContext(fs.readFileSync("pastelaria_templates.js","utf8"),ctx,{filename:"pastelaria_templates.js"});
  vm.runInContext(core,ctx,{filename:"universe_core.js"});
  vm.runInContext(script,ctx,{filename:"business_setup.js"});
  return {ctx,state,window,document,get persistCount(){return persisted},get renderCount(){return rendered}};
@@ -64,6 +65,9 @@ assert(burger.state.data.recipes.every(x=>x.templateOrigin==="hamburgueria"));
 const dog=setup("free");
 dog.window.POTE_BUSINESS.choose("hotdog");
 assert.equal(dog.state.data.recipes.length,20);
+const pastel=setup("free");pastel.window.POTE_BUSINESS.choose("pastelaria");
+assert.equal(pastel.state.data.recipes.length,50);
+assert.equal(pastel.state.data.recipes.filter(x=>x.category==="Doces").length,10);
 const snack=setup("free");
 snack.window.POTE_BUSINESS.choose("lancheria");
 assert.equal(snack.state.data.recipes.length,0);
@@ -83,7 +87,7 @@ assert.equal(admin.state.data.recipes.length,1,"Arquivos da conta mestre foram s
 assert.equal(admin.state.data.recipes[0].imageUrl,"./assets/recipes/r01.webp");
 admin.state.data.orders=[{id:"adm-batata-sale",total:89}];
 admin.state.data.ingredients=[{id:"adm-batata-stock",stock:3000,price:5.99}];
-for(const [type,expected] of [["pizzaria",30],["hamburgueria",30],["hotdog",20],["lancheria",0]]){
+for(const [type,expected] of [["pizzaria",30],["hamburgueria",30],["hotdog",20],["lancheria",0],["pastelaria",50]]){
  admin.window.POTE_BUSINESS.choose(type);
  assert.equal(admin.window.POTE_AUTH.role,"admin","O ADM precisa continuar ADM em todos os universos");
  assert.equal(admin.state.data.businessType,type);
@@ -113,7 +117,7 @@ assert(src.includes("window.POTE_AUTH?.role==='admin'"),"Fotos originais não es
 const menu=fs.readFileSync("floating_menu.js","utf8");
 assert(menu.includes('["business","Negócio"]'));
 const result=fs.readFileSync("public/index.html","utf8");
-assert(result.includes("business_setup.js?v=admin-all-universes-20261116"));
+assert(result.includes("business_setup.js?v=pastelaria-20261116"));
 assert(result.includes("business_setup.css?v=business-universes-20261115"));
 assert(result.includes("GESTÃO PRO"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));

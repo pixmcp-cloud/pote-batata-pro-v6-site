@@ -43,6 +43,7 @@ let unsubscribeProfile = null;
 let expiryCheckInterval = null;
 let rawUserLicense = null;
 let rawUserFranchise = null;
+let rawUserAccessPolicy = null;
 let cloudFingerprint=stableJson(null);
 let syncBlocked=false;
 let pendingThisSession=false;
@@ -164,6 +165,7 @@ function refreshEntitlements() {
   window.POTE_AUTH.proActive = admin || franchise || result.active;
   window.POTE_AUTH.plan = admin ? "admin" : franchise ? "franchise" : result.kind;
   window.POTE_AUTH.expiresAt = result.expiresAt;
+  window.POTE_AUTH.accessPolicy = rawUserAccessPolicy || {};
   if (adminOpen) adminOpen.hidden = !admin;
   if (planBadge) {
     planBadge.hidden = admin;
@@ -192,7 +194,11 @@ function observeProfile(user, index) {
     if (index !== epoch || auth.currentUser?.uid !== user.uid) return;
     rawUserLicense = snapshot.data()?.license || null;
     rawUserFranchise = snapshot.data()?.franchise || null;
+    const previousPolicy=JSON.stringify(rawUserAccessPolicy||{});
+    rawUserAccessPolicy=snapshot.data()?.accessPolicy||{};
     refreshEntitlements();
+    if(previousPolicy!==JSON.stringify(rawUserAccessPolicy))
+      window.dispatchEvent(new Event("pote:access-updated"));
   }, error => console.warn("Licença: ", error.code || error.message));
   if (expiryCheckInterval) clearInterval(expiryCheckInterval);
   expiryCheckInterval = setInterval(refreshEntitlements, 1000);
@@ -368,6 +374,7 @@ async function loadUser(user, index) {
   const existing = await withDeadline(getDoc(profile), 15000, "consulta do perfil");
   rawUserLicense = existing.exists() ? existing.data().license || null : null;
   rawUserFranchise = existing.exists() ? existing.data().franchise || null : null;
+  rawUserAccessPolicy = existing.exists() ? existing.data().accessPolicy || {} : {};
   refreshEntitlements();
   if (!existing.exists()) {
     await withDeadline(setDoc(profile, {
@@ -504,6 +511,7 @@ onAuthStateChanged(auth, async user => {
   if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }
   rawUserLicense = null;
   rawUserFranchise=null;
+  rawUserAccessPolicy=null;
   cloudFingerprint=stableJson(null);
   syncBlocked=false;
   pendingThisSession=false;

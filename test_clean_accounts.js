@@ -28,7 +28,7 @@ assert.strictEqual(fresh.data.settings.estimatedMonthlyUnits,0);
 assert.strictEqual(fresh.data.checklist[0].done,false);
 assert.strictEqual(fresh.data.brand.logoUrl,"./assets/generic/business-neutral.svg");
 assert.strictEqual(fresh.data.brand.name,"Meu Negócio");
-assert.strictEqual(fresh.data.businessType,"");
+assert.strictEqual(fresh.data.businessType,"batataria","FREE inicia na Batataria com todos os universos acessíveis");
 assert.deepStrictEqual(JSON.parse(JSON.stringify(fresh.data.businessTemplates)),{});
 assert.strictEqual(sandbox.isDemo(seed),true,"Unmodified seeded FREE account must be detectable");
 const custom=JSON.parse(JSON.stringify(seed));

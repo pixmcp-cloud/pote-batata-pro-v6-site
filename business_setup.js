@@ -8,7 +8,8 @@ const TYPES=[
  {id:"pizzaria",label:"Pizzaria",name:"Minha Pizzaria",desc:"30 receitas-modelo de pizzas, com ingredientes e preparo completos.",photo:"./assets/generic/business-pizzaria.svg"},
  {id:"hamburgueria",label:"Hamburgueria",name:"Minha Hamburgueria",desc:"30 receitas-modelo de hambúrgueres, com opções clássicas e artesanais.",photo:"./assets/generic/business-hamburgueria.svg"},
  {id:"hotdog",label:"Hot Dog",name:"Meu Hot Dog",desc:"Receitas de cachorro-quente e combinações tradicionais e especiais.",photo:"./assets/generic/business-hotdog.svg"},
- {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Ambiente vazio, sem receitas prontas: monte seu próprio cardápio.",photo:"./assets/generic/business-lancheria.svg"}
+ {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Ambiente vazio, sem receitas prontas: monte seu próprio cardápio.",photo:"./assets/generic/business-lancheria.svg"},
+ {id:"pastelaria",label:"Pastelaria",name:"Minha Pastelaria",desc:"50 receitas de pastéis: 40 salgados e 10 doces, com foto padrão e preparo.",photo:"./assets/recipes/pastelaria-cardapio.jpg"}
 ];
 const GENERIC_LOGO="./assets/generic/business-neutral.svg";
 const templateImage=id=>"./assets/generic/recipe-"+id+".svg";
@@ -173,11 +174,11 @@ root.innerHTML=`<div id="poteBusinessOverlay" role="dialog" aria-modal="true" ar
   </div>
   <div class="pote-business-meta"><strong>Negócio atual</strong><span id="poteBusinessCurrent">Nenhum selecionado</span></div>
   <div class="pote-business-options">${TYPES.map(t=>`<button type="button" data-business-type="${t.id}"><img src="${t.photo}" alt="" loading="lazy">
-   <strong>${t.label}</strong><small>${t.desc}</small><span class="pote-business-choose">Selecionar</span></button>`).join("")}</div>
+   <strong>${t.label}</strong><small>${t.desc}</small><span class="pote-business-choose">Selecionar</span><span class="pote-business-access" data-business-access>🔓 FREE · 1 uso por função</span></button>`).join("")}</div>
   <div class="pote-business-note">
    <strong>Seus dados estão protegidos.</strong> Mudar o ramo não apaga cadastros, vendas ou receitas existentes.
    Cada universo mantém suas receitas, insumos, pedidos e estoque separados. Batataria inclui 26 fichas,
-   Pizzaria 30, Hamburgueria 30 e Hot Dog 20; Lancheria inicia totalmente sem receitas.
+   Pizzaria 30, Hamburgueria 30, Hot Dog 20 e Pastelaria 50 (40 salgadas e 10 doces); Lancheria inicia vazia.
    Os custos e estoques são seus, não há vendas simuladas. As imagens e a logo são genéricas.
   </div>
   <p id="poteBusinessMessage" aria-live="polite"></p>
@@ -190,7 +191,14 @@ function show(open){
  document.documentElement.classList.toggle("pote-business-open",opened);
  if(opened){
   refreshIdentity();
-  document.querySelectorAll("[data-business-type]").forEach(button=>button.classList.toggle("selected",button.dataset.businessType===current()));
+  document.querySelectorAll("[data-business-type]").forEach(button=>{
+   button.classList.toggle("selected",button.dataset.businessType===current());
+   const type=button.dataset.businessType,enabled=window.POTE_ACCESS?.allowsUniverse?.(type)!==false;
+   button.classList.toggle("pote-business-disabled",!enabled);
+   button.setAttribute("aria-disabled",String(!enabled));
+   const badge=button.querySelector("[data-business-access]");
+   if(badge)badge.textContent=enabled?(master()?"🔓 ADM · acesso total":window.POTE_AUTH?.proActive?"🔓 PRO · acesso total":"🔓 FREE · 1 uso por função"):"🔒 Bloqueado pelo ADM";
+  });
  }
 }
 function select(type){
@@ -199,6 +207,9 @@ function select(type){
    window.POTE_UNIVERSES?.switchTo(state,"batataria",SEED,{skipTemplates:true});
    persist();render();show(false);return}
  const choice=TYPES.find(x=>x.id===type);if(!choice)return;
+ if(window.POTE_ACCESS?.allowsUniverse?.(type)===false){
+  alert("🔒 Este universo está bloqueado para sua conta. Solicite a liberação ao administrador.");return;
+ }
  // ADM pode gerir todos os universos. Reabrir a matriz já preenchida não
  // deve importar modelos demonstrativos sobre as receitas originais.
  if(master()&&type==="batataria"&&current()==="batataria"&&state.data.recipes?.length){
@@ -208,7 +219,7 @@ function select(type){
  if(previous!==type && existing>0 &&
    !confirm("Mudar de "+(TYPES.find(x=>x.id===previous)?.label||"outro ramo")+" para "+choice.label+"? Seus cadastros e vendas atuais serão preservados e NÃO serão apagados."))return;
  const first=!previous;
- const counts={batataria:26,pizzaria:30,hamburgueria:30,hotdog:20,lancheria:0};
+ const counts={batataria:26,pizzaria:30,hamburgueria:30,hotdog:20,lancheria:0,pastelaria:50};
  const summary=" Este universo tem "+counts[type]+" receitas-modelo. Os demais universos ficarão guardados separadamente, com seus próprios dados.";
  if(!confirm("Selecionar "+choice.label+"?"+summary+" Os dados e custos serão próprios da sua conta."))return;
  if(previous!==type&&typeof cart!=="undefined"&&cart.length){
@@ -234,6 +245,6 @@ $("poteBusinessOverlay").addEventListener("click",e=>{
  const button=e.target.closest("[data-business-type]");if(button)select(button.dataset.businessType)
 });
 window.POTE_BUSINESS={open:()=>show(true),close:()=>show(false),choose:select,refresh:refreshIdentity,normalizeAccountBrand,
- neutralBrand,importBatatariaTemplates,current,types:TYPES};
+ neutralBrand,importBatatariaTemplates,current,types:TYPES,refreshAccess:()=>{if(opened)show(true)}};
 refreshIdentity();
 })();

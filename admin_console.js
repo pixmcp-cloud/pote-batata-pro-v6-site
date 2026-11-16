@@ -56,6 +56,7 @@ function selectionReady(){
   "Selecione uma conta na lista.";
  preview();
  refreshCountdown();
+ window.POTE_ADMIN_PERMISSIONS?.renderAccount?.(user);
 }
 function preview(){
  const term=$("poteAdmTerm").value,u=current(),now=new Date();
