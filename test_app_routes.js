@@ -53,7 +53,7 @@ for(const module of ["universe_templates.js","universe_core.js","business_setup.
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
 const tabs=["home","vitrine","recipes","builder","pricing","ingredients","expenses","losses",
- "suppliers","garimpo","motoboy","clients","orders","combos","reports","creative","brand","settings","tests","admin"];
+ "suppliers","garimpo","motoboy","deliveryhub","clients","orders","combos","reports","creative","brand","settings","tests","admin"];
 const pages={};
 for(const tab of tabs){
  try{

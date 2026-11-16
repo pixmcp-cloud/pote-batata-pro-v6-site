@@ -77,6 +77,9 @@ jobs:
           cp motoboy.js public/motoboy.js
           cp motoboy_core.mjs public/motoboy_core.mjs
           cp motoboy.css public/motoboy.css
+          cp delivery_hub.js public/delivery_hub.js
+          cp delivery_hub_core.mjs public/delivery_hub_core.mjs
+          cp delivery_hub.css public/delivery_hub.css
           cp kitchen_inventory.js public/kitchen_inventory.js
           cp kitchen_inventory.css public/kitchen_inventory.css
           cp losses.css public/losses.css
@@ -187,6 +190,11 @@ jobs:
           node --check public/losses.js
           node --check public/motoboy.js
           node test_motoboy_core.mjs
+          node test_delivery_hub_core.mjs
+          node test_delivery_hub_persistence.mjs
+          node test_delivery_hub_ui.mjs
+          node --check public/delivery_hub.js
+          test -f public/assets/operations/delivery-hub.svg
           node test_motoboy_ui.mjs
           node --check public/kitchen_inventory.js
           node test_kitchen_inventory.js

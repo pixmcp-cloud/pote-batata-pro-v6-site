@@ -27,7 +27,9 @@ assert(!source.includes("['garimpo','financeiro','Garimpo']"),'Garimpo não pode
 assert(source.includes("['suppliers','fornecedor','Fornecedores & Compras']"),"Fornecedores e Compras devem usar um card");
 assert(!source.includes("['garimpo','garimpo','Radar de Preço']"),"Radar foi reunido com Fornecedores");
 assert(source.includes("['motoboy','motoboy','MOTOBOY']"),"Motoboy deve ocupar o espaço liberado");
-assert(source.includes('motoboy.svg?v=moto-20261116'),"Motoboy precisa da imagem exclusiva");
+assert(source.includes("img==='motoboy'||img==='delivery-hub'"),"Motoboy e Hub precisam de imagens exclusivas");
+assert(source.includes("['deliveryhub','delivery-hub','Hub de Delivery']"),"Card Hub deve estar na Central de Operações");
+assert(fs.readFileSync("assets/operations/delivery-hub.svg","utf8").includes("linearGradient"),"Ilustração 3D do Hub ausente");
 assert(fs.readFileSync("supplier_directory.js","utf8").includes("Abrir Radar de Preços"),
  "Radar deve continuar acessível pelo card de Fornecedores");
 const moto=fs.readFileSync("assets/operations/motoboy.svg","utf8");

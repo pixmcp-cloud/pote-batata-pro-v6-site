@@ -7,12 +7,12 @@ const services=[
  ["recipes","Receitas"],["ingredients","Ingredientes"],["orders","Vendas e pedidos"],
  ["clients","Clientes"],["suppliers","Fornecedores"],["expenses","Despesas"],
  ["stock","Compras e estoque"],["losses","Perdas"],["pricing","Precificação"],
- ["creatives","Criativos"],["reports","Relatórios"],["motoboy","Motoboy"]
+ ["creatives","Criativos"],["reports","Relatórios"],["motoboy","Motoboy"],["deliveryhub","Hub de Delivery"]
 ];
 const tabs={recipes:"recipes",builder:"recipes",ingredients:"ingredients",orders:"orders",
  clients:"clients",suppliers:"suppliers",expenses:"expenses",losses:"losses",
  garimpo:"suppliers",pricing:"pricing",creative:"creatives",reports:"reports",
- combos:"stock",vitrine:"orders",motoboy:"motoboy"};
+ combos:"stock",vitrine:"orders",motoboy:"motoboy",deliveryhub:"deliveryhub"};
 const admin=()=>window.POTE_AUTH?.role==="admin";
 const active=()=>typeof state==="undefined"?"batataria":state.data?.businessType||"batataria";
 const cleanList=(items)=>Array.isArray(items)?items.filter(x=>typeof x==="string"):[];
