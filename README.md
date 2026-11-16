@@ -173,12 +173,43 @@ A inicialização ocorre uma única vez por universo comercial, preservando alte
 
 Para contas com franquia ativa, o botão fixo **Lista de Compras** acompanha a navegação no celular e no desktop. Ele compara o saldo livre (já subtraindo reservas de pedidos) com a meta de cada ingrediente e bebida, lista quanto comprar e oferece atalho para registrar a compra. Conta FREE comum não vê o botão.
 
-## Custos estimados para franquias — 60% (16/11/2026)
+## Preços de referência da franquia e custos simulados a 40% (16/11/2026)
 
-Por decisão do proprietário, as unidades com franquia ativa recebem valores **estimados** para custos ainda não cadastrados, equivalentes a **60% do preço final de referência**. Não são compras reais e não geram saída de caixa nem histórico de aquisições. O módulo `franchise_cost_estimates.mjs` usa apenas a tabela demonstrativa SEED para derivar preços de referência dos 26 sabores, sem distribuir custos reais da matriz para franqueados. Para os 11 modelos de bebida, usa 60% do preço de venda já configurado.
+Esta é uma tabela **DE TESTE**, com preços sugeridos para venda direta (sem entrega). Foi escolhida considerando referências públicas de batatas recheadas em Santa Catarina; não comprova preços praticados em Balneário Gaivota nem garante lucro real.
 
-A primeira aplicação preenche preços e unidades dos 41 ingredientes oficiais ainda sem custo, marca `costSource: franchise-estimate-60` e registra `estimatedSalePrice` e `estimatedUnitCost` nas receitas. Valores existentes ou alterados manualmente não são substituídos. Compras reais e preços informados manualmente assumem prioridade.
+| Sabor | Venda de teste | Custo direto simulado (40%) |
+|---|---:|---:|
+| Frango Cremoso | R$ 29,90 | R$ 11,96 |
+| Calabresa Acebolada | R$ 29,90 | R$ 11,96 |
+| Bacon & 3 Queijos | R$ 34,90 | R$ 13,96 |
+| Bolonhesa da Casa | R$ 32,90 | R$ 13,16 |
+| Strogonoff de Frango | R$ 33,90 | R$ 13,56 |
+| Strogonoff de Carne | R$ 37,90 | R$ 15,16 |
+| Carne de Panela | R$ 37,90 | R$ 15,16 |
+| Carne Seca & Requeijão | R$ 39,90 | R$ 15,96 |
+| Costela BBQ | R$ 39,90 | R$ 15,96 |
+| Quatro Queijos | R$ 35,90 | R$ 14,36 |
+| Brócolis Cremoso | R$ 28,90 | R$ 11,56 |
+| Palmito Gratinado | R$ 35,90 | R$ 14,36 |
+| Milho & Bacon | R$ 29,90 | R$ 11,96 |
+| Frango & Cheddar | R$ 31,90 | R$ 12,76 |
+| Portuguesa | R$ 30,90 | R$ 12,36 |
+| Camarão Cremoso | R$ 44,90 | R$ 17,96 |
+| Frango BBQ | R$ 31,90 | R$ 12,76 |
+| Linguiça Blumenau | R$ 34,90 | R$ 13,96 |
+| Vegetariana da Horta | R$ 29,90 | R$ 11,96 |
+| Frango ao Molho Rosé | R$ 32,90 | R$ 13,16 |
+| Cachorro-Quente | R$ 27,90 | R$ 11,16 |
+| Pizza | R$ 28,90 | R$ 11,56 |
+| Ninho com Nutella | R$ 21,90 | R$ 8,76 |
+| Brigadeiro | R$ 18,90 | R$ 7,56 |
+| Chocolate Preto com Morango | R$ 20,90 | R$ 8,36 |
+| Chocolate Branco com Morango | R$ 20,90 | R$ 8,36 |
 
-Durante a simulação, o preço de venda de referência de cada receita fica disponível e o custo unitário total da receita é apresentado como 60% dele, sem duplicar embalagem. Quando um pedido for registrado com preço diferente do de referência, se todos seus componentes ainda forem simulados, o custo informado no pedido será 60% do preço final digitado. Taxas, impostos e rateios fixos permanecem separados do custo estimado. Os relatórios devem ser interpretados como **simulação**, não como lucro realizado. Se o negócio começar a operar, cadastre custos reais para obter indicadores confiáveis.
+Os 41 ingredientes que ainda não tinham custos recebem preços unitários aproximados, distribuídos usando as proporções da ficha de teste. As 11 bebidas mantêm seus preços-modelo (R$ 4,00 a R$ 10,00) e recebem custo simulado de 40%. Nada é registrado como compra real, nem altera o estoque físico.
 
-A correção de sintaxe dos literais de quebra de linha no `source/pote_app_base.html` também foi incluída, com teste específico para impedir regressões.
+**Regra de integridade financeira:** o custo de preparo por unidade é ancorado ao preço de referência; descontos, cupons e mudanças no preço cobrado **não reduzem o custo da batata ou das bebidas**. A simulação de preço no marketplace leva em conta a taxa maior da plataforma. Custos e preços reais lançados manualmente ou por compras posteriores prevalecem sobre valores fictícios.
+
+Contas de franquia que já receberam a tabela estimada antiga de 60% são convertidas para 40% somente quando os valores ainda estiverem marcados como simulação e não tiverem sido alterados manualmente. Os registros históricos de vendas não são reescritos.
+
+A margem de contribuição simulada no canal direto é próxima de 52% após os 40% de custo direto e 8% de taxas/impostos padrão do laboratório, **antes** de despesas fixas, mão de obra adicional, frete, perdas e impostos efetivos. Não confundir com lucro líquido. Cadastre custos reais antes de usar os preços em operação comercial.

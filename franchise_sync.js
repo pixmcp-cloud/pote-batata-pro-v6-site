@@ -3,7 +3,7 @@ import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.j
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp,onSnapshot} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {buildFranchiseCatalog,catalogFingerprint,mergeFranchiseCatalog,FRANCHISE_CATALOG_ID} from "./franchise_catalog.mjs?v=starter-20261116";
 import {initializeFranchiseStarterStock} from "./franchise_stock_core.mjs?v=starter-20261116";
-import {initializeFranchiseEstimatedCosts} from "./franchise_cost_estimates.mjs?v=estimate-60-20261116";
+import {initializeFranchiseEstimatedCosts} from "./franchise_cost_estimates.mjs?v=estimate-40-20261116";
 
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const catalogRef=doc(db,"franchiseCatalog",FRANCHISE_CATALOG_ID);
@@ -81,7 +81,7 @@ function applyCatalog(catalog,active=true){
    if(seed.changed||estimates.changed||beverages?.beveragesAdded||beverages?.combosAdded){
     result.changed=true;
     if(seed.changed)console.info("Estoque inicial da franquia preparado",seed);
-    if(estimates.changed)console.info("Custos simulados de 60% cadastrados",estimates);
+    if(estimates.changed)console.info("Custos simulados de 40% cadastrados",estimates);
    }
   }
   if(!result.changed)return;

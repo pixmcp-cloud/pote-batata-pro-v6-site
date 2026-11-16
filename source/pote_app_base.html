@@ -128,11 +128,12 @@ function effectivePackageCost(r){
  return num(state.data.settings.packageCost);
 }
 function recipeCostIsEstimated(r){
- return !!r&&r.costEstimateMode==='estimated'&&num(r.costEstimatePct)===60&&
+ return !!r&&r.costEstimateMode==='estimated'&&num(r.costEstimatePct)===40&&
   (r.items||[]).every(x=>{
    const i=ingredient(x.id);
-   return i&&i.costSource==='franchise-estimate-60'&&
-    Math.abs(num(i.purchasePrice)-num(i.costEstimateOriginalPrice))<0.001;
+   return i&&i.costSource==='franchise-estimate-40'&&
+    Math.abs(num(i.purchasePrice)-num(i.costEstimateOriginalPrice))<0.001&&
+     Math.abs(num(i.price??i.purchasePrice)-num(i.costEstimateOriginalPrice))<0.001;
   });
 }
 function costOf(r){if(!r)return 0;
@@ -148,8 +149,16 @@ function roundUpCommercial(v){
 }
 function sellPrice(r,channelOverride){
  if(!r)return 0;
- if(recipeCostIsEstimated(r)&&num(r.estimatedSalePrice)>0&&r.targetGainPct===100)
-  return num(r.estimatedSalePrice);
+ if(recipeCostIsEstimated(r)&&num(r.estimatedSalePrice)>0&&r.targetGainPct===100){
+  const reference=num(r.estimatedSalePrice);
+  const s=state.data.settings,ch=channelOverride||s.channel||'direto';
+  if(ch==='marketplace'){
+   const directFee=feeRate('direto'),marketFee=feeRate('marketplace');
+   return roundUpCommercial(reference*Math.max(.05,1-directFee/100)/
+    Math.max(.05,1-marketFee/100));
+  }
+  return reference;
+ }
  const s=state.data.settings,b=totalCost(r),ch=channelOverride||s.channel||'direto';
  const feePct=ch==='marketplace'?num(s.marketplaceFee??19):num(s.fee),fees=feePct+num(s.tax);
  if(window.POTE_FINANCE)return window.POTE_FINANCE.suggest({cost:b,feePct:fees,mode:r.pricingMode||'margin',gainPct:r.targetGainPct??100,marginPct:s.margin});
@@ -532,7 +541,7 @@ function updateOrderSuggestedPrice(){
  if(input)input.value=costMissing?'':q.price.toFixed(2);
  const e=document.getElementById('orderQuote');if(e)e.innerHTML=costMissing?
  '<div class="notice red"><strong>Preço sugerido indisponível: custos de compra não cadastrados.</strong> O estoque inicial da franquia é demonstrativo. Cadastre custos reais em Estoque e Compras. Para teste, informe o preço manualmente; o lucro estimado sem custos não é confiável.</div>':
- (recipeCostIsEstimated(q.recipe)?'<strong>SIMULAÇÃO: custo estimado em 60% do preço de venda. Não representa compras reais.</strong><br>':'')+'Preço sugerido: <b>'+money(q.price)+'</b> · Itens separados: '+money(q.fullPrice)+' · Desconto: '+money(q.discount)+' · Sobra para despesas fixas e lucro: '+money(q.contribution)+' · Lucro estimado após despesas fixas: '+money(q.estimatedProfit)+(q.contribution<=0?'<br>⚠️ Preço abaixo do custo variável':'');
+ (recipeCostIsEstimated(q.recipe)?'<strong>SIMULAÇÃO: custo estimado em 40% do preço de referência (não muda com descontos). Não representa compras reais.</strong><br>':'')+'Preço sugerido: <b>'+money(q.price)+'</b> · Itens separados: '+money(q.fullPrice)+' · Desconto: '+money(q.discount)+' · Sobra para despesas fixas e lucro: '+money(q.contribution)+' · Lucro estimado após despesas fixas: '+money(q.estimatedProfit)+(q.contribution<=0?'<br>⚠️ Preço abaixo do custo variável':'');
  window.POTE_ORDER?.refresh?.();
  window.POTE_PAYMENT?.sync?.();
 }
@@ -548,9 +557,11 @@ function newOrder(){
  if(!paymentDetails)return;
   if(!window.POTE_ORDER?.checkBeforeRegister?.())return;
  const estimateActive=recipeCostIsEstimated(q.recipe)&&
-  q.beverages.every(b=>b.costSource==='franchise-estimate-60'&&
+  q.beverages.every(b=>b.costSource==='franchise-estimate-40'&&
    Math.abs(num(b.purchasePrice)-num(b.costEstimateOriginalPrice))<0.001);
- const unitVariable=estimateActive?Math.round(price*0.60*100)/100:q.variable;
+ // Insumos continuam custando o valor estimado por porção da ficha.
+ // Desconto de venda ou taxa de aplicativo NÃO diminui o custo do ingrediente.
+ const unitVariable=q.variable;
  const contribution=price*(1-feeRate(channel)/100)-unitVariable;
  if(contribution<=0&&!confirm('⚠️ Este pedido não cobre os custos variáveis e taxas. Deseja continuar?'))return;
  const cl=client(document.getElementById('orderClient').value),itemRows=copy(q.recipe.items);
@@ -563,7 +574,7 @@ function newOrder(){
  const delivCost=deliveryFee>0?num(state.data.settings.deliveryCostPerOrder||0):0;
  const order={...paymentDetails,id:uid(),name:q.combo?.name||q.recipe.name,recipeId:q.recipe.id,comboId:q.combo?.id||'',qty,price,deliveryFee,deliveryCost:delivCost,
   profit:contribution-fixedPerUnit(),unitContribution:contribution,unitVariableCost:unitVariable,feePct:feeRate(channel),
-  costEstimatePct:estimateActive?60:null,costEstimateLabel:estimateActive?'Simulado: 60% do preço final':'' ,
+  costEstimatePct:estimateActive?40:null,costEstimateLabel:estimateActive?'Custo simulado: 40% do preço de referência, sem ajuste por desconto':'' ,
   clientId:cl?.id||'',clientName:cl?.name||'',clientPhone:cl?.phone||'',clientAddress:document.getElementById('orderAddress').value.trim(),paymentMethod:({pix:'Pix',dinheiro:'Dinheiro',cartao:'Cartão',entrega:'Na entrega',outro:'Outro'})[document.getElementById('orderPayment')?.value]||'Não informado',
   status:'recebido',date:commercialDate(),createdAt:new Date().toISOString(),note:document.getElementById('orderNote').value,
   channel,items:rows,beverageItems:bevItems,discountApplied:q.discount,fullUnitPrice:q.fullPrice,
