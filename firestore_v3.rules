@@ -1,0 +1,216 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Firebase verifies Google identity and email; browser UI cannot grant roles.
+    function googleVerified() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function isAdmin() {
+      return googleVerified() && request.auth.token.email == 'pixmcp@gmail.com';
+    }
+    function isOwner(userId) {
+      return googleVerified() && request.auth.uid == userId;
+    }
+    function canAccess(userId) {
+      return isOwner(userId) || isAdmin();
+    }
+    // Licenças e franquias somente são concedidas no perfil pelo administrador.
+    // Não depende de "role" ou "proActive" informados pelo navegador.
+    function premiumProfile(userId) {
+      let account = get(/databases/$(database)/documents/users/$(userId)).data;
+      return (
+        account.keys().hasAny(['franchise'])
+        && account.franchise.status == 'active'
+        && account.franchise.brandId == 'potebatata'
+      ) || (
+        account.keys().hasAny(['license'])
+        && account.license.status == 'active'
+        && (
+          (account.license.kind == 'lifetime'
+            && account.license.term == 'lifetime')
+          || (
+            account.license.kind in ['trial', 'pro']
+            && account.license.expiresAt is timestamp
+            && account.license.expiresAt > request.time
+          )
+        )
+      );
+    }
+    function canUseFinancialRecords(userId) {
+      return isAdmin()
+        || (isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && premiumProfile(userId));
+    }
+    function isFinancialGroup(group) {
+      return group in ['cashSessions', 'cashMovements'];
+    }
+
+    match /users/{userId} {
+      allow get: if canAccess(userId);
+      allow list: if isAdmin();
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if isAdmin() || (
+        isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'photoURL', 'updatedAt'])
+      );
+      allow delete: if isAdmin();
+
+      match /recipes/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /ingredients/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /suppliers/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /products/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /clients/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /orders/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /inventory/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /expenses/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      match /appState/{id} {
+        allow read, write: if canAccess(userId);
+      }
+      // V2: um documento por registro operacional. Impede acesso entre contas
+      // e restringe o formato, sem interferir nos documentos V1 já existentes.
+      match /records/{recordId} {
+        allow get, list: if canAccess(userId);
+        allow create, update: if canAccess(userId)
+          && (!isFinancialGroup(request.resource.data.record.group)
+              || canUseFinancialRecords(userId))
+          && request.resource.data.keys().hasOnly(['record', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['record', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.record is map
+          && request.resource.data.record.keys().hasOnly([
+            'universe', 'group', 'id', 'item', 'rank'
+          ])
+          && request.resource.data.record.keys().hasAll([
+            'universe', 'group', 'id', 'item', 'rank'
+          ])
+          && request.resource.data.record.universe is string
+          && request.resource.data.record.id is string
+          && request.resource.data.record.rank is number
+          && request.resource.data.record.group in [
+            'recipes', 'ingredients', 'orders', 'clients', 'suppliers',
+            'expenses', 'recipeVersions', 'recipeTrash', 'purchases',
+            'stockMovements', 'beverages', 'addons', 'combos', 'prepBatches',
+            'checklist', 'losses', 'garimpoOffers', 'cashSessions', 'cashMovements'
+          ]
+          && (
+            !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
+            || (
+              request.resource.data.record.universe == resource.data.record.universe
+              && request.resource.data.record.group == resource.data.record.group
+              && request.resource.data.record.id == resource.data.record.id
+            )
+          )
+          // Movimentações de caixa já registradas não são reescritas.
+          && (
+            !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
+            || (
+              (request.resource.data.record.group != 'cashMovements'
+               || request.resource.data.record.item == resource.data.record.item)
+              && (request.resource.data.record.group != 'cashSessions'
+               || resource.data.record.item.status != 'closed')
+            )
+          )
+          // Um turno nasce aberto; após o fechamento não pode ser reaberto.
+          && (
+            request.resource.data.record.group != 'cashSessions'
+            || (
+              request.resource.data.record.item is map
+              && request.resource.data.record.item.status in ['open', 'closed']
+              && (
+                exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
+                || request.resource.data.record.item.status == 'open'
+              )
+            )
+          );
+        allow delete: if canAccess(userId)
+          && !isFinancialGroup(resource.data.record.group);
+      }
+    }
+
+    // Only the verified administrator can create immutable license change events.
+    match /licenseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromTerm', 'toTerm', 'expiresAt'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.action in ['promover', 'renovar', 'revogar']
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Um catálogo publicado pela matriz. As franquias recebem apenas as fichas
+    // aprovadas, nunca o appState, vendas ou custos privados da conta mestre.
+    function isActivePoteFranchise() {
+      return googleVerified()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.status == 'active'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.brandId == 'potebatata';
+    }
+    match /franchiseCatalog/{catalogId} {
+      allow get: if catalogId == 'potebatata'
+        && (isAdmin() || isActivePoteFranchise());
+      allow list: if false;
+      allow create, update: if catalogId == 'potebatata'
+        && isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'brandId', 'version', 'branding', 'recipes', 'ingredients',
+          'publisherUid', 'fingerprint', 'updatedAt'
+        ])
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.publisherUid == request.auth.uid
+        && request.resource.data.recipes.size() <= 150
+        && request.resource.data.ingredients.size() <= 250
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /franchiseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail',
+          'targetUid', 'targetEmail', 'brandId', 'status'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.action in ['ativar', 'revogar']
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Deny everything not explicitly listed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

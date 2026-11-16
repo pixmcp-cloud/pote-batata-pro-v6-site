@@ -3,7 +3,7 @@ const fs=require("node:fs"),assert=require("node:assert/strict");
 const {initializeTestEnvironment,assertFails,assertSucceeds}=require("@firebase/rules-unit-testing");
 const {doc,getDoc,setDoc,updateDoc,deleteDoc,serverTimestamp}=require("firebase/firestore");
 const projectId="demo-pote-batata-v3";
-const rules=fs.readFileSync("firestore.rules","utf8");
+const rules=fs.readFileSync(process.env.V3_RULES_FILE||"firestore.rules","utf8");
 function google(email){return {email,email_verified:true,firebase:{sign_in_provider:"google.com"}}}
 async function main(){
  const env=await initializeTestEnvironment({projectId,firestore:{rules}});
@@ -58,7 +58,59 @@ async function main(){
   });
   await assertSucceeds(getDoc(doc(owner,"franchiseCatalog","potebatata")));
   await assertFails(getDoc(doc(outsider,"franchiseCatalog","potebatata")));
-  console.log("PASS V3 Firebase Emulator: owner/admin, usuário cruzado, autenticação Google, timestamps, grupos, licença e franquia.");
+  // A V3 candidata impede acesso financeiro sem licença validada no servidor.
+  const cashRef=doc(owner,"users","owner","records","cash-s1");
+  const movementRef=doc(owner,"users","owner","records","cash-m1");
+  const financialDoc=(group,id,item)=>({record:{
+    universe:"batataria",group,id,item,rank:0
+  },updatedAt:serverTimestamp()});
+  const cashOpening=financialDoc("cashSessions","s1",{
+    id:"s1",status:"open",openingCash:100,openedAt:"2026-11-16T12:00:00"
+  });
+  // Primeiro remover a licença de franquia concedida no teste de catálogo.
+  await env.withSecurityRulesDisabled(async context=>{
+   await updateDoc(doc(context.firestore(),"users","owner"),{
+    franchise:{brandId:"potebatata",status:"revoked"}
+   });
+  });
+  await assertFails(setDoc(cashRef,cashOpening));
+  await env.withSecurityRulesDisabled(async context=>{
+   await updateDoc(doc(context.firestore(),"users","owner"),{
+    license:{kind:"pro",term:"month1",status:"active",
+      expiresAt:new Date(Date.now()+24*3600*1000)}
+   });
+  });
+  await assertSucceeds(setDoc(cashRef,cashOpening));
+  await assertSucceeds(setDoc(movementRef,financialDoc("cashMovements","m1",{
+   id:"m1",sessionId:"s1",kind:"sangria",amount:10,reason:"banco"
+  })));
+  await assertFails(setDoc(movementRef,financialDoc("cashMovements","m1",{
+   id:"m1",sessionId:"s1",kind:"sangria",amount:500,reason:"fraude"
+  })));
+  await assertFails(deleteDoc(movementRef));
+  await assertSucceeds(setDoc(cashRef,financialDoc("cashSessions","s1",{
+   id:"s1",status:"closed",openingCash:100,closedAt:"2026-11-16T16:00:00"
+  })));
+  await assertFails(setDoc(cashRef,financialDoc("cashSessions","s1",{
+   id:"s1",status:"open",openingCash:100
+  })));
+  await assertFails(deleteDoc(cashRef));
+  await env.withSecurityRulesDisabled(async context=>{
+   await updateDoc(doc(context.firestore(),"users","owner"),{
+    license:{kind:"pro",term:"month1",status:"active",
+      expiresAt:new Date(Date.now()-24*3600*1000)}
+   });
+  });
+  await assertFails(setDoc(doc(owner,"users","owner","records","cash-m2"),
+   financialDoc("cashMovements","m2",{id:"m2",sessionId:"s1",kind:"sangria",amount:5})));
+  await env.withSecurityRulesDisabled(async context=>{
+   await updateDoc(doc(context.firestore(),"users","owner"),{
+    franchise:{brandId:"potebatata",status:"active"}
+   });
+  });
+  await assertSucceeds(setDoc(doc(owner,"users","owner","records","cash-m3"),
+   financialDoc("cashMovements","m3",{id:"m3",sessionId:"s1",kind:"suprimento",amount:5})));
+  console.log("PASS V3 Firebase Emulator: isolamento, licenças PRO/FRANQUIA e imutabilidade de lançamentos de caixa.");
  }finally{await env.cleanup()}
 }
 main().catch(e=>{console.error("V3_FIRESTORE_EMULATOR_TEST_FAILED",e.message);process.exitCode=1});

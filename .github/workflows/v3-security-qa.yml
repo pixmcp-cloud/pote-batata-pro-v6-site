@@ -33,4 +33,5 @@ jobs:
       - name: Test Firebase rules on demo project
         env:
           CI: 'true'
+          V3_RULES_FILE: firestore_v3.rules
         run: ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-pote-batata-v3 --non-interactive "node test_v3_rules_emulator.cjs"

@@ -62,3 +62,10 @@ Regra de liberação: **nunca publicar em main sem testes e homologação da ver
 - `test_pricing_explainer.js` verifica alerta dinâmico de 40% sem voltar à mensagem antiga de 60%.
 - `.github/workflows/v3-security-qa.yml` e `test_v3_rules_emulator.cjs`: testes do Firestore em **projeto demo isolado**, sem implantação; execução em CI a validar. O PC não dispõe de Java; CI provisiona temporariamente Java 21. Esses testes confirmam regras atuais de isolamento, não substituem a futura revisão da autorização comercial no servidor.
 - Todos os comandos realizados nesta ramificação são de desenvolvimento/testes ou exportação somente leitura do Firebase. A versão `main` e as regras reais permanecem intactas.
+
+### Segurança candidata V3 (não implantada)
+- Novo arquivo **`firestore_v3.rules`**, independente de `firestore.rules` usado no Firebase real. Sem alteração das regras implantadas.
+- `cashSessions` e `cashMovements` só podem ser criados/alterados por contas com licença ativa validada no perfil protegido, franquia ativa ou administrador.
+- Movimentos de caixa existentes não podem ter o conteúdo financeiro reescrito; movimentos/turnos não podem ser excluídos. Turnos fechados não podem ser reabertos ou alterados pela API de registros V2.
+- Essa é **proteção parcial**, ainda não é ledger financeiro append-only com backend confiável. O documento legado `appState` permanece liberado às contas próprias para compatibilidade; limites FREE de outros grupos também dependem de regras adicionais.
+- Testes em `test_v3_rules_emulator.cjs` com `V3_RULES_FILE=firestore_v3.rules` no CI isolado. Antes de qualquer implantação, validar migração, fluxos existentes e permissões em todos os grupos.
