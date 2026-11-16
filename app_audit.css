@@ -1,0 +1,23 @@
+/* Auditoria proativa e legível, com correção direta a partir de cada diagnóstico. */
+.stock-audit-summary{margin:12px 0 16px;padding:15px;border-radius:14px;
+ border:1px solid #e2b879;background:linear-gradient(125deg,#344459,#192a3f);
+ color:#f3e0c3}
+.stock-audit-summary.error{border:2px solid #f37f77;background:linear-gradient(125deg,#592e38,#202d3a)}
+.stock-audit-summary.warning{border:1px solid #e8b76e;background:linear-gradient(125deg,#4b402c,#243548)}
+.stock-audit-summary.good{border:1px solid #81b99c;background:#1b4537;color:#d6ffe7}
+.stock-audit-summary>div:first-child{display:flex;align-items:baseline;flex-wrap:wrap;
+ justify-content:space-between;gap:7px}
+.stock-audit-summary strong{font-size:14px}
+.stock-audit-summary small,.stock-audit-summary>span{font-size:11px;color:#d0dce5}
+.stock-audit-summary details{margin-top:12px;padding:7px;border-top:1px solid #9eb6c477}
+.stock-audit-summary summary{cursor:pointer;font-size:12px;font-weight:800}
+.stock-audit-issue{margin:9px 0;display:flex;align-items:center;justify-content:space-between;
+ gap:10px;padding:12px;border:1px solid #e9ad7c;border-radius:11px;background:#282e38}
+.stock-audit-issue.error{border-color:#fa8f85;background:#4d2931}
+.stock-audit-issue.warning{border-color:#e5b56b;background:#443728}
+.stock-audit-issue>div{min-width:0;flex:1}
+.stock-audit-issue strong{font-size:12px;color:#ffe2b2}
+.stock-audit-issue p{font-size:11px;line-height:1.65;color:#e2dce1}
+.stock-audit-issue button{font-size:11px;min-height:39px;flex-shrink:0}
+@media(max-width:530px){.stock-audit-issue{flex-direction:column;align-items:stretch}
+ .stock-audit-issue button{width:100%}}

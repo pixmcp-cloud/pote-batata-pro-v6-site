@@ -13,7 +13,7 @@ function quoteKey(){
 }
 function baseQuote(){
  return typeof optionQuote==="function"?optionQuote(quoteKey(),$("orderChannel")?.value||"direto",
-   $("orderExtraBev")?.value||"",$("orderExtraAddon")?.value||""):null;
+   $("orderExtraBev")?.value||"",""):null;
 }
 function ensure(){
  const current=quoteKey();
@@ -46,7 +46,7 @@ function render(){
    '<span><b>'+esc(i.name)+'</b><small>'+n(i.amount)+' '+esc(i.measure)+' por unidade</small></span>'+
    '<em>'+ (excluded.has(i.id)?"SEM":"Retirar") +'</em></label>').join(""):
    '<p class="order-custom-empty">Sem ingredientes cadastrados.</p>')+
-  '</section><section><h4>Adicionar extras</h4>'+
+  '</section><section><h4>Adicionar extras · sem limite de tipos ou repetições</h4>'+
   (addons.length?addons.map(a=>'<div class="order-custom-option">'+
    '<span><b>'+esc(a.name)+'</b><small>'+n(a.quantity)+' '+
    esc(state.data.ingredients.find(i=>i.id===a.ingredientId)?.measureUnit||"g")+
@@ -76,7 +76,8 @@ function remove(id,checked){
 function delta(id,by){
  ensure();
  const a=state.data.addons.find(x=>x.id===id);if(!a)return;
- const qty=Math.max(0,Math.min(15,n(extraCounts.get(id))+Number(by)));
+ const raw=n(extraCounts.get(id))+n(by);
+ const qty=Number.isSafeInteger(raw)&&raw>=0?raw:raw<0?0:Number.MAX_SAFE_INTEGER;
  if(qty)extraCounts.set(id,qty);else extraCounts.delete(id);
  update();
 }

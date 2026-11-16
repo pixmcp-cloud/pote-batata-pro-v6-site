@@ -63,9 +63,10 @@ function renderBeverages(){
  '</section>';
 }
 function selectBeverage(id){
- const field=$("stockBeverageId");if(!field)return;
- field.value=id;preview();$("stockBeverages")?.scrollIntoView?.({block:"center",behavior:"smooth"});
- $("stockBeverageQty")?.focus?.();
+ const field=$("stockBeverageId");
+ if(field){field.value=id;preview()}
+ window.POTE_STOCK_UPDATE?.pulse?.("beverage",id);
+ window.POTE_STOCK_UPDATE?.open?.("beverage",id,"purchase");
 }
 function preview(){
  const b=state.data.beverages.find(x=>x.id===$("stockBeverageId")?.value);
@@ -100,21 +101,8 @@ function saveBeveragePurchase(){
 }
 function adjustBeverage(id){
  const b=state.data.beverages.find(x=>x.id===id);if(!b)return;
- const raw=prompt("Saldo TOTAL contado de "+b.name+" ("+b.size+") em unidades:",String(b.stock||0));
- if(raw===null)return;
- const units=window.POTE_STOCK.number(raw);
- if(!Number.isInteger(units)||units<0){alert("O estoque precisa ser um número inteiro maior ou igual a zero.");return}
- const reason=prompt("Motivo do ajuste (contagem, perdas, correção):","Conferência física");
- if(reason===null)return;
- state.data.stockMovements??=[];
- const result=window.POTE_STOCK.adjust({
-  ingredient:{...b,stock:b.stock,measureUnit:"un"},
-  quantity:units,unit:"un",reason,movements:state.data.stockMovements,
-  makeId:()=>uid()
- });
- b.stock=result.next;
- state.data.stockMovements[0].itemKind="beverage";
- persist();render();toast("Estoque atualizado: "+b.name+" · "+b.stock+" un.");
+ window.POTE_STOCK_UPDATE?.pulse?.("beverage",id);
+ return window.POTE_STOCK_UPDATE?.open?.("beverage",id,"adjust");
 }
 window.POTE_STOCK_EXT={renderBeverages,duplicatePanel,selectBeverage,preview,
  saveBeveragePurchase,adjustBeverage};

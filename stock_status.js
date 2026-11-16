@@ -27,7 +27,7 @@ function recipeLowIds(data,held=reserved(data)){
   if(data.settings?.usePackagingStock){
    for(const x of data.ingredients||[]){
     if(x.category!=="Embalagem"||x.archived)continue;
-    if(Array.isArray(r.packagingIngredientIds)&&!r.packagingIngredientIds.includes(x.id))continue;
+    if(!Array.isArray(r.packagingIngredientIds)||!r.packagingIngredientIds.includes(x.id))continue;
     ingredients.push({id:x.id,g:1});
    }
   }
@@ -58,7 +58,9 @@ function context(){
 }
 function currentContext(data=typeof state!=="undefined"?state.data:null){
  if(!data)return [];
- const held=reserved(data);
+ const sourceOrderId=window.POTE_RESTOCK_CONTEXT?.sourceOrderId;
+ const holdingData=sourceOrderId?{...data,orders:(data.orders||[]).filter(o=>o.id!==sourceOrderId)}:data;
+ const held=reserved(holdingData);
  const result=[];
  for(const x of context()){
   const kind=x.kind==="beverage"?"beverage":"ingredient";

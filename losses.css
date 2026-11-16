@@ -1,0 +1,62 @@
+/* Registro de perdas — operacional, sem confundir custo com receita não recebida. */
+.pote-losses{display:flex;flex-direction:column;gap:15px}
+.pote-loss-header{padding:17px 20px;border:1px solid #d3b37e7c;border-radius:17px;
+ background:linear-gradient(135deg,#344456,#15263c);color:#f5e8d4}
+.pote-loss-header>span{font-size:10px;color:#edc28c;font-weight:900;letter-spacing:.14em}
+.pote-loss-header h2{margin:8px 0;font-size:clamp(23px,4vw,30px);color:#ffe8bf}
+.pote-loss-header p{font-size:12px;line-height:1.7;color:#ccdae5}
+.pote-loss-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.pote-loss-metrics>div{display:flex;flex-direction:column;justify-content:space-between;
+ gap:9px;padding:15px;border-radius:13px;border:1px solid #b0bcb477;background:#182c3d}
+.pote-loss-metrics small{font-size:10px;line-height:1.5;color:#c9d7df}
+.pote-loss-metrics strong{font-size:clamp(17px,2.2vw,24px);color:#ffc4ac;
+ overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.pote-loss-panel{padding:clamp(15px,3vw,22px);border-radius:16px;
+ background:linear-gradient(140deg,#243a50,#14263a);border:1px solid #aabbbf71;
+ color:#f0e5d5}
+.pote-loss-panel h3{display:flex;align-items:center;gap:10px;margin:0 0 11px;
+ font-size:17px;color:#ffe2b3}
+.pote-loss-panel h3 span{display:inline-grid;place-items:center;width:28px;height:28px;
+ border-radius:9px;background:#a57846;color:#1c1510;flex-shrink:0;font-weight:900}
+.pote-loss-panel>p{font-size:12px;line-height:1.65;color:#d3dce4}
+.pote-loss-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.pote-loss-form label{display:flex;min-width:0;flex-direction:column;gap:7px;
+ font-size:12px;font-weight:750;color:#dcd5c7}
+.pote-loss-form label.loss-wide{grid-column:1/-1}
+.pote-loss-form input,.pote-loss-form select{box-sizing:border-box;width:100%;min-height:42px;
+ padding:9px 12px;border-radius:10px!important;background:#0b1c2e!important;
+ color:#f6e7d5!important;border:1px solid #97a8ba!important;font:inherit}
+.pote-loss-preview{padding:12px;margin:12px 0;border:1px solid #a5c3b19f;
+ border-radius:11px;background:#16372f;font-size:12px;color:#e2efdb;line-height:1.55}
+.pote-loss-panel button.btn{min-height:43px}
+.pote-loss-tip{margin-top:14px!important;border-left:3px solid #e0b075;padding-left:12px;
+ font-size:11px!important}
+.pote-loss-history{padding:17px;border:1px solid #bd9c6e;
+ border-radius:14px;background:#202f42;color:#f0e5da}
+.pote-loss-history h3{font-size:18px;margin:0 0 13px;color:#f6d7aa}
+.pote-loss-table{display:flex;flex-direction:column;gap:9px}
+.pote-loss-table article{display:flex;align-items:center;justify-content:space-between;
+ flex-wrap:wrap;gap:11px;padding:12px;border-radius:10px;background:#132539;
+ border:1px solid #7e9bad77}
+.pote-loss-table article>div:first-child{flex:1;min-width:170px}
+.pote-loss-table article>div{display:flex;flex-direction:column;gap:5px}
+.pote-loss-table strong{font-size:13px}
+.pote-loss-table small{color:#c8d8e2;font-size:11px;line-height:1.5}
+.pote-loss-table b{color:#ffcea1;font-size:15px;white-space:nowrap}
+.pote-loss-error{padding:13px;border:1px solid #f08382;color:#ffe4e0;
+ background:#5a2d32;border-radius:10px;font-size:12px}
+.pote-loss-error[hidden]{display:none}
+.pote-loss-shortcut{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0}
+.pote-loss-shortcut button{min-height:39px}
+.pote-loss-report{padding:14px;border-left:4px solid #e0a976;border-radius:9px;
+ margin:14px 0;background:#2f2830;color:#fae1cb}
+.pote-loss-report strong{color:#ffceae}
+@media(max-width:780px){.pote-loss-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.pote-loss-form{grid-template-columns:1fr}
+ .pote-loss-form label.loss-wide{grid-column:1}
+ .pote-loss-metrics{gap:7px}
+ .pote-loss-metrics>div{padding:10px}
+}
+.pote-loss-table article.loss-voided{opacity:.73;border-style:dashed}.pote-loss-table article.loss-voided b{text-decoration:line-through;color:#bcccd5}
+.ops-stats.ops-stats-losses{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:830px){.ops-stats.ops-stats-losses{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:350px){.ops-stats.ops-stats-losses{grid-template-columns:1fr}}
+.pote-loss-legacy{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:8px 0;padding:10px 0;border-top:1px solid #aeb9c870}.pote-loss-legacy span{font-size:12px;flex:1;min-width:150px}.pote-loss-legacy button{white-space:normal}

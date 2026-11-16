@@ -92,7 +92,7 @@ for(const marker of ["window.POTE_RECEIPTS?.open","removedIngredients:q.removedI
  "customAddons:q.customAddons","builderApproxWeight","poteOrderCustomization"]){
  assert(original.includes(marker),"Integração em fonte ausente: "+marker);
 }
-for(const marker of ["order_customization.js?v=custom-20261115",
+for(const marker of ["order_customization.js?v=audit-20261115",
  "receipt_enhanced.js?v=receipt-20261115",
  "order_customization.css?v=custom-20261115",
  "receipt_enhanced.css?v=receipt-20261115"]){
@@ -102,3 +102,32 @@ assert(read("firebase_integration.js").includes("preserveNavigation:true"));
 assert(read("franchise_sync.js").includes("preserveNavigation:true"));
 assert(read("stock_ui.js").includes('stock-search-control'));
 console.log("PASS: sem milho, 2 extras, validação de estoque, recibo 250/500g, totais, comanda, comprovante e mesma tela após sync.");
+
+C.reset();
+C.remove("corn",true); // O milho continua excluído neste pedido personalizado
+const cheeseIngredient={id:"cheese-addon",name:"Queijo",measureUnit:"g",
+ purchaseQuantity:1,purchaseUnit:"kg",purchasePrice:25,stock:2000,yield:100,category:"Laticínio"};
+data.ingredients.push(cheeseIngredient);
+data.addons.push({id:"a2",name:"Queijo extra",ingredientId:"cheese-addon",quantity:30,sellPrice:3});
+for(let k=0;k<21;k++)C.delta("a1",1);
+C.delta("a2",1);C.delta("a2",1);
+const multi=C.adjustQuote(ctx.optionQuote());
+assert.equal(multi.customAddons.find(x=>x.id==="a1").count,21);
+assert.equal(multi.customAddons.find(x=>x.id==="a2").count,2);
+assert.equal(multi.addons.find(x=>x.id==="a1").quantity,840);
+assert.equal(multi.addons.find(x=>x.id==="a2").quantity,60);
+assert.equal(multi.price,20+21*5+2*3);
+assert.equal(O.calc(multi,1).ok,false,"Com 21 porções de bacon o estoque insuficiente bloqueia corretamente");
+bacon.stock=1000;
+assert.equal(O.calc(multi,1).ok,true,"Depois de repor bacon, o pedido com 21 porções fica possível");
+C.delta("a1",-1);
+assert.equal(C.adjustQuote(ctx.optionQuote()).customAddons.find(x=>x.id==="a1").count,20);
+assert(!original.includes("Adicional extra por unidade"),"Seletor duplicado de um adicional foi retirado");
+assert(read("order_customization.js").includes("sem limite de tipos ou repetições"));
+console.log("PASS: uma única seção de adicionais, 21× bacon + 2× queijo, precificação e estoque proporcionais.");
+
+const unpaidReceipt=R.render({...order,paymentStatus:"nao_pago",paidAmount:100,changeGiven:10},"customer",data);
+assert(unpaidReceipt.includes("NÃO PAGO"),"O recibo deve sinalizar o não pagamento");
+assert(!unpaidReceipt.includes("Troco devolvido"),"Não exibir troco de pedido marcado não pago");
+assert(!unpaidReceipt.includes("Valor recebido"),"Não indicar dinheiro recebido em pedido não pago");
+console.log("PASS: recibo de inadimplência não apresenta recebimento ou troco como concluído.");

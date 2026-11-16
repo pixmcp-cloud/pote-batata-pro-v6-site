@@ -72,8 +72,10 @@ function render(order,type,data){
    line("Endereço / referência",order.clientAddress||"Retirada no balcão")+
    (kitchen?line("Taxa de tele-entrega",money(delivery)):"")+
    (!kitchen?line("Pagamento",payment)+
-   (order.paidAmount!=null?line("Valor recebido",money(order.paidAmount)):"")+
-   (order.changeGiven!=null?line("Troco devolvido",money(order.changeGiven)):""):"")+'</div>'+
+   line("Situação financeira",order.paymentStatus==="nao_pago"?"NÃO PAGO · cobrança pendente":
+    order.paymentStatus||"Não confirmada")+
+   (order.paymentStatus!=="nao_pago"&&order.paidAmount!=null?line("Valor recebido",money(order.paidAmount)):"")+
+   (order.paymentStatus!=="nao_pago"&&order.changeGiven!=null?line("Troco devolvido",money(order.changeGiven)):""):"")+'</div>'+
   '<div class="pote-receipt-block"><h3>Produto</h3>'+
    '<div class="pote-receipt-product"><strong>'+esc(order.name||"Produto")+'</strong>'+
     '<span>'+qty(count)+' unidade(s) × '+money(order.price)+' (incl. adicionais)</span></div>'+

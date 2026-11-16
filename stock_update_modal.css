@@ -1,0 +1,51 @@
+/* Modal de atualização de estoque no lugar do prompt nativo do navegador. */
+#poteStockUpdate[hidden]{display:none!important}
+#poteStockUpdate{position:fixed;inset:0;z-index:15700;display:flex;align-items:center;
+ justify-content:center;overflow-y:auto;padding:12px;background:rgba(0,0,0,.84);
+ backdrop-filter:blur(7px)}
+.stock-update-dialog{box-sizing:border-box;width:min(580px,100%);max-height:min(92dvh,900px);
+ overflow-y:auto;background:linear-gradient(145deg,#273e55,#122437 56%,#0d1b2c);
+ border:1px solid #d8b077;border-radius:19px;box-shadow:0 18px 62px #000b;
+ padding:clamp(16px,4vw,26px);color:#f7e9d0;font-family:system-ui,Arial,sans-serif}
+.stock-update-dialog>small{font-size:10px;letter-spacing:.16em;color:#e4bf8d;font-weight:900}
+.stock-update-dialog h2{font-size:clamp(24px,4vw,30px);margin:8px 0;color:#ffe2b1}
+.stock-update-dialog>p{font-size:14px;font-weight:750;color:#deebf2;line-height:1.5}
+.stock-update-snapshot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:17px 0;
+ border:1px solid #96acbc8a;padding:10px;border-radius:13px;background:#10273cbf}
+.stock-update-snapshot span{min-width:0;display:flex;flex-direction:column;gap:5px}
+.stock-update-snapshot span small{font-size:10px;color:#bed2df}
+.stock-update-snapshot span strong{font-size:clamp(12px,2.5vw,19px);overflow-wrap:anywhere;color:#ddedda}
+.stock-update-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.stock-update-grid[hidden]{display:none!important}
+.stock-update-grid label{min-width:0;display:flex;flex-direction:column;gap:6px;
+ font-size:12px;font-weight:780;color:#e7d4b3}
+.stock-update-full{grid-column:1/-1}
+.stock-update-grid input,.stock-update-grid select{box-sizing:border-box;width:100%;min-height:44px;
+ border:1px solid #89a8c8!important;border-radius:10px;background:#0c1b2a!important;
+ color:#fff4dd!important;padding:10px;font:inherit}
+.stock-update-grid label[hidden]{display:none!important}
+.stock-update-result{min-height:50px;padding:12px;margin:14px 0;
+ border-radius:12px;border:1px solid #94bca6;background:#16372e;
+ color:#e3f5e8;font-size:12px;line-height:1.6}
+.stock-update-result p{margin:5px 0;line-height:1.5}
+.stock-update-result strong{color:#fff0c9}
+.stock-update-error{padding:12px;margin:9px 0;border:1px solid #ef8b82;background:#612d35;
+ color:#ffe0db;border-radius:11px;font-size:12px;line-height:1.55}
+.stock-update-error[hidden]{display:none!important}
+.stock-update-actions{display:flex;gap:9px;margin-top:12px}
+.stock-update-actions button{flex:1;min-height:46px;white-space:normal}
+.stock-update-actions button[hidden]{display:none!important}
+.stock-highlight{animation:stock-pulse-highlight 1.25s ease-in-out 4!important;outline:3px solid #f5dc83!important;
+ outline-offset:3px;position:relative;z-index:2}
+@keyframes stock-pulse-highlight{0%,100%{box-shadow:0 0 0 0 #ffe67b99}
+ 45%{box-shadow:0 0 0 10px #f6d76825,inset 0 0 18px #f7cc66b5}}
+.stock-unlinked-alert{padding:15px;margin:12px 0;border:2px solid #f0807a;
+ border-radius:13px;background:#552d36;color:#fff1e1}
+.stock-unlinked-alert>strong{display:block;color:#ffd0ca;font-size:14px}
+.stock-unlinked-alert>p{font-size:12px;line-height:1.6}
+@media(max-width:450px){
+ .stock-update-grid{gap:8px}
+ .stock-update-actions{flex-direction:column}
+ .stock-update-snapshot{grid-template-columns:repeat(3,minmax(0,1fr));padding:8px}
+}
+@media(prefers-reduced-motion:reduce){.stock-highlight{animation:none!important}}

@@ -20,7 +20,7 @@ const document={body:{appendChild(){}},
 const loc={href:"https://example.com/app/"};
 let pushed=0,moved=0,confirmCount=0,confirmValue=false;
 const history={pushState(){pushed++},go(n){moved=n}};
-const recipe={id:"r1",name:"X-Salada",items:[{id:"potato",g:500},{id:"cheese",g:50}]};
+const recipe={id:"r1",name:"X-Salada",packagingIngredientIds:["pack"],items:[{id:"potato",g:500},{id:"cheese",g:50}]};
 const ingredients=[
  {id:"potato",name:"Batata",measureUnit:"g",yield:100,stock:3000,category:"Base"},
  {id:"cheese",name:"Queijo",measureUnit:"g",yield:100,stock:700,category:"Laticínio"},
@@ -125,7 +125,7 @@ for(const term of ["checkBeforeRegister","checkBeforeProduce","ordersHistoryTitl
  assert(src.includes(term),"Integração do pedido ausente: "+term);
 }
 const html=read("public/index.html");
-for(const path of ["order_guard.js?v=stock-priority-20261115",
+for(const path of ["order_guard.js?v=audit-20261115",
  "exit_guard.js?v=exit-v2-20261115","order_ui.css?v=orders-v2-20261115"]){
  assert(html.includes(path),"Falta incluir "+path+" no site final");
 }

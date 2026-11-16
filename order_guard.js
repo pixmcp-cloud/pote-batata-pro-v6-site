@@ -14,7 +14,7 @@ function joinNeeds(quote,qty,settings,ingredients){
  if(settings?.usePackagingStock){
   const ids=quote?.recipe?.packagingIngredientIds;
   for(const i of ingredients.filter(x=>x.category==="Embalagem"&&!x.archived&&
-       (!Array.isArray(ids)||ids.includes(x.id))))rows.push({id:i.id,g:1,isPkg:true});
+       Array.isArray(ids)&&ids.includes(x.id)))rows.push({id:i.id,g:1,isPkg:true});
  }
  const needs=new Map();
  for(const x of rows){
@@ -60,7 +60,8 @@ function checkOrder(stock,quote,qty,{excludeOrderId=null}={}){
  const test=(id,perUnit,records,reserves,measure,type)=>{
   if(perUnit<=0)return;
   const record=records.find(i=>i.id===id);
-  const inventory=Math.max(0,n(record?.stock));
+  const rawStock=window.POTE_STOCK?.stockNumber?.(record?.stock)??Number(record?.stock);
+  const inventory=Number.isFinite(rawStock)?Math.max(0,rawStock):0;
   const held=Math.max(0,n(reserves.get(id)));
   const available=Math.max(0,inventory-held);
   const capacity=Math.floor((available+1e-7)/perUnit);
@@ -69,11 +70,12 @@ function checkOrder(stock,quote,qty,{excludeOrderId=null}={}){
   if(!record||available+1e-7<perUnit*requested){
    const shortage=Math.max(0,perUnit*requested-available);
    errors.push({id,kind:type,name,available,needed:perUnit*requested,missing:shortage,
-    reserved:held,unit:measure,kind:type});
+    physical:inventory,perUnit,requestedUnits:requested,
+    reserved:held,unit:measure});
   }
   if(capacity-requested<5){
    low.push({id,kind:type,name,available,unit:measure,capacity,
-    after:Math.max(0,capacity-requested),reserved:held,kind:type});
+    after:Math.max(0,capacity-requested),reserved:held,physical:inventory,perUnit});
   }
  };
  for(const [id,qtyPerUnit] of needs.ingredients)test(id,qtyPerUnit,items,pending.ingredients,
@@ -89,23 +91,25 @@ function calc(quote,qty,{excludeOrderId=null}={}){
 function currentQuote(){
  const v=$("orderItem")?.value||"",channel=$("orderChannel")?.value||"direto";
  const quote=typeof optionQuote==="function"?optionQuote(v,channel,
-  $("orderExtraBev")?.value||"",$("orderExtraAddon")?.value||""):null;
+  $("orderExtraBev")?.value||"",""):null;
  return window.POTE_ORDER_CUSTOM?.adjustQuote?.(quote)||quote;
 }
 function reportText(report){
- return report.errors.slice(0,6).map(x=>{
+ return (report?.errors||[]).slice(0,6).map(x=>{
   if(!x.unit)return x.name;
-  const amount=Math.max(0,x.missing);
-  const unit=x.unit==="un"?"un":"gml".includes(x.unit)?x.unit:x.unit;
-  return x.name+" — faltam "+fmtQty(amount)+" "+unit+
-   (x.reserved>0?" (há quantidade reservada para pedidos pendentes)":"");
+  const fmt=v=>fmtQty(Number(v)||0)+" "+x.unit;
+  return x.name+" [cadastro: "+(x.id||"não identificado")+"] - faltam "+fmt(x.missing)+
+    " | físico "+fmt(x.physical??x.available??0)+
+    " | reservado "+fmt(x.reserved||0)+
+    " | disponível "+fmt(x.available||0)+
+    " | necessário "+fmt(x.needed||0);
  }).join("; ");
 }
 let lastStockReport=null;
 let savedOrderDraft=null;
 const DRAFT_IDS=["orderItem","orderChannel","orderQty","orderPrice","orderClient",
  "orderAddress","orderNote","orderWeight","orderPayment","orderCashReceived",
- "orderHasDelivery","orderDelivery","orderExtraBev","orderExtraAddon",
+ "orderHasDelivery","orderDelivery","orderExtraBev",
  "orderComboRecipe","orderComboBeverage"];
 function captureOrderDraft(){
  if(state?.tab!=="orders"||!$("orderItem"))return;
@@ -135,6 +139,7 @@ function restockItem(id,kind){
  if(!items.length){go("ingredients");return}
  captureOrderDraft();
  window.POTE_RESTOCK_CONTEXT={items,from:state?.tab||"orders",
+  sourceOrderId:lastStockReport?.sourceOrderId||null,
   startedAt:new Date().toISOString()};
  const modal=$("poteOrderAlerts");if(modal)modal.hidden=true;
  go("ingredients");
@@ -175,7 +180,11 @@ function showAlert(title,description,report=null){
  if(list)list.innerHTML=items.map(x=>'<div class="pote-order-alert-item '+(x.level==="missing"?"missing":"low")+'">'+
   '<button type="button" class="pote-order-missing-open" data-need-id="'+esc(x.id)+'" data-need-kind="'+esc(x.kind)+'" onclick="POTE_ORDER.restockItem(this.dataset.needId,this.dataset.needKind)">'+(x.level==="missing"?"FALTANTE: ":"ESTOQUE BAIXO: ")+esc(x.name)+' · toque para repor</button>'+
   '<small>'+(x.level==="missing"?
-   'Repor '+fmtQty(x.missing)+' '+esc(x.unit||"un")+'. Disponível após reservas: '+fmtQty(x.available)+' '+esc(x.unit||"un"):
+   'Físico: '+fmtQty(x.physical??x.available??0)+' '+esc(x.unit||"un")+
+   ' · Reservado: '+fmtQty(x.reserved||0)+' '+esc(x.unit||"un")+
+   ' · Disponível: '+fmtQty(x.available||0)+' '+esc(x.unit||"un")+
+   ' · Necessário: '+fmtQty(x.needed||0)+' '+esc(x.unit||"un")+
+   ' · Faltam '+fmtQty(x.missing)+' '+esc(x.unit||"un")+' · Cadastro: '+esc(x.id):
    'Restam insumos para '+fmtQty(x.after)+' unidade(s) após este pedido.')+'</small></div>').join("");
  const restockButton=$("poteOrderAlertRestock");
  if(restockButton){restockButton.disabled=!items.length;restockButton.hidden=!items.length}
@@ -314,7 +323,7 @@ function checkBeforeProduce(order){
  }
  if(errors.length){
   showAlert("Produção bloqueada — estoque comprometido",
-   reportText({errors})+". Confira as reservas e reponha o estoque antes de produzir.",{errors});
+   reportText({errors})+". Confira as reservas e reponha o estoque antes de produzir.",{errors,sourceOrderId:order.id});
   return false;
  }
  return true;

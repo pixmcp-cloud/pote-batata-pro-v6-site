@@ -11,6 +11,23 @@ const number=v=>{
  else if(s.includes(","))s=s.replace(",",".");
  const x=Number(s);return Number.isFinite(x)?x:NaN;
 };
+const stockNumber=v=>typeof v==="number"?v:number(v);
+function normalizeInventory(data){
+ const changes=[],invalid=[];
+ for(const type of ["ingredients","beverages"]){
+  for(const item of data?.[type]||[]){
+   if(typeof item.stock!=="string")continue;
+   const previous=item.stock,parsed=number(previous);
+   if(Number.isFinite(parsed)&&parsed>=0){
+    item.stock=parsed;
+    changes.push({type,id:item.id,name:item.name,previous,current:parsed});
+   }else{
+    invalid.push({type,id:item.id,name:item.name,previous});
+   }
+  }
+ }
+ return {changes,invalid};
+}
 const decimal=(v,max=3)=>Number(v).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:max});
 const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const measureUnit=i=>i?.measureUnit==="un"?"un":i?.measureUnit==="ml"?"ml":"g";
@@ -79,5 +96,5 @@ function adjust({ingredient,quantity,unit,reason,movements,makeId}){
   previousStock:previous,afterStock:next});
  return {previous,next,delta};
 }
-window.POTE_STOCK={number,decimal,money,measureUnit,validUnit,toBase,defaultUnit,formatStock,purchase,adjust};
+window.POTE_STOCK={number,stockNumber,normalizeInventory,decimal,money,measureUnit,validUnit,toBase,defaultUnit,formatStock,purchase,adjust};
 })();

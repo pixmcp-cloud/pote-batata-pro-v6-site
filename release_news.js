@@ -3,11 +3,16 @@
 "use strict";
 if(window.POTE_RELEASE_NEWS)return;
 const RELEASE={
- id:"2026-11-15-reposicao-lixeira-e-prioridade-02",
+ id:"2026-11-15-perdas-financeiro-05",
  date:"15/11/2026",
  title:"Novidades da Gestão Pro",
  items:[
-  ["Reposição direta","Toque no item faltante ou use Repor estoque faltante para abrir a compra correta. O alerta é recalculado após a reposição."],
+  ["Perdas e prejuízos","Nova área para registrar ingredientes estragados, quedas, descartes por higiene, cancelamentos após produção e pedidos não pagos."],
+  ["Sobra e lucro separados","Os relatórios passam a separar contribuição da venda, despesas fixas, custo perdido e valor não recebido."],
+  ["Reposição da franquia","Potes, talheres e sacolas usados na produção ficam visíveis na lista de estoque. Use Repor estoque faltante para abrir a compra correspondente."],
+  ["Atualização de estoque","Nova janela para compras por unidade, dúzia, pacote de 10, quilogramas, litros ou lote personalizado, sempre registrando quanto foi pago."],
+  ["Cancelamento de pedidos","Escolha entre devolver ingredientes/embalagens e bebidas ao estoque ou registrar a perda. A mesma devolução não pode acontecer duas vezes."],
+  ["Adicionais sem duplicação","Uma única área de adicionais, com quantidade livre para bacon 2×, 3× ou mais, e preço e baixa proporcionais."],
   ["Estoque prioritário","Itens faltantes agora aparecem primeiro. Vermelho: faltante, laranja: baixo e verde: saldo suficiente, descontadas as reservas."],
   ["Lixeira de produtos","Excluir ou restaurar cadastros do estoque. Para potes duplicados, transferir o saldo e substituir nas receitas sem apagar o histórico."],
   ["Pedidos e recibos","Comandas completas, personalização dos ingredientes e pagamento com troco automático."],

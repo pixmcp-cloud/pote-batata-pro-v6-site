@@ -29,7 +29,7 @@ const ctx={document:{
  allowed(){return true},
  costOf(r){return r.items.reduce((t,x)=>t+x.g*.01,0)},
  packagingForRecipe(r){return state.data.ingredients.filter(i=>i.category==="Embalagem").filter(i=>
- !Array.isArray(r.packagingIngredientIds)||r.packagingIngredientIds.includes(i.id))},
+ Array.isArray(r.packagingIngredientIds)&&r.packagingIngredientIds.includes(i.id))},
  effectivePackageCost(r){return ctx.packagingForRecipe(r).reduce((t,i)=>t+i.purchasePrice/i.purchaseQuantity,0)},
  fixedPerUnit(){return 1},
  totalCost(r){return ctx.costOf(r)+ctx.effectivePackageCost(r)+1+2+1},
@@ -41,11 +41,11 @@ const P=ctx.window.POTE_PRICING;
 assert(P);
 let r=P.report(recipe);
 assert.equal(r.ingredient,5);
-assert.equal(r.packageCost,0.9,"Padrão soma embalagens selecionadas");
+assert.equal(r.packageCost,0,"Sem seleção explícita nenhuma embalagem deve ser cobrada automaticamente");
 assert.equal(r.fixed,1);
 assert.equal(r.other,1);
 assert.equal(r.variable,2);
-assert.equal(r.cost,9.9);
+assert.equal(r.cost,9);
 assert.equal(r.price,21.9);
 assert(Math.abs(r.fees-0.657)<1e-9);
 assert(r.contribution>10);
@@ -75,9 +75,10 @@ el("priceMargin").value="99";
 assert.equal(P.validateForm(),false,"Margem mais taxa não pode ultrapassar 100%");
 const src=read("source/pote_app_base.html");
 assert(src.includes("POTE_PRICING?.validateForm"));
-assert(src.includes("Resultado estimado / unidade"));
+assert(src.includes("Sobra após custos variáveis"),"Precificação deve separar sobra de lucro");
+assert(src.includes("Lucro estimado por unidade"),"Lucro após despesas fixas precisa ser explícito");
 const build=read("public/index.html");
-for(const part of ["pricing_explainer.js?v=stock-priority-20261115","pricing_explainer.css?v=price-guide-20261115"]){
+for(const part of ["pricing_explainer.js?v=audit-20261115","pricing_explainer.css?v=price-guide-20261115"]){
  assert(build.includes(part),"Asset ausente: "+part)
 }
 console.log("PASS: preço discriminado, referência de embalagem individual, custos incompletos e prevenção de taxas/margens inválidas.");

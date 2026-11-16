@@ -1,0 +1,20 @@
+/* Cancelamento: consequências do estoque explícitas e reversão auditada. */
+#poteCancelOrderModal[hidden]{display:none!important}
+#poteCancelOrderModal{position:fixed;inset:0;z-index:16000;display:flex;align-items:center;justify-content:center;
+ padding:13px;overflow-y:auto;background:rgba(0,0,0,.82);backdrop-filter:blur(7px)}
+.pote-cancel-order-sheet{width:min(520px,100%);max-height:92dvh;overflow:auto;box-sizing:border-box;
+ background:linear-gradient(140deg,#2e4256,#102336);padding:clamp(16px,4vw,26px);
+ border-radius:18px;border:1px solid #e1b782;box-shadow:0 18px 60px #000c;color:#fcebd4;
+ font-family:system-ui,Arial,sans-serif}
+.pote-cancel-order-sheet>small{letter-spacing:.12em;font-size:10px;color:#e5c394;font-weight:850}
+.pote-cancel-order-sheet h2{font-size:clamp(22px,4vw,28px);margin:8px 0 12px;color:#ffdeaa}
+.pote-cancel-order-sheet p{font-size:12px;line-height:1.65;color:#dce6ef}
+.pote-cancel-order-sheet details{border:1px solid #adb7c17d;padding:12px;margin:13px 0;
+ border-radius:11px;font-size:12px;color:#f6e4c8}
+.pote-cancel-order-sheet li{margin:5px 0}
+.pote-cancel-warning,#poteCancelError{border:1px solid #f39786;border-radius:10px;
+ background:#643139;color:#ffe1d8!important;padding:11px;font-size:12px}
+#poteCancelError[hidden]{display:none!important}
+.pote-cancel-buttons{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.pote-cancel-buttons button{min-height:44px;white-space:normal}
+.pote-cancel-buttons button[hidden]{display:none!important}

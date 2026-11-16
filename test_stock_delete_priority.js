@@ -116,10 +116,10 @@ assert(confirmed>=1&&persisted>=1&&rendered>=1);
 const built=read("public/index.html");
 for(const v of ["stock_delete.js?v=stock-priority-20261115",
  "stock_inventory.js?v=stock-priority-20261115",
- "stock_ui.js?v=stock-priority-20261115",
- "stock_status.js?v=stock-priority-20261115",
+ "stock_ui.js?v=audit-20261115",
+ "stock_status.js?v=audit-20261115",
  "stock_triage.css?v=stock-priority-20261115",
- "release_news.js?v=news-20261115-02"]){
+ "release_news.js?v=news-20261115-05"]){
  assert(built.includes(v),"Página gerada sem "+v);
 }
 console.log("PASS: reposição remove aviso antigo; faltantes no topo; nome clicável; lixeira, mesclagem protegida, histórico preservado e restauração.");

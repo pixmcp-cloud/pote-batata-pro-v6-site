@@ -40,6 +40,14 @@ jobs:
           cp universe_core.js public/universe_core.js
           cp stock_math.js public/stock_math.js
           cp stock_ui.js public/stock_ui.js
+          cp stock_update_modal.js public/stock_update_modal.js
+          cp stock_update_modal.css public/stock_update_modal.css
+          cp cancel_order_flow.js public/cancel_order_flow.js
+          cp cancel_order_flow.css public/cancel_order_flow.css
+          cp app_audit.js public/app_audit.js
+          cp app_audit.css public/app_audit.css
+          cp losses.js public/losses.js
+          cp losses.css public/losses.css
           cp stock_ui.css public/stock_ui.css
           cp order_guard.js public/order_guard.js
           cp exit_guard.js public/exit_guard.js
@@ -92,6 +100,14 @@ jobs:
           node test_business_universes.js
           node --check public/stock_math.js
           node --check public/stock_ui.js
+          node --check public/stock_update_modal.js
+          node test_stock_update_modal.js
+          node --check public/cancel_order_flow.js
+          node --check public/app_audit.js
+          node test_cancel_order_audit.js
+          node test_app_audit.js
+          node --check public/losses.js
+          node test_losses.js
           node test_stock_manager.js
           node --check public/order_guard.js
           node --check public/exit_guard.js

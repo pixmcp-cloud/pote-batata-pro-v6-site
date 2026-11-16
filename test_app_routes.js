@@ -46,12 +46,12 @@ for(let i=0;i<inline.length;i++){
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
 for(const module of ["universe_templates.js","universe_core.js","business_setup.js",
- "stock_math.js","stock_ui.js","stock_delete.js","beverage_catalog.js","payment_flow.js","stock_inventory.js","stock_ext.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js"]){
+ "stock_math.js","stock_ui.js","stock_delete.js","losses.js","beverage_catalog.js","payment_flow.js","stock_inventory.js","stock_ext.js","pricing_explainer.js","order_customization.js","receipt_enhanced.js","order_guard.js","cancel_order_flow.js"]){
  try{vm.runInContext(fs.readFileSync(module,"utf8"),sandbox,{filename:module,timeout:5000})}
  catch(e){errors.push({page:module,error:String(e.stack||e)})}
 }
 assert(errors.length===0,JSON.stringify(errors.slice(0,3)));
-const tabs=["home","vitrine","recipes","builder","pricing","ingredients","expenses",
+const tabs=["home","vitrine","recipes","builder","pricing","ingredients","expenses","losses",
  "suppliers","clients","orders","combos","reports","creative","brand","settings","tests","admin"];
 const pages={};
 for(const tab of tabs){
@@ -69,6 +69,8 @@ assert(pages.ingredients.includes("Estoque existente"),"Estoque deve mostrar sal
 assert(pages.orders.includes("poteOrderAvailability"),"Pedidos devem exibir capacidade durante digitação");
 assert(pages.orders.includes("ordersHistoryTitle"),"Pedidos devem conter lista de finalizados");
 assert(pages.home.includes("Central de Operações"));
+assert(pages.losses.includes("Perdas e prejuízos"));
+assert(pages.expenses.includes("go(\'losses\')"),"Despesas deve ter atalho para Perdas");
 assert(pages.vitrine.includes("Cardápio"));
 assert(pages.reports.includes("Relatórios")||pages.reports.includes("Matriz BCG"));
 console.log("PASS: "+tabs.length+" áreas renderizadas sem erro de JavaScript:",tabs.join(", "));
@@ -126,6 +128,7 @@ console.log("PASS: fluxo real de pedidos — registrar, reservar, produzir, conc
 const vitState=structuredClone(testState);
 vitState.data.orders=[];
 vitState.data.settings.usePackagingStock=true;
+vitState.data.recipes[0].packagingIngredientIds=["vit-box"];
 vitState.data.ingredients.push(
  {id:"vit-cheese",name:"Queijo extra",category:"Laticínio",purchaseQuantity:1,
   purchaseUnit:"kg",purchasePrice:30,measureUnit:"g",yield:100,stock:1000},
@@ -317,3 +320,31 @@ assert.equal(fromCart.paidAmount,300);
 assert.equal(fromCart.changeGiven,Number((300-(fromCart.price+8)).toFixed(2)));
 assert.equal(vm.runInContext("state.tab",sandbox),"orders","Vitrine não deve retornar à Home");
 console.log("PASS: Cardápio Digital preserva sabor, refrigerante 600 ml, dinheiro, troco e tele-entrega.");
+
+const lossStateBefore=window.POTE_APP.snapshot().data;
+const toCancel=lossStateBefore.orders.find(o=>o.clientName==="Cliente vitrine");
+assert(toCancel&&toCancel.status==="recebido","Pedido do Cardápio deve estar recebido");
+vm.runInContext("produce("+JSON.stringify(toCancel.id)+")",sandbox);
+let afterProduction=window.POTE_APP.snapshot().data;
+assert.equal(afterProduction.orders.find(o=>o.id===toCancel.id).status,"em_producao");
+const potatoAfterProduction=afterProduction.ingredients.find(i=>i.id==="batata");
+const colaAfterProduction=afterProduction.beverages.find(b=>b.id==="preset-cola-600");
+assert(colaAfterProduction,"Bebida do combo permanece registrada");
+assert.equal(window.POTE_CANCEL.open(toCancel.id),true);
+assert.equal(window.POTE_CANCEL.perform("discard"),true);
+const afterLostOrder=window.POTE_APP.snapshot().data;
+const lostOrder=afterLostOrder.orders.find(o=>o.id===toCancel.id);
+assert.equal(lostOrder.status,"cancelado");
+assert.equal(lostOrder.stockReturnDeclined,true);
+assert.equal(afterLostOrder.beverages.find(b=>b.id==="preset-cola-600").stock,
+ colaAfterProduction.stock,"Cancelar com perda não pode baixar refrigerante novamente");
+const events=afterLostOrder.losses.filter(x=>x.orderId===toCancel.id&&!x.voidedAt);
+assert.equal(events.length,1,"Perda de produção contabilizada uma vez");
+assert.equal(events[0].stockAlreadyDeducted,true);
+assert.equal(events[0].stockMovement,false);
+assert.equal(window.POTE_CANCEL.perform("discard"),false,"Não pode registrar a mesma perda duas vezes");
+const financial=vm.runInContext("totals()",sandbox);
+assert.equal(financial.lossCost,events[0].costLost);
+assert(financial.lossCount>=1);
+assert(!afterLostOrder.losses.some(l=>l.orderId===toCancel.id&&l.type==="stock"));
+console.log("PASS: cancelamento real depois da produção registra prejuízo sem estorno ou segunda baixa, e financeiro separa perdas.");

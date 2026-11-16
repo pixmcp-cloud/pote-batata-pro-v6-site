@@ -54,9 +54,9 @@ function packageControls(recipe){
  const all=state.data.ingredients.filter(i=>i.category==="Embalagem"&&!i.archived)
   .sort((a,b)=>String(a.name).localeCompare(String(b.name),"pt-BR"));
  if(!all.length)return '<small>Nenhuma embalagem cadastrada. Cadastre potes, tampas ou caixas em Estoque e compras.</small>';
- const selected=new Set(Array.isArray(recipe.packagingIngredientIds)?recipe.packagingIngredientIds:all.map(i=>i.id));
+ const selected=new Set(Array.isArray(recipe.packagingIngredientIds)?recipe.packagingIngredientIds:[]);
  return '<div class="pote-price-packages"><strong>Embalagens que acompanham este produto</strong>'+
- '<small>Marque somente as usadas. A seleção também controla a baixa do estoque quando a opção de embalagens do estoque estiver ativa.</small>'+
+ '<small>Marque somente as usadas. Sem seleção explícita, nenhuma embalagem será consumida automaticamente. É necessário configurar potes, sacolas e caixas de cada receita para controlar corretamente custo e baixa do estoque.</small>'+
  all.map(i=>'<label class="pote-price-pack"><input type="checkbox" data-pote-package="'+esc(i.id)+'" '+
  (selected.has(i.id)?'checked ':'')+'onchange="POTE_PRICING.choosePackaging()">'+
  '<span>'+esc(i.name)+'</span><small>'+esc(money((Number(i.purchasePrice??i.price)||0)/

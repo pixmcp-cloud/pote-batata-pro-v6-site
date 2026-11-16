@@ -6,8 +6,32 @@ const S=window.POTE_STOCK;
 const $=id=>document.getElementById(id);
 const e=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const idFor=x=>String(x?.id??"");
-const available=()=>state.data.ingredients.filter(i=>!i.archived&&!(window.POTE_AUTH?.franchiseActive&&i.templateOrigin==="batataria"))
- .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"pt-BR",{sensitivity:"base",numeric:true}));
+const neededByPending=()=>{
+ const ids=new Set();
+ for(const order of state.data.orders||[]){
+  if(order.status!=="recebido"&&order.status!=="em_producao")continue;
+  for(const x of order.items||[])if(x.id)ids.add(x.id);
+ }
+ // A franquia deve enxergar os insumos de TODAS as fichas de preparo liberadas,
+ // não apenas os materiais de pedidos que já foram feitos.
+ for(const r of state.data.recipes||[]){
+  if(r.unavailable||typeof canSell==="function"&&!canSell(r))continue;
+  for(const x of r.items||[])if(x.id)ids.add(x.id);
+  for(const id of r.packagingIngredientIds||[])ids.add(id);
+ }
+ for(const a of state.data.addons||[])if(a.ingredientId)ids.add(a.ingredientId);
+ return ids;
+};
+const available=()=>{
+ const required=neededByPending();
+ return state.data.ingredients.filter(i=>!i.archived&&(
+  !window.POTE_AUTH?.franchiseActive||
+  i.templateOrigin!=="batataria"||
+  i.category==="Embalagem"||
+  required.has(i.id)
+ )).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"pt-BR",
+ {sensitivity:"base",numeric:true}));
+};
 const integerFmt=(v,d=2)=>Number(v??0).toLocaleString("pt-BR",{maximumFractionDigits:d});
 const sourceLabel=item=>{
  const src=String(item.source||"").toLowerCase();
@@ -37,18 +61,37 @@ function priorityPanel(visible,held,recipeRisk){
     shortage:window.POTE_STOCK_STATUS?.requested?.(b.id,"beverage")?.level==="missing"});
   if(h?.level==="missing")items.push({i:b,health:h,kind:"beverage"});
  }
+ // Vínculos órfãos são mostrados explicitamente, nunca omitidos nem fabricados.
+ const referenced=new Map();
+ for(const order of state.data.orders||[]){
+  if(order.status!=="recebido"&&!order.status?.startsWith("em_producao"))continue;
+  for(const x of order.items||[])if(x.id&&!referenced.has(x.id))
+   referenced.set(x.id,x);
+ }
+ for(const x of window.POTE_RESTOCK_CONTEXT?.items||[]){
+  if(x.kind==="ingredient"&&x.id&&!referenced.has(x.id))referenced.set(x.id,x);
+ }
+ for(const [id,ref] of referenced){
+  if(state.data.ingredients.some(i=>i.id===id&&!i.archived))continue;
+  if(items.some(i=>i.i.id===id))continue;
+  const old=state.data.ingredients.find(i=>i.id===id);
+  items.push({i:{id,name:old?.name||ref.name||"Cadastro ausente: "+id,
+    stock:0,measureUnit:old?.measureUnit||ref.unit||"un"},
+   health:{level:"missing",reservation:0,available:0},kind:"ingredient",orphan:true});
+ }
  if(!items.length)return "";
- items.sort((a,b)=>String(a.i.name||"").localeCompare(String(b.i.name||""),"pt-BR"));
+ items.sort((a,b)=>Number(!!b.orphan)-Number(!!a.orphan)||
+  String(a.i.name||"").localeCompare(String(b.i.name||""),"pt-BR"));
  return '<section class="stock-urgent-list" role="status">'+
   '<div class="stock-urgent-header"><strong>FALTANTES · REPOR PRIMEIRO</strong>'+
   '<small>'+items.length+' item(ns) sem disponibilidade para novas vendas</small></div>'+
-  '<div>'+items.map(({i,health,kind})=>'<button type="button" class="stock-urgent-link"'+
+  '<div>'+items.map(({i,health,kind,orphan})=>'<button type="button" class="stock-urgent-link"'+
     ' data-need-id="'+e(i.id)+'" data-need-kind="'+e(kind)+'"'+
     ' onclick="POTE_STOCK_UI.jumpToNeed(this.dataset.needId,this.dataset.needKind)">'+
     '<strong>'+e(i.name)+'</strong><span>Físico: '+e(S.formatStock(kind==="beverage"?{...i,measureUnit:"un"}:i))+
     ' · Reservado: '+e(S.formatStock(kind==="beverage"?{...i,measureUnit:"un"}:i,health.reservation))+
     ' · Disponível: '+e(S.formatStock(kind==="beverage"?{...i,measureUnit:"un"}:i,health.available))+'</span>'+
-    '<b>+ Repor</b></button>').join("")+'</div></section>';
+    '<b>'+(orphan?"+ Recuperar cadastro original":"+ Repor")+'</b></button>').join("")+'</div></section>';
 }
 function restockPanel(){
  const previous=window.POTE_RESTOCK_CONTEXT?.items;
@@ -103,6 +146,7 @@ function renderPanel(state,data){
    <div><small>Abaixo do mínimo</small><strong>${low}</strong></div>
   </div>
  </div>
+ ${window.POTE_APP_AUDIT?.panel?.(state.data)||""}
  ${priorityPanel(visible,held,recipeRisk)}
  ${shortages.length?`<section class="stock-shortage-alert" role="status">
  <strong>⚠ Estoque crítico para produção</strong>
@@ -224,10 +268,13 @@ function preview(){
 function openPurchase(id){
  const menu=$("stockPurchaseIngredient");
  const item=state.data.ingredients.find(i=>i.id===id);
- if(!item||!menu){if(typeof go==="function")go("ingredients");return}
+ if(!item||!menu){
+  window.POTE_STOCK_UPDATE?.open?.("ingredient",id,"purchase");
+  return;
+ }
  menu.value=id;selectIngredient();
- $("stockPurchaseBox")?.scrollIntoView({behavior:"smooth",block:"start"});
- $("stockPurchaseQty")?.focus({preventScroll:true});
+ window.POTE_STOCK_UPDATE?.pulse?.("ingredient",id);
+ window.POTE_STOCK_UPDATE?.open?.("ingredient",id,"purchase");
 }
 function savePurchase(){
  const id=$("stockPurchaseIngredient")?.value,item=state.data.ingredients.find(i=>i.id===id);
@@ -240,28 +287,16 @@ function savePurchase(){
    paidTotal:paid,supplier:$("stockPurchaseSupplier")?.value,
    purchases:data.purchases,movements:data.stockMovements,makeId:()=>uid()});
   persist();render();
-  if(state.tab==="ingredients")openPurchase(item.id);
+  if(state.tab==="ingredients")window.POTE_STOCK_UPDATE?.pulse?.("ingredient",item.id);
   toast(item.name+": "+S.formatStock(item,result.previous)+" + "+S.formatStock(item,result.added)+
    " = "+S.formatStock(item,result.next)+". Compra de "+S.money(result.totalPaid)+" registrada.");
  }catch(err){alert(err.message)}
 }
 function adjustStock(id){
- const item=state.data.ingredients.find(i=>i.id===id);if(!item)return;
- const unit=S.defaultUnit(item),factor=(unit==="kg"||unit==="L")?1000:1;
- const current=S.decimal((Number(item.stock)||0)/factor);
- const entered=prompt('CONFERÊNCIA DE ESTOQUE — '+item.name+
-  '\nInforme o SALDO TOTAL contado em '+unit+', não a quantidade comprada.\n'+
-  'Estoque atual: '+S.formatStock(item),current);
- if(entered===null)return;
- const reason=prompt("Motivo do ajuste (ex.: conferência, perda, correção de lançamento):","Conferência física");
- if(reason===null)return;
- try{
-  const result=S.adjust({ingredient:item,quantity:entered,unit,reason,
-   movements:state.data.stockMovements,makeId:()=>uid()});
-  persist();render();
-  toast("Estoque de "+item.name+" ajustado de "+S.formatStock(item,result.previous)+
-   " para "+S.formatStock(item,result.next)+".");
- }catch(err){alert(err.message)}
+ const item=state.data.ingredients.find(i=>i.id===id&&!i.archived);
+ if(!item)return;
+ window.POTE_STOCK_UPDATE?.pulse?.("ingredient",id);
+ return window.POTE_STOCK_UPDATE?.open?.("ingredient",id,"adjust");
 }
 function saveReference(button){
  const item=state.data.ingredients.find(i=>i.id===button.dataset.stockId);

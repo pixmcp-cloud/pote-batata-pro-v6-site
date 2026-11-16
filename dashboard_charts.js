@@ -21,20 +21,25 @@ function lineChart(values,dates){
  +'</svg>';
 }
 function render(data){
- const orders=Array.isArray(data?.orders)?data.orders.filter(o=>o&&o.status!=="cancelado"):[];
+ const orders=Array.isArray(data?.orders)?data.orders.filter(o=>o&&o.status!=="cancelado"&&o.paymentStatus!=="nao_pago"):[];
  const lastDays=days(),salesByDay=Object.fromEntries(lastDays.map(d=>[d,0]));
  const flavors=new Map();
- let totalSales=0,totalContribution=0,units=0;
+ let totalSales=0,totalContribution=0,totalProfit=0,units=0;
+ const lossCost=(data?.losses||[]).filter(l=>!l.voidedAt)
+  .reduce((sum,l)=>sum+n(l.costLost),0);
  for(const o of orders){
   const qty=Math.max(0,n(o.qty));
   const rev=n(o.price)*qty+n(o.deliveryFee);
-  const contribution=n(o.profit)*qty+n(o.deliveryFee)-n(o.deliveryCost);
-  totalSales+=rev;totalContribution+=contribution;units+=qty;
+  const delivResult=n(o.deliveryFee)-n(o.deliveryCost);
+  const contribution=n(o.unitContribution??o.profit)*qty+delivResult;
+  const profit=n(o.profit)*qty+delivResult;
+  totalSales+=rev;totalContribution+=contribution;totalProfit+=profit;units+=qty;
   const d=String(o.date||o.createdAt||"").slice(0,10);
   if(Object.prototype.hasOwnProperty.call(salesByDay,d))salesByDay[d]+=rev;
   const name=String(o.name||"Produto sem nome").trim()||"Produto sem nome";
   flavors.set(name,(flavors.get(name)||0)+qty);
  }
+ totalProfit-=lossCost;
  const vals=lastDays.map(k=>salesByDay[k]);
  const ranked=[...flavors.entries()].filter(([_,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,5);
  const maxFlavor=Math.max(1,...ranked.map(x=>x[1]));
@@ -43,7 +48,7 @@ function render(data){
  const costEstimate=totalSales-totalContribution;
  return '<section class="ops-analytics" aria-label="Gráficos financeiros de pedidos reais">'
  +'<div class="ops-analytics-heading"><div><small>INTELIGÊNCIA DA OPERAÇÃO</small><h2>Seus números, com clareza</h2><p>Dados exclusivos desta conta. Pedidos cancelados não entram nos gráficos.</p></div><span class="ops-real-badge">● DADOS REAIS</span></div>'
- +'<div class="ops-stats"><div><small>Faturamento acumulado</small><strong>'+fmt(totalSales)+'</strong></div><div><small>Contribuição estimada</small><strong class="'+resultColor+'">'+fmt(totalContribution)+'</strong></div><div><small>Potes registrados</small><strong>'+units.toLocaleString("pt-BR")+'</strong></div></div>'
+ +'<div class="ops-stats ops-stats-losses"><div><small>Faturamento registrado</small><strong>'+fmt(totalSales)+'</strong></div><div><small>Sobra da venda (antes de custos fixos)</small><strong class="'+resultColor+'">'+fmt(totalContribution)+'</strong></div><div><small>Lucro estimado após perdas</small><strong class="'+(totalProfit<0?"ops-negative":"")+'">'+fmt(totalProfit)+'</strong></div><div><small>Potes registrados</small><strong>'+units.toLocaleString("pt-BR")+'</strong></div></div>'
  +'<div class="ops-analytics-grid"><article class="ops-chart-card ops-chart-wide"><div class="ops-chart-title"><h3>Faturamento diário</h3><span>Últimos 7 dias</span></div>'
  +lineChart(vals,lastDays)
  +(vals.every(v=>v===0)?'<p class="ops-chart-empty">Ainda sem vendas neste período. A curva começa a crescer com os primeiros pedidos.</p>':'')
