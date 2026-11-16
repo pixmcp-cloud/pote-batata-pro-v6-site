@@ -65,6 +65,16 @@ for(const tab of tabs){
  }catch(e){errors.push({page:tab,error:String(e.stack||e).slice(0,1400)})}
 }
 assert(errors.length===0,"Falha ao abrir área(s): "+JSON.stringify(errors));
+assert(html.includes('id="poteHomeShortcut"')&&html.includes('onclick="poteGoHome()"'),"Casinha do cabeçalho deve ser um botão de Início");
+assert(html.includes('id="poteOpsCards"'),"Os cards da Central de Operações precisam de destino de navegação");
+let homeScrollCount=0;
+el("poteOpsCards").scrollIntoView=()=>{homeScrollCount++};
+for(const tab of tabs){
+ vm.runInContext("state.tab="+JSON.stringify(tab)+";render();poteGoHome();",sandbox,{timeout:5000});
+ assert.equal(vm.runInContext("state.tab",sandbox),"home","Casinha não voltou ao início a partir de "+tab);
+ assert(el("page").innerHTML.includes("poteOpsCards"),"Cards não foram renderizados a partir de "+tab);
+}
+assert.equal(homeScrollCount,tabs.length,"Atalho deve rolar até os cards, não só ao topo da página");
 assert(pages.ingredients.includes("Registrar nova compra"),"Estoque deve apresentar compra real");
 assert(pages.ingredients.includes("Estoque existente"),"Estoque deve mostrar saldos");
 assert(pages.garimpo.includes("Garimpo"),"Garimpo deve abrir na navegação");
