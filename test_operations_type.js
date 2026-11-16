@@ -16,4 +16,12 @@ assert(!source.includes('data-outline'),'Duplicação do texto deve ser removida
 assert(source.includes('<strong>${label}</strong>'),'O título normal deve permanecer');
 assert(final.includes('font-size:clamp(17px,4.8vw,21px)!important'),'Texto deve se adaptar ao celular');
 assert(html.includes('visual_refresh.css?v=profit-compare-20261116'),'Cache novo não conectado');
-console.log('PASS: texto branco sem contorno, inferior e centralizado na horizontal.');
+for(const [key,asset,label] of [['losses','perdas','Perdas'],['garimpo','garimpo','Garimpo'],['reports','financeiro','Financeiro']]){
+ assert(source.includes(`['${key}','${asset}','${label}']`),`Card ${label} deve usar a imagem correta`);
+ const image=fs.readFileSync(`assets/operations/${asset}.webp`);
+ assert.equal(image.toString('ascii',0,4),'RIFF',`Imagem WebP ausente ou inválida: ${label}`);
+ assert(image.length>1000,`Imagem ${label} está vazia`);
+}
+assert(!source.includes("['losses','financeiro','Perdas']"),'Perdas não pode usar ícone do Financeiro');
+assert(!source.includes("['garimpo','financeiro','Garimpo']"),'Garimpo não pode usar ícone do Financeiro');
+console.log('PASS: imagens distintas e corretas para Perdas, Garimpo e Financeiro; texto dos cards validado.');
