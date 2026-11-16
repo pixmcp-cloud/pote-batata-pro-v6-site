@@ -10,6 +10,8 @@ const ctx={state,console,Number,String,Intl,Math,Date,Map,Set,Array,Object,JSON,
  toast(){},alert(){},persist(){},uid(){return "1"}};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync("garimpo.js","utf8"),ctx);
 const G=ctx.window.POTE_GARIMPO;
+assert(G.render().includes("Radar de Preço"));
+assert(!G.render().includes("<h2>Garimpo"));
 assert(!G.render().includes("Torres/RS"),"A tela nacional não pode ter cidades pré-fixadas");
 assert(!G.render().includes("Stok Center"),"A marca regional não pode aparecer na tela inicial");
 assert(!G.render().includes("Lages"),"A API local não pode aparecer para o país inteiro");

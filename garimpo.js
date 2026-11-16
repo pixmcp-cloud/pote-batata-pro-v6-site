@@ -135,7 +135,7 @@ function exportCSV(){
  for(const o of recent()){const u=unitPrice(o);rows.push([o.itemName,o.brand,o.size,o.market,o.distanceKm??"",o.packageUnit,o.packageQty,o.price,u?.price??"",u?.unit??"",o.priceCondition||"normal",o.checkedAt,o.validFrom,o.validUntil,status(o),o.sourceUrl]);}
  const csv="\ufeff"+rows.map(a=>a.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\r\n");
  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob);
- const a=document.createElement("a");a.href=url;a.download="garimpo_preco_historico.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+ const a=document.createElement("a");a.href=url;a.download="radar_de_preco_historico.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 function searchUrl(item,market){
  const query=[item.name,item.size,item.brand,market.name,market.city||"Brasil","preço encarte"].filter(Boolean).join(" ");
@@ -264,7 +264,7 @@ function showComparison(){
  '<td class="garimpo-status">'+esc(st)+(o.regionVerified?' · até 30 km':' · local não confirmado')+'</td>'+
  '<td>'+(o.sourceUrl?'<a target="_blank" rel="noopener noreferrer" href="'+esc(o.sourceUrl)+'">Conferir</a>':'—')+
  ' <button type="button" data-id="'+esc(o.id)+'" onclick="POTE_GARIMPO.removeOffer(this.dataset.id)">Excluir</button></td></tr>'}).join("")+'</tbody></table></div>':
- '<p class="muted">Nenhum preço registrado. O Garimpo não cria preços fictícios.</p>';
+ '<p class="muted">Nenhum preço registrado. O Radar de Preço não cria preços fictícios.</p>';
 }
 async function discover(region="gps"){
  if(busy)return;busy=true;
@@ -470,9 +470,9 @@ function fillFromMPH(index){
 function selectItem(){const item=stocks().find(i=>i.id===$("garimpoItem")?.value);if(item&&$("garimpoUnit"))$("garimpoUnit").value=item.unit;}
 function render(){
  const items=stocks(),known=markets();
- return '<section class="box garimpo" id="poteGarimpoPanel"><small>INTELIGÊNCIA DE COMPRAS</small><h2>Garimpo · preços e validade</h2>'+
+ return '<section class="box garimpo" id="poteGarimpoPanel"><small>INTELIGÊNCIA DE COMPRAS</small><h2>Radar de Preço</h2>'+
  '<p>Busca mercados próximos à localização autorizada em todo o Brasil, num raio de <strong>30 km</strong>. Fontes e ofertas são selecionadas por região; preços históricos não são exibidos como vigentes.</p>'+
- '<div class="actions"><button class="btn" onclick="POTE_GARIMPO.discover()">Garimpar mercados em 30 km do meu GPS</button>'+
+ '<div class="actions"><button class="btn" onclick="POTE_GARIMPO.discover()">Pesquisar preços em até 30 km</button>'+
  '<button class="btn line" onclick="POTE_GARIMPO.exportCSV()">Exportar planilha CSV</button>'+
  '</div><div id="garimpoRegionalActions" class="actions"></div><div id="garimpoMPHAction"></div><div id="garimpoMPHResults" aria-live="polite"></div>'+
  '<div id="garimpoRegionalSources"></div>'+

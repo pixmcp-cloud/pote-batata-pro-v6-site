@@ -16,7 +16,7 @@ assert(!source.includes('data-outline'),'Duplicação do texto deve ser removida
 assert(source.includes('<strong>${label}</strong>'),'O título normal deve permanecer');
 assert(final.includes('font-size:clamp(17px,4.8vw,21px)!important'),'Texto deve se adaptar ao celular');
 assert(html.includes('visual_refresh.css?v=glass-icons-20261116'),'Cache novo não conectado');
-for(const [key,asset,label] of [['losses','perdas','Perdas'],['garimpo','garimpo','Garimpo'],['reports','financeiro','Financeiro']]){
+for(const [key,asset,label] of [['losses','perdas','Perdas'],['garimpo','garimpo','Radar de Preço'],['reports','financeiro','Financeiro']]){
  assert(source.includes(`['${key}','${asset}','${label}']`),`Card ${label} deve usar a imagem correta`);
  const image=fs.readFileSync(`assets/operations/${asset}.webp`);
  assert.equal(image.toString('ascii',0,4),'RIFF',`Imagem WebP ausente ou inválida: ${label}`);
@@ -24,4 +24,4 @@ for(const [key,asset,label] of [['losses','perdas','Perdas'],['garimpo','garimpo
 }
 assert(!source.includes("['losses','financeiro','Perdas']"),'Perdas não pode usar ícone do Financeiro');
 assert(!source.includes("['garimpo','financeiro','Garimpo']"),'Garimpo não pode usar ícone do Financeiro');
-console.log('PASS: imagens distintas e corretas para Perdas, Garimpo e Financeiro; texto dos cards validado.');
+console.log('PASS: imagens distintas e corretas para Perdas, Radar de Preço e Financeiro; texto dos cards validado.');

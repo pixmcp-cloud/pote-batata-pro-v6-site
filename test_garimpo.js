@@ -10,7 +10,8 @@ const ctx={state,console,Number,String,Intl,Math,Date,Map,Set,Array,Object,JSON,
  toast(){},alert:s=>alertMessage=s,persist(){persists++},render(){renders++},uid(){return "offer-"+ ++ids;}};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync("garimpo.js","utf8"),ctx);
 const G=ctx.window.POTE_GARIMPO;
-assert(G&&G.render().includes("Garimpo"));
+assert(G&&G.render().includes("Radar de Preço"));
+assert(!G.render().includes("<h2>Garimpo"),"Nome antigo não pode aparecer no título");
 assert(G.render().includes("Registrar oferta"));
 assert(!G.render().includes("Torres/RS"),"Tela nacional não deve citar cidades");
 assert.equal(G.regionalLinks().length,0,"Não sugerir fontes regionais sem localização");
