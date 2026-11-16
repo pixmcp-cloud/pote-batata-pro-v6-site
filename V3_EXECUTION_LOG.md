@@ -75,3 +75,22 @@ Regra de liberação: **nunca publicar em main sem testes e homologação da ver
 - Verified scenarios: swap, reverse, insert at head, insert in middle, stable no-op, 350 previous orders.
 - Local complete suite: 51/51 PASS. Changes are on candidate branch only; production main remains unchanged.
 
+
+## V3 — Marco de estabilização financeira, histórico e sincronização
+
+O avanço abaixo está **somente em `v3-audit-37-20261116`**. Não foi publicado em `main` nem aplicado ao Firestore real.
+
+- **04 — Caixa encerrado:** criado recebimento posterior compensatório em `pdv_cash_core.mjs`, associado ao turno atual e ao turno de origem. Não altera o `closedSummary` anterior nem duplica o total de vendas. UI do Caixa PDV exibe e registra a conciliação, exigindo confirmação do comprovante e referência.
+- **05 — Recuperação local parcial:** `firebase_integration.js` preserva rascunho imediatamente ao detectar mutação, antes do debounce de 1,3 s, com fingerprint da última versão remota. Ao reabrir, reaplica e reenvia somente se a base remota for idêntica; em divergência, mantém o backup e bloqueia a sobrescrita. Protege também alterações ocorridas durante um commit. **Limite:** `localStorage` não garante retenção para bases enormes ou limpeza de dados do navegador; não há sincronização offline colaborativa multi-dispositivo completa.
+- **09 — Cancelamento e perda:** módulo de perda indisponível/falhando bloqueia o cancelamento com descarte. O estado em memória é restaurado e o operador recebe erro, sem cancelamento silencioso. A confirmação remota final continua exigindo transação V2.
+- **10 — Leitura consistente:** `v2_storage.mjs` compara a revisão de pulse antes/depois de ler registros e metadados. Se houver mudança, refaz leitura até quatro tentativas; recusa snapshot instável em vez de entregar dados misturados.
+- **17 — Custo médio:** o saldo inicial **demonstrativo** da franquia não conta como compra comprovada na média ponderada. A primeira entrada física preserva `averageCostKnown=false` até conferência física e indica `requiresPhysicalRecount=true`.
+- **18 — Histórico de custos:** `cost_history.js` captura custo de insumos e bebidas quando a produção inicia; separa custo estimado de custo conhecido e respeita consumo físico sob exceções de estoque. O módulo de perdas usa esse snapshot, em vez de recalcular com preços atuais. Se o módulo não carregar, a verificação de saúde do aplicativo bloqueia operações críticas.
+
+### Ensaios de regressão e próximos bloqueios
+
+- Suíte local completa: **53/53 testes passaram**, incluindo restauração offline sem conflito, bloqueio de rascunho divergente, leitura inconsistente, conciliação tardia, falha da perda e custos históricos.
+- CI V3 separada agora executa os testes funcionais e o Firebase Emulator em ambiente de demonstração sem implantar em produção.
+- **Ainda não concluído:** ledger financeiro com regras de integridade imutável integral, fila IndexedDB de operações offline arbitrariamente grandes, dados públicos/licenciados em Storage protegido, emulação de dois aparelhos reais, migração controlada V1/V2, otimização completa das leituras e modularização do HTML.
+- NFC-e e cobrança automática não podem ser consideradas entregues sem credenciais, homologação e aprovações de custo específicas.
+- A versão `main` continua preservada. Sem serviços pagos e sem migrações destrutivas.

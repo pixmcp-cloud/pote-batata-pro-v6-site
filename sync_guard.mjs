@@ -19,8 +19,9 @@ export const nextRevision=previous=>{
 export const jsonBytes=value=>new TextEncoder().encode(typeof value==="string"?value:JSON.stringify(value)).length;
 export const MAX_APPSTATE_BYTES=850000; // Conservative guard below the 1 MiB Firestore document cap.
 export const pendingKey=uid=>"pote-sync-pending-v1:"+String(uid||"");
-export const makePending=(uid,state,reason="offline")=>({
- version:1,uid:String(uid),createdAt:new Date().toISOString(),reason,state
+export const makePending=(uid,state,reason="offline",baseFingerprint=null)=>({
+ version:2,uid:String(uid),createdAt:new Date().toISOString(),reason,
+ baseFingerprint:typeof baseFingerprint==="string"?baseFingerprint:null,state
 });
 export function validateBackup(value){
  if(!value||typeof value!=="object"||!value.data||typeof value.data!=="object")return {ok:false,error:"O backup não contém o estado da aplicação."};

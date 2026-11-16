@@ -31,6 +31,22 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   }
   return result;
  };
+ async function consistentRead(){
+  // Pulse is committed in the same transaction as all operational records.
+  // If it changes while the separate Firestore reads execute, discard the
+  // mixed picture and retry rather than presenting a partial database state.
+  for(let attempt=0;attempt<4;attempt++){
+   const before=await getDoc(pulseRef);
+   const [metaSnap,records,guardSnap]=await Promise.all([
+    getDoc(root),loadDocuments(),getDoc(guardRef)
+   ]);
+   const after=await getDoc(pulseRef);
+   const oldId=String(before.data()?.eventId||"");
+   const newId=String(after.data()?.eventId||"");
+   if(oldId===newId)return {metaSnap,records,guardSnap,pulseSnap:after,retries:attempt};
+  }
+  fail("sync/inconsistent-read","O banco mudou durante a leitura; tente novamente antes de operar.");
+ }
  async function firstLoad(){
   if(disposed)throw Error("Sessão encerrada");
   let metaSnap=await getDoc(root),created=false;
@@ -54,10 +70,14 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   }
   if(!metaSnap.exists()||metaSnap.data().schemaVersion!==2)
    throw Error("Versão da conta incompatível com o armazenamento V2");
-  const [recordMap,guardSnap,pulseSnap]=await Promise.all([
-   loadDocuments(),getDoc(guardRef),getDoc(pulseRef)
-  ]);
+  const consistent=await consistentRead();
   if(disposed)throw Error("Sessão encerrada");
+  metaSnap=consistent.metaSnap;
+  const recordMap=consistent.records;
+  const guardSnap=consistent.guardSnap;
+  const pulseSnap=consistent.pulseSnap;
+  if(!metaSnap.exists()||metaSnap.data().schemaVersion!==2)
+   throw Error("Conta V2 incompatível após atualização");
   const meta=metaSnap.data().state;
   const restored=combineState(meta,recordMap);
   apply(restored);
@@ -132,10 +152,10 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   try{
    if(stateJson()!==lastSavedJson)
     return {ok:false,code:"sync/conflict",error:"Há alterações locais pendentes"};
-   const head=await getDoc(root);
+   const consistent=await consistentRead();
+   const head=consistent.metaSnap,records=consistent.records,guard=consistent.guardSnap;
    if(!head.exists()||head.data().schemaVersion!==2)
     fail("sync/schema","Conta V2 indisponível");
-   const [records,guard]=await Promise.all([loadDocuments(),getDoc(guardRef)]);
    if(stateJson()!==lastSavedJson)
     return {ok:false,code:"sync/conflict",error:"Alterações locais durante atualização"};
    const merged=combineState(head.data().state,records);

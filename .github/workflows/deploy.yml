@@ -30,6 +30,7 @@ jobs:
           cp v2_store_core.mjs public/v2_store_core.mjs
           cp v2_storage.mjs public/v2_storage.mjs
           cp finance_core.js public/finance_core.js
+          cp cost_history.js public/cost_history.js
           cp module_health.js public/module_health.js
           cp pdv_cash_core.mjs public/pdv_cash_core.mjs
           cp pdv_cash_ui.mjs public/pdv_cash_ui.mjs
@@ -114,6 +115,7 @@ jobs:
           node test_v2_storage.mjs
           node test_auth_v2_integration.js
           node test_finance_core.js
+          node test_cost_history.js
           node test_pdv_cash_core.mjs
           node test_v3_cash_reconciliation.mjs
           node test_pdv_cash_ui.mjs

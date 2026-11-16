@@ -111,6 +111,36 @@ export function settleDeliveryPayment(data,{orderId,method,reference,at}){
   (ref||"Pagamento em espécie");
  return order;
 }
+export function listOutstandingPrevious(data){
+ validateCashData(data);
+ const current=activeSession(data);
+ if(!current)return [];
+ return data.orders.filter(order=>{
+  const source=(data.cashSessions||[]).find(s=>s.id===order.cashSessionId);
+  return source&&source.status==="closed"&&order.status!=="cancelado"&&
+   !paymentConfirmed(order)&&orderAmountCents(order)>0&&
+   !(data.cashMovements||[]).some(m=>m.kind==="late_payment"&&m.orderId===order.id);
+ });
+}
+/* An append-only settlement event belongs to today's turn, not the frozen
+   report of the original shift. A late payment never rewrites old orders. */
+export function settlePreviousPayment(data,{id,orderId,method,reference,at}){
+ validateCashData(data);
+ const current=activeSession(data);
+ if(!current)fail("Abra um novo turno para receber pagamentos atrasados");
+ if(!id||data.cashMovements?.some(x=>x.id===id))fail("Movimentação duplicada");
+ const order=listOutstandingPrevious(data).find(x=>x.id===orderId);
+ if(!order)fail("Pedido antigo não elegível ou pagamento já registrado");
+ const kind=paymentKind(method);
+ if(!["cash","pix","card"].includes(kind))fail("Escolha dinheiro, Pix ou cartão");
+ const ref=String(reference||"").trim();
+ if(!ref)fail("Referência da conferência obrigatória");
+ const value=orderAmountCents(order);
+ const event={id,kind:"late_payment",sessionId:current.id,originSessionId:order.cashSessionId,
+  orderId,amount:money(value),paymentMethod:kind,reference:ref.slice(0,160),at:asDate(at)};
+ arr(data,"cashMovements").unshift(event);
+ return event;
+}
 export function calculateCash(data,sessionId){
  validateCashData(data);
  const session=(data.cashSessions||[]).find(x=>x.id===sessionId);
@@ -135,7 +165,8 @@ export function calculateCash(data,sessionId){
    unconfirmed+=total;pendingCount++;
   }
  }
- let supply=0,withdraw=0,refunds=0;
+ let supply=0,withdraw=0,refunds=0,lateCash=0,lateReceived=0;
+ const previousPayments={cash:0,pix:0,card:0};
  for(const m of data.cashMovements||[]){
   if(m.sessionId!==sessionId)continue;
   const c=cents(m.amount);
@@ -143,12 +174,19 @@ export function calculateCash(data,sessionId){
   if(m.kind==="suprimento")supply+=c;
   if(m.kind==="sangria")withdraw+=c;
   if(m.kind==="reembolso")refunds+=c;
+  if(m.kind==="late_payment"){
+   lateReceived+=c;
+   if(m.paymentMethod in previousPayments)previousPayments[m.paymentMethod]+=c;
+   if(m.paymentMethod==="cash")lateCash+=c;
+  }
  }
  const opening=cents(session.openingCash);
- const expected=opening+payments.cash+supply-withdraw-refunds;
+ const expected=opening+payments.cash+lateCash+supply-withdraw-refunds;
  return {sessionId,expectedCashCents:expected,expectedCash:money(expected),
   openingCash:session.openingCash,
   sales:money(sales),cancelledPaid:money(cancelledPaid),pending:money(unconfirmed),pendingCount,
+  receivedFromPrevious:money(lateReceived),
+  previousByMethod:Object.fromEntries(Object.entries(previousPayments).map(([k,v])=>[k,money(v)])),
   confirmedCount,confirmedByMethod:Object.fromEntries(Object.entries(payments).map(([k,v])=>[k,money(v)])),
   supply:money(supply),withdraw:money(withdraw),refunds:money(refunds),
   cancelledCashAwaitingRefund:money(cancelledUnrefunded),

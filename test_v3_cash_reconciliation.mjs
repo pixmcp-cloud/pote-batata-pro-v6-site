@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {openCash,calculateCash,closeCash,registerCashMovement,confirmRecordedPayment,settleDeliveryPayment} from "./pdv_cash_core.mjs";
+import {openCash,calculateCash,closeCash,registerCashMovement,confirmRecordedPayment,settleDeliveryPayment,settlePreviousPayment,listOutstandingPrevious} from "./pdv_cash_core.mjs";
 const data={orders:[],cashSessions:[],cashMovements:[]};
 openCash(data,{id:"s1",openingCash:100,operator:"Teste"});
 data.orders.push(
@@ -33,4 +33,28 @@ assert.deepEqual(calculateCash(data,"s1"),closed.closedSummary);
 assert.equal(calculateCash(data,"s1").sales,40);
 assert.equal(calculateCash(data,"s2").refunds,40);
 assert.equal(calculateCash(data,"s2").sales,0);
-console.log("PASS V3: fechamento imutável, Pix tardio bloqueado, venda cancelada separada e reembolso em turno posterior.");
+
+// After closing s1, receive an old Pix in the current shift through a compensating event.
+const outstanding= listOutstandingPrevious(data);
+assert(outstanding.some(o=>o.id==="pix1")&&outstanding.some(o=>o.id==="deliveryLate"));
+const late=settlePreviousPayment(data,{
+ id:"late-s2-pix",orderId:"pix1",method:"Pix",reference:"comprovante no banco"
+});
+assert.equal(late.originSessionId,"s1");
+assert.equal(late.sessionId,"s2");
+assert.equal(calculateCash(data,"s2").receivedFromPrevious,50);
+assert.equal(calculateCash(data,"s2").sales,0);
+assert.equal(calculateCash(data,"s2").expectedCash,60,"Pix recebido não altera dinheiro físico");
+assert.throws(()=>settlePreviousPayment(data,{
+ id:"dup",orderId:"pix1",method:"Pix",reference:"duplicado"
+}),/não elegível|já registrado/);
+assert.deepEqual(calculateCash(data,"s1"),closed.closedSummary,
+ "Recebimento tardio não reabre ou altera turno encerrado");
+const lateCash=settlePreviousPayment(data,{
+ id:"late-s2-cash",orderId:"deliveryLate",method:"Dinheiro",reference:"caixa conferido"
+});
+assert.equal(lateCash.paymentMethod,"cash");
+assert.equal(calculateCash(data,"s2").expectedCash,90);
+assert.equal(calculateCash(data,"s2").receivedFromPrevious,80);
+
+console.log("PASS V3: fechamento congelado, recebimento tardio compensatório, sem venda duplicada nem reembolso duplo.");

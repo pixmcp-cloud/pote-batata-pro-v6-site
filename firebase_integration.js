@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebas
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {createV2Store} from "./v2_storage.mjs?v=normalized-20261116";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending} from "./sync_guard.mjs?v=safety-20261116";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup} from "./sync_guard.mjs?v=safety-20261116";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
 const firebaseConfig = {
@@ -130,7 +130,10 @@ function savePending(serialized,reason){
  if(existingPending(active.uid)&&!pendingThisSession){showBackupButton();return}
  try{
   const value=JSON.parse(serialized);
-  localStorage.setItem(pendingKey(active.uid),JSON.stringify(makePending(active.uid,value,reason)));
+  const current=existingPending(active.uid);
+  const base=current?.baseFingerprint||
+    (lastJson?stableJson(JSON.parse(lastJson)):null);
+  localStorage.setItem(pendingKey(active.uid),JSON.stringify(makePending(active.uid,value,reason,base)));
   pendingThisSession=true;
  }catch(error){
   console.warn("Backup local pendente indisponível:",error.message||error);
@@ -219,12 +222,24 @@ async function syncV2(){
       return false;
     }
     lastJson=serialized;
-    if(pendingThisSession){
-      try{localStorage.removeItem(pendingKey(currentUid))}catch(e){}
-      pendingThisSession=false;
+    const unsaved=JSON.stringify(safeState());
+    if(unsaved===serialized){
+      if(pendingThisSession){
+        try{localStorage.removeItem(pendingKey(currentUid))}catch(e){}
+        pendingThisSession=false;
+      }
+    }else{
+      // During an inflight commit another local change can occur. Never clear
+      // the only durable copy of that next change.
+      try{
+        localStorage.setItem(pendingKey(currentUid),JSON.stringify(
+          makePending(currentUid,JSON.parse(unsaved),"alteração durante sincronização",
+            stableJson(JSON.parse(serialized)))));
+        pendingThisSession=true;
+      }catch(e){setStatus("Cópia local não gravada: exporte o JSON antes de sair.")}
+      queued=true;
     }
     setStatus("Dados V2 salvos com segurança");showBackupButton();
-    if(JSON.stringify(safeState())!==serialized)queued=true;
     return true;
   }catch(e){
     if(epoch!==currentEpoch)return false;
@@ -313,6 +328,8 @@ function queueSave(){
     if(pendingThisSession)savePending(JSON.stringify(safeState()),"conflito pendente");
     return;
   }
+  // Snapshot síncrono antes do debounce evita perder mudanças em falhas abruptas.
+  savePending(JSON.stringify(safeState()),"fila local aguardando confirmação");
   timer=setTimeout(sync,1300);
 }
 window.addEventListener("pote:changed",queueSave);
@@ -428,9 +445,29 @@ async function loadUser(user, index) {
   refreshEntitlements();
   loginBtn.disabled = false;
   setMessage("");
-  if(existingPending(user.uid)){
-    syncBlocked=true;
-    setStatus("Backup local não sincronizado detectado. Exporte antes de continuar.");
+  const savedDraft=existingPending(user.uid);
+  let restoredDraft=false;
+  if(savedDraft){
+    const remoteFingerprint=stableJson(safeState());
+    const safeReplay=useV2&&savedDraft.version===2&&
+      savedDraft.uid===user.uid&&savedDraft.baseFingerprint===remoteFingerprint&&
+      validateBackup(savedDraft.state).ok;
+    if(safeReplay){
+      // The cloud is unchanged since this draft started. Re-apply locally,
+      // then let the existing transactional V2 save compare every record.
+      try{
+        window.POTE_APP.applyState(savedDraft.state,{preserveNavigation:true});
+        pendingThisSession=true;
+        restoredDraft=true;
+        setStatus("Alterações offline restauradas; reenviando com transação.");
+      }catch(e){
+        syncBlocked=true;
+        setStatus("Rascunho local não pôde ser restaurado. Exporte backup.");
+      }
+    }else{
+      syncBlocked=true;
+      setStatus("Backup pendente divergente da nuvem. Exporte antes de continuar.");
+    }
   }else setStatus("Dados salvos na nuvem");
   setGate(false);
   showBackupButton();
@@ -446,6 +483,7 @@ async function loadUser(user, index) {
   observeProfile(user, index);
   window.POTE_BUSINESS?.refresh?.();
   window.dispatchEvent(new Event("pote:user-ready"));
+  if(restoredDraft&&!syncBlocked)queueSave();
   if(window.POTE_BRAND_MIGRATED||window.POTE_UNIVERSE_MIGRATED){
     // Gravar apenas migrações cuidadosas, sem apagar pedidos, receitas ou outros universos.
     window.POTE_BRAND_MIGRATED=false;

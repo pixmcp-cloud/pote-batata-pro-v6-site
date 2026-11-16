@@ -35,3 +35,44 @@ jobs:
           CI: 'true'
           V3_RULES_FILE: firestore_v3.rules
         run: ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-pote-batata-v3 --non-interactive "node test_v3_rules_emulator.cjs"
+
+  regressions:
+    name: V3 complete regression suite (no deployment)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout V3 branch
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate candidate HTML and static assets
+        run: |
+          mkdir -p public
+          cp source/pote_app_base.html public/index.html
+          python3 sanitize_public.py public/index.html
+          python3 add_contacts.py public/index.html
+          cp public/index.html public/beta.html
+          python3 make_beta.py public/beta.html
+          cp public/beta.html public/index.html
+          find . -maxdepth 1 -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.css' \) -exec cp {} public/ \;
+          cp -R assets public/assets
+      - name: Check all JavaScript syntax
+        run: |
+          for f in *.js *.mjs; do node --check "$f"; done
+          for f in public/*.js public/*.mjs; do
+            case "$f" in public/firebase_integration.js|public/admin_console.js|public/gallery.js)
+              node --input-type=module --check < "$f" ;;
+            *) node --check "$f" ;;
+            esac
+          done
+      - name: Run every V3 regression test
+        run: |
+          set -e
+          count=0
+          for test in test_*.js test_*.mjs; do
+            node "$test"
+            count=$((count+1))
+          done
+          echo "V3_REGRESSIONS_PASS=$count"

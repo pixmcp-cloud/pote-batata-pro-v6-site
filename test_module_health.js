@@ -7,7 +7,7 @@ vm.createContext(ctx);vm.runInContext(fs.readFileSync("module_health.js","utf8")
 let result=win.POTE_HEALTH.scan();
 assert.equal(result.safeToOperate,false);
 assert(result.missing.includes("estoque"));
-for(const mod of ["POTE_STOCK","POTE_ORDER","POTE_CANCEL","POTE_LOSSES","POTE_PAYMENT","POTE_FINANCE"])
+for(const mod of ["POTE_STOCK","POTE_ORDER","POTE_CANCEL","POTE_LOSSES","POTE_PAYMENT","POTE_FINANCE","POTE_COST_HISTORY"])
  win[mod]={};
 result=win.POTE_HEALTH.scan();
 assert.equal(result.safeToOperate,true);

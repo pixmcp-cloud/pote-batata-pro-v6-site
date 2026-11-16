@@ -82,5 +82,29 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  assert.equal([...cloud.keys()].filter(x=>x.includes("/records/")).length,2);
  assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
  assert.equal(cloud.get("users/u/appState/main").state.data.orders[0].id,"old-test-order");
- console.log("PASS: login V2 integrado, conta de teste vazia, gravação atômica, regras separadas e V1 intacto.");
+ // Simulate an abrupt browser shutdown before debounce/commit: local durable
+ // draft contains a new order, and the cloud still has the prior snapshot.
+ const baseline=copy(state),offline=copy(baseline);
+ offline.data.orders.push({id:"offline-order",status:"recebido",stockDeducted:false});
+ store.set(guard.pendingKey("u"),JSON.stringify(
+  guard.makePending("u",offline,"offline",guard.stableJson(baseline))));
+ await login(auth.currentUser);
+ assert.equal(state.data.orders.length,2,"O rascunho V3 offline deve restaurar ao reabrir");
+ assert.equal(state.data.orders[1].id,"offline-order");
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
+ assert(timers.get("sync"),"A gravação pendente deve ser reagendada automaticamente");
+ const replay=timers.get("sync");timers.delete("sync");await replay();
+ assert.equal(store.has(guard.pendingKey("u")),false,"Confirmado na nuvem: limpar fila local");
+ const verified=[...cloud.values()].filter(x=>x?.record?.group==="orders").map(x=>x.record.item.id);
+ assert(verified.includes("offline-order"));
+ // If the remote base changed, do not automatically replay stale state.
+ const mismatched=copy(state);mismatched.data.orders.push({id:"bad-replay"});
+ store.set(guard.pendingKey("u"),JSON.stringify(
+  guard.makePending("u",mismatched,"offline",guard.stableJson({different:true}))));
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,true);
+ assert.equal(state.data.orders.some(o=>o.id==="bad-replay"),false,
+  "Nunca restaurar rascunho desatualizado sobre a nuvem");
+ assert(store.has(guard.pendingKey("u")),"Conflito conserva backup para exportação");
+ console.log("PASS V3: login, rollback de V1, escrita atômica, rascunho offline auto-retomado sem conflito e divergência bloqueada.");
 })().catch(e=>{console.error(e);process.exitCode=1});

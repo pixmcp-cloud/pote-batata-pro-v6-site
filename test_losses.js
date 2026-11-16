@@ -46,6 +46,7 @@ const ctx={window,document,state,console,Number,Math,Date,Array,Map,Set,String,J
 vm.createContext(ctx);
 vm.runInContext(read("stock_math.js"),ctx);
 vm.runInContext(read("losses.js"),ctx);
+vm.runInContext(read("cost_history.js"),ctx);
 const L=window.POTE_LOSSES;
 assert(L,"Perdas deve estar disponível");
 assert.equal(L.costUnit(potato).cost,.005,"R$ 100 por 20 kg -> 0,005/g");
@@ -74,6 +75,12 @@ assert.equal(pot.stock,199);
 const consumedCost=2*(500*.005+100*.03+1+4);
 assert.equal(consumedCost,21);
 assert.equal(L.orderCost(order).cost,consumedCost);
+const captured=window.POTE_COST_HISTORY.capture(order,data);
+assert.equal(captured.totalMaterialCost,21);
+potato.purchasePrice=200;
+assert.equal(L.orderCost(order).cost,21,
+ "Perda em pedido antigo não pode ser recalculada com preço de compra novo");
+potato.purchasePrice=100;
 const snapshot={potato:potato.stock,bacon:bacon.stock,pot:pot.stock,soda:soda.stock};
 result=L.markNonPayment(order.id,"Cliente levou sem pagar");
 assert.equal(result.ok,true);
@@ -124,7 +131,9 @@ assert(build.includes("losses:'Perdas'"));
 assert(build.includes('window.POTE_LOSSES?.totals?.()'));
 assert(build.includes("x.paymentStatus!=='nao_pago'"),
  "Receita não paga não pode ser considerada faturamento recebido");
-assert(read("cancel_order_flow.js").includes("POTE_LOSSES?.recordCancelled?.(order)"));
+assert(read("cancel_order_flow.js").includes("POTE_LOSSES.recordCancelled(order)"));
+assert(read("cancel_order_flow.js").includes("state.data=rollback"),
+ "Falha em perda deve reverter cancelamento antes da persistência");
 const legacy={...structuredClone(order),id:"old-cancel-loss",name:"Batata antiga",
  status:"cancelado",stockDeducted:true,stockRestored:false,stockReturnDeclined:false};
 data.orders.push(legacy);
