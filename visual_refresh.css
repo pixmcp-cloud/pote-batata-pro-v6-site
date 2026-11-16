@@ -263,3 +263,23 @@ body{background:radial-gradient(ellipse 78% 38% at 65% -10%,#3b4a5d 0,transparen
 .ops-profit-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 13px;border:1px solid #728ca95c;border-radius:12px;background:#0b1e2c8e;font-size:11px;color:#d0e1ed}
 .ops-profit-summary strong{white-space:nowrap;font-variant-numeric:tabular-nums;color:#f2dbb2;font-size:13px}
 .ops-chart-note{font-size:10px;line-height:1.55;color:#b7cbd9;margin:10px 0 0}
+
+/* Fornecedor: arte original é panorâmica (180x68); preservar proporção sem esticar/cortar. */
+.ops-grid .ops-supplier-card{
+ background:radial-gradient(ellipse at 50% 32%,#3c3529 0%,#17202c 60%,#0a111d 100%)!important;
+}
+.ops-grid .ops-supplier-card .ops-icon{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ padding:12% 7% 22%!important;box-sizing:border-box!important;
+}
+.ops-grid .ops-supplier-card .ops-icon img{
+ position:relative!important;inset:auto!important;
+ width:100%!important;height:auto!important;max-width:100%!important;max-height:75%!important;
+ aspect-ratio:180 / 68!important;object-fit:contain!important;object-position:center!important;
+ transform:none!important;filter:drop-shadow(0 7px 12px #0009) saturate(1.12)!important;
+}
+.ops-grid .ops-supplier-card:hover .ops-icon img{transform:scale(1.04)!important}
+@media(max-width:700px){
+ .ops-grid .ops-supplier-card .ops-icon{padding:9% 7% 22%!important}
+ .ops-grid .ops-supplier-card .ops-icon img{max-height:67%!important}
+}
