@@ -23,7 +23,7 @@ No paid service, Firebase rules deployment, migration, or Floot edit performed.
 | F11 | Pending | Single permission contract not yet delivered. |
 | F12 | Pending | Text substitution build still needs modular rework. |
 | F13 | Pending | V2 still re-reads whole collections; incremental sync not implemented. |
-| F14 | Pending | Rendering still emits change events; queueSave already checks equality before writes. |
+| F14 | Coded, tested | Only emits data-change event after actual state changes or account transitions, not every navigation. |
 | F15 | Pending | Global module interface/contracts remain. |
 | F16 | Partial, tested | Small saturated sort groups rebalance within transaction limits; large groups fail safely. |
 | F17 | Pending | Mobile performance profiling and lazy loading not complete. |
@@ -32,7 +32,7 @@ No paid service, Firebase rules deployment, migration, or Floot edit performed.
 | F20 | Blocked | Immutable audit records need schema/rules and compensation strategy; no destructive changes. |
 | F21 | Partial | Beta meta requests noindex; GitHub Pages static assets remain public. |
 | F22 | Coded, tested | Menu report names popularity/contribution instead of misusing BCG terminology. |
-| F23 | Coded, tests green, manual mobile validation needed | Account reset requires selecting actual downloaded backup and checking UID/schema/current state. |
+| F23 | Coded, Chrome mobile emulation green | Actual browser file picker accepted valid account backup and rejected wrong UID at 375px; real Android/production untested. |
 | F24 | Blocked | Admin claims/roles need a secured operator migration procedure. |
 | F25 | Coded, tested | Future integrations collapsed behind secondary disclosure. |
 | F26 | Coded, tested | Gallery text accurately explains local, not Floot-synced, retention. |
@@ -48,8 +48,15 @@ No paid service, Firebase rules deployment, migration, or Floot edit performed.
 
 ## Evidence
 
-82 / 82 local JS/MJS/CJS tests passed, including new money, legacy pricing, rank and reset tests. This is NOT a production Firestore rule, concurrent-device, live API, or real Android backup test.
+Local suite 82/82 on preceding commit. Added F14 regression and Chromium mobile emulator tests (320/375/390/430/768px). Neither is a production Firestore, multi-device, live API or physical Android validation.
 
 ## Release gate
 
 Do not merge into main or change production rules until actual data backups are proven, file-picker UX is checked on mobile, rules pass emulator tests, stock concurrency is reconciled, migration/rollback are tested, and any required backend costs are approved. No paid service was activated.
+
+
+## 17/11/2026 mobile continuation
+- Chrome emulated 320, 375, 390, 430, 768px: no horizontal overflow in beta login.
+- Puppeteer exercised file-picker with two test JSONs: same-account accepted, wrong UID rejected.
+- F14 data change only on actual account-specific state changes, with regression test.
+- Windows-local Puppeteer dependency is unavailable in Linux CI; mobile test intentionally remains local only.

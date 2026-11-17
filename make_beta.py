@@ -224,6 +224,7 @@ resetAll=function(){
  }).catch(error=>{console.warn('Validação de backup',error);toast('Falha na verificação. Nenhum dado foi zerado.')});
 };
 const poteOriginalRender=render;
+let poteRenderLastUid=null,poteRenderLastState=null;
 render=function(...args){
  window.POTE_KITCHEN?.capture?.(state);
  const auditNormalization=window.POTE_STOCK?.normalizeInventory?.(state.data);
@@ -237,7 +238,16 @@ render=function(...args){
  if(state.tab==='losses')window.POTE_LOSSES?.mount?.();
  if(state.tab==='garimpo')window.POTE_GARIMPO?.mount?.();
  if(state.tab==='orders'){window.POTE_DRINKS?.mount?.();window.POTE_ORDER?.restoreDraft?.();window.POTE_ORDER_CUSTOM?.mount?.();window.POTE_ORDER?.refresh?.();window.POTE_PAYMENT?.sync?.();}
- if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'));
+ // Navigation and presentation-only rerenders are not data mutations.
+ // Keep this hash per user so a session change cannot reuse a stale baseline.
+ const currentUid=window.POTE_AUTH?.uid||null;
+ if(currentUid && window.POTE_APP?.snapshot){
+  const currentState=JSON.stringify(window.POTE_APP.snapshot());
+  if(currentUid!==poteRenderLastUid || currentState!==poteRenderLastState){
+   poteRenderLastUid=currentUid;poteRenderLastState=currentState;
+   window.dispatchEvent(new Event('pote:changed'));
+  }
+ }else{poteRenderLastUid=null;poteRenderLastState=null;}
  return result;
 };
 const poteOriginalGo=go;

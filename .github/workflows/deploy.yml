@@ -166,6 +166,7 @@ jobs:
           node test_auth_v2_integration.js
           node test_finance_core.js
           node test_hardening_wave1.cjs
+          node test_hardening_render_events.cjs
           node test_cost_history.js
           node test_pdv_cash_core.mjs
           node test_v3_cash_reconciliation.mjs
