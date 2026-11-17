@@ -1,0 +1,40 @@
+/* Premium marketing studio — isolated from operational controls */
+.creative-studio{background:linear-gradient(145deg,#fffdf6,#f4ecdd)!important;border:1px solid #d5c5a5!important}
+.creative-studio h2{letter-spacing:-.03em}
+.creative-studio .cs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,225px),1fr));gap:12px;margin:18px 0}
+.creative-studio .cs-grid .field{min-width:0}
+.creative-studio .cs-grid input,.creative-studio .cs-grid select{width:100%;max-width:100%;min-width:0}
+.creative-studio .cs-options{display:flex;gap:10px 16px;flex-wrap:wrap;border:1px solid #d6c8ad;border-radius:15px;padding:13px 15px;margin:13px 0}
+.creative-studio .cs-options legend{font-weight:800;font-size:12px;padding:0 7px}
+.creative-studio .cs-toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer}
+.creative-studio .cs-toggle input{width:17px;height:17px;accent-color:#246344}
+.creative-studio .actions{display:flex;flex-wrap:wrap;gap:9px}
+.creative-studio .actions .btn{min-height:43px}
+.creative-studio .help{font-size:12px;line-height:1.6}
+.cs-preview{display:flex;flex-direction:column;align-items:center;gap:15px}
+.cs-preview h3{align-self:flex-start}
+.cs-poster{position:relative;display:flex;flex-direction:column;overflow:hidden;isolation:isolate;width:min(100%,445px);background:var(--cs-bg);color:var(--cs-ink);border-radius:18px;box-shadow:0 18px 42px #140d0833}
+.cs-poster .cs-photo{position:absolute;inset:0 0 auto;height:53%;overflow:hidden;background:#443529}
+.cs-poster .cs-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.cs-poster .cs-photo:after{content:"";position:absolute;inset:40% 0 0;background:linear-gradient(transparent,var(--cs-bg))}
+.cs-poster .cs-content{z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:flex-end;gap:7px;min-height:100%;padding:14% 9% 6%}
+.cs-poster .cs-brand{text-transform:uppercase;letter-spacing:.09em;font-weight:800;font-size:clamp(10px,2vw,14px);background:#17120f9e;padding:7px 13px;border-radius:30px;color:#fff6df;max-width:100%;overflow-wrap:anywhere}
+.cs-poster .cs-heading{font-weight:900;text-transform:uppercase;letter-spacing:.01em;font-size:clamp(16px,3.4vw,24px);line-height:1.15;color:var(--cs-accent);overflow-wrap:anywhere}
+.cs-poster .cs-name{font-size:clamp(17px,3.6vw,30px);font-weight:900;line-height:1.13;overflow-wrap:anywhere}
+.cs-poster .cs-description{font-size:clamp(11px,2.1vw,16px);line-height:1.35;margin:1px 0 4px;overflow-wrap:anywhere}
+.cs-poster .cs-prices{display:flex;flex-direction:column;gap:3px}
+.cs-poster .cs-prices s{opacity:.8;font-size:13px}
+.cs-poster .cs-price{font-size:clamp(24px,6vw,47px);color:var(--cs-accent);line-height:1.1}
+.cs-poster .cs-cta{font-size:clamp(10px,2.1vw,15px);letter-spacing:.06em;text-transform:uppercase}
+.cs-poster.cs-clean .cs-brand{background:#ffffffed;color:#213526}
+.cs-poster.cs-clean .cs-photo:after{background:linear-gradient(transparent,#f7f0e3)}
+.cs-poster.cs-fresh .cs-photo:after{background:linear-gradient(transparent,#102d26)}
+.cs-poster[style*="16/9"]{width:min(100%,650px);flex-direction:row}
+.cs-poster[style*="16/9"] .cs-photo{inset:0 auto 0 0;height:100%;width:55%}
+.cs-poster[style*="16/9"] .cs-photo:after{inset:0;background:linear-gradient(90deg,transparent 55%,var(--cs-bg))}
+.cs-poster[style*="16/9"] .cs-content{width:48%;margin-left:auto;padding:6% 4%}
+.cs-caption{width:min(100%,650px);background:#fbf6eb;border:1px solid #ddcbb0;padding:16px;border-radius:13px;color:#2c3127}
+.cs-caption h4{margin:0 0 9px}.cs-caption p{margin:0;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:520px){.cs-preview{padding:12px!important}.cs-poster .cs-content{gap:4px}.cs-poster[style*="16/9"] .cs-heading{font-size:12px}.cs-poster[style*="16/9"] .cs-name{font-size:13px}.cs-poster[style*="16/9"] .cs-description{font-size:9px}.cs-poster[style*="16/9"] .cs-price{font-size:18px}}
+
+.cs-poster .cs-logo{width:27px;height:27px;object-fit:contain;border-radius:50%;vertical-align:middle;margin-right:7px}
