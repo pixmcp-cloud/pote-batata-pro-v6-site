@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {createV2Store} from "./v2_storage.mjs";
 const copy=x=>JSON.parse(JSON.stringify(x));
 const db=new Map(),listeners=new Map();
+let fullCollectionReads=0;
 const ref=(prefix,...parts)=>parts.join("/");
 const snap=path=>({
  exists:()=>db.has(path),data:()=>db.has(path)?copy(db.get(path)):undefined,
@@ -11,8 +12,8 @@ const fire={
  doc:ref,
  collection:ref,
  getDoc:async path=>snap(path),
- getDocs:async path=>({docs:[...db.entries()].filter(([key])=>key.startsWith(path+"/"))
-  .map(([key])=>({id:key.slice(path.length+1),data:()=>copy(db.get(key))}))}),
+ getDocs:async path=>{fullCollectionReads++;return {docs:[...db.entries()].filter(([key])=>key.startsWith(path+"/"))
+  .map(([key])=>({id:key.slice(path.length+1),data:()=>copy(db.get(key))}))}},
  serverTimestamp:()=>({timestamp:"SERVER"}),
  runTransaction:async(database,fn)=>{
   const mutations=[];
@@ -86,5 +87,25 @@ const verified=make();await verified.store.load();
 assert.equal(verified.read().data.orders.length,1);
 assert.equal(verified.read().data.orders[0].id,"o10");
 assert.equal(verified.read().data.ingredients[0].stock,10000);
-a.store.dispose();b.store.dispose();b2.store.dispose();verified.store.dispose();
+const incremental=make();await incremental.store.load();
+const incrementalSignals=[];incremental.store.subscribe(x=>incrementalSignals.push(x));
+const beforeIncremental=fullCollectionReads;
+a.mutate(s=>s.data.suppliers.push({id:"new-supplier",name:"Supplier"}));
+assert((await a.store.save()).ok);
+await new Promise(resolve=>setTimeout(resolve,20));
+assert(incrementalSignals.some(x=>x.ok&&x.incremental),"adjacent pulse should use incremental refresh");
+assert.equal(incremental.read().data.suppliers.length,2);
+assert.equal(fullCollectionReads,beforeIncremental,"adjacent pulse must not read the full records collection");
+const missed=make();await missed.store.load();
+a.mutate(s=>s.data.clients.push({id:"second-client",name:"Carol"}));
+assert((await a.store.save()).ok);
+a.mutate(s=>s.data.clients.push({id:"third-client",name:"Dave"}));
+assert((await a.store.save()).ok);
+const beforeFallback=fullCollectionReads;
+const missedResults=[];missed.store.subscribe(x=>missedResults.push(x));
+await new Promise(resolve=>setTimeout(resolve,20));
+assert(missedResults.some(x=>x.ok&&!x.incremental),"missed pulses must reload complete records");
+assert(fullCollectionReads>beforeFallback,"missing pulse chain should fetch records once");
+assert.equal(missed.read().data.clients.length,3);
+a.store.dispose();b.store.dispose();b2.store.dispose();verified.store.dispose();incremental.store.dispose();missed.store.dispose();
 console.log("PASS: Firebase V2 simulado cria conta limpa, separa documentos, preserva edições independentes e bloqueia corrida de estoque.");

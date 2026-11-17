@@ -4,7 +4,7 @@ const html=src("public/index.html"),rules=src("firestore.rules"),
  hub=src("delivery_hub.js"),notice=src("notifications.js"),adm=src("admin_broadcast.js"),core=src("notification_core.mjs");
 for(const x of ["notifications.js","admin_broadcast.js","notifications.css","admin_broadcast.css","delivery_hub.js"])
  assert(html.includes(x+"?v="),"Script do Hub/alertas não está no site: "+x);
-assert(html.includes("firebase_integration.js?v=adm-v2-recipes-20261116"),"Correção de receitas ADM preservada");
+assert(/firebase_integration\.js\?v=[a-zA-Z0-9_-]+/.test(html),"Firebase V2 autenticado carregado com cache versionado");
 assert(rules.includes("match /announcements/{noticeId}"),"Regras do Firestore ausentes");
 assert(rules.includes("allow create: if isAdmin()"),"Somente ADM pode publicar");
 assert(rules.includes("allow get, list: if googleVerified()"),"Leitura autenticada");

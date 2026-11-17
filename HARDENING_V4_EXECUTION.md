@@ -22,13 +22,13 @@ No paid service, Firebase rules deployment, migration, or Floot edit performed.
 | F10 | Pending | V1 compatibility remains enabled for recovery; migration not run. |
 | F11 | Pending | Single permission contract not yet delivered. |
 | F12 | Pending | Text substitution build still needs modular rework. |
-| F13 | Pending | V2 still re-reads whole collections; incremental sync not implemented. |
+| F13 | Coded, simulated | Adjacent V2 pulse events read only changed records; missed events fall back to a full collection read. Requires live-scale latency validation. |
 | F14 | Coded, tested | Only emits data-change event after actual state changes or account transitions, not every navigation. |
 | F15 | Pending | Global module interface/contracts remain. |
 | F16 | Partial, tested | Small saturated sort groups rebalance within transaction limits; large groups fail safely. |
 | F17 | Pending | Mobile performance profiling and lazy loading not complete. |
-| F18 | Blocked | Legacy Firestore write rules need emulator validation, staged compat/migration; production unchanged. |
-| F19 | Blocked | Free/Pro quota security needs trustworthy server-side enforcement, not just UI restrictions. |
+| F18 | Draft rules tested, NOT deployed | Real Firestore Emulator reproduced unrestricted Free writes in legacy; hardened draft rejects them and preserves V2 metadata and Pro V1, but older Free compatibility is unverified. |
+| F19 | CRITICAL, emulator confirmed | Free can create multiple V2 records through SDK. Server-enforced quotas and safe migration required. Unresolved. |
 | F20 | Blocked | Immutable audit records need schema/rules and compensation strategy; no destructive changes. |
 | F21 | Partial | Beta meta requests noindex; GitHub Pages static assets remain public. |
 | F22 | Coded, tested | Menu report names popularity/contribution instead of misusing BCG terminology. |
@@ -38,11 +38,11 @@ No paid service, Firebase rules deployment, migration, or Floot edit performed.
 | F26 | Coded, tested | Gallery text accurately explains local, not Floot-synced, retention. |
 | F27 | Coded, tested | Hidden tabs skip gallery timers; redundant twice-daily deploy schedule removed. |
 | F28 | Pending | Demonstration and authenticated runtime require deeper extraction. |
-| F29 | Pending | Firebase emulator rules tests not executed; remote PC lacks Java. |
+| F29 | Partially verified | Android Studio JBR runs Firebase Emulator locally; Google, isolation, license and immutable cash tests pass. Test confirms F19. Draft F18 validation passes. Not deployed. |
 | F30 | Coded, tested | Delivery Hub clears temporary import/order context on logout and account switch. |
 | F31 | Partial | Sandbox UI proxy restricted to owned hosts and path; PHP auth/protocol need live sandbox tests. |
 | F32 | Deferred | Cloud Gallery remains disabled; protected Storage and billing require authorization. |
-| F33 | Pending | Two-device shared-universe concurrency not yet proven. |
+| F33 | Simulated only | Parallel V2 clients consuming 8 of 10 stock: one transaction committed, one aborted. Physical multi-device shared-universe test remains. |
 | F34 | Pending | Supplier provider cache, rate limits and fallback require dedicated stress test. |
 | F35 | Existing / pending | Firebase SDK URLs are version-pinned; package/failover review not complete. |
 
@@ -60,3 +60,11 @@ Do not merge into main or change production rules until actual data backups are 
 - Puppeteer exercised file-picker with two test JSONs: same-account accepted, wrong UID rejected.
 - F14 data change only on actual account-specific state changes, with regression test.
 - Windows-local Puppeteer dependency is unavailable in Linux CI; mobile test intentionally remains local only.
+
+
+## 17/11/2026 later virtual homologation
+- Firebase Emulator (demo-pote-hardening, port 8787) confirmed F18 legacy Free write bypass and F19 unrestricted Free record creation; owner isolation and financial protections passed.
+- Separate firestore.hardened.rules draft fixes legacy Free write bypass under Emulator but does not fix F19 and is not configured for production. Existing rules remain unchanged.
+- Parallel V2 simulation: exactly one order can consume 8 units from a balance of 10; one rejects with conflict.
+- Incremental V2 sync reads only touched documents when pulse history is contiguous; lost events trigger full refresh.
+- No Firestore rules changed in production; no paid backend or Floot edits.

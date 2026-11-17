@@ -1,0 +1,329 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Firebase verifies Google identity and email; browser UI cannot grant roles.
+    function googleVerified() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function isAdmin() {
+      return googleVerified() && request.auth.token.email == 'pixmcp@gmail.com';
+    }
+    function isOwner(userId) {
+      return googleVerified() && request.auth.uid == userId;
+    }
+    function canAccess(userId) {
+      return isOwner(userId) || isAdmin();
+    }
+    // Licenças e franquias somente são concedidas no perfil pelo administrador.
+    // Não depende de "role" ou "proActive" informados pelo navegador.
+    function premiumProfile(userId) {
+      let account = get(/databases/$(database)/documents/users/$(userId)).data;
+      return (
+        account.keys().hasAny(['franchise'])
+        && account.franchise.status == 'active'
+        && account.franchise.brandId == 'potebatata'
+      ) || (
+        account.keys().hasAny(['license'])
+        && account.license.status == 'active'
+        && (
+          (account.license.kind == 'lifetime'
+            && account.license.term == 'lifetime')
+          || (
+            account.license.kind in ['trial', 'pro']
+            && account.license.expiresAt is timestamp
+            && account.license.expiresAt > request.time
+          )
+        )
+      );
+    }
+    function canUseFinancialRecords(userId) {
+      return isAdmin()
+        || (isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && premiumProfile(userId));
+    }
+    // Legacy collections can be read for migration/export but never used by a
+    // Free account as an unrestricted alternative to V2 quota-controlled flows.
+    // Compatible with V2: appState/v2, v2InventoryGuard and v2Pulse remain writable.
+    function canWriteLegacy(userId) {
+      return isAdmin()
+        || (isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && premiumProfile(userId));
+    }
+    function isFinancialGroup(group) {
+      return group in ['cashSessions', 'cashMovements'];
+    }
+
+    // Bloqueios de universo e de serviço são administrados no perfil,
+    // nunca definidos pelos campos editáveis no navegador do cliente.
+    function recordService(group) {
+      return group in ['recipeVersions','recipeTrash'] ? 'recipes'
+        : group in ['stockMovements','purchases','prepBatches','beverages','addons','combos'] ? 'stock'
+        : group in ['cashSessions','cashMovements'] ? 'orders'
+        : group;
+    }
+    function canEditOperationalRecord(userId, record) {
+      let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+      return isAdmin() || !profile.keys().hasAny(['accessPolicy']) ||
+        (
+          (!profile.accessPolicy.keys().hasAny(['blockedUniverses']) ||
+            !profile.accessPolicy.blockedUniverses.hasAny([record.universe]))
+          && (!profile.accessPolicy.keys().hasAny(['blockedServices']) ||
+            !profile.accessPolicy.blockedServices.hasAny([
+              record.universe + ':' + recordService(record.group)
+            ]))
+        );
+    }
+    match /users/{userId} {
+      allow get: if canAccess(userId);
+      allow list: if isAdmin();
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if isAdmin() || (
+        isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'photoURL', 'updatedAt'])
+      );
+      allow delete: if isAdmin();
+
+      match /recipes/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /ingredients/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /suppliers/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /products/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /clients/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /orders/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /inventory/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /expenses/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
+      }
+      match /appState/{id} {
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId)
+          || (isOwner(userId) && id in ['v2','v2InventoryGuard','v2Pulse']);
+      }
+      // V2: um documento por registro operacional. Impede acesso entre contas
+      // e restringe o formato, sem interferir nos documentos V1 já existentes.
+      match /records/{recordId} {
+        allow get, list: if canAccess(userId);
+        allow create, update: if canAccess(userId)
+          && canEditOperationalRecord(userId,request.resource.data.record)
+          && (!isFinancialGroup(request.resource.data.record.group)
+              || canUseFinancialRecords(userId))
+          && request.resource.data.keys().hasOnly(['record', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['record', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.record is map
+          && request.resource.data.record.keys().hasOnly([
+            'universe', 'group', 'id', 'item', 'rank'
+          ])
+          && request.resource.data.record.keys().hasAll([
+            'universe', 'group', 'id', 'item', 'rank'
+          ])
+          && request.resource.data.record.universe is string
+          && request.resource.data.record.id is string
+          && request.resource.data.record.rank is number
+          && request.resource.data.record.group in [
+            'recipes', 'ingredients', 'orders', 'clients', 'suppliers',
+            'expenses', 'recipeVersions', 'recipeTrash', 'purchases',
+            'stockMovements', 'beverages', 'addons', 'combos', 'prepBatches',
+            'checklist', 'losses', 'garimpoOffers', 'cashSessions', 'cashMovements'
+          ]
+          && (
+            !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
+            || (
+              request.resource.data.record.universe == resource.data.record.universe
+              && request.resource.data.record.group == resource.data.record.group
+              && request.resource.data.record.id == resource.data.record.id
+            )
+          )
+          // Payloads financeiros devem ser consistentes e com valores válidos.
+          && (
+            !isFinancialGroup(request.resource.data.record.group)
+            || (
+              request.resource.data.record.item is map
+              && request.resource.data.record.item.id == request.resource.data.record.id
+            )
+          )
+          && (
+            request.resource.data.record.group != 'cashMovements'
+            || (
+              request.resource.data.record.item.kind in [
+                'suprimento', 'sangria', 'reembolso', 'late_payment'
+              ]
+              && request.resource.data.record.item.amount is number
+              && request.resource.data.record.item.amount > 0
+              && request.resource.data.record.item.amount <= 100000000
+              && request.resource.data.record.item.sessionId is string
+            )
+          )
+          // Movimentações de caixa já registradas não são reescritas.
+          && (
+            !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
+            || (
+              (request.resource.data.record.group != 'cashMovements'
+               || request.resource.data.record == resource.data.record)
+              && (request.resource.data.record.group != 'cashSessions'
+               || (
+                  resource.data.record.item.status == 'open'
+                  && request.resource.data.record.item.status == 'closed'
+                  && request.resource.data.record.rank == resource.data.record.rank
+                  && request.resource.data.record.item.diff(resource.data.record.item)
+                    .affectedKeys().hasOnly([
+                      'status', 'closedAt', 'closedBy', 'countedCash',
+                      'expectedCash', 'difference', 'closedSummary'
+                    ])
+                  && request.resource.data.record.item.closedAt is string
+                  && request.resource.data.record.item.closedSummary is map
+               ))
+            )
+          )
+          // Um turno nasce aberto; após o fechamento não pode ser reaberto.
+          && (
+            request.resource.data.record.group != 'cashSessions'
+            || (
+              request.resource.data.record.item is map
+              && request.resource.data.record.item.status in ['open', 'closed']
+              && (
+                exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
+                || request.resource.data.record.item.status == 'open'
+              )
+            )
+          );
+        allow delete: if canAccess(userId)
+          && canEditOperationalRecord(userId,resource.data.record)
+          && !isFinancialGroup(resource.data.record.group);
+      }
+    }
+
+    // Only the verified administrator can create immutable license change events.
+    match /licenseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromTerm', 'toTerm', 'expiresAt'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.action in ['promover', 'renovar', 'revogar']
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Um catálogo publicado pela matriz. As franquias recebem apenas as fichas
+    // aprovadas, nunca o appState, vendas ou custos privados da conta mestre.
+    function isActivePoteFranchise() {
+      return googleVerified()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.status == 'active'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.brandId == 'potebatata';
+    }
+    match /franchiseCatalog/{catalogId} {
+      allow get: if catalogId == 'potebatata'
+        && (isAdmin() || isActivePoteFranchise());
+      allow list: if false;
+      allow create, update: if catalogId == 'potebatata'
+        && isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'brandId', 'version', 'branding', 'recipes', 'ingredients',
+          'publisherUid', 'fingerprint', 'updatedAt'
+        ])
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.publisherUid == request.auth.uid
+        && request.resource.data.recipes.size() > 0
+         && request.resource.data.ingredients.size() > 0
+         && request.resource.data.recipes.size() <= 150
+        && request.resource.data.ingredients.size() <= 250
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /franchiseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail',
+          'targetUid', 'targetEmail', 'brandId', 'status'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.action in ['ativar', 'revogar']
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Comunicados globais. Não armazenam dados de clientes nem destinatários.
+    // Somente a conta Google administradora pode publicar ou desativar.
+    match /announcements/{noticeId} {
+      allow get, list: if googleVerified();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.keys().hasAll([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 4
+        && request.resource.data.title.size() <= 110
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 8
+        && request.resource.data.body.size() <= 700
+        && request.resource.data.type in ['info', 'promo', 'urgent']
+        && request.resource.data.url is string
+        && request.resource.data.url.size() <= 350
+        && (request.resource.data.url == '' ||
+            request.resource.data.url.matches('https://.*'))
+        && (request.resource.data.expiresAt == null ||
+            (request.resource.data.expiresAt is timestamp
+             && request.resource.data.expiresAt > request.time))
+        && request.resource.data.active == true
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['active', 'updatedAt'])
+        && request.resource.data.active == false
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // Deny everything not explicitly listed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

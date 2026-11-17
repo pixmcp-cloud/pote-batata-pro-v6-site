@@ -18,7 +18,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
  const recordsRef=collection(db,"users",uid,"records");
  const session=token();
  let baseline=null,guardRevision=0,seenPulse="",off=null,refreshing=false,refreshAgain=false;
- let saving=false,disposed=false,lastSavedJson="";
+ let saving=false,disposed=false,lastSavedJson="",needsFullRefresh=false;
  const recordRef=key=>doc(db,"users",uid,"records",key);
  const stateJson=()=>JSON.stringify(snapshot());
  const loadDocuments=async()=>{
@@ -101,6 +101,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
     const observed=[];
     for(const q of queries)observed.push(await tx.get(q.ref));
     const guard=delta.sensitive?await tx.get(guardRef):null;
+    const previousPulse=await tx.get(pulseRef);
     for(let i=0;i<queries.length;i++){
      const q=queries[i],remote=q.ch.kind==="meta"?
       observed[i].data()?.state??null:observed[i].data()?.record??null;
@@ -121,8 +122,12 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
       revision:nextRevision(oldGuard),updatedAt:serverTimestamp()
     },{merge:true});
     tx.set(pulseRef,{
-      eventId:token(),origin:session,updatedAt:serverTimestamp(),
-      affected:delta.changes.length
+      eventId:token(),previousEventId:String(previousPulse.data()?.eventId||""),
+      origin:session,updatedAt:serverTimestamp(),
+      affected:delta.changes.length,
+      changedKeys:delta.changes.filter(c=>c.kind==="record").map(c=>c.key),
+      metaChanged:delta.changes.some(c=>c.kind==="meta"),
+      sensitive:delta.sensitive
     });
    });
    baseline=next;
@@ -134,13 +139,52 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    return {ok:false,code:e.code||"sync/error",error:e.message};
   }finally{saving=false}
  }
- async function refresh(){
+ async function refresh(hint=null,previousEventId=null){
   if(disposed||!baseline)return {ok:false};
   if(refreshing){refreshAgain=true;return {ok:false,queued:true}}
   refreshing=true;
   try{
    if(stateJson()!==lastSavedJson)
     return {ok:false,code:"sync/conflict",error:"Há alterações locais pendentes"};
+   // Incremental refresh is permitted ONLY for an adjacent version in the
+   // server pulse chain. Lost intermediate events or older clients force
+   // a complete reload rather than risk omissions.
+   const changes=hint?.changedKeys;
+   const contiguous=hint&&typeof hint.previousEventId==="string"&&
+     hint.previousEventId===previousEventId;
+   const incremental=!needsFullRefresh&&contiguous&&Array.isArray(changes)&&
+     changes.length<=60&&new Set(changes).size===changes.length&&
+     changes.every(k=>typeof k==="string"&&k.length<=1000)&&
+     typeof hint.metaChanged==="boolean"&&typeof hint.sensitive==="boolean";
+   if(incremental){
+    const [changedDocs,metaSnap,guardSnap]=await Promise.all([
+     Promise.all(changes.map(key=>getDoc(recordRef(key)))),
+     hint.metaChanged?getDoc(root):Promise.resolve(null),
+     hint.sensitive?getDoc(guardRef):Promise.resolve(null)
+    ]);
+    if(stateJson()!==lastSavedJson)
+     return {ok:false,code:"sync/conflict",error:"Alterações locais durante atualização"};
+    const meta=metaSnap?metaSnap.data()?.state:baseline.meta;
+    if(!meta||metaSnap&&metaSnap.data()?.schemaVersion!==2)
+     fail("sync/schema","Metadados V2 incompatíveis");
+    const nextRecords=new Map(baseline.records);
+    changes.forEach((key,index)=>{
+     const entry=changedDocs[index].data()?.record;
+     if(!changedDocs[index].exists()){nextRecords.delete(key);return}
+     if(!entry||!entry.group||!entry.universe||
+       key!==recordId(entry.universe,entry.group,entry.id))
+      fail("sync/schema","Registro atualizado com identificador divergente");
+     nextRecords.set(key,entry);
+    });
+    const merged=combineState(meta,nextRecords);
+    apply(merged);
+    baseline={meta,records:nextRecords};
+    if(guardSnap)guardRevision=Number(guardSnap.data()?.revision)||0;
+    lastSavedJson=stateJson();
+    needsFullRefresh=false;
+    status("Atualização incremental V2 aplicada");
+    return {ok:true,incremental:true,readDocuments:changes.length+Number(!!metaSnap)+Number(!!guardSnap)};
+   }
    const head=await getDoc(root);
    if(!head.exists()||head.data().schemaVersion!==2)
     fail("sync/schema","Conta V2 indisponível");
@@ -152,10 +196,13 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    baseline={meta:head.data().state,records};
    guardRevision=Number(guard.data()?.revision)||0;
    lastSavedJson=stateJson();
+   needsFullRefresh=false;
    status("Atualizado entre dispositivos");
-   return {ok:true};
-  }catch(e){return {ok:false,code:e.code||"sync/error",error:e.message}}
-  finally{
+   return {ok:true,incremental:false};
+  }catch(e){
+   needsFullRefresh=true;
+   return {ok:false,code:e.code||"sync/error",error:e.message}
+  }finally{
    refreshing=false;
    if(refreshAgain){refreshAgain=false;void refresh()}
   }
@@ -166,9 +213,13 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    if(disposed||!baseline||pulse.metadata?.hasPendingWrites)return;
    const eventId=String(pulse.data()?.eventId||"");
    if(!eventId||eventId===seenPulse)return;
+   const previousEventId=seenPulse;
    seenPulse=eventId;
    if(pulse.data()?.origin===session)return;
-   void refresh().then(result=>{if(!disposed)onUpdate(result)});
+   void refresh(pulse.data(),previousEventId).then(result=>{
+    if(!result.ok&&!result.queued)needsFullRefresh=true;
+    if(!disposed)onUpdate(result);
+   });
   },error=>onUpdate({ok:false,code:error.code||"sync/error",error:error.message}));
   return off;
  }
