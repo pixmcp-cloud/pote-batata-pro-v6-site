@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
-import {checkFreeUniverseDelta} from "./free_limits.mjs?v=kitchen-motoboy-20261116";
+import {checkFreeUniverseDelta,freeSlotKey} from "./free_limits.mjs";
 const sample=(group,id,item={})=>({universe:"pastelaria",group,id,item});
 const mock=(...rows)=>new Map(rows.map((r,i)=>[String(i),r]));
-const seed=mock(sample("recipes","ps-1",{templateOrigin:"pastelaria",modelRecipe:true}),
- sample("recipes","ps-2",{templateOrigin:"pastelaria",modelRecipe:true}),
- sample("ingredients","ps-in-massa",{templateOrigin:"pastelaria"}));
+const seed=mock(sample("recipes","ps-01",{templateOrigin:"pastelaria",modelRecipe:true}),
+ sample("recipes","ps-02",{templateOrigin:"pastelaria",modelRecipe:true}),
+ sample("ingredients","ps-in-massa-fresca-para-pastel",{templateOrigin:"pastelaria"}));
 assert(checkFreeUniverseDelta(new Map(),seed,"pastelaria").ok);
+// Catalog identity is explicit; user-controlled model flags do not bypass quota.
+const fraud=mock(sample("recipes","fake1",{templateOrigin:"pastelaria",modelRecipe:true}),
+ sample("recipes","fake2",{templateOrigin:"pastelaria",modelRecipe:true}));
+assert.equal(checkFreeUniverseDelta(new Map(),fraud,"pastelaria").ok,false);
 const one=mock(...seed.values(),sample("orders","o1"));
 assert(checkFreeUniverseDelta(seed,one,"pastelaria").ok);
 const two=mock(...one.values(),sample("orders","o2"));
@@ -19,4 +23,6 @@ assert.equal(checkFreeUniverseDelta(ownRecipe,secondRecipe,"pastelaria").ok,fals
 const pizzaOrder=mock(...seed.values(),{universe:"pizzaria",group:"orders",id:"pizza-o1",item:{id:"pizza-o1"}});
 const crossUniverse=mock(...pizzaOrder.values(),{universe:"pastelaria",group:"orders",id:"pastel-o2",item:{id:"pastel-o2"}});
 assert.equal(checkFreeUniverseDelta(pizzaOrder,crossUniverse,"pastelaria").ok,false,"Trocar de ramo não deve renovar o limite FREE");
+assert.equal(freeSlotKey(sample("cashSessions","closed-from-pro")),null,
+ "Sessões de caixa protegidas pelas regras de Pro não podem ser reescritas pelo limitador Free");
 console.log("PASS: FREE 1 cadastro por função no conjunto dos ramos extras; modelos gratuitos não consomem a quota.");

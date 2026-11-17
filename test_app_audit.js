@@ -60,5 +60,5 @@ const linked=A.scan(data);
 assert(!linked.issues.some(i=>i.code==="unlinked-package"&&i.recipeId==="r1"));
 const built=source("public/index.html");
 assert(built.includes("app_audit.js?v=audit-20261115"));
-assert(built.includes("stock_math.js?v=v3-wave1-20261116"));
+assert(built.includes("stock_math.js?v=v4-stock-balance-20261117"));
 console.log("PASS: auditoria detecta órfãos, duplicados, inválidos, embalagens sem vínculo e reservas; 20 kg liberam 40 batatas quando não reservados.");

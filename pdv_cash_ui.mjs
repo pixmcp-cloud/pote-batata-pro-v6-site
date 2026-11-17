@@ -171,11 +171,12 @@ function submit(form){
  }catch(error){status(error.message)}
 }
 function parseMoney(value){
- const clean=String(value??"").trim().replace(/\s/g,"").replace(/^R\$/i,"");
- const normal=clean.includes(",")?clean.replace(/\./g,"").replace(",","."):clean;
- const amount=Number(normal);
- if(!/^\d+(?:\.\d{1,2})?$/.test(normal)||!Number.isFinite(amount)||amount<0)
+ const input=String(value??"").trim();
+ const digits=input.replace(/^R\$\s*/i,"");
+ if(!/^(?:\d+(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+,\d{1,2})$/.test(digits))
   throw Error("Valor monetário inválido (use 0,00)");
+ const amount=window.POTE_FINANCE?.parseNumber(input);
+ if(!Number.isFinite(amount))throw Error("Não foi possível validar o valor monetário. Recarregue o aplicativo.");
  return amount;
 }
 function action(name,orderId){

@@ -153,8 +153,8 @@ assert.equal(window.POTE_RELEASE_NEWS.dismissed(),false);
 assert.equal(element("poteReleaseNews").hidden,false,"Nova versão deve aparecer");
 const built=read("public/index.html");
 for(const path of ["stock_status.js?v=audit-20261115",
- "stock_ui.js?v=kitchen-motoboy-20261116",
- "stock_ext.js?v=estimativa-franquia-60-20261116",
+ "stock_ui.js?v=v4-stock-balance-20261117",
+ "stock_ext.js?v=v4-stock-balance-20261117",
  "order_guard.js?v=audit-20261115",
  "release_news.js?v=pdv-20261116",
  "release_news.css?v=news-20261115-06",

@@ -11,9 +11,15 @@ class FakeEl {
 const body=new FakeEl(),events=new Map(),app={
  data:{cashSessions:[],cashMovements:[],orders:[],brand:{name:"Potê de Teste"}}
 };
-let writes=0,lastEvent=0;
+let writes=0,lastEvent=0,confirmations=0;
 const homeHeading=new FakeEl();
-globalThis.document={body,createElement:()=>new FakeEl(),querySelector:s=>s===".ops-heading"?homeHeading:null,getElementById:()=>null};
+const message=new FakeEl();
+globalThis.document={body,createElement:()=>new FakeEl(),querySelector:s=>s===".ops-heading"?homeHeading:null,
+ getElementById:id=>id==="potePdvMessage"?message:null};
+globalThis.FormData=class {
+ constructor(form){this.fields=Object.entries(form.fields)}
+ entries(){return this.fields}
+};
 Object.defineProperty(globalThis,"navigator",{value:{onLine:true},configurable:true});
 globalThis.window={
  POTE_APP_READY:true,POTE_AUTH:{uid:"t1",role:"free",proActive:false,franchiseActive:false,email:"teste"},
@@ -21,9 +27,10 @@ globalThis.window={
  POTE_SYNC_GUARD:{blocked:false},
  addEventListener:(name,fn)=>{events.set(name,[...(events.get(name)||[]),fn])},
  dispatchEvent:()=>{lastEvent++},
- confirm:()=>true,prompt:()=>null,
+ confirm:()=>{confirmations++;return true},prompt:()=>null,
  open:()=>({document:{open(){},write(){},close(){}}})
 };
+await import("./finance_core.js");
 await import("./pdv_cash_ui.mjs");
 const api=window.POTE_PDV;
 assert(api,"PDV must be registered");
@@ -49,6 +56,29 @@ document.activeElement=null;
 api.refresh();
 assert.equal(openingBody.innerHTML,originalHTML,"O painel deve voltar a renderizar ao perder o foco");
 assert.equal(api.getSessionId(),null);
+const submit=(pdvForm,fields)=>panel.listeners.submit({preventDefault(){},target:{dataset:{pdvForm},fields}});
+submit("open",{openingCash:"1.23,45"});
+assert.match(message.textContent,/Valor monetário inválido/);
+assert.equal(writes,0);
+assert.equal(lastEvent,0);
+submit("open",{openingCash:"R$ 1.234,56"});
+assert.equal(app.data.cashSessions[0].openingCash,1234.56);
+submit("movement",{kind:"suprimento",amount:"12 34,56",reason:"Troco"});
+assert.match(message.textContent,/Valor monetário inválido/);
+assert.equal(writes,1);
+assert.equal(lastEvent,1);
+submit("movement",{kind:"suprimento",amount:"10.50",reason:"Troco"});
+assert.equal(app.data.cashMovements[0].amount,10.5);
+submit("close",{countedCash:"1.245,060"});
+assert.match(message.textContent,/Valor monetário inválido/);
+assert.equal(writes,2);
+assert.equal(confirmations,0);
+submit("close",{countedCash:"1.245,06"});
+assert.equal(app.data.cashSessions[0].countedCash,1245.06);
+assert.equal(app.data.cashSessions[0].difference,0);
+assert.equal(confirmations,1);
+app.data.cashSessions=[];
+app.data.cashMovements=[];
 assert(api.ticketHtml({id:"p1",name:"Batata",qty:1,price:29.9,items:[{id:"i",ingredientName:"Batata",g:250}],paymentStatus:"Informado",paymentMethod:"Pix"},
  {kitchen:false,brand:"Test"}).includes("COMPROVANTE NÃO FISCAL"));
 assert(!api.ticketHtml({id:"p1",name:"Batata",qty:1,price:29.9,items:[]},{kitchen:true}).includes("R$"));

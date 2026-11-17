@@ -50,11 +50,15 @@ const mock="const auth={currentUser:{uid:'acct-mobile'}};"+stableSrc+validator+"
   const layout=await appPage.evaluate(()=>({
     viewport:innerWidth,scroll:document.documentElement.scrollWidth,
     gate:!!document.getElementById('poteAuthGate'),
-    meta:document.querySelector('meta[name=viewport]')?.content||''
+    meta:document.querySelector('meta[name=viewport]')?.content||'',
+    initial:window.POTE_APP?.snapshot()?.data?.orders?.length,
+    cash:window.POTE_APP?.snapshot()?.data?.cashSessions?.length,
   }));
   console.log('MOBILE_BETA_LAYOUT',width,JSON.stringify(layout));
   assert(layout.gate,'beta authentication gate must be present at '+width);
   assert(layout.scroll<=width+2,'beta layout horizontal overflow at '+width);
+  assert.equal(layout.initial,0,'pré-login não carrega os pedidos da demonstração');
+  assert.equal(layout.cash,0,'pré-login inicia sem caixa de demonstração');
  }
  console.log('PASS Chrome mobile: real backup file picker validates actual JSON; mismatched UID blocked; beta responsive at 320/375/390/430/768.');
  }finally{await browser.close();fs.rmSync(tmp,{recursive:true,force:true});}

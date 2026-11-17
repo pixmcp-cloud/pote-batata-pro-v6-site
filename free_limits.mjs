@@ -1,31 +1,20 @@
-/* FREE: uma ação/cadastro operacional por grupo no conjunto dos universos extras da conta.
-   Contas PRO, franquias e ADM não passam por esta validação.
-   Fichas e insumos-modelo não contam como cadastros autorais. */
-export const FREE_LIMITED_GROUPS=Object.freeze({
- recipes:1,ingredients:1,orders:1,clients:1,suppliers:1,expenses:1,
- purchases:1,losses:1,prepBatches:1,beverages:1,addons:1,combos:1,cashSessions:1
-});
-const custom=(record)=>{
- const item=record?.item||{};
- if(record?.group==="recipes"||record?.group==="ingredients")
-  return !item.templateOrigin&&!item.modelRecipe;
- if(record?.group==="beverages")return !item.catalogPreset;
- if(record?.group==="combos")return !item.catalogPreset;
- return true;
-};
-const quantity=(records,universe,group)=>{
- let n=0;
- for(const rec of records.values())if(rec.universe!=="batataria"&&rec.universe!=="kitchen"&&rec.universe!=="default"&&rec.group===group&&custom(rec))n++;
- return n;
-};
-/** A operação não exige apagar registros anteriores que já ultrapassavam a quota. */
+// Public API for the per-scope Free quota policy.
+import {FREE_LIMITED_GROUPS,BASE_FREE_GROUPS,quotaScope,isFreeLimitedRecord,freeSlotKey,modelRecordKey} from "./free_id_policy.mjs";
+export {FREE_LIMITED_GROUPS,BASE_FREE_GROUPS,quotaScope,isFreeLimitedRecord,freeSlotKey,modelRecordKey};
 export function checkFreeUniverseDelta(before,after,universe){
- if(!universe||universe==="batataria")return {ok:true};
- for(const [group,limit] of Object.entries(FREE_LIMITED_GROUPS)){
-  const old=quantity(before,universe,group),next=quantity(after,universe,group);
-  if(next>limit&&next>old)
-   return {ok:false,group,count:next,limit,
-    error:"FREE: máximo de "+limit+" registro por funcionalidade neste universo ("+group+")."};
+ if(!universe)return {ok:true};
+ const scope=quotaScope(universe);
+ const groups=scope==="base"?BASE_FREE_GROUPS:Object.keys(FREE_LIMITED_GROUPS);
+ const count=(records,group)=>{
+  let n=0;
+  for(const rec of records.values())
+   if(quotaScope(rec.universe)===scope&&rec.group===group&&isFreeLimitedRecord(rec))n++;
+  return n;
+ };
+ for(const group of groups){
+  const old=count(before,group),next=count(after,group);
+  if(next>1&&next>old)return {ok:false,group,count:next,limit:1,
+   error:"FREE: máximo de 1 cadastro próprio para "+group+" nesse tipo de universo."};
  }
  return {ok:true};
 }

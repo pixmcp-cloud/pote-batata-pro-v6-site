@@ -4,14 +4,17 @@
 if(window.POTE_STOCK)return;
 const number=v=>{
  if(typeof v==="number")return Number.isFinite(v)?v:NaN;
- let s=String(v??"").trim().replace(/\s/g,"").replace(/^R\$/i,"");
- if(!s)return NaN;
- if(s.includes(",")&&s.includes("."))s=s.replace(/\./g,"").replace(",",".");
- else if(/^\d{1,3}(?:\.\d{3})+$/.test(s))s=s.replace(/\./g,"");
- else if(s.includes(","))s=s.replace(",",".");
+ let s=String(v??"").trim().replace(/^R\$\s*/i,"");
+ if(/^[+-]?[1-9]\d{0,2}(?:\.\d{3})+(?:,\d+)?$/.test(s))s=s.replace(/\./g,"");
+ if(!/^[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)$/.test(s))return NaN;
+ s=s.replace(",",".");
  const x=Number(s);return Number.isFinite(x)?x:NaN;
 };
-const stockNumber=v=>typeof v==="number"?v:number(v);
+const stockNumber=number;
+function physicalStock(item){
+ const stock=stockNumber(item?.stock??0);
+ return stock>=0?stock:NaN;
+}
 function normalizeInventory(data){
  const changes=[],invalid=[];
  for(const type of ["ingredients","beverages"]){
@@ -47,7 +50,8 @@ function toBase(item,quantity,unit){
 }
 function defaultUnit(item){return measureUnit(item)==="g"?"kg":measureUnit(item)==="ml"?"L":"un"}
 function formatStock(item,raw){
- const q=Math.max(0,Number(raw??item?.stock??0)),base=measureUnit(item);
+ const q=physicalStock({stock:raw??item?.stock}),base=measureUnit(item);
+ if(!Number.isFinite(q))return "Saldo inválido";
  if(base==="g")return q>=1000||q===0?decimal(q/1000)+" kg":decimal(q)+" g";
  if(base==="ml")return q>=1000||q===0?decimal(q/1000)+" L":decimal(q)+" ml";
  return decimal(q)+" un";
@@ -58,7 +62,8 @@ function purchase({ingredient,quantity,unit,paidTotal,at,supplier,purchases,move
  const total=number(paidTotal);
  if(!Number.isFinite(total)||total<=0||total>1000000000)
   throw Error("Informe o valor total efetivamente pago em reais.");
- const previous=Math.max(0,Number(ingredient.stock)||0);
+ const previous=physicalStock(ingredient);
+ if(!Number.isFinite(previous))throw Error("Saldo físico inválido. Faça uma conferência antes da compra.");
  const next=Number((previous+add).toFixed(5));
  if(!Number.isFinite(next))throw Error("Saldo de estoque inválido.");
  // Média ponderada considera o saldo anterior e o valor unitário conhecido.
@@ -107,14 +112,15 @@ function adjust({ingredient,quantity,unit,reason,movements,makeId}){
  if(!validUnit(ingredient,unit))throw Error("Unidade incompatível com o ingrediente.");
  const next=Number((q*((unit==="kg"||unit==="L")?1000:1)).toFixed(5));
  if(next>1000000000)throw Error("Saldo acima do limite permitido.");
- const previous=Math.max(0,Number(ingredient.stock)||0);
+ const previous=physicalStock(ingredient);
  const delta=next-previous;
+ const hasPrevious=Number.isFinite(previous);
  ingredient.stock=next;
  movements.unshift({id:makeId(),at:new Date().toISOString(),
   ingredientId:ingredient.id,ingredientName:ingredient.name,
-  quantity:delta,reason:"Ajuste manual: "+String(reason||"conferência").slice(0,100),
-  previousStock:previous,afterStock:next});
- return {previous,next,delta};
+  quantity:hasPrevious?delta:null,reason:"Ajuste manual: "+String(reason||"conferência").slice(0,100),
+  previousStock:hasPrevious?previous:null,afterStock:next});
+ return {previous:hasPrevious?previous:null,next,delta:hasPrevious?delta:null};
 }
-window.POTE_STOCK={number,stockNumber,normalizeInventory,decimal,money,measureUnit,validUnit,toBase,defaultUnit,formatStock,purchase,adjust};
+window.POTE_STOCK={number,stockNumber,physicalStock,normalizeInventory,decimal,money,measureUnit,validUnit,toBase,defaultUnit,formatStock,purchase,adjust};
 })();

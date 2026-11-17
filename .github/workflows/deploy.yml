@@ -31,6 +31,7 @@ jobs:
           cp v2_store_core.mjs public/v2_store_core.mjs
           cp v2_storage.mjs public/v2_storage.mjs
           cp free_limits.mjs public/free_limits.mjs
+          cp free_id_policy.mjs public/free_id_policy.mjs
           cp finance_core.js public/finance_core.js
           cp cost_history.js public/cost_history.js
           cp module_health.js public/module_health.js
@@ -183,6 +184,7 @@ jobs:
           node test_average_cost.js
           node --check public/finance_core.js
           node --check public/v2_store_core.mjs
+          node --check public/free_id_policy.mjs
           node --check public/v2_storage.mjs
           node test_free_limits.mjs
           node test_migration_preview.mjs

@@ -72,7 +72,37 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
-once("</head>", head + '<script src="./finance_core.js?v=core-20261116"></script><link rel="stylesheet" href="./franchise_shopping_list.css?v=starter-20261116"><link rel="icon" href="./assets/generic/business-neutral.svg"><link rel="stylesheet" href="./mobile.css?v=header-sync-20261116"><link rel="stylesheet" href="./supplier_directory.css?v=contacts-20261116"><link rel="stylesheet" href="./garimpo.css?v=regional-sources-20261116"><link rel="stylesheet" href="./pote_notice.css?v=aviso-20261116"><link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115"><link rel="stylesheet" href="./visual_refresh.css?v=glass-icons-20261116"><link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile"><link rel="stylesheet" href="./image_responsive.css?v=square-recipe-20261116"><link rel="stylesheet" href="./admin_console.css?v=adm-franchise-20261115"><link rel="stylesheet" href="./gallery.css?v=galeria-42h"><link rel="stylesheet" href="./business_setup.css?v=business-universes-20261115"><link rel="stylesheet" href="./stock_ui.css?v=stock-clear-20261115"><link rel="stylesheet" href="./order_ui.css?v=orders-v2-20261115"><link rel="stylesheet" href="./order_customization.css?v=custom-20261115"><link rel="stylesheet" href="./receipt_enhanced.css?v=receipt-20261115"><link rel="stylesheet" href="./pricing_explainer.css?v=price-guide-20261115"><link rel="stylesheet" href="./commerce_update.css?v=commerce-20261115"><link rel="stylesheet" href="./stock_triage.css?v=stock-priority-20261115"><link rel="stylesheet" href="./stock_update_modal.css?v=stock-update-20261115"><link rel="stylesheet" href="./losses.css?v=losses-20261116"><link rel="stylesheet" href="./cancel_order_flow.css?v=cancel-audit-20261115"><link rel="stylesheet" href="./app_audit.css?v=audit-20261115"><link rel="stylesheet" href="./release_news.css?v=news-20261115-06"><script src="./dashboard_charts.js?v=ops-20261115"></script><script src="./recipe_images.js?v=recipes-20261115"></script>' + "</head>")
+HEAD_ASSETS = (
+    '<script src="./finance_core.js?v=core-20261116"></script>'
+    '<link rel="stylesheet" href="./franchise_shopping_list.css?v=starter-20261116">'
+    '<link rel="icon" href="./assets/generic/business-neutral.svg">'
+    '<link rel="stylesheet" href="./mobile.css?v=header-sync-20261116">'
+    '<link rel="stylesheet" href="./supplier_directory.css?v=contacts-20261116">'
+    '<link rel="stylesheet" href="./garimpo.css?v=regional-sources-20261116">'
+    '<link rel="stylesheet" href="./pote_notice.css?v=aviso-20261116">'
+    '<link rel="stylesheet" href="./simulation_panel.css?v=sim-20261115">'
+    '<link rel="stylesheet" href="./visual_refresh.css?v=glass-icons-20261116">'
+    '<link rel="stylesheet" href="./floating_menu.css?v=menu-20261115-profile">'
+    '<link rel="stylesheet" href="./image_responsive.css?v=square-recipe-20261116">'
+    '<link rel="stylesheet" href="./admin_console.css?v=adm-franchise-20261115">'
+    '<link rel="stylesheet" href="./gallery.css?v=galeria-42h">'
+    '<link rel="stylesheet" href="./business_setup.css?v=business-universes-20261115">'
+    '<link rel="stylesheet" href="./stock_ui.css?v=stock-clear-20261115">'
+    '<link rel="stylesheet" href="./order_ui.css?v=orders-v2-20261115">'
+    '<link rel="stylesheet" href="./order_customization.css?v=custom-20261115">'
+    '<link rel="stylesheet" href="./receipt_enhanced.css?v=receipt-20261115">'
+    '<link rel="stylesheet" href="./pricing_explainer.css?v=price-guide-20261115">'
+    '<link rel="stylesheet" href="./commerce_update.css?v=commerce-20261115">'
+    '<link rel="stylesheet" href="./stock_triage.css?v=stock-priority-20261115">'
+    '<link rel="stylesheet" href="./stock_update_modal.css?v=stock-update-20261115">'
+    '<link rel="stylesheet" href="./losses.css?v=losses-20261116">'
+    '<link rel="stylesheet" href="./cancel_order_flow.css?v=cancel-audit-20261115">'
+    '<link rel="stylesheet" href="./app_audit.css?v=audit-20261115">'
+    '<link rel="stylesheet" href="./release_news.css?v=news-20261115-06">'
+    '<script src="./dashboard_charts.js?v=ops-20261115"></script>'
+    '<script src="./recipe_images.js?v=recipes-20261115"></script>'
+)
+once("</head>", head + HEAD_ASSETS + "</head>")
 
 gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
  <div class="pote-login-card">
@@ -125,7 +155,8 @@ SEED.brand.logoUrl=POTE_ORIGINAL_LOGO;
 window.POTE_SEED=SEED;
 const POTE_REAL_EMPTY_LISTS=[
  'ingredients','recipes','suppliers','expenses','clients','orders','recipeVersions',
- 'recipeTrash','purchases','stockMovements','beverages','addons','combos','prepBatches','losses','garimpoOffers'
+ 'recipeTrash','purchases','stockMovements','beverages','addons','combos','prepBatches',
+ 'losses','garimpoOffers','cashSessions','cashMovements'
 ];
 function poteFreshAccount(){
  const start=original();
@@ -136,6 +167,7 @@ function poteFreshAccount(){
   ? {...start.data.brand,logoUrl:POTE_ORIGINAL_LOGO}
   : {...start.data.brand,...POTE_NEUTRAL_BRAND};
  start.data.businessType='batataria'; // FREE e ADM começam na Batataria e podem selecionar outros ramos
+ start.data.businessUniverses={};
  start.data.businessTemplates={};
  start.data.kitchenStock={mode:"shared",version:1,inventory:{}};
  start.data.kitchenLogistics={couriers:[],trips:[],settlements:[]};
@@ -255,23 +287,85 @@ go=function(tab){if(window.POTE_ACCESS?.requireTab?.(tab)===false)return;const r
  if(tab==='orders')window.POTE_ORDER?.alertOnEnter?.();
  return result;
 };
+state=poteFreshAccount();
 render();
 """
-once("render();\n</script></body></html>",
-     bridge + "</script><script src=\"./simulation_panel.js?v=sim-20261115\"></script><script src=\"./supplier_integration.js?v=suppliers-20261115\"></script><script src=\"./supplier_directory.js?v=kitchen-motoboy-20261116\"></script><script src=\"./garimpo.js?v=radar-cache-20261116\"></script><script src=\"./pote_notice.js?v=aviso-20261116\"></script><script src=\"./floating_menu.js?v=delivery-hub-20261116\"></script><script src=\"./release_news.js?v=pdv-20261116\"></script><script type=\"module\" src=\"./firebase_integration.js?v=v4-pulse-20261117\"></script><script type=\"module\" src=\"./admin_console.js?v=universe-permissions-20261116\"></script><script type=\"module\" src=\"./admin_permissions.js?v=delivery-hub-20261116\"></script><script type=\"module\" src=\"./gallery.js?v=galeria-42h\"></script><script src=\"./universe_templates.js?v=universes-20261115\"></script><script src=\"./pastelaria_templates.js?v=pastelaria-20261116\"></script><script src=\"./universe_core.js?v=kitchen-motoboy-20261116\"></script><script src=\"./access_control.js?v=delivery-hub-20261116\"></script><script src=\"./business_setup.js?v=company-label-20261117\"></script><script src=\"./beverage_catalog.js?v=commerce-20261115\"></script><script src=\"./payment_flow.js?v=commerce-20261115\"></script><script src=\"./stock_inventory.js?v=stock-priority-20261115\"></script><script src=\"./stock_delete.js?v=stock-priority-20261115\"></script><script src=\"./stock_math.js?v=v3-wave1-20261116\"></script><script src=\"./stock_update_modal.js?v=stock-update-20261115\"></script><script src=\"./stock_status.js?v=audit-20261115\"></script><script src=\"./app_audit.js?v=audit-20261115\"></script><script src=\"./stock_ui.js?v=kitchen-motoboy-20261116\"></script><script src=\"./pricing_explainer.js?v=v3-wave1-20261116\"></script><script src=\"./order_customization.js?v=audit-20261115\"></script><script src=\"./receipt_enhanced.js?v=receipt-20261115\"></script><script src=\"./stock_ext.js?v=estimativa-franquia-60-20261116\"></script><script src=\"./order_guard.js?v=audit-20261115\"></script><script src=\"./cost_history.js?v=v3-cost-20261116\"></script><script src=\"./losses.js?v=v3-wave1-20261116\"></script><script src=\"./cancel_order_flow.js?v=v3-wave1-20261116\"></script><script src=\"./exit_guard.js?v=exit-v2-20261115\"></script><script type=\"module\" src=\"./franchise_sync.js?v=admin-all-universes-20261116\"></script><script type=\"module\" src=\"./franchise_shopping_list.mjs?v=starter-20261116\"></script></body></html>")
-once("</body></html>", '<link rel="stylesheet" href="./kitchen_inventory.css?v=kitchen-20261116"><script src="./kitchen_inventory.js?v=kitchen-20261116"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./notifications.css?v=header-bell-20261116"><link rel="stylesheet" href="./admin_broadcast.css?v=notices-20261116"><script type="module" src="./notifications.js?v=notices-20261116"></script><script type="module" src="./admin_broadcast.js?v=notices-20261116"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./delivery_hub.css?v=maisdelivery-pilot-20261117"><script type="module" src="./delivery_hub.js?v=maisdelivery-pilot-20261117"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./motoboy.css?v=motoboy-20261116"><script type="module" src="./motoboy.js?v=motoboy-20261116"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-20261116"><script type="module" src="./pdv_cash_ui.mjs?v=pdv-status-motion-20261117"></script><script src="./numeric_keyboard.js?v=teclado-numerico-20261116"></script><script src="./module_health.js?v=v3-wave1-20261116"></script></body></html>')
-# Calculadora independente: mesmo DOM no login FREE/PRO/ADM, sem escrita no Firestore.
-once("</body></html>", '<link rel="stylesheet" href="./pote_calc_launcher.css?v=quantum-99-20261117"><script defer src="./pote_calc_launcher.js?v=quantum-99-20261117"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./tablet_layout.css?v=tablet-responsive-20261117"><script defer src="./tablet_layout.js?v=tablet-responsive-20261117"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./compact_account_header.css?v=profile-compact-20261117"><script defer src="./compact_account_header.js?v=profile-compact-20261117"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./top_navigation.css?v=topnav-menu-20261117"><script defer src="./top_navigation.js?v=topnav-menu-20261117"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./company_pdv_polish.css?v=company-pdv-20261117"></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./premium_motion.css?v=premium-motion-20261117"><script defer src="./premium_motion.js?v=premium-motion-20261117"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./creative_studio.css?v=creative-v7-20261117"><script src="./creative_studio.js?v=creative-v7-20261117"></script><script src="./creative_prompt.js?v=prompt-v5-20261117"></script></body></html>')
+# O bloco demarcado contém a inicialização da versão offline.
+startup = re.compile(
+    r"^/\* POTE_BETA_STARTUP_BEGIN \*/\n.*?^/\* POTE_BETA_STARTUP_END \*/\n",
+    re.M | re.S,
+)
+html, startup_count = startup.subn(lambda _: bridge, html)
+if startup_count != 1:
+    raise SystemExit(f"Expected one POTE_BETA_STARTUP block ({startup_count})")
+
+BODY_ASSETS = (
+    '<script src="./simulation_panel.js?v=sim-20261115"></script>'
+    '<script src="./supplier_integration.js?v=suppliers-v4-20261117"></script>'
+    '<script src="./supplier_directory.js?v=kitchen-motoboy-20261116"></script>'
+    '<script src="./garimpo.js?v=radar-v4-20261117"></script>'
+    '<script src="./pote_notice.js?v=aviso-20261116"></script>'
+    '<script src="./floating_menu.js?v=delivery-hub-20261116"></script>'
+    '<script src="./release_news.js?v=pdv-20261116"></script>'
+    '<script type="module" src="./firebase_integration.js?v=v4-free-ids-20261117"></script>'
+    '<script type="module" src="./admin_console.js?v=universe-permissions-20261116"></script>'
+    '<script type="module" src="./admin_permissions.js?v=delivery-hub-20261116"></script>'
+    '<script type="module" src="./gallery.js?v=galeria-42h"></script>'
+    '<script src="./universe_templates.js?v=universes-20261115"></script>'
+    '<script src="./pastelaria_templates.js?v=pastelaria-20261116"></script>'
+    '<script src="./universe_core.js?v=kitchen-motoboy-20261116"></script>'
+    '<script src="./access_control.js?v=delivery-hub-20261116"></script>'
+    '<script src="./business_setup.js?v=company-label-20261117"></script>'
+    '<script src="./beverage_catalog.js?v=commerce-20261115"></script>'
+    '<script src="./payment_flow.js?v=commerce-20261115"></script>'
+    '<script src="./stock_inventory.js?v=stock-priority-20261115"></script>'
+    '<script src="./stock_delete.js?v=stock-priority-20261115"></script>'
+    '<script src="./stock_math.js?v=v4-stock-balance-20261117"></script>'
+    '<script src="./stock_update_modal.js?v=v4-stock-balance-20261117"></script>'
+    '<script src="./stock_status.js?v=audit-20261115"></script>'
+    '<script src="./app_audit.js?v=audit-20261115"></script>'
+    '<script src="./stock_ui.js?v=v4-stock-balance-20261117"></script>'
+    '<script src="./pricing_explainer.js?v=v3-wave1-20261116"></script>'
+    '<script src="./order_customization.js?v=audit-20261115"></script>'
+    '<script src="./receipt_enhanced.js?v=receipt-20261115"></script>'
+    '<script src="./stock_ext.js?v=v4-stock-balance-20261117"></script>'
+    '<script src="./order_guard.js?v=audit-20261115"></script>'
+    '<script src="./cost_history.js?v=v3-cost-20261116"></script>'
+    '<script src="./losses.js?v=v3-wave1-20261116"></script>'
+    '<script src="./cancel_order_flow.js?v=v3-wave1-20261116"></script>'
+    '<script src="./exit_guard.js?v=exit-v2-20261115"></script>'
+    '<script type="module" src="./franchise_sync.js?v=admin-all-universes-20261116"></script>'
+    '<script type="module" src="./franchise_shopping_list.mjs?v=starter-20261116"></script>'
+    '<link rel="stylesheet" href="./kitchen_inventory.css?v=kitchen-20261116">'
+    '<script src="./kitchen_inventory.js?v=kitchen-20261116"></script>'
+    '<link rel="stylesheet" href="./notifications.css?v=header-bell-20261116">'
+    '<link rel="stylesheet" href="./admin_broadcast.css?v=notices-20261116">'
+    '<script type="module" src="./notifications.js?v=notices-20261116"></script>'
+    '<script type="module" src="./admin_broadcast.js?v=notices-20261116"></script>'
+    '<link rel="stylesheet" href="./delivery_hub.css?v=maisdelivery-pilot-20261117">'
+    '<script type="module" src="./delivery_hub.js?v=maisdelivery-pilot-20261117"></script>'
+    '<link rel="stylesheet" href="./motoboy.css?v=motoboy-20261116">'
+    '<script type="module" src="./motoboy.js?v=motoboy-20261116"></script>'
+    '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-20261116">'
+    '<script type="module" src="./pdv_cash_ui.mjs?v=v4-pdv-money-20261117"></script>'
+    '<script src="./numeric_keyboard.js?v=teclado-numerico-20261116"></script>'
+    '<script src="./module_health.js?v=v3-wave1-20261116"></script>'
+    '<link rel="stylesheet" href="./pote_calc_launcher.css?v=quantum-99-20261117">'
+    '<script defer src="./pote_calc_launcher.js?v=quantum-99-20261117"></script>'
+    '<link rel="stylesheet" href="./tablet_layout.css?v=tablet-responsive-20261117">'
+    '<script defer src="./tablet_layout.js?v=tablet-responsive-20261117"></script>'
+    '<link rel="stylesheet" href="./compact_account_header.css?v=profile-compact-20261117">'
+    '<script defer src="./compact_account_header.js?v=profile-compact-20261117"></script>'
+    '<link rel="stylesheet" href="./top_navigation.css?v=topnav-menu-20261117">'
+    '<script defer src="./top_navigation.js?v=topnav-menu-20261117"></script>'
+    '<link rel="stylesheet" href="./company_pdv_polish.css?v=company-pdv-20261117">'
+    '<link rel="stylesheet" href="./premium_motion.css?v=premium-motion-20261117">'
+    '<script defer src="./premium_motion.js?v=premium-motion-20261117"></script>'
+    '<link rel="stylesheet" href="./creative_studio.css?v=creative-v7-20261117">'
+    '<script src="./creative_studio.js?v=creative-v7-20261117"></script>'
+    '<script src="./creative_prompt.js?v=prompt-v5-20261117"></script>'
+)
+once("</body>", BODY_ASSETS + "</body>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")

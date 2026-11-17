@@ -25,7 +25,7 @@ function identifyUnknown(id,kind){
 function stockInfo(item,kind){
  const held=window.POTE_STOCK_STATUS?.reserved?.(state.data);
  const reserved=kind==="beverage"?held?.beverages?.get(item.id):held?.ingredients?.get(item.id);
- const avail=Math.max(0,(Number(item.stock)||0)-(Number(reserved)||0));
+ const avail=Math.max(0,S().physicalStock(item)-(Number(reserved)||0));
  const formatting=kind==="beverage"?{...item,measureUnit:"un"}:item;
  return {physical:S().formatStock(formatting),reserved:S().formatStock(formatting,reserved||0),
   available:S().formatStock(formatting,avail)};
@@ -125,8 +125,10 @@ function open(kind,id,mode="purchase"){
   '<span><small>Reservado</small><strong>'+esc(info.reserved)+'</strong></span>'+
   '<span><small>Disponível</small><strong>'+esc(info.available)+'</strong></span>';
  $("stockUpdateMode").value=mode==="adjust"?"adjust":"purchase";
- $("stockUpdateQty").value=mode==="adjust"?
-   String((Number(item.stock)||0)/(S().defaultUnit(kind==="beverage"?{...item,measureUnit:"un"}:item)==="kg"||S().defaultUnit(kind==="beverage"?{...item,measureUnit:"un"}:item)==="L"?1000:1)):"";
+ const unit=defaultUnit(kind==="beverage"?{...item,measureUnit:"un"}:item);
+ const physical=S().physicalStock(item);
+ $("stockUpdateQty").value=mode==="adjust"&&Number.isFinite(physical)?
+   S().decimal(physical/(unit==="kg"||unit==="L"?1000:1),8):"";
  $("stockUpdatePaid").value="";
  $("stockUpdatePackCustom").value="";
  $("stockUpdateSupplier").value="";
@@ -174,7 +176,9 @@ function calc(){
  let added;
  try{added=mode==="adjust"&&quantity===0?0:S().toBase(current.kind==="beverage"?{...item,measureUnit:"un"}:item,quantity,unit)}
  catch(e){return {valid:false,reason:e.message}}
- const physical=Number(item.stock)||0;
+ const physical=S().physicalStock(item);
+ if(mode==="purchase"&&!Number.isFinite(physical))
+  return {valid:false,reason:"Saldo físico inválido. Faça uma conferência antes da compra."};
  const next=mode==="adjust"?added:physical+added;
  const paid=num($("stockUpdatePaid")?.value);
  if(mode==="purchase"&&(!Number.isFinite(paid)||paid<=0))

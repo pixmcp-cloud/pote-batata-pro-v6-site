@@ -5,6 +5,9 @@ const same={state:{mode:"free",data:{ingredients:[],orders:[{price:29,id:"o1"}]}
 assert.equal(stableJson(data.state),stableJson(same.state),"Order of Firestore map keys must not trigger a conflict");
 assert(matchesRemote(same.state,stableJson(data.state)));
 assert(!matchesRemote({...same.state,data:{...same.state.data,orders:[{id:"o2",price:50}]}},stableJson(data.state)));
+const reservedKey=JSON.parse('{"__proto__":{"flag":true},"amount":10}');
+assert.equal(stableJson(reservedKey),'{"__proto__":{"flag":true},"amount":10}');
+assert(!matchesRemote(reservedKey,stableJson({amount:10})));
 assert.equal(nextRevision(0),1);
 assert.equal(nextRevision(5),6);
 assert.equal(nextRevision(-1),1);

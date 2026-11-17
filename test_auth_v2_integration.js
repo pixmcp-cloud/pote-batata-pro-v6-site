@@ -18,6 +18,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
   elements.set(name,{...el,classList:{toggle(){}},style:{}});
  const cloud=new Map();
  cloud.set("users/u",{email:"test@example.com"});
+ cloud.set("users/new-user",{email:"new@example.com"});
  cloud.set("users/u/appState/main",{state:{data:{orders:[{id:"old-test-order"}]}},updatedAt:"LEGACY"});
  const snap=path=>({exists:()=>cloud.has(path),data:()=>cloud.has(path)?copy(cloud.get(path)):undefined,metadata:{hasPendingWrites:false}});
  const sdk={
@@ -68,9 +69,15 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  vm.createContext(ctx);vm.runInContext(source,ctx);
  auth.currentUser={uid:"u",email:"test@example.com"};
  await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_APP_READY,false);
+ assert.match(elements.get("poteLoginMessage").textContent,/conta tem dados no formato anterior/);
+ assert.equal(cloud.has("users/u/appState/v2"),false);
+ assert.equal(elements.get("poteAuthGate").hidden,false);
+ auth.currentUser={uid:"new-user",email:"new@example.com"};
+ await login(auth.currentUser);
  assert.equal(ctx.window.POTE_APP_READY,true);
- assert.equal(state.data.orders.length,0,"V2 must start empty despite old V1 test orders");
- assert(cloud.has("users/u/appState/v2"));
+ assert.equal(state.data.orders.length,0,"Uma conta nova deve iniciar sem pedidos");
+ assert(cloud.has("users/new-user/appState/v2"));
  assert.deepEqual(cloud.get("users/u/appState/main").state.data.orders,[{id:"old-test-order"}],"Legacy data must be untouched");
  assert.equal(elements.get("poteAuthGate").hidden,true);
  state.data.ingredients.push({id:"batata",stock:12000,measureUnit:"g"});
@@ -78,9 +85,9 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  listeners["pote:changed"]();
  assert(timers.get("sync"));
  const fn=timers.get("sync");timers.delete("sync");await fn();
- assert.equal(cloud.get("users/u/appState/v2InventoryGuard").revision,1);
+ assert.equal(cloud.get("users/new-user/appState/v2InventoryGuard").revision,1);
  assert.equal([...cloud.keys()].filter(x=>x.includes("/records/")).length,2);
  assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
  assert.equal(cloud.get("users/u/appState/main").state.data.orders[0].id,"old-test-order");
- console.log("PASS: login V2 integrado, conta de teste vazia, gravação atômica, regras separadas e V1 intacto.");
+ console.log("PASS: login V2 integrado, conta nova vazia, gravação atômica e conta antiga preservada.");
 })().catch(e=>{console.error(e);process.exitCode=1});

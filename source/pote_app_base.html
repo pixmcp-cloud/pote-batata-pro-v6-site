@@ -750,17 +750,26 @@ function exportData(){const b=new Blob([JSON.stringify(state.data,null,2)],{type
 async function importData(file){
  if(!file)return;
  if(window.POTE_SYNC_GUARD?.blocked){toast('Conflito de sincronização: exporte seu backup antes de importar.');return;}
+ const session=window.POTE_AUTH,accountUid=session?.uid,initialState=state,initialData=state.data;
+ const assertImportContext=()=>{
+  if(window.POTE_AUTH!==session||window.POTE_AUTH?.uid!==accountUid||state!==initialState||state.data!==initialData)
+   throw Error('A conta ou os dados mudaram durante a importação. Selecione o arquivo novamente.');
+  if(window.POTE_SYNC_GUARD?.blocked)throw Error('Conflito de sincronização: exporte seu backup antes de importar.');
+ };
  try{
   if(file.size&&file.size>4000000)throw Error('Arquivo excede 4 MB. Solicite migração assistida.');
-  const raw=JSON.parse(await file.text());
+  const content=await file.text();
+  assertImportContext();
+  const raw=JSON.parse(content);
   const v=raw?.state?.data||raw;
   const validation=validateImportData(v);
   if(!validation.ok)throw Error(validation.error);
-  if(window.POTE_AUTH?.uid&&new TextEncoder().encode(JSON.stringify({data:v})).length>850000)
+  if(accountUid&&new TextEncoder().encode(JSON.stringify({data:v})).length>850000)
    throw Error('Backup acima do limite seguro do Firestore. Não será importado sem migração V2.');
-  if(raw?.uid&&window.POTE_AUTH?.uid&&raw.uid!==window.POTE_AUTH.uid&&
+  if(raw?.uid&&accountUid&&raw.uid!==accountUid&&
     !confirm('Este backup pertence a outra conta. Deseja continuar a importação?'))return;
   if(!confirm('Importar este backup SUBSTITUI suas receitas, estoque, pedidos, clientes e outros registros. Baixar uma cópia atual antes de prosseguir?'))return;
+  assertImportContext();
   try{
    if(window.POTE_SYNC_GUARD?.downloadPending)window.POTE_SYNC_GUARD.downloadPending();
    else exportData();
@@ -800,5 +809,7 @@ function pageTests(){
  ];
  return `<div class="box"><h2>Auditoria real dos dados atuais (V6)</h2><p>As verificações abaixo examinam registros e estados concretos da V6.</p>${actual.map(([name,ok])=>`<div class="bar" style="padding:10px;border-bottom:1px solid var(--line)"><span>${escapeHtml(name)}</span>${ok?label('✓ Dados consistentes'):'❌ Problema encontrado'}</div>`).join('')}</div>`;
 }
+/* POTE_BETA_STARTUP_BEGIN */
 render();
+/* POTE_BETA_STARTUP_END */
 </script></body></html>

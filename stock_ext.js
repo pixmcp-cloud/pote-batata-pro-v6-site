@@ -90,10 +90,12 @@ function selectBeverage(id){
 function preview(){
  const b=state.data.beverages.find(x=>x.id===$("stockBeverageId")?.value);
  const target=$("stockBeveragePreview");if(!b||!target)return;
+ const physical=window.POTE_STOCK.physicalStock(b);
+ if(!Number.isFinite(physical)){target.textContent="Saldo físico inválido. Faça uma conferência antes da compra.";return}
  const qty=window.POTE_STOCK?.number?.($("stockBeverageQty")?.value);
  const paid=window.POTE_STOCK?.number?.($("stockBeveragePaid")?.value);
- if(!Number.isInteger(qty)||qty<=0){target.textContent="Estoque atual: "+(b.stock||0)+" un. Informe quantas unidades comprou.";return}
- target.textContent=(b.stock||0)+" un + "+qty+" un = "+(Number(b.stock||0)+qty)+
+ if(!Number.isInteger(qty)||qty<=0){target.textContent="Estoque atual: "+physical+" un. Informe quantas unidades comprou.";return}
+ target.textContent=physical+" un + "+qty+" un = "+(physical+qty)+
   " un. Total pago: "+(Number.isFinite(paid)&&paid>0?money(paid):"informe o valor da compra")+
   ". A compra será registrada e somada ao saldo.";
 }

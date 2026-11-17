@@ -12,6 +12,8 @@ const seed={
   suppliers:[{id:"sup"}],expenses:[{id:"ex"}],clients:[],orders:[{id:"o1",price:25}],
   recipeVersions:[],recipeTrash:[],purchases:[],stockMovements:[],
   beverages:[],addons:[],combos:[],prepBatches:[],
+  cashSessions:[{id:"demo-cash"}],cashMovements:[{id:"demo-cash-movement"}],
+  businessUniverses:{pizzaria:{orders:[{id:"archived-demo-order"}]}},
   checklist:[{id:"check",done:true}],
   settings:{estimatedMonthlyUnits:300,margin:50},brand:{name:"Potê Batata",logoUrl:"old-example"}
  },
@@ -22,13 +24,15 @@ vm.createContext(sandbox);
 vm.runInContext(bootstrap+"globalThis.checkAccount=poteFreshAccount;globalThis.isDemo=poteIsPristineSeed;",sandbox);
 const fresh=sandbox.checkAccount();
 const list=["ingredients","recipes","suppliers","expenses","clients","orders","recipeVersions",
- "recipeTrash","purchases","stockMovements","beverages","addons","combos","prepBatches"];
+ "recipeTrash","purchases","stockMovements","beverages","addons","combos","prepBatches",
+ "losses","garimpoOffers","cashSessions","cashMovements"];
 for(const k of list) assert.strictEqual(fresh.data[k].length,0,"Sample data leaked into "+k);
 assert.strictEqual(fresh.data.settings.estimatedMonthlyUnits,0);
 assert.strictEqual(fresh.data.checklist[0].done,false);
 assert.strictEqual(fresh.data.brand.logoUrl,"./assets/generic/business-neutral.svg");
 assert.strictEqual(fresh.data.brand.name,"Meu Negócio");
 assert.strictEqual(fresh.data.businessType,"batataria","FREE inicia na Batataria com todos os universos acessíveis");
+assert.deepStrictEqual(JSON.parse(JSON.stringify(fresh.data.businessUniverses)),{});
 assert.deepStrictEqual(JSON.parse(JSON.stringify(fresh.data.businessTemplates)),{});
 assert.strictEqual(sandbox.isDemo(seed),true,"Unmodified seeded FREE account must be detectable");
 const custom=JSON.parse(JSON.stringify(seed));
@@ -47,4 +51,6 @@ assert(firebase.includes("demoClearedVersion: 1"));
 assert(!/fetch\s*\(/.test(simulation),"Simulation panel should never fetch data");
 assert(!/state\.data\s*=|state\.data\.[a-zA-Z]+\s*=|setDoc\s*\(/.test(simulation),"Simulation should not mutate operational data");
 assert(html.includes("Painel de simulação") || html.includes("simulation_panel.js"));
+assert.match(html, /state=poteFreshAccount\(\);\s*render\(\);\s*<\/script>/,
+ "A beta deve iniciar com estado real vazio antes do primeiro render");
 console.log("PASS: clean new accounts, protected existing edits, mock panel isolation, cloud migration guard.");

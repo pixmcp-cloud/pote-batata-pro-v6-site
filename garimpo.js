@@ -25,8 +25,8 @@ const recent=()=>offers().slice().sort((a,b)=>String(b.checkedAt).localeCompare(
 const dist=(a,b,c,d)=>{let rad=Math.PI/180,dl=(c-a)*rad,dn=(d-b)*rad;
  let h=Math.sin(dl/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dn/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(h)))};
 const REGIONAL=()=> (state.data.suppliers||[]).filter(s=>s.osmId||s.externalId||s.supplierType==="regional"||s.type==="Local");
-let center=null,marketSearch=[],searchMessage="",busy=false,searchRegion="gps",regionInfo=null;
-let marketCache=null,autoLocationAsked=false;
+let center=null,marketSearch=[],searchMessage="",discovery=null,regionInfo=null;
+let marketCache=null;
 const CACHE_MS=12*60*1000;
 const geoDist=(a,b)=>center?dist(center.lat,center.lon,a,b):Infinity;
 const geoNearby=(lat,lon,km)=>geoDist(lat,lon)<=km;
@@ -68,16 +68,11 @@ function renderRegional(){
  if(giassi)giassi.hidden=!["SC","RS"].includes(regionInfo?.state||"");
 }
 async function identifyRegion(coords){
- // A localização e o estado não ficam salvos no servidor. Falha de geocodificação não atribui SC ou RS por suposição.
  try{
-  const u="https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=8&addressdetails=1&lat="+encodeURIComponent(coords.lat)+"&lon="+encodeURIComponent(coords.lon);
-  const response=await fetch(u,{mode:"cors"});
-  if(!response.ok)throw Error("Estado indisponível");
-  const payload=await response.json();
-  regionInfo={state:regionFromAddress(payload.address),city:String(payload.address?.city||payload.address?.town||payload.address?.municipality||"")};
- }catch(e){regionInfo={state:"",city:""};}
- renderRegional();
- return regionInfo;
+  const places=await window.POTE_SUPPLIER_SEARCH.request("reverse",{limit:1,radius:10},coords);
+  const place=places.find(f=>f.properties.countrycode==="BR")?.properties;
+  return {state:regionFromAddress(place),city:place?.city||""};
+ }catch(_){return {state:"",city:""};}
 }
 const TORRES_CENTER={lat:-29.3389427,lon:-49.7271564}; // Centro urbano de Torres/RS (Praca Quinze de Novembro)
 function markets(){const map=new Map();for(const s of [...REGIONAL(),...marketSearch]){
@@ -169,12 +164,18 @@ const officialCatalogs=[
  {test:/\bl[ií]der\b/i,name:"Supermercado Líder",url:"https://www.supermercadolider.com.br/produtos.php"}
 ];
 function storeOfficial(m){return officialCatalogs.find(x=>x.test.test(m.name))||null}
+function mapWebsite(value){
+ try{
+  const url=new URL(value);
+  return (url.protocol==="https:"||url.protocol==="http:")&&!url.username&&!url.password?url.href:"";
+ }catch(_){return "";}
+}
 function marketDetails(index){
  const m=markets()[Number(index)],host=$("garimpoMarketDetails");
  if(!m||!host)return false;
  const geo=Number(m.lat)+","+Number(m.lon),route="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(geo);
  const map="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(m.name+" "+(m.address||m.city||""));
- const official=storeOfficial(m),web=m.website&&/^https?:\/\//i.test(m.website)?m.website:official?.url;
+ const official=storeOfficial(m),web=official?.url||mapWebsite(m.website);
  const phone=String(m.phone||"").replace(/[^\d+]/g,"");
  const msg=encodeURIComponent("Olá! Qual o preço e disponibilidade de produtos para meu negócio?");
  const waDigits=phone.replace(/\D/g,"");
@@ -184,7 +185,8 @@ function marketDetails(index){
   '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(map)+'">Ver no mapa</a>',
   phone?'<a class="btn mini line" href="tel:'+esc(phone)+'">Ligar</a>':'',
   wa?'<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+wa+'?text='+msg+'">WhatsApp</a>':'',
-  web?'<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(web)+'">Site / encarte oficial</a>':'',
+  web?'<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc(web)+'">'+
+   (official?'Site / encarte oficial':'Site cadastrado no OpenStreetMap')+'</a>':'',
   '<a class="btn mini line" target="_blank" rel="noopener noreferrer" href="'+esc("https://www.google.com/search?q="+encodeURIComponent(m.name+" "+m.city+" ofertas encarte"))+'">Pesquisar ofertas</a>'
  ];
  host.innerHTML='<section class="garimpo-market-details"><h4>'+esc(m.name)+'</h4>'+
@@ -287,65 +289,83 @@ function showComparison(){
  '<p class="muted">Nenhum preço registrado. O Radar de Preço não cria preços fictícios.</p>';
 }
 async function discover(region="gps"){
- if(busy)return;busy=true;
- searchRegion=region==="torres"?"torres":"gps";
- if(searchRegion==="torres"&&!geoNearby(TORRES_CENTER.lat,TORRES_CENTER.lon,70)){busy=false;return false;}
- if(searchRegion==="torres")center={...TORRES_CENTER};
- else center=null;
+ if(discovery)return false;
+ const nearTorres=region==="torres";
+ if(nearTorres&&!geoNearby(TORRES_CENTER.lat,TORRES_CENTER.lon,70))return false;
+ const token={};
+ discovery=token;
+ center=nearTorres?{...TORRES_CENTER}:null;
  regionInfo=null;
+ marketSearch=[];
  const note=$("garimpoSearchStatus");const progress=s=>{searchMessage=s;if(note)note.textContent=s};
  let coords=center;
+ const provider=window.POTE_SUPPLIER_SEARCH;
  try{
+  if(!provider)throw Error("Pesquisa externa indisponível.");
   if(!coords){
-   if(!navigator.geolocation)throw Error("GPS indisponível neste navegador.");
+   if(window.isSecureContext===false||!navigator.geolocation)throw Error("GPS indisponível neste navegador.");
    progress("Solicitando acesso ao GPS...");
    const p=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:13000,maximumAge:120000}));
-   coords={lat:p.coords.latitude,lon:p.coords.longitude};center=coords;
+   if(discovery!==token)return false;
+   coords=provider.coordinates(p.coords.longitude,p.coords.latitude);
+   if(!coords)throw Error("O aparelho não forneceu uma localização válida.");
+   center=coords;
   }
-  if(marketCache&&Date.now()-marketCache.at<CACHE_MS&&
-     dist(coords.lat,coords.lon,marketCache.coords.lat,marketCache.coords.lon)<1){
-    marketSearch=marketCache.markets.map(x=>({...x}));
-    regionInfo={...marketCache.region};
+  const nearbyCache=marketCache && dist(coords.lat,coords.lon,marketCache.coords.lat,marketCache.coords.lon)<1;
+  if(nearbyCache&&Date.now()-marketCache.at<CACHE_MS){
+    marketSearch=marketCache.markets;
+    regionInfo=marketCache.region;
     progress(marketSearch.length+" mercados encontrados (cache local, até 12 minutos).");
     showMarkets();showComparison();renderRegional();return true;
   }
-  await identifyRegion(coords);
+  const regionResult=await identifyRegion(coords);
+  if(discovery!==token)return false;
+  regionInfo=regionResult;
   const terms=["supermercado","atacado","mercado","atacadista","hipermercado",...(["SC","RS"].includes(regionInfo?.state||"")?["Stok Center","Giassi","Combo","Bistek","Asun"]:[])];
   const found=new Map();
-  // Consultas em pares para reduzir a latência, sem sobrecarregar o Photon público.
-  for(let offset=0;offset<terms.length;offset+=2){
-   progress("Pesquisando mercados próximos: "+Math.min(terms.length,offset+2)+"/"+terms.length+" consultas...");
-   const replies=await Promise.all(terms.slice(offset,offset+2).map(async term=>{
-    const url=new URL("https://photon.komoot.io/api/");
-    url.searchParams.set("q",term);url.searchParams.set("lat",coords.lat);
-    url.searchParams.set("lon",coords.lon);url.searchParams.set("limit","40");
-    const control=typeof AbortController==="function"?new AbortController():null;
-    const watchdog=control&&typeof setTimeout==="function"?setTimeout(()=>control.abort(),9000):null;
-    try{
-     const response=await fetch(url.href,{mode:"cors",...(control?{signal:control.signal}:{})});
-     return response.ok?await response.json():null;
-    }catch(e){return null}
-    finally{if(watchdog)clearTimeout(watchdog)}
-   }));
-   for(const json of replies){
-    for(const f of json?.features||[]){
-    const p=f.properties||{},c=f.geometry?.coordinates;
-    if(!p.name||!Array.isArray(c)||dist(coords.lat,coords.lon,c[1],c[0])>30)continue;
+  let incomplete=false;
+  for(const [index,term] of terms.entries()){
+   progress("Pesquisando mercados próximos: "+(index+1)+"/"+terms.length+" consultas...");
+   let features;
+   try{
+    features=await provider.request("api",{q:term,countrycode:"BR",limit:40},coords);
+   }catch(_){incomplete=true;break;}
+   if(discovery!==token)return false;
+   for(const f of features){
+    const p=f.properties,[lon,lat]=f.geometry.coordinates;
+    if(!p.name||!p.osm_type||!p.osm_id||dist(coords.lat,coords.lon,lat,lon)>30)continue;
     const isStore=/^(supermarket|wholesale|convenience|grocery|greengrocer|beverages|department_store)$/i.test(p.osm_value||"")||
      /supermercado|mercado|atacado|atacadista|hipermercado|stok center|giassi|combo|lider|bistek|asun/i.test(p.name);
     if(!isStore)continue;
     const m={id:"osm:"+p.osm_type+":"+p.osm_id,name:p.name,city:p.city||p.district||"",
-     phone:String(p.extra?.phone||p.extra?.['contact:phone']||p.phone||""),website:String(p.extra?.website||p.extra?.['contact:website']||""),
-     address:[p.street,p.housenumber,p.city,p.state].filter(Boolean).join(", "),lat:c[1],lon:c[0],
+     phone:p.phone,website:p.website,
+     address:[p.street,p.housenumber,p.city,p.state].filter(Boolean).join(", "),lat,lon,
      osmId:String(p.osm_type)+":"+String(p.osm_id),supplierType:"regional"};
     found.set(m.osmId,m);
-    }
    }
   }
-  marketCache={at:Date.now(),coords:{...coords},region:{...regionInfo},markets:[...found.values()]};
-  marketSearch=[...found.values()];progress(marketSearch.length+" mercados encontrados dentro de 30 km da localização selecionada. Preços dependem de fontes verificáveis.");
+  if(discovery!==token)return false;
+  marketSearch=[...found.values()];
+  const canUsePrevious=incomplete&&!marketSearch.length&&nearbyCache&&Date.now()-marketCache.at<24*60*60*1000;
+  if(canUsePrevious){
+   marketSearch=marketCache.markets;
+   regionInfo=marketCache.region;
+   progress("Pesquisa externa indisponível. Exibindo resultados anteriores desta região e mercados cadastrados.");
+  }else if(incomplete){
+   progress("Pesquisa externa indisponível. Exibindo os resultados disponíveis e mercados cadastrados. Você também pode buscar por cidade em Fornecedores.");
+  }else{
+   marketCache={at:Date.now(),coords,region:regionInfo,markets:marketSearch};
+   progress(markets().length+" mercados encontrados dentro de 30 km. Preços dependem de fontes verificáveis.");
+  }
   showMarkets();showComparison();renderRegional();
- }catch(e){progress("Não foi possível pesquisar: "+(e.message||"permita o GPS e tente novamente"))}finally{busy=false}
+  return !incomplete||markets().length>0;
+ }catch(e){
+  if(discovery===token){
+   progress("Não foi possível pesquisar: "+(e.message||"localização não autorizada")+". Você pode buscar por cidade em Fornecedores.");
+   showMarkets();showComparison();renderRegional();
+  }
+  return false;
+ }finally{if(discovery===token)discovery=null;}
 }
 let mphRows=[];
 let mphHistoryContext=null;
@@ -509,7 +529,7 @@ function selectItem(){const item=stocks().find(i=>i.id===$("garimpoItem")?.value
 function render(){
  const items=stocks(),known=markets();
  return '<section class="box garimpo" id="poteGarimpoPanel"><small>INTELIGÊNCIA DE COMPRAS</small><h2>Radar de Preço</h2>'+
- '<p>Busca mercados próximos à localização autorizada em todo o Brasil, num raio de <strong>30 km</strong>. Fontes e ofertas são selecionadas por região; preços históricos não são exibidos como vigentes.</p>'+
+ '<p>Busca mercados num raio de <strong>30 km</strong>. Quando você autoriza o GPS nesta busca, o Photon recebe a localização aproximada. Dados do mapa: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© colaboradores do OpenStreetMap</a>.</p>'+
  '<div class="actions"><button class="btn" onclick="POTE_GARIMPO.discover()">Pesquisar preços em até 30 km</button>'+
  '<button class="btn line" onclick="POTE_GARIMPO.exportCSV()">Exportar planilha CSV</button>'+
  '</div><div id="garimpoRegionalActions" class="actions"></div><div id="garimpoMPHAction"></div><div id="garimpoMPHResults" aria-live="polite"></div>'+
@@ -536,24 +556,13 @@ function render(){
 }
 function mount(){
  selectItem();showMarkets();showComparison();renderRegional();
- // Nunca fazer consulta online regional automaticamente para uma região desconhecida.
- if(!autoLocationAsked&&navigator.permissions?.query&&navigator.geolocation){
-  autoLocationAsked=true;
-  navigator.permissions.query({name:"geolocation"}).then(p=>{
-   if(p.state==="granted"&&navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(pos=>{
-     center={lat:pos.coords.latitude,lon:pos.coords.longitude};
-     identifyRegion(center).then(()=>{showMarkets();showComparison();});
-    },()=>{}, {enableHighAccuracy:false,timeout:7000,maximumAge:120000});
-   }
-  }).catch(()=>{});
- }
 }
-window.addEventListener?.("pote:user-logout",()=>{
- center=null;regionInfo=null;marketSearch=[];marketCache=null;autoLocationAsked=false;
+function clearSearch(){
+ center=null;regionInfo=null;marketSearch=[];marketCache=null;discovery=null;searchMessage="";
  mphRows=[];mphHistoryContext=null;
-});
-window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,bestClub,csvSafe,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,identifyRegion,
+}
+for(const event of ["pote:user-logout","pote:user-ready"])window.addEventListener?.(event,clearSearch);
+window.POTE_GARIMPO={render,mount,discover,addOffer,removeOffer,exportCSV,lookupMPH,showMPHHistory,mphHistoryList,fillFromMPH,selectItem,stocks,offers,markets,marketDetails,loadPublicPrices,selectOnlineItem,onlineMatches,status,active,unitPrice,matcher,best,bestClub,csvSafe,dist,searchUrl,regionalLinks,regionFromAddress,renderRegional,
  setCenter:c=>{center=c},setRegionInfo:v=>{regionInfo=v;renderRegional()},
  setMarketSearch:v=>{marketSearch=v}};
 })();

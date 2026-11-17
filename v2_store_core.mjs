@@ -1,6 +1,7 @@
 /* Potê Batata Pro — normalized V2 storage codec.
    Pure functions. Never reads or writes Firebase. */
-import {stableJson,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
+import {stableJson,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
+import {freeSlotKey,modelRecordKey} from "./free_id_policy.mjs";
 
 export const RECORD_GROUPS=[
  "recipes","ingredients","orders","clients","suppliers","expenses",
@@ -35,6 +36,36 @@ export function recordPathParts(encodedId){
  if(!RECORD_GROUPS.includes(group))throw Error("Grupo desconhecido");
  return {universe,group,id};
 }
+function rankGapStep(prior,start,end){
+ const count=end-start-1;
+ if(!count)return 1;
+ const left=prior[start],right=prior[end];
+ if(left===undefined||right===undefined){
+  const edge=left??right;
+  if(edge===undefined)return 1;
+  const step=Math.max(1,2*Number.EPSILON*Math.abs(edge));
+  const farthest=left===undefined?edge-step*count:edge+step*count;
+  return Number.isFinite(farthest)?step:null;
+ }
+ const step=(right-left)/(count+1);
+ const minimum=Number.EPSILON*Math.max(1,Math.abs(left),Math.abs(right));
+ return step>minimum&&left+step*count<right?step:null;
+}
+function widenRankGap(prior,anchors,gap,budget){
+ // Procura a menor janela contígua que libera espaço entre duas âncoras.
+ for(let removed=1;removed<=budget;removed++){
+  const first=Math.max(0,gap-1-removed);
+  const last=Math.min(gap-1,anchors.length-2-removed);
+  for(let left=last;left>=first;left--){
+   const right=left+removed+1;
+   if(rankGapStep(prior,anchors[left],anchors[right])!==null){
+    anchors.splice(left+1,removed);
+    return left+1;
+   }
+  }
+ }
+ return -1;
+}
 // Mantém o maior conjunto possível de posições anteriores, mas persiste
 // reordenações reais. Inserir um pedido novo não deve regravar pedidos antigos.
 function assignRanks(entries,previousRecords){
@@ -59,35 +90,34 @@ function assignRanks(entries,previousRecords){
   while(index!==-1){anchors.push(index);index=links[index]}
   anchors.reverse();
  }
- const ranks=new Array(n);
- for(const i of anchors)ranks[i]=prior[i];
- let start=-1;
- for(const end of [...anchors,n]){
-  const count=end-start-1;
-  if(count){
-   const left=start>=0?ranks[start]:null;
-   const right=end<n?ranks[end]:null;
-   if(left===null&&right===null){
-    for(let j=start+1;j<end;j++)ranks[j]=j;
-   }else if(left===null){
-    for(let j=start+1;j<end;j++)ranks[j]=right-(end-j);
-   }else if(right===null){
-    for(let j=start+1;j<end;j++)ranks[j]=left+(j-start);
-   }else{
-    const step=(right-left)/(count+1);
-    const minStep=Number.EPSILON*Math.max(1,Math.abs(left),Math.abs(right));
-    if(!(step>minStep)){
-      // Rebalance small collections; the V2 transaction validates the resulting diff.
-      if(n>=MAX_CHANGES_PER_TX)throw Error("Ordenacao saturada: grupo grande requer importacao em lotes");
-      return entries.map((_,idx)=>idx*1000);
-     }
-    for(let j=start+1;j<end;j++)ranks[j]=left+step*(j-start);
-   }
-  }
-  start=end;
+ // As linhas sem âncora já podem consumir parte do orçamento. O limite real
+ // da transação ainda é aplicado ao diff completo de todos os grupos.
+ let budget=MAX_CHANGES_PER_TX-(n-anchors.length);
+ anchors.unshift(-1);
+ anchors.push(n);
+ const saturated="Ordenacao saturada: grupo grande requer importacao em lotes";
+ for(let gap=1;gap<anchors.length;){
+  if(rankGapStep(prior,anchors[gap-1],anchors[gap])!==null){gap++;continue}
+  if(n<MAX_CHANGES_PER_TX)return entries.map((_,idx)=>idx*1000);
+  const before=anchors.length;
+  gap=widenRankGap(prior,anchors,gap,budget);
+  if(gap<0)throw Error(saturated);
+  budget-=before-anchors.length;
  }
- for(let i=1;i<n;i++)if(!(ranks[i]>ranks[i-1])){
-  if(n>=MAX_CHANGES_PER_TX)throw Error("Ordenacao saturada: grupo grande requer importacao em lotes");
+ const ranks=new Array(n);
+ for(let gap=1;gap<anchors.length;gap++){
+  const start=anchors[gap-1],end=anchors[gap];
+  const left=prior[start],right=prior[end];
+  const step=rankGapStep(prior,start,end);
+  if(start>=0)ranks[start]=left;
+  for(let j=start+1;j<end;j++){
+   if(left!==undefined)ranks[j]=left+step*(j-start);
+   else if(right!==undefined)ranks[j]=right-step*(end-j);
+   else ranks[j]=j;
+  }
+ }
+ if(ranks.some((rank,i)=>!Number.isFinite(rank)||(i>0&&rank<=ranks[i-1]))){
+  if(n>=MAX_CHANGES_PER_TX)throw Error(saturated);
   return entries.map((_,idx)=>idx*1000);
  }
  return ranks;
@@ -97,9 +127,27 @@ function rowInfo(item,idx){
  const id=typeof source.id==="string"&&source.id?source.id:"_row_"+idx;
  return {id,item:copy(item)};
 }
-export function splitState(state,previousRecords=new Map()){
+function historicalFreeSlots(previousRecords){
+ const slots=new Map();
+ for(const [key,record] of previousRecords){
+  const slot=freeSlotKey(record);
+  if(!slot)continue;
+  if(!slots.has(slot))slots.set(slot,new Map());
+  slots.get(slot).set(recordId(record.universe,record.group,record.id),key);
+ }
+ for(const [slot,items] of slots)if(items.size<2)slots.delete(slot);
+ return slots;
+}
+function freeLimitError(group,slot){
+ const scope=slot.startsWith("free~base~")?"universo base":"conjunto dos ramos extras";
+ const error=Error("FREE: máximo de 1 cadastro próprio em "+group+" no "+scope+".");
+ error.code="free/limit";
+ return error;
+}
+export function splitState(state,previousRecords=new Map(),{free=false}={}){
  if(!state?.data||typeof state.data!=="object")throw Error("Estado V2 inválido");
  const meta=copy(state),records=new Map(),errors=[];
+ const historical=free?historicalFreeSlots(previousRecords):new Map();
  delete meta.mode;delete meta.tab;delete meta.expansion;
  const data=meta.data;
  const active=branchId(data);
@@ -117,16 +165,37 @@ export function splitState(state,previousRecords=new Map()){
    const rows=asList(branch?.[group]);
    const entries=rows.map((item,idx)=>{
     const {id}=rowInfo(item,idx);
-    const key=recordId(universe,group,id);
-    return {key,id,item,idx};
+    const recordInfo={universe,group,id};
+    const originalKey=recordId(universe,group,id);
+    const templateKey=modelRecordKey(recordInfo);
+    const slot=free?freeSlotKey(recordInfo):null;
+    const previousSlot=historical.get(slot);
+    if(previousSlot){
+     // Uma renovação vencida não deve reescrever nem apagar o histórico excedente.
+     const retainedKey=previousSlot.get(originalKey);
+     if(!retainedKey)throw freeLimitError(group,slot);
+     return {key:retainedKey,id,item,idx,legacySlot:retainedKey!==slot?slot:null};
+    }
+    const hasLegacyModel=templateKey&&previousRecords.has(originalKey);
+    const key=(templateKey&&!hasLegacyModel?templateKey:null)||slot||originalKey;
+    return {key,id,item,idx,migrateModel:free&&hasLegacyModel?templateKey:null};
    });
    const seen=new Set(),assignedRanks=assignRanks(entries,previousRecords);
    for(const entry of entries){
+    if(free&&entry.key.startsWith("free~")&&(seen.has(entry.key)||records.has(entry.key)))
+     throw freeLimitError(group,entry.key);
     if(seen.has(entry.key)){errors.push("ID duplicado em "+universe+"/"+group+"/"+entry.id);continue}
     seen.add(entry.key);
     const record={universe,group,id:entry.id,item:copy(entry.item),rank:assignedRanks[entry.idx]};
+    const recordChanged=entry.legacySlot||entry.migrateModel ?
+     stableJson(previousRecords.get(entry.key))!==stableJson(record) : false;
+    if(entry.legacySlot&&recordChanged){
+     const error=Error("Este cadastro permanece no histórico. Para editá-lo, regularize a cota do plano ou ative o Pro.");
+     error.code="free/limit";
+     throw error;
+    }
     if(jsonBytes(record)>MAX_APPSTATE_BYTES){errors.push("Registro muito grande: "+universe+"/"+group+"/"+entry.id);continue}
-    records.set(entry.key,record);
+    records.set(entry.migrateModel&&recordChanged?entry.migrateModel:entry.key,record);
    }
    branchMeta[group]=empty();
   }

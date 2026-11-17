@@ -1,9 +1,9 @@
 /* Firebase V2 repository. Store one logical record per document.
    No legacy deletes. In test-only cutover, old appState/main remains untouched.
    All inventory-sensitive edits serialize through the same transaction guard. */
-import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=adm-v2-recipes-20261116";
-import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
-import {checkFreeUniverseDelta} from "./free_limits.mjs?v=kitchen-motoboy-20261116";
+import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=v4-free-ids-20261117";
+import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
+import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
 const fail=(code,message)=>{const error=new Error(message);error.code=code;throw error};
@@ -13,6 +13,7 @@ const token=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID
 export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
  const {doc,collection,getDoc,getDocs,runTransaction,onSnapshot,serverTimestamp}=sdk;
  const root=doc(db,"users",uid,"appState","v2");
+ const legacyRef=doc(db,"users",uid,"appState","main");
  const guardRef=doc(db,"users",uid,"appState","v2InventoryGuard");
  const pulseRef=doc(db,"users",uid,"appState","v2Pulse");
  const recordsRef=collection(db,"users",uid,"records");
@@ -21,12 +22,14 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
  let saving=false,disposed=false,lastSavedJson="",needsFullRefresh=false;
  const recordRef=key=>doc(db,"users",uid,"records",key);
  const stateJson=()=>JSON.stringify(snapshot());
+ const matchesRecordKey=(key,entry)=>entry&&entry.group&&entry.universe&&(
+  key===recordId(entry.universe,entry.group,entry.id)||key===freeSlotKey(entry)||key===modelRecordKey(entry));
  const loadDocuments=async()=>{
   const result=new Map(),snap=await getDocs(recordsRef);
   for(const d of snap.docs){
    const entry=d.data()?.record;
    if(!entry||!entry.group||!entry.universe)throw Error("Registro V2 inválido: "+d.id);
-   if(d.id!==recordId(entry.universe,entry.group,entry.id))
+   if(!matchesRecordKey(d.id,entry))
     throw Error("Identificador V2 divergente: "+d.id);
    result.set(d.id,entry);
   }
@@ -43,6 +46,9 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
     await runTransaction(db,async tx=>{
      const current=await tx.get(root);
      if(current.exists())fail("sync/conflict","Conta foi inicializada em outra sessão");
+     const legacy=await tx.get(legacyRef);
+     if(legacy.exists()&&legacy.data()?.state!=null)
+      throw Error("A conta tem dados no formato anterior. A migração precisa preservar o histórico antes de iniciar o V2.");
      tx.set(root,{schemaVersion:2,state:clean.meta,updatedAt:serverTimestamp()});
      tx.set(guardRef,{revision:0,updatedAt:serverTimestamp()});
      tx.set(pulseRef,{eventId:token(),origin:session,updatedAt:serverTimestamp()});
@@ -76,18 +82,18 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   if(current===lastSavedJson)return {ok:true,unchanged:true};
   let next,delta;
   try{
-   next=splitState(snapshot(),baseline.records);
-   // O FREE tem uma ação/cadastro por grupo operacional em cada ramo extra.
-   // Conferimos o delta antes de qualquer transação, sem reescrever legados.
    const client=typeof window!=="undefined"?window.POTE_AUTH:null;
-   if(client?.uid&&!client.proActive){
+   const free=Boolean(client?.uid===uid&&!client.proActive);
+   next=splitState(snapshot(),baseline.records,{free});
+   // The backend also enforces one canonical record ID for each Free slot.
+   if(free){
     const branch=String(snapshot()?.data?.businessType||"");
     const quota=checkFreeUniverseDelta(baseline.records,next.records,branch);
     if(!quota.ok)return {ok:false,code:"free/limit",error:quota.error};
    }
    delta=diffState(baseline,next);
    validateChangeSet(delta);
-  }catch(e){return {ok:false,error:e.message,code:"sync/invalid-state"}}
+  }catch(e){return {ok:false,error:e.message,code:e.code==="free/limit"?e.code:"sync/invalid-state"}}
   if(!delta.changes.length){lastSavedJson=current;return {ok:true,unchanged:true}}
   saving=true;
   const old=baseline,oldGuard=guardRevision;
@@ -171,8 +177,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
     changes.forEach((key,index)=>{
      const entry=changedDocs[index].data()?.record;
      if(!changedDocs[index].exists()){nextRecords.delete(key);return}
-     if(!entry||!entry.group||!entry.universe||
-       key!==recordId(entry.universe,entry.group,entry.id))
+     if(!matchesRecordKey(key,entry))
       fail("sync/schema","Registro atualizado com identificador divergente");
      nextRecords.set(key,entry);
     });

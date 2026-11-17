@@ -260,9 +260,11 @@ function preview(){
  if(!qty){target.textContent="Saldo atual: "+S.formatStock(item)+". Informe uma quantidade para calcular o saldo após a compra.";return}
  try{
   const plus=S.toBase(item,qty,unit),total=S.number(paid);
+  const physical=S.physicalStock(item);
+  if(!Number.isFinite(physical))throw Error("Saldo físico inválido. Faça uma conferência antes da compra.");
   target.innerHTML="<b>Saldo antes:</b> "+e(S.formatStock(item))+
    " <b>+ Entrada:</b> "+e(S.formatStock(item,plus))+
-   " <b>= Saldo depois:</b> "+e(S.formatStock(item,(Number(item.stock)||0)+plus))+
+   " <b>= Saldo depois:</b> "+e(S.formatStock(item,physical+plus))+
    "<span>"+(Number.isFinite(total)&&total>0?"Valor total pago: "+e(S.money(total)):"Informe também o valor total pago.")+"</span>";
  }catch(err){target.textContent=err.message}
 }

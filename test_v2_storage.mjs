@@ -42,15 +42,23 @@ const fire={
 const empty=()=>({data:{businessType:"batataria",businessUniverses:{},settings:{margin:50},brand:{name:"Potê"},
  orders:[],ingredients:[],beverages:[],recipes:[],clients:[],suppliers:[],expenses:[],
  purchases:[],stockMovements:[],losses:[]}});
-const make=()=>{
+const make=(uid="u")=>{
  let state=empty(),messages=[];
- const store=createV2Store({uid:"u",db:null,sdk:fire,
+ const store=createV2Store({uid,db:null,sdk:fire,
   fresh(){state=empty()},
   snapshot(){return copy(state)},
   apply(value){state=copy(value)},
   status:x=>messages.push(x)});
  return {store,read:()=>copy(state),mutate:fn=>fn(state),messages};
 };
+const frozenLegacy={state:{data:{orders:[{id:"old-order"}]}}};
+db.set("users/legacy/appState/main",frozenLegacy);
+const legacy=make("legacy");
+await assert.rejects(legacy.store.load(),/conta tem dados no formato anterior/);
+assert.deepEqual(db.get("users/legacy/appState/main"),frozenLegacy);
+assert(!db.has("users/legacy/appState/v2"));
+assert(!db.has("users/legacy/appState/v2InventoryGuard"));
+legacy.store.dispose();
 const a=make(),b=make();
 const loaded=await a.store.load();
 assert.equal(loaded.created,true);

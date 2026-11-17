@@ -76,6 +76,24 @@ assert.equal(U.save(),true);
 assert.equal(bebida.stock,30);
 assert.equal(bebida.purchasePrice,240);
 assert.equal(data.purchases.at(0).itemKind,"beverage");
+batata.stock="20.000,50";
+U.open("ingredient","batata","purchase");
+el("stockUpdateQty").value="1,25";el("stockUpdatePaid").value="16,90";
+assert.equal(U.calc().after,21250.5);
+assert.equal(U.save(),true);
+assert.equal(batata.stock,21250.5);
+batata.stock=1234;
+U.open("ingredient","batata","adjust");
+assert.equal(el("stockUpdateQty").value,"1,234");
+assert.equal(U.calc().after,1234,"Salvar o campo preenchido não altera o saldo por um fator de mil");
+batata.stock="saldo inválido";
+U.open("ingredient","batata","adjust");
+assert.equal(el("stockUpdateQty").value,"");
+assert.equal(U.save(),false,"A conferência requer uma contagem informada quando o saldo é inválido");
+el("stockUpdateQty").value="2";
+assert.equal(U.save(),true);
+assert.equal(batata.stock,2000);
+assert.equal(data.stockMovements.at(0).previousStock,null);
 U.open("ingredient","seedfork","purchase");
 assert(el("stockUpdateSnapshot").textContent.includes("não está no estoque"));
 assert.equal(U.recover("seedfork"),true);
@@ -86,7 +104,7 @@ assert(el("stockUpdateError").innerHTML.includes("Cadastro indisponível"));
 assert.equal(data.ingredients.some(i=>i.id==="missing-abc"),false,"Não inventar cadastro");
 assert(pers>=4&&renders>=4);
 const pub=source("public/index.html");
-for(const script of ["stock_update_modal.js?v=stock-update-20261115",
- "stock_math.js?v=v3-wave1-20261116"])
+for(const script of ["stock_update_modal.js?v=v4-stock-balance-20261117",
+ "stock_math.js?v=v4-stock-balance-20261117"])
  assert(pub.includes(script),"Script ausente: "+script);
 console.log("PASS: compra por dúzia/atacado 10 kg, valor pago, saldo físico, bebida, conferência zero e recuperação sem estoque fictício.");
