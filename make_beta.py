@@ -15,8 +15,8 @@ def once(old, new):
 
 once("function pro(){return false} function master(){return false}",
      "function pro(){return Boolean(window.POTE_AUTH?.role==='admin'||window.POTE_AUTH?.proActive)} function master(){return Boolean(window.POTE_AUTH?.role==='admin')}")
-once("function render(){state.mode='free';document.body.classList.toggle('admin-mode',false);",
-     "function render(){state.mode=master()?'adm':pro()?'pro':'free';document.body.classList.toggle('admin-mode',master());")
+once("function render(){window.POTE_EXIT?.beforeRender?.(state);state.mode='free';document.body.classList.toggle('admin-mode',false);",
+     "function render(){window.POTE_EXIT?.beforeRender?.(state);state.mode=master()?'adm':pro()?'pro':'free';document.body.classList.toggle('admin-mode',master());")
 # Em producao, o distintivo mostra a licença real, nunca acesso simulado.
 html, real_badge_count = re.subn(
  r"document.getElementById\('modeBadge'\)\.textContent=state\.mode==='free'\?.*?;document.getElementById\('pageTitle'\)",
@@ -351,7 +351,8 @@ BODY_ASSETS = (
     '<script src="./cost_history.js?v=v3-cost-20261116"></script>'
     '<script src="./losses.js?v=v3-wave1-20261116"></script>'
     '<script src="./cancel_order_flow.js?v=v3-wave1-20261116"></script>'
-    '<script src="./exit_guard.js?v=exit-v2-20261115"></script>'
+    '<script src="./exit_guard.js?v=android-back-drafts-v5-20261117"></script>'
+    '<script src="./recipe_photo.js?v=recipe-square-v5-20261117"></script>'
     '<script type="module" src="./franchise_sync.js?v=admin-all-universes-20261116"></script>'
     '<script type="module" src="./franchise_shopping_list.mjs?v=starter-20261116"></script>'
     '<link rel="stylesheet" href="./kitchen_inventory.css?v=kitchen-20261116">'

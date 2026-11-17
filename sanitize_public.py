@@ -18,9 +18,9 @@ s=s.replace(old,"function setMode(m){state.mode='free';persist();render();toast(
 old="for(const m of ['free','pro','adm'])document.getElementById(m+'Btn').classList.toggle('active',m===state.mode);"
 if old not in s: raise SystemExit('Renderização de modos não encontrada')
 s=s.replace(old,"",1)
-old="function render(){document.body.classList.toggle('admin-mode',master());"
+old="function render(){window.POTE_EXIT?.beforeRender?.(state);document.body.classList.toggle('admin-mode',master());"
 if old not in s: raise SystemExit('Renderização principal não encontrada')
-s=s.replace(old,"function render(){state.mode='free';document.body.classList.toggle('admin-mode',false);",1)
+s=s.replace(old,"function render(){window.POTE_EXIT?.beforeRender?.(state);state.mode='free';document.body.classList.toggle('admin-mode',false);",1)
 s=s.replace('LABORATÓRIO V6 • OPERAÇÃO COMPLETA + VITRINE','V6 • DEMONSTRAÇÃO FREE')
 s=s.replace('</head>', '<meta name="robots" content="noindex,nofollow,noarchive"></head>', 1)
 s=s.replace('🧪 Todos os perfis são simulações. Os dados ficam somente neste aparelho.','🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.')

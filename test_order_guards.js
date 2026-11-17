@@ -10,7 +10,7 @@ function el(id){
  });
  return elements.get(id)
 }
-const document={body:{appendChild(){}},
+const document={body:{appendChild(){}},addEventListener(){},
  getElementById(id){return el(id)},
  createElement(){return el("generated"+elements.size)},
  querySelectorAll(sel){
@@ -19,7 +19,7 @@ const document={body:{appendChild(){}},
  }};
 const loc={href:"https://example.com/app/"};
 let pushed=0,moved=0,confirmCount=0,confirmValue=false;
-const history={pushState(){pushed++},go(n){moved=n}};
+const history={replaceState(){},pushState(){pushed++},go(n){moved=n}};
 const recipe={id:"r1",name:"X-Salada",packagingIngredientIds:["pack"],items:[{id:"potato",g:500},{id:"cheese",g:50}]};
 const ingredients=[
  {id:"potato",name:"Batata",measureUnit:"g",yield:100,stock:3000,category:"Base"},
@@ -116,7 +116,7 @@ const E=window.POTE_EXIT;
 E.arm();assert.equal(E.isArmed(),true);
 assert.equal(pushed,1,"A saída do Android deve poder ser interceptada pela entrada de histórico");
 const pop=listeners.get("popstate");
-assert(pop);pop();assert.equal(el("poteExitConfirm").hidden,false,"Voltar deve pedir confirmação");
+assert(pop);pop({state:null});assert.equal(el("poteExitConfirm").hidden,false,"Voltar deve pedir confirmação");
 assert.equal(pushed,2);
 const unload=listeners.get("beforeunload");
 const event={preventDefault(){this.prevented=true},returnValue:null};
@@ -133,7 +133,7 @@ for(const term of ["checkBeforeRegister","checkBeforeProduce","ordersHistoryTitl
 }
 const html=read("public/index.html");
 for(const path of ["order_guard.js?v=audit-20261115",
- "exit_guard.js?v=exit-v2-20261115","order_ui.css?v=orders-v2-20261115"]){
+ "exit_guard.js?v=android-back-drafts-v5-20261117","order_ui.css?v=orders-v2-20261115"]){
  assert(html.includes(path),"Falta incluir "+path+" no site final");
 }
 assert(read("firebase_integration.js").includes("POTE_EXIT?.confirmLogout?.()"),"Sair exige confirmação");
