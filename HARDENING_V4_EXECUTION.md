@@ -82,3 +82,12 @@ Do not merge into main or change production rules until actual data backups are 
 - Known critical unresolved: F19 Free quota directly bypassable through authenticated Firestore V2 writes. Draft rules for F18 are tested but not deployed, and cannot fix F19 alone.
 - No live Firestore rules deployment, no data migration, no Firebase Storage, no paid services, no Floot change.
 - The 35-item program remains INCOMPLETE. This release is a validated beta subset, not a full commercial security signoff.
+
+
+## F18/F19 QA continuation
+- The user confirmed all existing accounts are TEST accounts; no customer production records need legacy migration.
+- Free licensing now uses deterministic server-enforced per-scope/group V2 document IDs. No paid backend or extra quota writes required.
+- Bundled model recipes/ingredients use deterministic model document keys. Forged templateOrigin is not trusted.
+- Firebase Emulator verified first Free recipe, edit, second denied, replace, re-login, Pro multi-recipe, template catalogs and clone-blocking.
+- Backend Firestore rules are staged in firestore.rules; previous file saved as firestore.pre-free-quota.rules for rollback.
+- Real Firebase rules and site deployment status must be recorded only after confirmed.

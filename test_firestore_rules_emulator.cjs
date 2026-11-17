@@ -4,12 +4,12 @@ const toolsPath=process.env.POTE_RULES_TOOLING||'C:/Users/LIVRESOM/Documents/Git
 const externalRequire=createRequire(path.join(toolsPath,'package.json'));
 const {initializeTestEnvironment,assertSucceeds,assertFails}=externalRequire('@firebase/rules-unit-testing');
 const {doc,getDoc,setDoc,updateDoc,deleteDoc,Timestamp,serverTimestamp}=externalRequire('firebase/firestore');
-const hardened=process.env.POTE_HARDENED_RULES==='1';
-const rules=fs.readFileSync(path.join(__dirname,hardened?'firestore.hardened.rules':'firestore.rules'),'utf8');
+const hardened=process.env.POTE_HARDENED_RULES!=='0';
+const rules=fs.readFileSync(path.join(__dirname,hardened?'firestore.rules':'firestore.pre-free-quota.rules'),'utf8');
 const projectId='demo-pote-hardening';
 let env;
 (async()=>{
- env=await initializeTestEnvironment({projectId,firestore:{host:'127.0.0.1',port:8787,rules}});
+ env=await initializeTestEnvironment({projectId,firestore:{host:'127.0.0.1',port:Number(process.env.POTE_FIRESTORE_EMULATOR_PORT||8787),rules}});
  const owner=(id,email,verified=true)=>env.authenticatedContext(id,{
    email,email_verified:verified,firebase:{sign_in_provider:'google.com'}
  }).firestore();
@@ -29,9 +29,16 @@ let env;
  await assertFails(getDoc(doc(unverified,'users','free-uid')));
  await assertFails(updateDoc(doc(free,'users','free-uid'),{license:{status:'active',kind:'lifetime',term:'lifetime'}}));
  const ingredientRecord=(id)=>({record:{universe:'batataria',group:'ingredients',id,item:{id,name:'Item '+id},rank:0},updatedAt:serverTimestamp()});
- await assertSucceeds(setDoc(doc(free,'users','free-uid','records','free-record-a'),ingredientRecord('a')));
- await assertSucceeds(setDoc(doc(free,'users','free-uid','records','free-record-b'),ingredientRecord('b')));
- console.log('CONFIRMED_F19: Free can write two ingredients directly to V2 Firestore; UI quotas are not enforced by rules.');
+ if(hardened){
+  await assertFails(setDoc(doc(free,'users','free-uid','records','free-record-a'),ingredientRecord('a')));
+  await assertSucceeds(setDoc(doc(free,'users','free-uid','records','free~base~ingredients'),ingredientRecord('a')));
+  await assertFails(setDoc(doc(free,'users','free-uid','records','free-record-b'),ingredientRecord('b')));
+  console.log('F19 FIXED: Free cannot create arbitrary second V2 ingredient document.');
+ }else{
+  await assertSucceeds(setDoc(doc(free,'users','free-uid','records','free-record-a'),ingredientRecord('a')));
+  await assertSucceeds(setDoc(doc(free,'users','free-uid','records','free-record-b'),ingredientRecord('b')));
+  console.log('Baseline F19 bypass reproduced.');
+ }
  if(hardened){
   await assertFails(setDoc(doc(free,'users','free-uid','orders','order-direct'),{status:'created',price:10}));
   await assertSucceeds(setDoc(doc(premium,'users','pro-uid','orders','legacy-pro-order'),{status:'created',price:10}));
@@ -49,5 +56,5 @@ let env;
  await assertFails(updateDoc(doc(premium,'users','pro-uid','records','cash-2'),{'record.item.amount':200}));
  await assertFails(deleteDoc(doc(premium,'users','pro-uid','records','cash-2')));
  await assertSucceeds(getDoc(doc(admin,'users','free-uid')));
- console.log('PASS firebase emulator: Google verification, tenant isolation, license protection, financial immutability, legacy rule checks. F19 remains unresolved.');
+ console.log('PASS Firebase Emulator: verified Google login, owner isolation, Free quota, license protection, financial immutability and legacy write controls.');
 })().catch(e=>{console.error('EMULATOR TEST FAILED',e.stack||String(e));process.exitCode=1}).finally(async()=>{if(env)await env.cleanup()});

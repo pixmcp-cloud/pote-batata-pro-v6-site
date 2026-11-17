@@ -4,7 +4,7 @@ assert(rules.includes("rules_version = '2'"),"Rules V2 required");
 assert(rules.includes("request.auth.uid == userId"),"Tenant UID isolation required");
 assert(rules.includes("request.auth.token.firebase.sign_in_provider == 'google.com'"),"Google provider gate required");
 assert(rules.includes("request.auth.token.email_verified == true"),"Verified email gate required");
-assert(rules.includes("allow read, write: if canAccess(userId)"),"Tenant document policy must be enforced");
+assert(rules.includes("allow read: if canAccess(userId)")&&rules.includes("allow create, update, delete: if canWriteLegacy(userId)"),"Legacy reads must remain tenant-scoped and Free writes restricted");
 assert(rules.includes("match /records/{recordId}"),"V2 per-entity record collection required");
 assert(rules.includes("allow get, list: if canAccess(userId)"),"V2 reads must enforce tenant isolation");
 assert(rules.includes("request.resource.data.record.group in"),"V2 must whitelist record groups");

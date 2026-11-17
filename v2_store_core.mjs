@@ -1,6 +1,7 @@
 /* Potê Batata Pro — normalized V2 storage codec.
    Pure functions. Never reads or writes Firebase. */
 import {stableJson,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
+import {freeSlotKey,modelRecordKey} from "./free_id_policy.mjs";
 
 export const RECORD_GROUPS=[
  "recipes","ingredients","orders","clients","suppliers","expenses",
@@ -97,7 +98,7 @@ function rowInfo(item,idx){
  const id=typeof source.id==="string"&&source.id?source.id:"_row_"+idx;
  return {id,item:copy(item)};
 }
-export function splitState(state,previousRecords=new Map()){
+export function splitState(state,previousRecords=new Map(),{free=false}={}){
  if(!state?.data||typeof state.data!=="object")throw Error("Estado V2 inválido");
  const meta=copy(state),records=new Map(),errors=[];
  delete meta.mode;delete meta.tab;delete meta.expansion;
@@ -117,7 +118,11 @@ export function splitState(state,previousRecords=new Map()){
    const rows=asList(branch?.[group]);
    const entries=rows.map((item,idx)=>{
     const {id}=rowInfo(item,idx);
-    const key=recordId(universe,group,id);
+    const recordInfo={universe,group,id};
+    const originalKey=recordId(universe,group,id);
+    const templateKey=modelRecordKey(recordInfo);
+    const key=(templateKey&&!(previousRecords.has(originalKey)&&!free)?templateKey:null)
+      ||(free?freeSlotKey(recordInfo):null)||originalKey;
     return {key,id,item,idx};
    });
    const seen=new Set(),assignedRanks=assignRanks(entries,previousRecords);

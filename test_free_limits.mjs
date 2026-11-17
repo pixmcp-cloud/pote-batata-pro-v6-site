@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import {checkFreeUniverseDelta} from "./free_limits.mjs?v=kitchen-motoboy-20261116";
 const sample=(group,id,item={})=>({universe:"pastelaria",group,id,item});
 const mock=(...rows)=>new Map(rows.map((r,i)=>[String(i),r]));
-const seed=mock(sample("recipes","ps-1",{templateOrigin:"pastelaria",modelRecipe:true}),
- sample("recipes","ps-2",{templateOrigin:"pastelaria",modelRecipe:true}),
- sample("ingredients","ps-in-massa",{templateOrigin:"pastelaria"}));
+const seed=mock(sample("recipes","ps-01",{templateOrigin:"pastelaria",modelRecipe:true}),
+ sample("recipes","ps-02",{templateOrigin:"pastelaria",modelRecipe:true}),
+ sample("ingredients","ps-in-massa-fresca-para-pastel",{templateOrigin:"pastelaria"}));
 assert(checkFreeUniverseDelta(new Map(),seed,"pastelaria").ok);
+// Catalog identity is explicit; user-controlled model flags do not bypass quota.
+const fraud=mock(sample("recipes","fake1",{templateOrigin:"pastelaria",modelRecipe:true}),
+ sample("recipes","fake2",{templateOrigin:"pastelaria",modelRecipe:true}));
+assert.equal(checkFreeUniverseDelta(new Map(),fraud,"pastelaria").ok,false);
 const one=mock(...seed.values(),sample("orders","o1"));
 assert(checkFreeUniverseDelta(seed,one,"pastelaria").ok);
 const two=mock(...one.values(),sample("orders","o2"));

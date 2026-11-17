@@ -3,7 +3,7 @@
    All inventory-sensitive edits serialize through the same transaction guard. */
 import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=adm-v2-recipes-20261116";
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
-import {checkFreeUniverseDelta} from "./free_limits.mjs?v=kitchen-motoboy-20261116";
+import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
 const fail=(code,message)=>{const error=new Error(message);error.code=code;throw error};
@@ -26,7 +26,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   for(const d of snap.docs){
    const entry=d.data()?.record;
    if(!entry||!entry.group||!entry.universe)throw Error("Registro V2 inválido: "+d.id);
-   if(d.id!==recordId(entry.universe,entry.group,entry.id))
+   if(d.id!==recordId(entry.universe,entry.group,entry.id)&&d.id!==freeSlotKey(entry)&&d.id!==modelRecordKey(entry))
     throw Error("Identificador V2 divergente: "+d.id);
    result.set(d.id,entry);
   }
@@ -76,11 +76,11 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   if(current===lastSavedJson)return {ok:true,unchanged:true};
   let next,delta;
   try{
-   next=splitState(snapshot(),baseline.records);
-   // O FREE tem uma ação/cadastro por grupo operacional em cada ramo extra.
-   // Conferimos o delta antes de qualquer transação, sem reescrever legados.
    const client=typeof window!=="undefined"?window.POTE_AUTH:null;
-   if(client?.uid&&!client.proActive){
+   const free=Boolean(client?.uid===uid&&!client.proActive);
+   next=splitState(snapshot(),baseline.records,{free});
+   // The backend also enforces one canonical record ID for each Free slot.
+   if(free){
     const branch=String(snapshot()?.data?.businessType||"");
     const quota=checkFreeUniverseDelta(baseline.records,next.records,branch);
     if(!quota.ok)return {ok:false,code:"free/limit",error:quota.error};
