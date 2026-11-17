@@ -12,8 +12,21 @@
 .hero{display:none!important}
 /* Menus still use the real admin permission gate; administrative links live in Meu perfil. */
 #navdesktop [data-tab="admin"],#navmobile [data-tab="admin"],#poteFloatNavigation [data-tab="admin"]{display:none!important}
-#poteFloatToggle{top:calc(10px + env(safe-area-inset-top,0px))!important;right:11px!important;display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+/* O botão real do menu é parte da mesma barra, não um elemento fixo solto. */
+#poteTopActions #poteFloatToggle{
+ position:relative!important;inset:auto!important;top:auto!important;right:auto!important;
+ bottom:auto!important;left:auto!important;transform:none!important;
+ margin:0!important;flex:0 0 48px!important;
+ display:flex!important;visibility:visible!important;opacity:1!important;
+ pointer-events:auto!important;width:48px!important;height:51px!important;
+ border-radius:12px!important;z-index:1!important;
+}
+.headin>.brand[data-pote-menu-clickable]{cursor:pointer;touch-action:manipulation;border-radius:11px}
+.headin>.brand[data-pote-menu-clickable]:focus-visible{outline:2px solid #edc58b;outline-offset:3px}
+.pote-top-actions{position:relative;z-index:2}
+@media(max-width:550px){.headin>.brand>span{display:none!important}.headin>.brand{flex:1 1 auto!important}.headin>.brand img{flex:0 0 auto!important}}
+@media(max-width:390px){#poteTopActions #poteFloatToggle{width:44px!important;height:50px!important;flex-basis:44px!important}}
 body:has(#poteProfileOverlay:not([hidden])) #poteFloatToggle{visibility:hidden!important;pointer-events:none!important}
-@media(min-width:851px){.headin{padding-left:20px!important;padding-right:83px!important}.pote-top-actions{gap:10px}}
-@media(max-width:850px){.headin{min-height:68px!important;padding:8px 70px 8px 10px!important;gap:7px!important}.headin>.brand img{width:36px!important;height:36px!important}.headin>.brand>span{font-size:clamp(11px,3.15vw,15px)!important}}
-@media(max-width:390px){.headin{padding-right:61px!important;padding-left:7px!important}.headin>.brand img{width:32px!important;height:32px!important}.headin>.brand small{font-size:8px!important}.pote-top-actions{gap:2px}.pote-top-actions .home-hero-button{width:43px!important;min-width:43px!important;height:50px!important}.pote-top-actions .home-hero-button svg{width:23px!important;height:23px!important}.pote-top-actions .home-hero-label{font-size:8px!important}#poteFloatToggle{right:7px!important}}
+@media(min-width:851px){.headin{padding-left:20px!important;padding-right:20px!important}.pote-top-actions{gap:10px}}
+@media(max-width:850px){.headin{min-height:68px!important;padding:8px 12px 8px 10px!important;gap:7px!important}.headin>.brand img{width:36px!important;height:36px!important}.headin>.brand>span{font-size:clamp(11px,3.15vw,15px)!important}}
+@media(max-width:390px){.headin{padding-right:7px!important;padding-left:7px!important}.headin>.brand img{width:32px!important;height:32px!important}.headin>.brand small{font-size:8px!important}.pote-top-actions{gap:2px}.pote-top-actions .home-hero-button{width:43px!important;min-width:43px!important;height:50px!important}.pote-top-actions .home-hero-button svg{width:23px!important;height:23px!important}.pote-top-actions .home-hero-label{font-size:8px!important}#poteFloatToggle{right:7px!important}}

@@ -26,7 +26,24 @@
    calc.innerHTML='<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2.5"/><rect x="8" y="5" width="8" height="4"/><path d="M8.5 12h1M12 12h1M15.5 12h1M8.5 15.5h1M12 15.5h1M15.5 15.5h1"/></svg><span class="home-hero-label">Calculadora</span>';
    calc.addEventListener('click',()=>window.POTE_CALC?.open?.());
   }
-  if(calc.parentElement!==toolbar)toolbar.appendChild(calc);
+  /* Requested order: clickable logo | Calculator | Home | hamburger. */
+  toolbar.appendChild(calc);
+  toolbar.appendChild(home);
+  const menu=document.getElementById('poteFloatToggle');
+  if(menu&&menu.parentElement!==toolbar)toolbar.appendChild(menu);
+  const brand=header.querySelector('.brand');
+  if(brand&&!brand.dataset.poteMenuClickable){
+   brand.dataset.poteMenuClickable='1';
+   brand.setAttribute('role','button');
+   brand.setAttribute('tabindex','0');
+   brand.setAttribute('aria-label','Abrir menu de operações');
+   brand.setAttribute('title','Abrir menu');
+   const openMenu=()=>{document.getElementById('poteFloatToggle')?.click()};
+   brand.addEventListener('click',openMenu);
+   brand.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();openMenu()}
+   });
+  }
   /* Menu access to admin is removed from general navigation, but retained in
      profile behind the existing authenticated administrative permission check. */
   const hideAdminLinks=()=>{

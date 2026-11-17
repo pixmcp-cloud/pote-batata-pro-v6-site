@@ -5,10 +5,16 @@ const beta=fs.readFileSync('make_beta.py','utf8'),workflow=fs.readFileSync('.git
 new vm.Script(js);
 for(const marker of ['poteTopActions','poteHomeShortcut','poteHeroCalculator','POTE_CALC','poteFloatNavigation','data-tab="admin"'])assert(js.includes(marker),'Missing '+marker);
 assert(js.includes('toolbar.appendChild(home)')&&js.includes('toolbar.appendChild(calc)'),'Move both icons to header');
+assert(js.lastIndexOf('toolbar.appendChild(calc);')<js.lastIndexOf('toolbar.appendChild(home);'),'Calculadora must precede Inicio');
+assert(js.includes("menu.parentElement!==toolbar")&&js.includes("toolbar.appendChild(menu)"),'Original hamburger button must appear beside the other icons');
+assert(js.includes("brand.addEventListener('click',openMenu)"),'Tapping logo must open the same menu');
+assert(js.includes("brand.addEventListener('keydown'"),'Logo must be keyboard accessible');
+assert(css.includes('#poteTopActions #poteFloatToggle{'),'Hamburger inside header must override floating position');
+assert(css.includes('position:relative!important;inset:auto!important;'),'Hamburger must not float outside the toolbar');
 assert(css.includes('.hero{display:none!important}'),'Remove obsolete page hero');
 assert(css.includes('.head{position:sticky!important;top:0!important'),'Sticky header');
-assert(css.includes('#poteFloatToggle{top:'),'Hamburger in header');
+assert(css.includes('#poteTopActions #poteFloatToggle{'),'Hamburger visible inside top action group');
 assert(css.includes('#navdesktop [data-tab="admin"]'),'Exclusive admin remains profile-only');
-assert(beta.includes('top_navigation.js?v=topnav-20261117'));
+assert(beta.includes('top_navigation.js?v=topnav-menu-20261117'));
 assert(workflow.includes('cp top_navigation.css public/top_navigation.css'));
 console.log('PASS sticky header, home/calc, removed hero, profile-only admin menu');
