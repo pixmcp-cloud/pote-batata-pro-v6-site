@@ -13,7 +13,34 @@ function writeStatus(message){
  const text=el('csPromptStatus');if(text)text.textContent=message;
 }
 function notice(message){if(typeof toast==='function')toast(message)}
+const DESIGNS={
+ impact:{
+  name:'CAMPANHA DE IMPACTO OURO / FOOD AD',
+  direction:'Direção de arte de propaganda gastronômica de alta conversão: layout vibrante, luxuoso e moderno, preto espresso (#160e0b), dourado âmbar (#e8b955), amarelo de oferta (#ffc52f), toques vermelho queimado (#a5341c), branco limpo para leitura. Fundo marrom-escuro cinematográfico com bokeh quente de restaurante desfocado; tipografia bold, elegante e sem exageros. Evite apresentação de catálogo simples, arte cinza fria, título pequeno ou preço solto sem design.',
+  banner:'Faixa de OFERTA com geometria editorial assimétrica em amarelo-dourado e lettering escuro/vermelho, posicionada no terço superior, nítida e sem cobrir o alimento.',
+  price:'Selo de oferta preto profundo com contorno dourado fino, à direita no terço superior ou médio, preço antigo PEQUENO e riscado dentro do selo, preço atual ENORME e dourado com alinhamento profissional.',
+  cta:'Rodapé com botão/placa de contorno dourado e ícone simples de contato, texto legível e telefone separado. Estética de anúncio de fast casual premium, não cartão genérico.'
+ },
+ editorial:{
+  name:'EDITORIAL GASTRONÔMICO SOFISTICADO',
+  direction:'Foto gastronômica premium com acabamento editorial, tipografia refinada, fundos profundos e quentes, uso econômico de dourado, grandes áreas de respiro e hierarquia rigorosa.',
+  banner:'Linha de campanha editorial elegante, com destaque equilibrado e tipografia refinada.',
+  price:'Selo de preço elegante, leitura imediata, contorno sutil e alinhamento cuidadoso.',
+  cta:'Chamada final clara em pequena barra editorial com contato.'
+ },
+ minimal:{
+  name:'MINIMALISMO COMERCIAL PREMIUM',
+  direction:'Identidade gráfica clean de alto padrão, fundo neutro com profundidade, produto protagonista e alto contraste de leitura, sem excesso de elementos.',
+  banner:'Etiqueta compacta de oferta de aspecto premium.',
+  price:'Bloco único de preço, limpo e muito legível.',
+  cta:'Chamada minimalista com contraste e margem generosa.'
+ }
+};
 const SCENES={
+ campaign:{
+  label:'Cenário de campanha quente',
+  scene:'Coloque o recipiente original sobre tábua ou pequena plataforma de madeira escura fosca e de alta qualidade. Plano de apoio espresso marrom profundo com textura sutil. Fundo de estúdio quase preto com luzes âmbar/douradas de restaurante fora de foco criando bokeh cinematográfico e profundidade. Evite cinza chapado, cozinha, parede sem graça e aparência de catálogo. Base com sombra real de contato.'
+ },
  slate:{
   label:'Pedra escura premium',
   scene:'Coloque o recipiente original sobre uma placa retangular de ardósia preta fosca, levemente elevada sobre uma bancada de estúdio antracite. Fundo seamless cinza-carvão com gradiente discreto, distante e desfocado. Sombra real de contato sob a ardósia, sem ambiente de cozinha.'
@@ -41,6 +68,7 @@ const ANGLES={
  top:'Câmera levemente superior a 50–55 graus, lente 50–70 mm, suficientemente inclinada para mostrar a comida e a lateral do recipiente, sem virar uma foto aérea plana.'
 };
 const LIGHTS={
+ campaign:'Iluminação comercial gastronômica: softbox grande lateral a 45°, fill suave do lado oposto, contraluz dourada muito sutil sobre o alimento e brilho controlado nos queijos. Fundo com bokeh âmbar quente, contraste forte mas natural, balanço de branco quente profissional. Realce texturas apetitosas e cores verdadeiras, sem amarelar o recipiente branco, sem HDR exagerado ou saturação artificial.',
  appetizing:'Luz principal softbox grande a 45 graus pela esquerda, balanço de branco quente moderado (aprox. 5000 K), rebatedor suave à direita, recorte discreto atrás. Cores gastronômicas naturais e vivas: milho amarelo realista, bacon dourado, queijo com textura, verdes frescos sem neon. Contraste médio-alto, microtextura fina, brilho controlado, sombra física macia.',
  clean:'Iluminação editorial clara com softbox amplo na diagonal, preenchimento neutro e fundo limpo. Branco balanceado, saturação comedida, contraste natural, alimentos frescos, textura real, sombras de contato e destaques sem estourar.',
  dramatic:'Iluminação editorial dramática controlada, key light quente lateral e rim light fino, fundo escuro elegante, luz de preenchimento suficiente para preservar ingredientes. Pretos profundos sem perder detalhes; cores apetitosas naturais, sem HDR.'
@@ -49,9 +77,10 @@ function buildPrompt(c,mode){
  const format=clean(c.ratio,12),dims=sizes[format]||'resolução compatível';
  const name=clean(c.name,100),brandName=clean(c.brand.name||'Minha empresa',75);
  const photoOnly=mode==='photo';
- const stage=SCENES[el('csPromptScene')?.value]||SCENES.slate;
+ const stage=SCENES[el('csPromptScene')?.value]||SCENES.campaign;
  const angle=ANGLES[el('csPromptAngle')?.value]||ANGLES.threeQuarter;
- const light=LIGHTS[el('csPromptLight')?.value]||LIGHTS.appetizing;
+ const light=LIGHTS[el('csPromptLight')?.value]||LIGHTS.campaign;
+ const design=DESIGNS[el('csPromptDesign')?.value]||DESIGNS.impact;
  const flavors=(c.ingredients||[]).filter(Boolean).slice(0,4).map(x=>clean(x,45));
  const sceneFacts=flavors.length?'Ingredientes confirmados: '+flavors.join(', ')+'.':'Os ingredientes da ficha não estão informados; usar apenas os visíveis na foto de referência.';
  const includeLogo=!!c.showLogo;
@@ -67,6 +96,7 @@ function buildPrompt(c,mode){
   '',
   'REFERÊNCIA VISUAL 1 — FOTO DO PRODUTO: utilize a IMAGEM 1 para reproduzir fielmente o alimento, o recipiente, os recheios e a porção. RECONSTRUA UMA NOVA CENA DE ESTÚDIO e SUBSTITUA COMPLETAMENTE a bancada de inox, mesa e fundo da fotografia de referência.',
   'MARCA DO ESTABELECIMENTO: '+brandName+'.',
+  'ESTILO VISUAL OBRIGATÓRIO: '+design.name+'. '+design.direction,
   'PRODUTO: '+name+'. '+sceneFacts,
   'CENÁRIO E BASE FÍSICA: '+stage.scene,
   'CÂMERA: '+angle,
@@ -85,7 +115,12 @@ function buildPrompt(c,mode){
   const desc=clean(c.description,160);
   shot.push(
    'LAYOUT PUBLICITÁRIO COMPLETO — TODOS OS TEXTOS ABAIXO SÃO PARTE DA IMAGEM FINAL:',
-   'A foto do produto deverá ocupar a área central dominante, em torno de 60–70% da composição. Reserve áreas de fundo limpo para textos. Distribuição sugerida no story 9:16: logo e título no topo, produto central dominante, descrição curta próxima ao produto e oferta + CTA no rodapé. Sem cobrir a comida.',
+   'COMPOSIÇÃO PUBLICITÁRIA 9:16, se formato vertical: (1) topo 5–16%: logomarca original à esquerda e faixa OFERTA DO DIA destacada ao lado; (2) de 17–32%: nome grande do sabor com tipografia marcante e descrição em até duas linhas de bom contraste; (3) canto superior direito, fora da comida: selo especial do preço; (4) centro de 30–83%: fotografia do pote GRANDE, apetitoso, com perspectiva realista, preenchendo 65–78% da largura e ganhando prioridade visual; (5) rodapé 86–97%: CTA e WhatsApp em faixa elegante. Ajuste essas zonas naturalmente sem sobrepor texto ao produto.',
+   'ESTRUTURA DE DESIGN: '+design.banner,
+   'PREÇO COMO ELEMENTO GRÁFICO: '+design.price,
+   'CTA COMO PEÇA GRÁFICA: '+design.cta,
+   'FOTOGRAFIA HERO: o produto é a maior atração, mais próximo da câmera do que uma foto simples de catálogo. Pode haver um vapor MUITO discreto e fisicamente plausível apenas se o prato estiver quente, sem esconder a comida. Fundo quente desfocado e iluminação apetitosamente contrastada.',
+   'PARA FORMATOS DIFERENTES DE 9:16: reorganize blocos para a proporção escolhida mantendo a mesma ordem de hierarquia e sem reduzir o produto a miniatura.',
    'TÍTULO SUPERIOR EXATO: "'+clean(c.headline,90)+'"',
    'NOME DO SABOR EM DESTAQUE: "'+name+'"',
    'DESCRIÇÃO COMERCIAL OBRIGATÓRIA, legível e sem substituições: "'+desc+'"',
@@ -101,7 +136,7 @@ function buildPrompt(c,mode){
  }
  shot.push(
   '',
-  'ACABAMENTO: fotografia de alimento para campanha de restaurante premium, cores equilibradas, sombras e reflexos realistas, sem aparência de render 3D, sem HDR exagerado e sem marcas gráficas adicionais.',
+  'ACABAMENTO: parecer peça criada por agência de marketing gastronômico premium, com fotografia de restaurante real e direção de arte profissional. Não gerar foto simples sobre fundo cinza, layout vazio com letras brancas genéricas, precificação desalinhada, cartaz sem selo de oferta, texturas plásticas ou elementos falsos. Precisão no português e na moeda.',
   'ENTREGA: uma única imagem final, na proporção '+format+', com todos os elementos especificados para o modo selecionado.'
  );
  return shot.join('\n');
@@ -213,7 +248,7 @@ window.creativeDownloadLogo=async function(){
 const changeControls=new Set([
  'creativeRecipe','creativeRatio','csStyle','csCampaign','csPhotoFocus',
  'creativeOld','creativeSale','creativeHeadline','creativeBody','creativeCta',
- 'csPromptScene','csPromptAngle','csPromptLight',
+ 'csPromptScene','csPromptAngle','csPromptLight','csPromptDesign',
  'csShowPrice','csShowOld','csShowPhone','csShowLogo','csShowCta','csPromptMode'
 ]);
 function onPromptFormChange(event){

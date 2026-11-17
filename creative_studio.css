@@ -186,6 +186,7 @@
 .creative-studio .cs-prompt-actions a.btn{color:#f1dfc3!important;background:#1d2b33!important;border:1px solid #9f8e73!important}
 
 /* Studio options for scene, camera angle and lighting in AI photo prompts. */
+.creative-studio #csPromptDesign,
 .creative-studio #csPromptScene,
 .creative-studio #csPromptAngle,
 .creative-studio #csPromptLight{

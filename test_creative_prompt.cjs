@@ -49,9 +49,14 @@ assert(fs.readFileSync(__dirname+'/creative_studio.js','utf8').includes('onclick
  assert(copied.includes('FOTO DO PRODUTO')&&copied.includes('IMAGEM 1'));
  assert(copied.includes('CENÁRIO E BASE FÍSICA'));
  assert(copied.includes('SUBSTITUA COMPLETAMENTE'));
- assert(copied.includes('ardósia preta fosca'));
+ assert(copied.includes('mesa')||copied.includes('madeira escura fosca'));
+ assert(copied.includes('bokeh cinematográfico')&&copied.includes('dourado'));
+ assert(copied.includes('CAMPANHA DE IMPACTO OURO'));
+ assert(copied.includes('Selo de oferta preto profundo com contorno dourado fino'));
+ assert(copied.includes('Faixa de OFERTA com geometria editorial assimétrica'));
+ assert(copied.includes('produto hero')&&copied.includes('OFERTA'));
  assert(copied.includes('35–40 graus'));
- assert(copied.includes('Luz principal softbox'));
+ assert(copied.includes('softbox grande lateral'));
  assert(copied.includes('bancada de inox'));
  assert(!copied.includes('Manter o mesmo produto, porção, embalagem'));
  assert(!copied.includes('Sal e temperos secos'));

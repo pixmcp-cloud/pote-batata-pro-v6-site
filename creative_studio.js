@@ -142,24 +142,31 @@ function page(){
  '<p>Para produzir sua campanha com a sua marca, envie <strong>DUAS IMAGENS à IA</strong>: a foto real do produto e a logomarca original. O prompt pedirá para colocar a logo na arte, sem redesenhá-la.</p>'+
  '<div class="cs-prompt-steps"><span><b>1</b> Baixe a foto do produto</span><span><b>2</b> Baixe a logo da empresa</span><span><b>3</b> No Gemini, anexe as duas imagens e cole o prompt</span></div>'+
  select('Resultado para IA','csPromptMode',[['ad','Anúncio completo: foto, logo, descrição e preço'],['photo','Somente foto de estúdio + logo (sem descrição)']],'ad')+
+ select('Direção visual da campanha','csPromptDesign',[
+ ['impact','Impacto comercial · ouro e alto contraste (padrão)'],
+ ['editorial','Editorial gastronômico sofisticado'],
+ ['minimal','Minimalista premium']
+ ],'impact')+
  select('Cenário e plataforma','csPromptScene',[
+ ['campaign','Mesa escura + bokeh dourado (padrão)'],
  ['slate','Pedra preta + estúdio premium'],
  ['travertine','Pedra clara + luz quente'],
  ['board','Tábua de madeira + estilo artesanal'],
  ['tray','Bandeja preta + fundo editorial'],
  ['neutral','Pedestal bege + fundo minimalista']
- ],'slate')+
+ ],'campaign')+
  select('Ângulo da câmera','csPromptAngle',[
  ['threeQuarter','3/4 a 35° (recomendado)'],
  ['low','Ângulo baixo a 20°'],
  ['top','Levemente superior a 55°']
  ],'threeQuarter')+
  select('Cores e iluminação','csPromptLight',[
+ ['campaign','Dourado comercial: intenso e natural'],
  ['appetizing','Quente natural, apetitoso'],
  ['clean','Luz clara de estúdio'],
  ['dramatic','Editorial dramático']
- ],'appetizing')+
- '<p class="cs-prompt-tip">O modo <strong>Anúncio completo</strong> inclui foto profissional, logo, título, descrição, preço e CTA. Use <strong>Somente foto</strong> apenas quando quiser acrescentar os textos depois no editor. A IA substitui o cenário e preserva a comida.</p>'+
+ ],'campaign')+
+ '<p class="cs-prompt-tip"><strong>Padrão de campanha:</strong> fundo café escuro com luz âmbar, faixa promocional dourada, produto em tamanho grande e preço em selo de alto contraste. A IA aplica a logo original e somente os textos cadastrados. Use <strong>Somente foto</strong> para obter a cena sem elementos comerciais.</p>'+
  '<label class="cs-prompt-label" for="csPromptText">Prompt preparado para copiar</label>'+
  '<textarea id="csPromptText" rows="13" readonly spellcheck="false"></textarea>'+
  '<p id="csPromptStatus" class="cs-prompt-status" role="status" aria-live="polite"></p>'+
