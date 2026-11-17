@@ -1,10 +1,12 @@
 // Firebase Emulator only. No live database credentials, no network production writes.
 const { initializeEmulator, assertSucceeds, assertFails, sdk } = require('./qa/firestore/environment.cjs');
 const { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp, serverTimestamp } = sdk;
-const hardened=process.env.POTE_HARDENED_RULES==='1';
+const selectCandidate=process.env.POTE_HARDENED_RULES==='1';
+// Both the public Firestore rules and the regression candidate now enforce quotas.
+const hardened=true;
 let env;
 (async()=>{
- env=await initializeEmulator({ hardened });
+ env=await initializeEmulator({ hardened: selectCandidate });
  const owner=(id,email,verified=true)=>env.authenticatedContext(id,{
    email,email_verified:verified,firebase:{sign_in_provider:'google.com'}
  }).firestore();

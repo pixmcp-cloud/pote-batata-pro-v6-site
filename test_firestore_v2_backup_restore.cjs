@@ -77,6 +77,9 @@ test('restaura um JSON exportado pelo aplicativo na mesma conta do Firestore V2'
   const uid = `restore-test-${randomUUID()}`;
   const email = 'backup-test@example.com';
   const identity = { email, email_verified: true, firebase: { sign_in_provider: 'google.com' } };
+  // Simulate the authenticated browser. V2 Free record IDs depend on POTE_AUTH.
+  global.window = { POTE_AUTH: { uid, proActive: false } };
+  t.after(() => { delete global.window; });
   const db = environment.authenticatedContext(uid, identity).firestore();
   await sdk.setDoc(sdk.doc(db, 'users', uid), { email, displayName: 'Conta de teste do backup' });
 

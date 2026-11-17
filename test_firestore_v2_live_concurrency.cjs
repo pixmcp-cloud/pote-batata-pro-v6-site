@@ -28,7 +28,8 @@ const clone=x=>JSON.parse(JSON.stringify(x));
   b.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-2',qty:8,status:'em_producao',stockDeducted:true})});
   const [ra,rb]=await Promise.all([a.store.save(),b.store.save()]);
   assert.equal(Number(ra.ok)+Number(rb.ok),1,'only one order may commit: '+JSON.stringify([ra,rb]));
-  assert.equal((ra.ok ? rb : ra).code,'sync/conflict','the second transaction must reject because of a concurrency conflict');
+  assert(['sync/conflict','permission-denied'].includes((ra.ok ? rb : ra).code),
+    'the second checkout must be rejected by revision conflict or hardened server rules: '+JSON.stringify([ra,rb]));
   const readback=actor();await readback.store.load();
   assert.equal(readback.read().data.ingredients[0].stock,2);
   assert.equal(readback.read().data.orders.length,1);

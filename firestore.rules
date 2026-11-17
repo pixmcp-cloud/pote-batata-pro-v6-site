@@ -44,8 +44,61 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/users/$(userId))
           && premiumProfile(userId));
     }
+    // Legacy collections can be read for migration/export but never used by a
+    // Free account as an unrestricted alternative to V2 quota-controlled flows.
+    // Compatible with V2: appState/v2, v2InventoryGuard and v2Pulse remain writable.
+    function canWriteLegacy(userId) {
+      return isAdmin()
+        || (isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && premiumProfile(userId));
+    }
+    function freeScope(record) {
+      return record.universe in ['batataria','default','kitchen'] ? 'base' : 'extra';
+    }
+    function freeQuotaId(record) {
+      return 'free~' + freeScope(record) + '~' + record.group;
+    }
+    function isFreeLimitedGroup(record) {
+      return (freeScope(record) == 'base' &&
+        record.group in ['recipes','ingredients','clients','suppliers','expenses','beverages','addons','combos'])
+       || (freeScope(record) == 'extra' &&
+        record.group in ['recipes','ingredients','orders','clients','suppliers','expenses',
+          'purchases','losses','prepBatches','beverages','addons','combos']);
+    }
+    function isTrustedModel(record) {
+      let category = record.universe + "|" + record.group;
+      return
+        category == "batataria|recipes" ? record.id.matches("^(r01|r02|r03|r04|r05|r06|r07|r08|r09|r10|r11|r12|r13|r14|r15|r16|r17|r18|r19|r20|r21|r22|r23|r24|r25|r26)$") :
+        category == "batataria|ingredients" ? record.id.matches("^(batata|leite|manteiga|sal|frango|calabresa|bacon|carne|patinho|costela|seca|camarao|blumenau|requeijao|mussarela|cheddar|parmesao|gorgonzola|creme|tomate|cebola|milho|brocolis|palmito|azeitona|pimentao|champignon|batata_palha|verde|bbq|presunto|salsicha|oregano|batata_doce|condensado|leite_po|avelas|cacau|granulado|chocolate_escuro|chocolate_branco|morango|emb_pote|emb_talher|emb_sacola)$") :
+        category == "batataria|expenses" ? record.id.matches("^(ex-gas|ex-luz|ex-agua|ex-pessoal|ex-gasolina|ex-frete)$") :
+        category == "batataria|beverages" ? record.id.matches("^preset-(agua-(sem|com)-gas|(guarana|cola|laranja)-(lata|600|zero-600))$") :
+        category == "batataria|combos" ? record.id == "starter-potato-soda" :
+        category == "pizzaria|recipes" ? record.id.matches("^(pz-01|pz-02|pz-03|pz-04|pz-05|pz-06|pz-07|pz-08|pz-09|pz-10|pz-11|pz-12|pz-13|pz-14|pz-15|pz-16|pz-17|pz-18|pz-19|pz-20|pz-21|pz-22|pz-23|pz-24|pz-25|pz-26|pz-27|pz-28|pz-29|pz-30)$") :
+        category == "pizzaria|ingredients" ? record.id.matches("^(pz-in-massa-para-pizza-aberta|pz-in-molho-de-tomate-temperado|pz-in-mucarela|pz-in-calabresa-fatiada|pz-in-cebola-roxa|pz-in-frango-desfiado|pz-in-requeijao-cremoso|pz-in-milho-verde|pz-in-tomate-em-rodelas|pz-in-manjericao-fresco|pz-in-azeite-de-oliva|pz-in-mucarela-adicional|pz-in-oregano|pz-in-presunto|pz-in-ovo-cozido|pz-in-ervilha|pz-in-azeitona-preta|pz-in-provolone|pz-in-gorgonzola|pz-in-parmesao|pz-in-pepperoni|pz-in-alho-fresco|pz-in-lombo-canadense|pz-in-bacon|pz-in-atum-escorrido|pz-in-palmito|pz-in-abobrinha|pz-in-berinjela|pz-in-pimentao|pz-in-champignon|pz-in-brocolis|pz-in-rucula|pz-in-tomate-seco|pz-in-pimenta-dedo-de-moca|pz-in-queijo-prato|pz-in-camarao-limpo|pz-in-carne-seca-dessalgada|pz-in-molho-barbecue|pz-in-chocolate-ao-leite|pz-in-creme-de-leite|pz-in-morango|pz-in-banana|pz-in-canela-em-po|pz-in-leite-condensado|pz-in-goiabada)$") :
+        category == "hamburgueria|recipes" ? record.id.matches("^(hb-01|hb-02|hb-03|hb-04|hb-05|hb-06|hb-07|hb-08|hb-09|hb-10|hb-11|hb-12|hb-13|hb-14|hb-15|hb-16|hb-17|hb-18|hb-19|hb-20|hb-21|hb-22|hb-23|hb-24|hb-25|hb-26|hb-27|hb-28|hb-29|hb-30)$") :
+        category == "hamburgueria|ingredients" ? record.id.matches("^(hb-in-pao-para-hamburguer|hb-in-hamburguer-bovino|hb-in-sal|hb-in-queijo-cheddar|hb-in-picles|hb-in-ketchup|hb-in-mostarda|hb-in-queijo-prato|hb-in-alface|hb-in-tomate|hb-in-maionese|hb-in-bacon|hb-in-ovo|hb-in-presunto|hb-in-milho-verde|hb-in-calabresa-fatiada|hb-in-cebola|hb-in-molho-especial|hb-in-cheddar-cremoso|hb-in-cebola-crispy|hb-in-molho-barbecue|hb-in-cebola-caramelizada|hb-in-queijo-gorgonzola|hb-in-rucula|hb-in-provolone|hb-in-pimenta-jalapeno|hb-in-molho-picante|hb-in-hamburguer-de-picanha|hb-in-costela-bovina-desfiada|hb-in-carne-suina-desfiada|hb-in-coleslaw|hb-in-file-de-frango-empanado|hb-in-file-de-frango-grelhado|hb-in-hamburguer-de-grao-de-bico|hb-in-hamburguer-de-cogumelos|hb-in-mucarela-de-bufala|hb-in-manjericao-fresco|hb-in-molho-pesto|hb-in-abacaxi-grelhado|hb-in-champignon|hb-in-maionese-trufada)$") :
+        category == "hotdog|recipes" ? record.id.matches("^(hd-01|hd-02|hd-03|hd-04|hd-05|hd-06|hd-07|hd-08|hd-09|hd-10|hd-11|hd-12|hd-13|hd-14|hd-15|hd-16|hd-17|hd-18|hd-19|hd-20)$") :
+        category == "hotdog|ingredients" ? record.id.matches("^(hd-in-pao-para-hot-dog|hd-in-salsicha|hd-in-molho-de-tomate|hd-in-batata-palha|hd-in-milho-verde|hd-in-ervilha|hd-in-mostarda|hd-in-ketchup|hd-in-pure-de-batata|hd-in-vinagrete|hd-in-maionese|hd-in-mucarela|hd-in-presunto|hd-in-bacon|hd-in-cheddar-cremoso|hd-in-cebola-crispy|hd-in-calabresa-fatiada|hd-in-frango-desfiado|hd-in-requeijao-cremoso|hd-in-provolone|hd-in-queijo-prato|hd-in-molho-barbecue|hd-in-cebola-caramelizada|hd-in-molho-picante|hd-in-pimenta-jalapeno|hd-in-chucrute|hd-in-ovo-de-codorna|hd-in-salsicha-vegetal|hd-in-salsicha-artesanal|hd-in-queijo-cheddar|hd-in-molho-especial)$") :
+        category == "pastelaria|recipes" ? record.id.matches("^(ps-01|ps-02|ps-03|ps-04|ps-05|ps-06|ps-07|ps-08|ps-09|ps-10|ps-11|ps-12|ps-13|ps-14|ps-15|ps-16|ps-17|ps-18|ps-19|ps-20|ps-21|ps-22|ps-23|ps-24|ps-25|ps-26|ps-27|ps-28|ps-29|ps-30|ps-31|ps-32|ps-33|ps-34|ps-35|ps-36|ps-37|ps-38|ps-39|ps-40|ps-41|ps-42|ps-43|ps-44|ps-45|ps-46|ps-47|ps-48|ps-49|ps-50)$") :
+        category == "pastelaria|ingredients" ? record.id.matches("^(ps-in-massa-fresca-para-pastel|ps-in-oleo-de-fritura-absorvido|ps-in-carne-moida-cozida|ps-in-cebola|ps-in-tomate|ps-in-cheiro-verde|ps-in-mucarela|ps-in-ovo-cozido|ps-in-azeitona|ps-in-cheddar-cremoso|ps-in-bacon-frito-escorrido|ps-in-carne-seca-dessalgada-cozida|ps-in-requeijao-cremoso|ps-in-abobora-cabotia-cozida|ps-in-frango-cozido-e-desfiado|ps-in-milho-verde-cozido|ps-in-presunto|ps-in-oregano|ps-in-provolone|ps-in-parmesao|ps-in-calabresa-cozida-em-rodelas|ps-in-palmito-cozido|ps-in-molho-branco-espesso|ps-in-brocolis-cozido-e-escorrido|ps-in-escarola-refogada-e-escorrida|ps-in-espinafre-cozido-e-escorrido|ps-in-ricota|ps-in-alho|ps-in-manjericao|ps-in-camarao-limpo-e-cozido|ps-in-salsinha|ps-in-azeite|ps-in-atum-escorrido|ps-in-bacalhau-dessalgado-cozido|ps-in-estrogonofe-de-carne-frio-e-espesso|ps-in-batata-palha|ps-in-estrogonofe-de-frango-frio-e-espesso|ps-in-chocolate-ao-leite|ps-in-creme-de-leite|ps-in-chocolate-branco|ps-in-brigadeiro-firme|ps-in-granulado-de-chocolate|ps-in-beijinho-firme|ps-in-coco-ralado|ps-in-goiabada|ps-in-queijo-minas|ps-in-doce-de-leite-firme|ps-in-banana-em-rodelas|ps-in-acucar|ps-in-canela-em-po|ps-in-morango-higienizado-e-bem-seco)$") :
+        false;
+    }
+    function freeRecordAllowed(recordId,record) {
+      return !isFreeLimitedGroup(record) || (recordId == freeQuotaId(record) && !isTrustedModel(record)) ||
+        (recordId.matches("^model~.*$") && record.item is map &&
+          record.item.get('id', '') == record.id && isTrustedModel(record) &&
+          recordId == 'model~' + record.universe + '~' + record.group + '~' + record.id);
+    }
+
     function isFinancialGroup(group) {
       return group in ['cashSessions', 'cashMovements'];
+    }
+    function validInventoryRevision(revision) {
+      return revision.keys().hasOnly(['revision', 'updatedAt'])
+        && revision.get('updatedAt', null) == request.time
+        && revision.get('revision', null) is int
+        && revision.revision <= 9007199254740991;
     }
 
     // Bloqueios de universo e de serviço são administrados no perfil,
@@ -68,6 +121,62 @@ service cloud.firestore {
             ]))
         );
     }
+    function validRecordDocument(document, record) {
+      return document.keys().hasOnly(['record', 'updatedAt'])
+        && document.get('updatedAt', null) == request.time
+        && record is map
+        && record.keys().hasOnly(['universe', 'group', 'id', 'item', 'rank'])
+        && record.keys().hasAll(['universe', 'group', 'id', 'item', 'rank'])
+        && record.universe is string
+        && record.id is string
+        && record.rank is number
+        && record.group in [
+          'recipes', 'ingredients', 'orders', 'clients', 'suppliers',
+          'expenses', 'recipeVersions', 'recipeTrash', 'purchases',
+          'stockMovements', 'beverages', 'addons', 'combos', 'prepBatches',
+          'checklist', 'losses', 'garimpoOffers', 'cashSessions', 'cashMovements'
+        ];
+    }
+    function validFinancialPayload(record) {
+      let item = record.item;
+      return item is map
+        && item.get('id', null) == record.id
+        && (record.group != 'cashMovements' || (
+          item.kind in ['suprimento', 'sangria', 'reembolso', 'late_payment']
+          && item.amount is number
+          && item.amount > 0
+          && item.amount <= 100000000
+          && item.sessionId is string
+        ));
+    }
+    function canWriteOperationalRecord(userId, recordId, record) {
+      return canEditOperationalRecord(userId, record)
+        && (isFinancialGroup(record.group)
+          ? canUseFinancialRecords(userId) && validFinancialPayload(record)
+          : canUseFinancialRecords(userId) || freeRecordAllowed(recordId, record));
+    }
+    function preservesRecordIdentity(userId, recordId, record, oldRecord) {
+      return record.group == oldRecord.group
+        && ((record.universe == oldRecord.universe && record.id == oldRecord.id)
+          || (recordId == freeQuotaId(record)
+            && recordId == freeQuotaId(oldRecord)
+            && isFreeLimitedGroup(record)
+            && isFreeLimitedGroup(oldRecord)
+            && canEditOperationalRecord(userId, oldRecord)));
+    }
+    function validSessionClose(record, oldRecord) {
+      let item = record.item;
+      let oldItem = oldRecord.item;
+      return oldItem.status == 'open'
+        && item.status == 'closed'
+        && record.rank == oldRecord.rank
+        && item.diff(oldItem).affectedKeys().hasOnly([
+          'status', 'closedAt', 'closedBy', 'countedCash',
+          'expectedCash', 'difference', 'closedSummary'
+        ])
+        && item.closedAt is string
+        && item.closedSummary is map;
+    }
     match /users/{userId} {
       allow get: if canAccess(userId);
       allow list: if isAdmin();
@@ -84,120 +193,71 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /recipes/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /ingredients/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /suppliers/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /products/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /clients/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /orders/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /inventory/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /expenses/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if canWriteLegacy(userId);
       }
       match /appState/{id} {
-        allow read, write: if canAccess(userId);
+        allow read: if canAccess(userId);
+        allow create, update, delete: if id != 'v2InventoryGuard'
+          && (canWriteLegacy(userId) || (isOwner(userId) && id in ['v2','v2Pulse']));
+        allow create: if id == 'v2InventoryGuard' && canAccess(userId)
+          && validInventoryRevision(request.resource.data)
+          && request.resource.data.revision in [0, 1];
+        allow update: if id == 'v2InventoryGuard' && canAccess(userId)
+          && validInventoryRevision(request.resource.data)
+          && resource.data.get('revision', null) is int && resource.data.revision >= 0
+          && request.resource.data.revision == resource.data.revision + 1;
       }
       // V2: um documento por registro operacional. Impede acesso entre contas
       // e restringe o formato, sem interferir nos documentos V1 já existentes.
       match /records/{recordId} {
+        function validCreate(document) {
+          let record = document.get('record', null);
+          return validRecordDocument(document, record)
+            && canWriteOperationalRecord(userId, recordId, record)
+            && (record.group != 'cashSessions' || record.item.status == 'open');
+        }
+        function validUpdate(document, oldDocument) {
+          let record = document.get('record', null);
+          let oldRecord = oldDocument.record;
+          return validRecordDocument(document, record)
+            && canWriteOperationalRecord(userId, recordId, record)
+            && preservesRecordIdentity(userId, recordId, record, oldRecord)
+            // Movimentos são imutáveis. Turnos abertos só podem ser fechados.
+            && (record.group == 'cashMovements' ? record == oldRecord
+              : record.group != 'cashSessions' || validSessionClose(record, oldRecord));
+        }
         allow get, list: if canAccess(userId);
-        allow create, update: if canAccess(userId)
-          && canEditOperationalRecord(userId,request.resource.data.record)
-          && (!isFinancialGroup(request.resource.data.record.group)
-              || canUseFinancialRecords(userId))
-          && request.resource.data.keys().hasOnly(['record', 'updatedAt'])
-          && request.resource.data.keys().hasAll(['record', 'updatedAt'])
-          && request.resource.data.updatedAt == request.time
-          && request.resource.data.record is map
-          && request.resource.data.record.keys().hasOnly([
-            'universe', 'group', 'id', 'item', 'rank'
-          ])
-          && request.resource.data.record.keys().hasAll([
-            'universe', 'group', 'id', 'item', 'rank'
-          ])
-          && request.resource.data.record.universe is string
-          && request.resource.data.record.id is string
-          && request.resource.data.record.rank is number
-          && request.resource.data.record.group in [
-            'recipes', 'ingredients', 'orders', 'clients', 'suppliers',
-            'expenses', 'recipeVersions', 'recipeTrash', 'purchases',
-            'stockMovements', 'beverages', 'addons', 'combos', 'prepBatches',
-            'checklist', 'losses', 'garimpoOffers', 'cashSessions', 'cashMovements'
-          ]
-          && (
-            !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
-            || (
-              request.resource.data.record.universe == resource.data.record.universe
-              && request.resource.data.record.group == resource.data.record.group
-              && request.resource.data.record.id == resource.data.record.id
-            )
-          )
-          // Payloads financeiros devem ser consistentes e com valores válidos.
-          && (
-            !isFinancialGroup(request.resource.data.record.group)
-            || (
-              request.resource.data.record.item is map
-              && request.resource.data.record.item.id == request.resource.data.record.id
-            )
-          )
-          && (
-            request.resource.data.record.group != 'cashMovements'
-            || (
-              request.resource.data.record.item.kind in [
-                'suprimento', 'sangria', 'reembolso', 'late_payment'
-              ]
-              && request.resource.data.record.item.amount is number
-              && request.resource.data.record.item.amount > 0
-              && request.resource.data.record.item.amount <= 100000000
-              && request.resource.data.record.item.sessionId is string
-            )
-          )
-          // Movimentações de caixa já registradas não são reescritas.
-          && (
-            !exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
-            || (
-              (request.resource.data.record.group != 'cashMovements'
-               || request.resource.data.record == resource.data.record)
-              && (request.resource.data.record.group != 'cashSessions'
-               || (
-                  resource.data.record.item.status == 'open'
-                  && request.resource.data.record.item.status == 'closed'
-                  && request.resource.data.record.rank == resource.data.record.rank
-                  && request.resource.data.record.item.diff(resource.data.record.item)
-                    .affectedKeys().hasOnly([
-                      'status', 'closedAt', 'closedBy', 'countedCash',
-                      'expectedCash', 'difference', 'closedSummary'
-                    ])
-                  && request.resource.data.record.item.closedAt is string
-                  && request.resource.data.record.item.closedSummary is map
-               ))
-            )
-          )
-          // Um turno nasce aberto; após o fechamento não pode ser reaberto.
-          && (
-            request.resource.data.record.group != 'cashSessions'
-            || (
-              request.resource.data.record.item is map
-              && request.resource.data.record.item.status in ['open', 'closed']
-              && (
-                exists(/databases/$(database)/documents/users/$(userId)/records/$(recordId))
-                || request.resource.data.record.item.status == 'open'
-              )
-            )
-          );
+        allow create: if canAccess(userId) && validCreate(request.resource.data);
+        allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
           && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group);
