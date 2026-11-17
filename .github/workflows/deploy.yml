@@ -128,6 +128,10 @@ jobs:
           cp pote_calc_launcher.css public/pote_calc_launcher.css
           cp tablet_layout.css public/tablet_layout.css
           cp tablet_layout.js public/tablet_layout.js
+          cp compact_account_header.js public/compact_account_header.js
+          cp compact_account_header.css public/compact_account_header.css
+          node --check public/compact_account_header.js
+          node test_compact_account_header.js
           node --check public/pote_calc_launcher.js
           node test_pote_calc_launcher.js
           node --check public/tablet_layout.js

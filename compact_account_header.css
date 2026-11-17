@@ -1,0 +1,37 @@
+/* Compact, discreet header. Account actions live in Menu > Meu perfil. */
+.headin{min-width:0}
+.headin>.brand{min-width:0}
+html.pote-account-in-profile .headin{justify-content:space-between}
+#poteProfileSession{margin:17px 0 22px;padding:17px 14px;border:1px solid #91a8bf78;border-radius:15px;background:linear-gradient(145deg,#253950,#162638);box-shadow:inset 0 1px #ffffff30;color:#f7e7cc}
+#poteProfileSession h3{font-size:13px;color:#f6d9a3;letter-spacing:.035em;margin:0 0 13px}
+#poteProfileSession .switch{width:100%;min-width:0;max-width:100%;margin:0!important;padding:0!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:flex-start!important;gap:9px!important;border:0!important;background:transparent!important;border-radius:0!important;box-shadow:none!important}
+#poteProfileSession .switch>*{max-width:100%;min-width:0;box-sizing:border-box}
+#poteProfileSession #poteLoggedAs{display:block;flex-basis:100%;font-size:12px!important;font-weight:750;white-space:normal!important;color:#ffe0b1;overflow-wrap:anywhere}
+#poteProfileSession #poteSyncStatus{display:block!important;flex-basis:100%!important;grid-column:auto!important;margin:0!important;padding:4px 0!important;white-space:normal!important;line-height:1.5;color:#bae5c6!important;overflow-wrap:anywhere}
+#poteProfileSession .switch button{width:auto!important;max-width:100%!important;display:inline-flex;align-items:center;justify-content:center;flex:1 1 130px;white-space:normal!important;overflow-wrap:anywhere;padding:11px!important;min-height:43px;margin:0!important;line-height:1.35;text-align:center;border-radius:10px!important;font-size:12px}
+#poteProfileSession .switch button[hidden],#poteProfileSession .switch span[hidden]{display:none!important}
+#poteProfileSession #poteFullAccountBackup{background:#293b52!important;color:#f9ead3!important;border-color:#d1bb9277!important}
+#poteProfileSession #poteExit{background:#513329!important;color:#ffe8db!important;border-color:#cd9b7a!important}
+#poteProfileSession #poteAdminOpen{background:#493b29!important;color:#ffdda3!important;border-color:#d0a66a!important}
+#poteProfileOverlay:not([hidden]) .pote-profile-card{max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}
+#poteFloatToggle{display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;position:fixed!important;top:calc(10px + env(safe-area-inset-top,0px))!important;right:13px!important;bottom:auto!important;left:auto!important;min-width:47px!important;width:47px!important;height:47px!important;align-items:center!important;justify-content:center!important;z-index:9997!important;border:1px solid #f2cf90!important;background:linear-gradient(145deg,#465a74,#1a2b40)!important;color:#ffdfa6!important;box-shadow:inset 0 1px #ffffff65,0 5px 13px #0009!important}
+#poteFloatToggle svg{display:block!important;width:23px!important;height:23px!important}
+body:has(#poteProfileOverlay:not([hidden])) #poteFloatToggle{visibility:hidden!important;pointer-events:none!important}
+@media(min-width:851px){
+ .headin{padding-right:83px!important;min-height:70px!important}
+}
+@media(max-width:850px){
+ .head{position:relative!important}
+ .headin{display:flex!important;flex-direction:row!important;align-items:center!important;flex-wrap:nowrap!important;justify-content:flex-start!important;gap:8px!important;min-height:71px!important;padding:10px 72px 10px 13px!important}
+ .headin>.brand{display:flex!important;flex:1 1 auto!important;max-width:100%!important;padding-right:0!important}
+ .headin>.brand img{height:40px!important;width:40px!important}
+ .headin>.brand>span{font-size:clamp(12px,3.3vw,16px)!important}
+ #poteFloatToggle{top:calc(10px + env(safe-area-inset-top,0px))!important;right:13px!important}
+ #poteProfileSession .switch{grid-template-columns:none!important}
+ #poteProfileOverlay:not([hidden]) .pote-profile-card{max-height:calc(100dvh - 18px);padding:17px}
+}
+@media(max-width:390px){
+ .headin{min-height:65px!important;padding:8px 66px 8px 10px!important}
+ .headin>.brand img{height:36px!important;width:36px!important}
+ #poteFloatToggle{top:calc(8px + env(safe-area-inset-top,0px))!important;right:10px!important}
+}

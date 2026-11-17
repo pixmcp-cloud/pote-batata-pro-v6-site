@@ -244,6 +244,7 @@ once("</body></html>", '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-202611
 # Calculadora independente: mesmo DOM no login FREE/PRO/ADM, sem escrita no Firestore.
 once("</body></html>", '<link rel="stylesheet" href="./pote_calc_launcher.css?v=quantum-99-20261117"><script defer src="./pote_calc_launcher.js?v=quantum-99-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./tablet_layout.css?v=tablet-responsive-20261117"><script defer src="./tablet_layout.js?v=tablet-responsive-20261117"></script></body></html>')
+once("</body></html>", '<link rel="stylesheet" href="./compact_account_header.css?v=profile-compact-20261117"><script defer src="./compact_account_header.js?v=profile-compact-20261117"></script></body></html>')
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")
