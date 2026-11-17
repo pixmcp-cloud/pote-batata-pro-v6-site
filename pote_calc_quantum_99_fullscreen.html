@@ -1,0 +1,516 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#141b30"><meta name="description" content="Calculadora 3D flutuante Potê Calc Quantum PRO, 12 ou 99 dígitos, funções científicas e conversões."><title>Potê Calc Quantum PRO — motor de precisão 99</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;min-width:0;overflow-x:hidden;background:transparent}
+button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#calcPlayground{position:relative;width:100%;min-height:565px;background:transparent;overflow:visible;color:#f9eedb;padding:8px 0 28px;isolation:isolate;user-select:none}
+#calcDevice{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:min(356px,96%);max-width:96%;z-index:1;border:1px solid #d6b481bc;border-radius:23px;padding:14px 14px 17px;background:radial-gradient(circle at 8% 0,#6a7c9948,transparent 38%),linear-gradient(150deg,#40546e,#26374f 56%,#101b2b);box-shadow:inset 0 2px 2px #ffffff80,inset 0 -7px 12px #0008,0 6px 0 #0a1019,0 17px 31px #0009;transition:width .34s ease,background .34s ease,border-color .34s ease,box-shadow .34s ease}
+#calcDevice.turbo{width:min(450px,98%);border-color:#70faff;background:radial-gradient(circle at 80% 0,#9356fa80,transparent 37%),linear-gradient(155deg,#3c3468,#22345a 65%,#0d1b39);box-shadow:inset 0 2px #ffffff8f,inset 0 -7px #0008,0 6px 0 #0c1027,0 0 26px #41d8ff87,0 21px 37px #000c}
+#calcDevice[hidden],#reopen[hidden],.advanced[hidden]{display:none!important}
+.head{display:flex;gap:7px;align-items:center;min-height:61px;margin:0 0 12px;touch-action:none;cursor:grab}
+.head:active{cursor:grabbing}
+.brand{flex:1;min-width:0}
+.brand b{font-size:14px;display:block;letter-spacing:.065em;color:#ffde9a;white-space:nowrap}
+.brand small{display:block;color:#aebfd0;letter-spacing:.035em;font-size:9px;margin-top:4px}
+.head-buttons{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.rocket{width:66px;height:57px;border:1px solid #efbf76;border-radius:13px;background:linear-gradient(145deg,#655667,#283a4e);box-shadow:inset 0 2px #ffffff80,0 4px 0 #121a26;display:grid;place-items:center;align-content:center;gap:0;color:#ffe5ab}
+.rocket .rocket-icon{font-size:28px;display:block;line-height:1.03;filter:drop-shadow(0 0 6px #ffbd60);animation:pulseRocket 1.45s ease-in-out infinite}
+.rocket small{font-weight:900;font-size:9px;letter-spacing:.12em}
+.rocket[aria-pressed=true]{border-color:#a4ffff;background:linear-gradient(130deg,#7252bc,#195c8b);box-shadow:inset 0 2px #ffffff95,0 0 16px #3bf2ffbb,0 4px 0 #131d37}
+.rocket[aria-pressed=true] .rocket-icon{animation:rocketTurbo .55s ease-in-out infinite alternate;filter:drop-shadow(0 0 10px #4bfcff)}
+@keyframes pulseRocket{0%,100%{transform:translateY(1px) scale(.96);opacity:.82}50%{transform:translateY(-2px) scale(1.07);opacity:1}}
+@keyframes rocketTurbo{from{transform:translateY(2px) rotate(-7deg) scale(1)}to{transform:translateY(-3px) rotate(7deg) scale(1.13)}}
+.tool{height:34px;min-width:39px;border:1px solid #a9bacd92;background:linear-gradient(155deg,#536983,#26374e);border-radius:9px;color:#fff0d2;box-shadow:inset 0 1px #ffffff80,0 3px 0 #111924;font-weight:900}
+.tool.onoff{min-width:45px;line-height:1;font-size:10px;letter-spacing:.02em}
+.tool.close{font-size:23px}
+.tool:active,.rocket:active{transform:translateY(3px);box-shadow:inset 0 3px 8px #0009}
+.lcd-bezel{padding:7px;border:2px solid #6c879e;border-radius:16px;background:linear-gradient(140deg,#101a29,#7a8da0 51%,#101827);box-shadow:inset 0 4px 10px #000b,0 4px 12px #0009;margin-bottom:17px}
+.lcd{height:130px;padding:11px 13px 14px;border-radius:10px;border:2px solid #47663d;background:linear-gradient(150deg,#d8e6a9,#a9c786 55%,#7e9f68);box-shadow:inset 0 3px 10px #234a244d,inset 0 -6px 11px #1b45264f;color:#1b3217;overflow:hidden}
+.turbo .lcd{background:linear-gradient(135deg,#b7f5fb,#8cdbec 56%,#7baff1);color:#18304a;border-color:#63f3ff;box-shadow:inset 0 3px 10px #115e9155,0 0 18px #31effe66;min-height:230px;height:auto;overflow:visible}
+.screen-head{display:flex;justify-content:space-between;align-items:center;font:900 10px monospace;opacity:.8}
+.screen-head .modeTag{border:1px solid currentColor;border-radius:4px;padding:2px 4px;letter-spacing:.02em}
+.expression{height:31px;padding-top:11px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;text-align:right;font:600 12px monospace;opacity:.72}
+.readout{overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
+.readout::-webkit-scrollbar{display:none}
+.display{width:max-content;min-width:100%;text-align:right;white-space:nowrap;font:900 clamp(36px,11vw,48px)/1.28 'Courier New',monospace;letter-spacing:-2px}
+/* Turbo: TODO o número deve ficar visível. Não usar uma única linha com rolagem. */
+.turbo .readout{overflow:visible;overscroll-behavior:auto}
+.turbo .display{display:block;width:100%;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:break-all;text-align:right;font:800 19px/1.42 'Courier New',monospace;letter-spacing:.15px;user-select:text;-webkit-user-select:text;padding:5px 0}
+.turbo .display:not(.long-number){font-size:clamp(27px,7vw,42px)}
+.turbo .display.long-number{font-size:18px;line-height:1.38}
+.digit-count{margin-top:5px;text-align:right;font:850 10px/1.4 system-ui,sans-serif;letter-spacing:.04em;opacity:.8}
+.test99{display:block;width:100%;margin:9px 0 0;padding:9px;border:1px solid #9dedff;border-radius:9px;background:linear-gradient(155deg,#26587c,#27345d);color:#b9ffff;font-weight:850;font-size:11px;cursor:pointer}
+#calcDevice.off .lcd{background:linear-gradient(#536c56,#3c5444)}
+#calcDevice.off .screen-head,#calcDevice.off .expression,#calcDevice.off .display{opacity:.08}
+#calcDevice.off .lcd:after{content:"DESLIGADA";display:block;text-align:center;margin-top:-55px;font:900 16px monospace;color:#273d31}
+#calcDevice.off .keypad,#calcDevice.off .advanced{filter:brightness(.5);pointer-events:none}
+#calcDevice.off .rocket{opacity:.5;pointer-events:none}
+.keypad{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px 9px}
+.k{height:57px;min-width:0;border:1px solid #a4b7ce9c;border-radius:12px;font-weight:900;font-size:27px;background:linear-gradient(165deg,#6b7e94,#344965 60%,#182a40);color:#fff;box-shadow:inset 0 2px #ffffff72,inset 0 -5px #0005,0 5px 0 #0c1726,0 7px 12px #0006}
+.k.fn{background:linear-gradient(145deg,#7a6682,#4a425d 60%,#2d314b)}
+.k.op{background:linear-gradient(145deg,#fff1ba,#ebc184 61%,#bd843d);color:#31200c;border-color:#ffdfac}
+.k.c{background:linear-gradient(145deg,#e08b8a,#aa3344 65%,#7b2031)}
+.k.eq{background:linear-gradient(150deg,#fff1af,#f3b762 60%,#c78531);color:#281c08}
+.k:active{transform:translateY(4px);box-shadow:inset 0 3px 8px #0009,0 1px #081221}
+.turbo .k{background:linear-gradient(165deg,#6d65b1,#3b3777 67%,#252454);border-color:#948eebaf}
+.turbo .k.op{background:linear-gradient(150deg,#a3fdff,#4fd4ed);color:#12314b;border-color:#b8ffff}
+.turbo .k.c{background:linear-gradient(145deg,#ee8bc8,#ac337f)}
+.turbo .k.eq{background:linear-gradient(145deg,#ddc9ff,#9763e8);color:#24123f}
+.advanced{margin:0 0 18px;padding:12px;border:1px solid #71e9ff9c;border-radius:15px;background:radial-gradient(circle at 85% 2%,#a858e840,transparent 40%),linear-gradient(155deg,#162c48,#1e1b48);box-shadow:inset 0 1px #ffffff40,0 0 15px #40dffb36;animation:expandPanel .28s ease-out}
+@keyframes expandPanel{from{opacity:.2;transform:translateY(-10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.advanced h3{font-size:12px;margin:1px 0 3px;color:#91faff;letter-spacing:.06em}
+.advanced p{font-size:10px;margin:0 0 10px;color:#bfd0eb}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-bottom:9px}
+.tab{padding:9px 2px;min-width:0;font-size:10px;font-weight:800;border:1px solid #6688ac;border-radius:8px;background:#203750;color:#d5eaff}
+.tab[aria-selected=true]{background:linear-gradient(140deg,#9b6ce0,#3295b2);border-color:#b3e8ff;color:#fff;box-shadow:0 0 10px #40e4ff70}
+.advancedKeys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.advancedKeys button{min-height:41px;padding:5px 3px;font-size:12px;font-weight:800;border-radius:9px;background:linear-gradient(160deg,#47618f,#253b65);color:#edfcff;border:1px solid #84b5ec;box-shadow:inset 0 1px #fff6,0 3px #0b1530}
+.advancedKeys button:active{transform:translateY(2px)}
+.advancedKeys button:disabled{opacity:.45}
+.hist{max-height:125px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+.hist button{display:flex;justify-content:space-between;text-align:left;gap:7px;min-height:39px;background:#172b4c;border:1px solid #7297b8;border-radius:8px;padding:9px;color:#eafaff;font-size:11px}
+.hist small{font-size:11px;color:#b4e3f6}
+.moreOptions{margin-top:11px;display:flex;justify-content:space-between;gap:8px}
+.moreOptions button{border:1px solid #89a5d9;border-radius:9px;background:#25395e;color:#d6f5f4;font-size:10px;padding:8px 9px}
+.status{font-size:9px;margin-top:17px;color:#bdcde2;text-align:center;letter-spacing:.15em;font-weight:800}
+.reopen{position:absolute;right:10px;top:15px;z-index:2;border:1px solid #d3bc8a;border-radius:14px;background:linear-gradient(145deg,#3a4e68,#17283e);color:#ffe4aa;font-weight:800;padding:13px 16px;box-shadow:0 8px 17px #0005}
+@media(max-width:410px){#calcDevice{padding:11px 10px 14px}.head{min-height:55px}.brand b{font-size:12px}.brand small{font-size:8px}.rocket{width:59px;height:53px}.tool{min-width:34px}.tool.onoff{min-width:42px}.lcd{height:123px}.turbo .lcd{height:auto;min-height:225px}.turbo .display.long-number{font-size:16px}.k{height:55px;font-size:25px}.keypad{gap:9px 8px}.advancedKeys button{font-size:11px}.tabs{gap:4px}}
+@media(prefers-reduced-motion:reduce){.rocket .rocket-icon,.rocket[aria-pressed=true] .rocket-icon{animation:none}.advanced{animation:none}}
+
+/* Botões Turbo Quantum: camadas, relevo e legibilidade real em celulares */
+#calcPlayground{padding:9px 0 45px;user-select:none;max-width:100%;overflow:visible;--cyan:#8cf5fb;--gold:#ffdf98}
+#calcDevice{width:min(356px,96%);box-shadow:inset 0 2px #ffffff6f,inset 0 -8px 14px #0008,0 7px 0 #080f1b,0 19px 36px #000a}
+#calcDevice.turbo{width:min(480px,98%);box-shadow:inset 0 2px #ffffffa0,0 7px #13132c,0 0 29px #34d5fb81,0 20px 40px #000c}
+.turbo .lcd{min-height:222px;height:auto!important}
+.turbo .readout{overflow:visible;max-width:100%}
+.turbo .display.long-number{font:900 clamp(16px,3.6vw,22px)/1.66 ui-monospace,Consolas,'Courier New',monospace!important;letter-spacing:1.1px!important;white-space:normal;overflow-wrap:anywhere;word-break:break-all;text-align:right;display:block;width:100%}
+.turbo .lcd .digit-count{letter-spacing:.12em}
+.advanced{margin-bottom:18px;padding:15px 12px 16px;border-color:#8aebff9a;background:radial-gradient(circle at 90% -10%,#ac6ee840,transparent 45%),linear-gradient(150deg,#152d4e,#181a47);border-radius:17px}
+.turboHero{display:flex;align-items:center;gap:11px;margin-bottom:13px;padding:3px 2px}
+.tLight{width:44px;height:44px;flex:0 0 44px;border-radius:14px;background:linear-gradient(145deg,#9268ec,#1f9fac);border:1px solid #a6fdff;display:grid;place-items:center;color:white;font-size:27px;box-shadow:0 0 14px #65deff65,inset 0 2px #ffffff7a}
+.turboHero h3{font-size:15px!important;margin:0!important;color:#e6feff!important;font-weight:950;letter-spacing:.035em}
+.turboHero p{font-size:10px;color:#bfd7f3;margin:5px 0 0;line-height:1.5}
+.turboBadge{display:inline-grid;place-items:center;background:#9cefff;color:#113e61;font-size:11px;border-radius:6px;padding:4px 6px}
+.precisionInfo{display:flex;justify-content:space-between;gap:6px;margin:0 0 13px;padding:8px 10px;border:1px solid #6daab783;border-radius:9px;background:#071d3388;color:#9cf2fa;font-size:9px;font-weight:900;letter-spacing:.06em}
+.test99{font-size:10px;font-weight:800;width:100%;padding:10px 12px;margin-bottom:15px;color:#dcfaff;background:linear-gradient(#294e72,#15334f);border:1px solid #6dd8ed;border-radius:10px;box-shadow:inset 0 1px #ffffff50,0 4px 9px #0006}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 16px}
+.tab{height:60px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;border:1px solid #7299d1;border-radius:12px;background:linear-gradient(145deg,#394c76,#1b3052);color:#d6e9fd;font-size:10px;font-weight:900;box-shadow:inset 0 1px #ffffff44,0 4px 0 #0b1933,0 7px 10px #0005}
+.tab span{font-size:22px;line-height:1;color:#acecf9}
+.tab[aria-selected=true]{background:linear-gradient(155deg,#9568db,#236e9d 80%);border-color:#c0ffff;box-shadow:inset 0 2px #ffffff83,0 4px #204963,0 0 15px #55d2f866;color:white}
+.tab[aria-selected=true] span{color:#fff5cf}
+.tabContent{margin:0 0 16px;padding:2px 0 0}
+.tabContent[hidden]{display:none!important}
+.sectionTop{display:flex;justify-content:space-between;align-items:center;gap:9px;margin:0 1px 12px;color:#8fffff;font-size:11px;font-weight:900;letter-spacing:.10em}
+.sectionChip{color:#ffe1af;border:1px solid #b68e7a;background:#5b466766;border-radius:100px;font-size:9px;letter-spacing:0;padding:7px 9px;white-space:nowrap}
+.angleBtn,.dangerSmall{border:1px solid #a7ffff;border-radius:10px;padding:8px 12px;background:linear-gradient(140deg,#4d4d89,#1d5075);color:white;font-size:11px;font-weight:900;letter-spacing:.06em;box-shadow:inset 0 1px #fff5,0 3px #0a1836}
+.angleBtn[aria-pressed=true]{background:linear-gradient(145deg,#a078d7,#444fac)}
+.technicalNote,.sectionIntro{font-size:10px;line-height:1.65;color:#b7d0e8;margin:12px 0 0}
+.sectionIntro{margin:0 0 12px}
+.equationBox,.convertPanel,.financePanel,.statPanel,.programPanel,.memoryPad{background:linear-gradient(145deg,#22395b,#101e38);border:1px solid #6b9bc6a8;border-radius:15px;padding:14px 12px;box-shadow:inset 0 1px #ffffff29,0 9px 18px #0006;margin:0 0 18px}
+.equationBox label,.convertPanel>label,.statPanel>label,.financeFields label,.programPanel>label{font-size:9px;font-weight:900;letter-spacing:.09em;color:#b7e9f7;display:block;margin:0 0 8px}
+.equationBox input,.convertPanel input,.financeFields input,.statPanel textarea,.programPanel input{display:block;width:100%;background:#0b1a2e;color:#f4f8fa;border:1px solid #7698b9;border-radius:10px;padding:12px 10px;font:600 13px ui-monospace,monospace;outline:none;min-width:0}
+.equationBox input:focus,.convertPanel input:focus,.financeFields input:focus,.statPanel textarea:focus,.programPanel input:focus{border-color:#86f6fb;box-shadow:0 0 0 3px #38e4ff25}
+.equationBtns{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin:9px 0 12px}
+.eqMini{min-height:33px;border:1px solid #82aed3;border-radius:8px;background:#314970;color:#e6f4fb;font-size:13px;font-weight:900}
+.eqMini.demo{font-size:8px;letter-spacing:0}
+.calculateBtn{width:100%;border:1px solid #acfaff;border-radius:12px;padding:13px 11px;background:linear-gradient(150deg,#b3ffff,#50bada 68%,#356cba);color:#071e35;font-size:11px;font-weight:950;letter-spacing:.07em;box-shadow:inset 0 2px #ffffffa3,inset 0 -4px #1d56816e,0 5px #122a4a}
+.calculateBtn:active,.fancyKey:active,.catBtn:active,.secondaryAction:active,.progOps button:active{transform:translateY(3px);box-shadow:inset 0 3px 9px #0008,0 1px #132844}
+.functionGroup{margin:18px 0}
+.functionGroup h4,.financePanel h4{font-size:10px;font-weight:950;letter-spacing:.11em;color:#a6e9fb;margin:0 0 11px}
+.fancyGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.fancyKey{position:relative;min-height:74px;padding:10px 5px 7px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;overflow:hidden;border:1px solid #8fb0e7b0;border-radius:13px;background:radial-gradient(ellipse at 25% 0%,#7999d860,transparent 52%),linear-gradient(150deg,#4c6095,#2a4273 61%,#1b3159);color:white;box-shadow:inset 0 2px #ffffff6b,inset 0 -5px #06142f78,0 5px 0 #091529,0 10px 13px #0007;transition:transform .1s,filter .1s}
+.fancyKey:before{content:"";position:absolute;inset:0 0 57%;background:linear-gradient(#ffffff27,transparent);pointer-events:none}
+.fancyKey:hover{filter:brightness(1.13);border-color:#b8fff7}
+.fancyTop{position:relative;z-index:1;font-size:18px;font-weight:900;white-space:nowrap;line-height:1.1;letter-spacing:-.03em}
+.fancyKey small{position:relative;z-index:1;font-size:8px;letter-spacing:.025em;font-weight:800;color:#c3e2ff;text-align:center}
+.financeKey{background:radial-gradient(circle at 0 0,#da9f6240,transparent 42%),linear-gradient(135deg,#6d5272,#3d3c73 70%,#262e59);border-color:#dbaedc9c}
+.financeKey .fancyTop{font-size:13px;color:#ffe3b3}
+.financeKey small{color:#e0c7df}
+.unitCats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:0 0 16px}
+.catBtn{display:flex;align-items:center;justify-content:flex-start;flex-direction:column;min-height:77px;gap:7px;padding:11px 5px;border:1px solid #779ac9;border-radius:14px;background:radial-gradient(circle at 20% 0,#ffffff18,transparent 48%),linear-gradient(140deg,#415681,#1a3054);color:#dff6ff;box-shadow:inset 0 2px #ffffff50,0 4px #101b34,0 7px 12px #0005}
+.catBtn[aria-pressed=true]{background:linear-gradient(145deg,#9568d6,#266c92);border-color:#baffff;color:#fff;box-shadow:inset 0 1px #ffffff8a,0 4px #1d4771,0 0 13px #78cfff62}
+.catIcon{font-size:25px;line-height:1.1;filter:drop-shadow(0 4px 4px #0008)}
+.catBtn b{font-size:10px}
+.convertInputRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:14px}
+.convertInputRow button{background:#3b4c7a;color:#b9faff;border:1px solid #82dcee;border-radius:9px;font-size:10px;font-weight:900;padding:5px}
+.unitSelectors{display:grid;grid-template-columns:minmax(0,1fr) 43px minmax(0,1fr);gap:7px;align-items:end}
+.unitSelectors label{font-size:9px;letter-spacing:.1em;color:#ade6ee;font-weight:900;min-width:0}
+.unitSelectors select{margin-top:7px;display:block;width:100%;min-width:0;max-width:100%;border:1px solid #8cb9cf;border-radius:9px;color:#eafaff;background:#23395c;height:44px;padding:7px 3px;font-size:11px}
+.swapBtn{height:43px;border:1px solid #c5ebff;border-radius:12px;background:linear-gradient(150deg,#705ac2,#246d9e);font-size:22px;color:white;box-shadow:inset 0 1px #fff9,0 4px #0d2547}
+.convertOutput{border:1px solid #67e7ed;margin-top:16px;padding:16px 12px;border-radius:13px;background:linear-gradient(150deg,#12283e,#104663);box-shadow:0 0 15px #4bdde441}
+.convertOutput span{display:block;color:#9ff5f5;font-size:10px;font-weight:950;letter-spacing:.1em}
+.convertOutput strong{display:block;color:#fff1d0;font:950 clamp(23px,6vw,31px)/1.4 ui-monospace,monospace;overflow-wrap:anywhere;word-break:break-word;margin:4px 0}
+.convertOutput small{color:#bcdfeb;font-size:9px;line-height:1.45}
+.convertActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.convertActions button,.secondaryAction{min-height:42px;border:1px solid #b7efff;background:linear-gradient(#5571a9,#2b5686);border-radius:10px;color:#f2faff;font-size:11px;font-weight:900;padding:8px}
+.financePanel{margin-top:19px}.financeFields{display:grid;grid-template-columns:1fr 1fr;gap:11px}.financeFields label{font-size:10px;letter-spacing:0}
+.financeFields input{margin-top:7px}.financePanel .calculateBtn{margin:11px 0}.financeResults{display:grid;gap:6px}.financeResults>div{display:flex;justify-content:space-between;gap:9px;align-items:center;padding:11px;border:1px solid #587bb2;background:#102744;border-radius:9px}.financeResults span{font-size:10px;color:#c3d6e9}.financeResults strong{font-size:12px;color:#fff0c8;text-align:right;overflow-wrap:anywhere}
+.financePanel .secondaryAction{margin-top:11px;width:100%}
+.statPanel textarea{resize:vertical;margin-bottom:13px;min-height:80px}.statResults{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0}
+.statTile{display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;border:1px solid #729dd4;background:linear-gradient(150deg,#40527e,#162e52);border-radius:12px;padding:12px;color:#fff0d9;box-shadow:inset 0 1px #fff5,0 5px #0b1b34}
+.statTile small{font-size:9px;color:#b9e8fa;font-weight:850}.statTile strong{font-size:12px;line-height:1.5;word-break:break-all}
+.progBases{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:12px 0}
+.progBases div{border:1px solid #7695bc;border-radius:11px;background:#142742;padding:10px;min-width:0}.progBases small{display:block;color:#9be2f6;font-size:9px;font-weight:900;margin-bottom:7px}.progBases strong{font:800 12px/1.5 ui-monospace,monospace;display:block;overflow-wrap:anywhere}
+.programPanel input{margin-bottom:14px}.progOps{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.progOps button{padding:13px 5px;display:flex;flex-direction:column;align-items:center;gap:4px;border:1px solid #a9d7ee;border-radius:11px;background:linear-gradient(150deg,#5c67a7,#23476f);color:#fff;font-size:12px;font-weight:900;box-shadow:inset 0 1px #fff7,0 4px #132b4c}.progOps small{color:#9ff4ff;font-size:16px}
+.memoryPad>div:first-child{border-bottom:1px solid #617ba5;padding:8px 2px 15px;margin-bottom:14px}.memoryPad small{font-size:9px;color:#aaf4fa;font-weight:900}.memoryPad strong{display:block;overflow-wrap:anywhere;font-size:21px;color:#ffe8bb;margin-top:7px}.memoryKeys{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.memoryKeys button{min-height:42px;background:linear-gradient(#516aaa,#263f77);border:1px solid #88a6da;border-radius:9px;color:white;font-size:11px;font-weight:900}
+.historyList{display:grid;gap:7px}.historyRow{width:100%;display:flex;justify-content:space-between;align-items:center;gap:9px;text-align:left;border:1px solid #5d87b0;border-radius:11px;background:linear-gradient(145deg,#253f64,#142944);padding:12px;color:#d8f6ff}.historyRow small{font-size:10px;color:#9fd2e4;display:block;margin-bottom:7px}.historyRow b{font-size:13px;overflow-wrap:anywhere}.historyRow>strong{font-size:9px;color:#e9ba7c}.emptyHistory{font-size:11px;color:#b8cee1}
+.dangerSmall{border-color:#ebaaa5;background:#6a3b5e}.moreOptions{padding-top:13px;border-top:1px solid #6792c455}
+.off .advanced{filter:grayscale(1) brightness(.4);pointer-events:none}.off .lcd{background:linear-gradient(150deg,#364949,#253b42)!important}.off .display,.off .expression,.off .screen-head,.off .digit-count{opacity:.035}
+.off .rocket{pointer-events:none;opacity:.4}
+#toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;max-width:90vw;border:1px solid #d1e7e9;border-radius:12px;background:#122d4df3;color:#dfffff;padding:10px 17px;font-size:12px;font-weight:850;box-shadow:0 10px 24px #000b;text-align:center}
+#toast[hidden]{display:none}
+#calcPlayground select,#calcPlayground input,#calcPlayground textarea{font-family:system-ui,-apple-system,Arial,sans-serif}
+@media(min-width:700px){.fancyGrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:450px){.advanced{padding:13px 9px}.fancyGrid{gap:8px}.fancyKey{min-height:69px;padding:8px 3px}.fancyTop{font-size:17px}.fancyKey small{font-size:7.5px}.tab{height:54px}.tab span{font-size:19px}.tabs{gap:6px}.unitCats{gap:7px}.catBtn{min-height:70px}.catBtn b{font-size:9px}.financeFields{gap:8px}}
+@media(max-width:365px){.precisionInfo{font-size:8px}.brand b{font-size:11px}.rocket{width:54px}.tabs{grid-template-columns:repeat(3,1fr)}.tab{font-size:9px}.unitSelectors{grid-template-columns:minmax(0,1fr) 33px minmax(0,1fr)}.swapBtn{height:40px}.fancyKey small{font-size:7px}}
+
+
+/* Tela cheia real + fallback seguro quando bloqueado pelo navegador. */
+.tool.fullscreen-btn{display:grid;place-items:center;min-width:36px;width:36px;height:36px;padding:3px;color:#c8e9ff}
+.tool.fullscreen-btn[aria-pressed=true]{color:#9bffff;border-color:#88ffff;box-shadow:0 0 12px #43d8ff77,inset 0 1px #ffffff6c}
+#calcPlayground:fullscreen,#calcPlayground:-webkit-full-screen,
+body.pote-calc-faux-fullscreen #calcPlayground{position:fixed!important;inset:0!important;z-index:100000!important;width:100vw!important;max-width:100vw!important;height:100dvh!important;min-height:100dvh!important;margin:0!important;padding:16px 10px 24px!important;overflow:auto!important;overscroll-behavior:contain;background:radial-gradient(ellipse at 50% 15%,#304262,#0a111e 78%)!important}
+#calcPlayground:fullscreen #calcDevice,#calcPlayground:-webkit-full-screen #calcDevice,
+body.pote-calc-faux-fullscreen #calcDevice{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:min(480px,100%)!important;max-width:98vw!important;margin:12px auto 24px!important}
+#calcPlayground:fullscreen #calcDevice.turbo,#calcPlayground:-webkit-full-screen #calcDevice.turbo,
+body.pote-calc-faux-fullscreen #calcDevice.turbo{width:min(790px,100%)!important}
+#calcPlayground:fullscreen .advancedKeys,#calcPlayground:-webkit-full-screen .advancedKeys,
+body.pote-calc-faux-fullscreen .advancedKeys{grid-template-columns:repeat(4,minmax(0,1fr))}
+#calcPlayground:fullscreen .tabContent,#calcPlayground:-webkit-full-screen .tabContent,
+body.pote-calc-faux-fullscreen .tabContent{min-width:0}
+#calcPlayground:fullscreen .unitCats,#calcPlayground:-webkit-full-screen .unitCats,
+body.pote-calc-faux-fullscreen .unitCats{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:400px){.tool.fullscreen-btn{min-width:29px;width:29px}.tool.fullscreen-btn svg{width:20px}.brand b{font-size:11px}.head-buttons{gap:4px}.rocket{width:52px}.tool.onoff{min-width:34px}.tool.close{min-width:29px}}
+@media(prefers-reduced-motion:reduce){#calcPlayground:fullscreen *,body.pote-calc-faux-fullscreen *{animation:none!important}}
+
+</style></head><body><div id="calcPlayground">
+  <section id="calcDevice" aria-label="Potê Calc Quantum 99 flutuante">
+    <div class="head" id="dragHandle" title="Arraste segurando esta área">
+      <div class="brand"><b>✦ POTÊ CALC 3D</b><small id="modeText">HUMILDE · 12 DÍGITOS</small><small class="dragTip">⠿ Segure e arraste pelo topo</small></div>
+      <div class="head-buttons">
+        <button type="button" id="rocketBtn" class="rocket" aria-pressed="false" aria-label="Ativar modo Turbo"><span class="rocket-icon">🚀</span><small>TURBO</small></button>
+        <button type="button" id="fullscreenBtn" class="tool fullscreen-btn" aria-label="Entrar em tela cheia" title="Expandir para tela cheia" aria-pressed="false"><svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg></button>
+        <button type="button" id="powerBtn" class="tool onoff" aria-label="Desligar calculadora" title="Ligar/desligar">ON<br>OFF</button>
+        <button type="button" id="closeBtn" class="tool close" aria-label="Fechar calculadora" title="Fechar">×</button>
+      </div>
+    </div>
+    <div class="lcd-bezel"><div class="lcd" aria-label="Visor numérico">
+      <div class="screen-head"><span id="memBadge"></span><span id="modeBadge" class="modeTag">LCD · 12</span></div>
+      <div class="expression" id="expression"></div>
+      <div class="readout" id="scrollDisplay"><div class="display" id="display" role="status" aria-live="off">0</div></div>
+      <div class="digit-count" id="digitCount">1 / 12 dígitos</div>
+    </div></div>
+    <div class="advanced" id="advanced" hidden>
+      <div class="turboHero"><div class="tLight">✧</div><div><h3>QUANTUM ENGINE <span class="turboBadge">99</span></h3><p>Controle científico e financeiro · precisão decimal avançada</p></div></div>
+      <div class="precisionInfo"><span id="engineSource">Motor local de precisão</span><span>LCD · 99 DÍGITOS</span></div>
+      <button id="test99" type="button" class="test99">◈ DEMONSTRAR TODOS OS 99 DÍGITOS</button>
+      <nav class="tabs" role="tablist" aria-label="Ferramentas Turbo">
+        <button class="tab" data-tab="scientific" role="tab" aria-selected="true"><span>ƒx</span>Científica</button>
+        <button class="tab" data-tab="converter" role="tab" aria-selected="false"><span>⇄</span>Conversor</button>
+        <button class="tab" data-tab="commerce" role="tab" aria-selected="false"><span>％</span>Comercial</button>
+        <button class="tab" data-tab="statistics" role="tab" aria-selected="false"><span>Σ</span>Estatística</button>
+        <button class="tab" data-tab="programmer" role="tab" aria-selected="false"><span>⌘</span>Programador</button>
+        <button class="tab" data-tab="history" role="tab" aria-selected="false"><span>◷</span>Histórico</button>
+      </nav>
+      <section class="tabContent" data-panel="scientific">
+        <div class="sectionTop"><span>CIENTÍFICA AVANÇADA</span><button type="button" class="angleBtn" id="angleBtn" aria-label="Alternar graus e radianos" aria-pressed="false">DEG</button></div>
+        <form id="expressionForm" class="equationBox"><label for="expressionInput">EXPRESSÃO ALGÉBRICA</label><input id="expressionInput" autocomplete="off" spellcheck="false" maxlength="360" placeholder="2*(3+4)^2 + sqrt(81)" aria-label="Digite uma expressão matemática"/><div class="equationBtns"><button type="button" data-insert="(" class="eqMini">(</button><button type="button" data-insert=")" class="eqMini">)</button><button type="button" data-insert="^" class="eqMini">xʸ</button><button type="button" data-insert="pi" class="eqMini">π</button><button type="button" data-insert="!" class="eqMini">n!</button><button type="button" id="demoExpression" class="eqMini demo">EXEMPLO</button></div><button type="submit" class="calculateBtn">▸ CALCULAR EXPRESSÃO</button></form>
+        <div id="scienceGroups"></div>
+        <p class="technicalNote">O motor matemático faz aritmética decimal de precisão estendida. Funções transcendentais são aproximações numéricas com 112 dígitos internos de guarda; resultados finais usam até 99 dígitos significativos.</p>
+      </section>
+      <section class="tabContent" data-panel="converter" hidden>
+        <div class="sectionTop"><span>CONVERSOR MULTICATEGORIAS</span><span class="sectionChip">10 ÁREAS</span></div>
+        <div class="unitCats" id="unitCats"></div>
+        <div class="convertPanel"><label for="unitAmount">VALOR A CONVERTER</label><div class="convertInputRow"><input id="unitAmount" inputmode="decimal" type="text" value="1000" aria-label="Valor da conversão"/><button type="button" id="convertFromEntry" title="Usar número do visor">↥ VISOR</button></div><div class="unitSelectors"><label>DE<select id="unitFrom" aria-label="Unidade de origem"></select></label><button type="button" id="swapUnit" class="swapBtn" title="Inverter as unidades">⇄</button><label>PARA<select id="unitTo" aria-label="Unidade de destino"></select></label></div><div class="convertOutput"><span id="convertSub">g → kg</span><strong id="convertResult">1</strong><small id="convertIssue">Resultado calculado com a precisão selecionada.</small></div><div class="convertActions"><button id="convertToEntry" type="button">↗ USAR NO VISOR</button><button id="convertCopy" type="button">▢ COPIAR</button></div></div>
+        <p class="technicalNote">Conversões físicas independentes de câmbio. Massa, volume, comprimento, área, velocidade, temperatura, tempo, dados, pressão e energia. Conversões de temperatura consideram seus deslocamentos de escala.</p>
+      </section>
+      <section class="tabContent" data-panel="commerce" hidden>
+        <div class="sectionTop"><span>OPERAÇÕES COMERCIAIS</span><span class="sectionChip">LUCRO & MARGEM</span></div>
+        <p class="sectionIntro">Os botões abaixo aplicam o percentual ao número atual do visor.</p><div class="fancyGrid" id="financeButtons"></div>
+        <div class="financePanel"><h4>◈ SIMULADOR DE PREÇO E PONTO DE EQUILÍBRIO</h4><div class="financeFields"><label>Custo unitário (R$)<input id="financeCost" inputmode="decimal" value="12,20"/></label><label>Margem bruta desejada (%)<input id="financeMargin" inputmode="decimal" value="40"/></label><label>Despesas fixas do período (R$)<input id="financeFixed" inputmode="decimal" value="2000"/></label><label>Taxa de juros (%)<input id="financeRate" inputmode="decimal" value="1,5"/></label><label>Períodos para projeção<input id="financePeriods" inputmode="numeric" value="12"/></label></div><button class="calculateBtn" id="financeCompute" type="button">CALCULAR SIMULAÇÃO</button><div id="financeResults" class="financeResults"></div><button type="button" id="financeUse" class="secondaryAction">↗ USAR PREÇO SUGERIDO NO VISOR</button><p class="technicalNote">Ponto de equilíbrio estimado: despesas fixas ÷ contribuição unitária. Não substitui conciliação de impostos, taxas e custos variáveis.</p></div>
+      </section>
+      <section class="tabContent" data-panel="statistics" hidden>
+        <div class="sectionTop"><span>ANÁLISE ESTATÍSTICA</span><span class="sectionChip">ATÉ 200 VALORES</span></div>
+        <div class="statPanel"><label for="statInput">VALORES SEPARADOS POR PONTO E VÍRGULA</label><textarea id="statInput" rows="4" spellcheck="false" placeholder="10; 12,5; 15; 18; 20">10; 12,5; 15; 18; 20</textarea><button type="button" id="statCompute" class="calculateBtn">Σ CALCULAR ESTATÍSTICAS</button><div class="statResults" id="statResults"></div><p class="technicalNote">Média, mediana, soma, mínimo/máximo, variância populacional e desvio padrão populacional. Toque em um resultado para enviá-lo ao visor.</p></div>
+      </section>
+      <section class="tabContent" data-panel="programmer" hidden>
+        <div class="sectionTop"><span>PROGRAMADOR DIGITAL</span><span class="sectionChip">64 BITS</span></div>
+        <div class="programPanel"><p class="sectionIntro">Valor inteiro do visor · base DEC / HEX / BIN / OCT.</p><div class="progBases"><div><small>DECIMAL</small><strong id="progDec">0</strong></div><div><small>HEXADECIMAL</small><strong id="progHex">0x0</strong></div><div><small>BINÁRIO</small><strong id="progBin">0</strong></div><div><small>OCTAL</small><strong id="progOct">0o0</strong></div></div><label for="progOperand">SEGUNDO OPERANDO (INTEIRO DECIMAL)</label><input id="progOperand" inputmode="numeric" value="15"/><div class="progOps"><button data-prog="and">AND <small>∧</small></button><button data-prog="or">OR <small>∨</small></button><button data-prog="xor">XOR <small>⊕</small></button><button data-prog="not">NOT <small>¬</small></button><button data-prog="shl">SHIFT ◀ <small>«</small></button><button data-prog="shr">SHIFT ▶ <small>»</small></button></div><p id="progIssue" class="technicalNote">64 bits sem sinal; a operação NOT usa complemento dentro de 64 bits.</p></div>
+      </section>
+      <section class="tabContent" data-panel="history" hidden>
+        <div class="sectionTop"><span>MEMÓRIA & HISTÓRICO</span><button id="clearHistory" class="dangerSmall" type="button">LIMPAR</button></div><div class="memoryPad"><div><small>MEMÓRIA ATUAL</small><strong id="memoryVal">0</strong></div><div class="memoryKeys"><button data-mem="MC">MC</button><button data-mem="MR">MR</button><button data-mem="MS">MS</button><button data-mem="M+">M+</button><button data-mem="M-">M−</button></div></div><div id="historyList" class="historyList"></div><p class="technicalNote">Histórico local desta calculadora, sem envio a servidores.</p>
+      </section>
+      <div class="moreOptions"><button id="soundBtn" aria-pressed="true" type="button">🔊 Clique ON</button><button id="vibeBtn" aria-pressed="true" type="button">📳 Vibração ON</button></div>
+    </div>
+    <div id="keypad" class="keypad">
+      <button class="k c" data-key="C">C</button><button class="k fn" data-key="back">⌫</button><button class="k fn" data-key="sign">±</button><button class="k op" data-key="/">÷</button>
+      <button class="k" data-key="7">7</button><button class="k" data-key="8">8</button><button class="k" data-key="9">9</button><button class="k op" data-key="*">×</button>
+      <button class="k" data-key="4">4</button><button class="k" data-key="5">5</button><button class="k" data-key="6">6</button><button class="k op" data-key="-">−</button>
+      <button class="k" data-key="1">1</button><button class="k" data-key="2">2</button><button class="k" data-key="3">3</button><button class="k op" data-key="+">+</button>
+      <button class="k fn" data-key="%">%</button><button class="k" data-key="0">0</button><button class="k" data-key=".">,</button><button class="k eq" data-key="=">=</button>
+    </div>
+    <div class="status" id="bottomStatus">VISOR RETRÔ · TECLADO MECÂNICO</div>
+  </section>
+  <button id="reopen" class="reopen" type="button" hidden>🚀 Reabrir Potê Calc</button>
+  <div id="toast" hidden role="status" aria-live="polite"></div>
+</div>
+
+<script>/* POTÊ CALC — motor decimal local de precisão arbitrária em base BigInt.
+ * 110 dígitos de guarda interna; exibição limitada a 12 ou 99 dígitos significativos.
+ * Sem eval() e sem conversão para Number nos cálculos decimais/científicos implementados.
+ * NOTA: aproximações transcendentais usam séries truncadas e arredondamento decimal;
+ * a precisão final é finita, não uma garantia metrológica de 99 algarismos.
+ */
+(function(global){
+'use strict';
+const GUARD=112, SCALE=10n**BigInt(GUARD), HALF=SCALE/2n;
+const TEN=10n, MAX_EXP=900, ZERO=0n;
+const pow10=(k)=>{if(!Number.isInteger(k)||k<0||k>MAX_EXP)throw Error('Expoente fora do limite de segurança');return TEN**BigInt(k)};
+const abs=x=>x<0n?-x:x;
+function norm(a){if(a.n===0n)return{n:0n,s:0};let n=a.n,s=a.s;while(n%10n===0n){n/=10n;s--}return {n,s};}
+function dec(v){if(v&&typeof v==='object'&&typeof v.n==='bigint'&&Number.isInteger(v.s))return norm(v);let raw=String(v).trim().replace(',','.');const m=/^(-?)(\d+)(?:\.(\d*))?(?:e([+-]?\d+))?$/i.exec(raw);if(!m)throw Error('Número decimal inválido');let exponent=Number(m[4]||0);if(!Number.isInteger(exponent)||Math.abs(exponent)>700)throw Error('Expoente muito grande');const n=BigInt((m[1]||'')+m[2]+(m[3]||''));return norm({n,s:(m[3]||'').length-exponent});}
+function significant(a,p=99){a=norm(dec(a));if(!a.n)return a;let n=abs(a.n),digits=n.toString().length;if(digits>p){let shift=digits-p,factor=pow10(shift);n=n/factor+(2n*(n%factor)>=factor?1n:0n);a=norm({n:a.n<0n?-n:n,s:a.s-shift});}return a;}
+function stringify(a,{digits=99,compact=false}={}){a=significant(a,digits);if(!a.n)return '0';let n=abs(a.n).toString(),s=a.s,sgn=a.n<0n?'-':'';const expo=n.length-s-1;if(expo>98||expo< -130||n.length-s>99){return sgn+n[0]+(n.length>1?'.'+n.slice(1):'')+'e'+(expo>=0?'+':'')+expo;}
+if(s<=0)return sgn+n+'0'.repeat(-s);if(s>=n.length)return sgn+'0.'+'0'.repeat(s-n.length)+n;return sgn+n.slice(0,n.length-s)+'.'+n.slice(n.length-s);}
+function plus(a,b,p=GUARD){a=dec(a);b=dec(b);let s=Math.max(a.s,b.s);return significant({n:a.n*pow10(s-a.s)+b.n*pow10(s-b.s),s},p);}
+function neg(a){a=dec(a);return{n:-a.n,s:a.s};}
+function sub(a,b,p=GUARD){return plus(a,neg(b),p)}
+function times(a,b,p=GUARD){a=dec(a);b=dec(b);return significant({n:a.n*b.n,s:a.s+b.s},p)}
+function divide(a,b,p=GUARD){a=dec(a);b=dec(b);if(!b.n)throw Error('Divisão por zero');if(!a.n)return dec('0');let x=abs(a.n),y=abs(b.n),d=b.s-a.s;if(d>=0)x*=pow10(d);else y*=pow10(-d);let order=x.toString().length-y.toString().length;
+if(order>=0?x<y*pow10(order):x*pow10(-order)<y)order--;
+let s=p-1-order,top=x,bot=y;if(s>=0)top*=pow10(s);else bot*=pow10(-s);let n=top/bot;if(2n*(top%bot)>=bot)n++;return significant({n:(a.n<0n)!==(b.n<0n)?-n:n,s},p);}
+function toFixed(a){a=dec(a);let k=GUARD-a.s;if(k>=0)return a.n*pow10(k);return a.n/pow10(-k);}
+function fromFixed(n){return significant({n,s:GUARD},GUARD)}
+function fmul(a,b){let v=a*b;return v>=0n?(v+HALF)/SCALE:-((-v+HALF)/SCALE)}
+function fdiv(a,b){if(!b)throw Error('Divisão por zero');let v=a*SCALE,sign=(v<0n)!==(b<0n);let n=abs(v),d=abs(b);return(sign?-1n:1n)*((n+d/2n)/d)}
+function isqrt(n){if(n<0n)throw Error('Raiz quadrada de número negativo');if(n<2n)return n;let x=1n<<BigInt((n.toString(2).length+1)>>1);while(true){let y=(x+n/x)>>1n;if(y>=x)return x;x=y;}}
+function fsqrt(x){if(x<0n)throw Error('Raiz de número negativo');return isqrt(x*SCALE)}
+function arctanInv(q){let x=SCALE/BigInt(q),z=x*x/SCALE,term=x,sum=x;for(let k=1;k<1700;k++){term=fmul(term,z);let v=term/BigInt(2*k+1);if(!v)break;sum+=k%2?-v:v;}return sum}
+let PI_CACHE=null,LN2_CACHE=null,LN10_CACHE=null,E_CACHE=null;
+function piFixed(){if(PI_CACHE===null)PI_CACHE=16n*arctanInv(5)-4n*arctanInv(239);return PI_CACHE}
+function lnSeries(y){let z=fdiv(y-SCALE,y+SCALE),zz=fmul(z,z),term=z,sum=z;for(let i=1;i<1500;i++){term=fmul(term,zz);let add=term/BigInt(2*i+1);if(!add)break;sum+=add}return sum*2n}
+function ln2(){return LN2_CACHE??(LN2_CACHE=lnSeries(2n*SCALE))}
+function ln10(){return LN10_CACHE??(LN10_CACHE=lnSeries(5n*SCALE)+ln2())}
+function fln(a){a=dec(a);if(a.n<=0n)throw Error('Logaritmo exige x > 0');let digits=abs(a.n).toString().length,exp=digits-a.s-1;
+// mantissa fica em [1, 10), permitindo redução adicional para [1, 2).
+let mant=toFixed({n:a.n,s:a.s+exp}),twos=0;
+while(mant>=2n*SCALE){mant/=2n;twos++}
+while(mant<SCALE){mant*=2n;twos--}
+return lnSeries(mant)+BigInt(twos)*ln2()+BigInt(exp)*ln10();}
+function fexp(x){let neg=x<0n;if(neg)x=-x;if(x>230n*SCALE)throw Error('Expoente excessivo para o visor');let k=0;while(x>SCALE/2n){x/=2n;k++;}
+let term=SCALE,sum=SCALE;for(let i=1;i<1000;i++){term=fmul(term,x)/BigInt(i);if(!term)break;sum+=term}
+for(let i=0;i<k;i++)sum=fmul(sum,sum);return neg?fdiv(SCALE,sum):sum;}
+function fatan(v){if(v<0n)return-fatan(-v);if(v>SCALE)return piFixed()/2n-fatan(fdiv(SCALE,v));if(v>SCALE/4n){let z=fdiv(v,SCALE+fsqrt(SCALE+fmul(v,v)));return 2n*fatan(z)}
+let term=v,sum=v,zz=fmul(v,v);for(let i=1;i<1000;i++){term=-fmul(term,zz);let t=term/BigInt(2*i+1);if(!t)break;sum+=t}return sum;}
+function fsin(v){let pi=piFixed(),two=2n*pi;v=((v%two)+two)%two;if(v>pi)v-=two;if(v>pi/2n)v=pi-v;if(v< -pi/2n)v=-pi-v;
+let term=v,sum=v,x2=fmul(v,v);for(let k=1;k<900;k++){term=-fmul(term,x2)/BigInt((2*k)*(2*k+1));if(!term)break;sum+=term}return sum;}
+function fcos(v){let pi=piFixed(),two=2n*pi;v=((v%two)+two)%two;if(v>pi)v-=two;let term=SCALE,sum=SCALE,x2=fmul(v,v);for(let k=1;k<900;k++){term=-fmul(term,x2)/BigInt((2*k-1)*(2*k));if(!term)break;sum+=term}return sum;}
+function trigonometric(a,fn,angle='DEG'){
+let x=toFixed(a),r,pi=piFixed();if(['asin','acos','atan'].includes(fn)){
+ if(fn==='atan')r=fatan(x);else{if(abs(x)>SCALE)throw Error('Domínio do arco seno/cosseno: −1 a 1');if(x===SCALE)r=fn==='asin'?pi/2n:0n;else if(x===-SCALE)r=fn==='asin'?-pi/2n:pi;else {let arc=fatan(fdiv(x,fsqrt(SCALE-fmul(x,x))));r=fn==='asin'?arc:pi/2n-arc;}}
+ if(angle==='DEG')r=fdiv(fmul(r,180n*SCALE),pi);
+}else if(['sin','cos','tan'].includes(fn)){
+ if(angle==='DEG')x=fdiv(fmul(x,pi),180n*SCALE);
+ let sn=fsin(x),cs=fcos(x);
+ if(fn==='sin')r=sn;else if(fn==='cos')r=cs;else{if(abs(cs)<10n**10n)throw Error('Tangente indefinida neste ângulo');r=fdiv(sn,cs)}
+}else if(['sinh','cosh','tanh','asinh','acosh','atanh'].includes(fn)){
+ if(fn==='sinh')r=(fexp(x)-fexp(-x))/2n;
+ if(fn==='cosh')r=(fexp(x)+fexp(-x))/2n;
+ if(fn==='tanh'){let e=fexp(2n*x);r=fdiv(e-SCALE,e+SCALE)}
+ if(fn==='asinh')r=fln(fromFixed(x+fsqrt(fmul(x,x)+SCALE)));
+ if(fn==='acosh'){if(x<SCALE)throw Error('acosh exige x ≥ 1');r=fln(fromFixed(x+fsqrt(fmul(x-SCALE,x+SCALE))))}
+ if(fn==='atanh'){if(abs(x)>=SCALE)throw Error('atanh exige |x| < 1');r=fln(fromFixed(fdiv(SCALE+x,SCALE-x)))/2n}
+}else throw Error('Função desconhecida');return fromFixed(r);
+}
+function unary(fn,a,angle='DEG'){
+a=dec(a);let r,x=toFixed(a);switch(fn){
+case 'sqrt':r=fsqrt(x);break;case 'cbrt':return nthroot(a,dec(3));
+case 'ln':r=fln(a);break;case 'log':r=fdiv(fln(a),ln10());break;
+case 'exp':r=fexp(x);break;case 'exp10':r=fexp(fmul(x,ln10()));break;
+case 'abs':return {n:abs(a.n),s:a.s};case 'sign':return dec(a.n>0n?1:a.n<0n?-1:0);
+case 'inverse':return divide(dec(1),a);case 'square':return times(a,a);case 'cube':return times(times(a,a),a);
+case 'sin':case 'cos':case 'tan':case 'asin':case 'acos':case 'atan':case 'sinh':case 'cosh':case 'tanh':case 'asinh':case 'acosh':case 'atanh':return trigonometric(a,fn,angle);
+case 'factorial':{const n=integer(a);if(n<0n||n>500n)throw Error('Fatorial aceita inteiros de 0 a 500');let out=1n;for(let i=2n;i<=n;i++)out*=i;return significant({n:out,s:0},GUARD)}
+case 'percent':return divide(a,dec(100));case 'neg':return neg(a);case 'pi':return fromFixed(piFixed());case 'e':return fromFixed(fexp(SCALE));
+default:throw Error('Função não reconhecida: '+fn)}return fromFixed(r);}
+function integer(a){a=dec(a);let n;if(a.s>0){let d=pow10(a.s);if(a.n%d)throw Error('É necessário um inteiro');n=a.n/d}else n=a.n*pow10(-a.s);return n}
+function factorial(n){return unary('factorial',n)}
+function permutation(n,r){n=integer(n);r=integer(r);if(n<0n||r<0n||r>n||n>500n)throw Error('nPr: exige 0 ≤ r ≤ n ≤ 500');let value=1n;for(let i=0n;i<r;i++)value*=n-i;return significant({n:value,s:0},GUARD)}
+function combination(n,r){n=integer(n);r=integer(r);if(n<0n||r<0n||r>n||n>500n)throw Error('nCr: exige 0 ≤ r ≤ n ≤ 500');let k=r>n-r?n-r:r,value=1n;for(let i=1n;i<=k;i++)value=value*(n-i+1n)/i;return significant({n:value,s:0},GUARD)}
+function power(a,b){a=dec(a);b=dec(b);if(!b.n)return dec('1');let exponent;try{exponent=integer(b)}catch(_){exponent=null}
+if(exponent!==null&&abs(exponent)<=1000n){let n=abs(exponent),out=dec('1'),base=a;while(n){if(n&1n)out=times(out,base);base=times(base,base);n>>=1n}return exponent<0n?divide(dec(1),out):out}
+if(a.n<0n)throw Error('Potência fracionária de base negativa');if(!a.n)throw Error('Zero elevado a expoente não inteiro');return fromFixed(fexp(fmul(toFixed(b),fln(a))));}
+function nthroot(a,n){let nn=integer(n);if(nn===0n)throw Error('Índice zero inválido');if(nn<0n)return divide(dec(1),nthroot(a,dec(String(-nn))));if(nn>99n)throw Error('Índice máximo de raiz: 99');a=dec(a);if(a.n<0n){if(nn%2n===0n)throw Error('Raiz par de número negativo');return neg(nthroot(neg(a),dec(String(nn))))}if(a.n===0n)return dec(0);
+if(nn===2n)return unary('sqrt',a);
+return fromFixed(fexp(fdiv(fln(a),nn*SCALE)));}
+function average(list){if(!list.length)throw Error('Informe números separados por ;');return divide(list.reduce((a,b)=>plus(a,b),dec(0)),dec(list.length))}
+function statistics(text){let values=String(text).split(/[;\n]+/).map(x=>x.trim()).filter(Boolean).map(dec);if(!values.length||values.length>200)throw Error('Use de 1 a 200 valores separados por ponto e vírgula');values.sort((a,b)=>{let v=sub(a,b);return v.n<0n?-1:v.n>0n?1:0});let total=values.reduce((x,v)=>plus(x,v),dec(0)),mean=divide(total,dec(values.length)),variance=divide(values.reduce((x,v)=>plus(x,times(sub(v,mean),sub(v,mean))),dec(0)),dec(values.length));let mid=values.length>>1;return{count:values.length,sum:total,mean,median:values.length%2?values[mid]:divide(plus(values[mid-1],values[mid]),dec(2)),min:values[0],max:values[values.length-1],variance,std:unary('sqrt',variance)}}
+const UNITS={
+ mass:{label:'Massa',symbol:'⚖',options:[['g','Gramas','1'],['kg','Quilos','1000'],['mg','Miligramas','0.001'],['t','Toneladas','1000000'],['lb','Libras','453.59237'],['oz','Onças','28.349523125']]},
+ volume:{label:'Volume',symbol:'🧴',options:[['mL','Mililitros','0.001'],['L','Litros','1'],['m³','Metros cúbicos','1000'],['gal (EUA)','Galões EUA','3.785411784'],['cup (EUA)','Xícaras EUA','0.2365882365']]},
+ length:{label:'Comprimento',symbol:'📏',options:[['m','Metros','1'],['km','Quilômetros','1000'],['cm','Centímetros','0.01'],['mm','Milímetros','0.001'],['mi','Milhas','1609.344'],['ft','Pés','0.3048'],['in','Polegadas','0.0254'],['yd','Jardas','0.9144']]},
+ area:{label:'Área',symbol:'▦',options:[['m²','Metros quadrados','1'],['cm²','Centímetros²','0.0001'],['km²','Quilômetros²','1000000'],['ha','Hectares','10000'],['ft²','Pés quadrados','0.09290304'],['acre','Acres','4046.8564224']]},
+ speed:{label:'Velocidade',symbol:'⚡',options:[['km/h','Quilômetros/h','0.27777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777'],['m/s','Metros/s','1'],['mph','Milhas/h','0.44704'],['kn','Nós','0.51444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444444']]},
+ temp:{label:'Temperatura',symbol:'🌡',options:[['°C','Celsius'],['°F','Fahrenheit'],['K','Kelvin']]},
+ time:{label:'Tempo',symbol:'⏱',options:[['s','Segundos','1'],['min','Minutos','60'],['h','Horas','3600'],['dia','Dias','86400'],['sem','Semanas','604800']]},
+ data:{label:'Dados',symbol:'💾',options:[['B','Bytes','1'],['kB','Kilobytes','1000'],['MB','Megabytes','1000000'],['GB','Gigabytes','1000000000'],['KiB','Kibibytes','1024'],['MiB','Mebibytes','1048576'],['GiB','Gibibytes','1073741824']]},
+ pressure:{label:'Pressão',symbol:'◉',options:[['Pa','Pascals','1'],['kPa','Kilopascals','1000'],['bar','Bar','100000'],['psi','PSI','6894.757293168361']]},
+ energy:{label:'Energia',symbol:'🔋',options:[['J','Joules','1'],['kJ','Kilojoules','1000'],['Wh','Watt-hora','3600'],['kWh','Quilowatt-hora','3600000'],['cal','Calorias','4.184'],['kcal','Quilocalorias','4184']]}
+};
+function convert(category,from,to,value){let cat=UNITS[category];if(!cat)throw Error('Conversor desconhecido');let u=cat.options.find(x=>x[0]===from),v=cat.options.find(x=>x[0]===to);if(!u||!v)throw Error('Unidades incompatíveis');let x=dec(value);if(category==='temp'){
+ if(from==='°F')x=divide(times(sub(x,dec('32')),dec(5)),dec(9));else if(from==='K')x=sub(x,dec('273.15'));
+ if(to==='°F')x=plus(divide(times(x,dec(9)),dec(5)),dec('32'));else if(to==='K')x=plus(x,dec('273.15'));
+ if(to==='K'&&x.n<0n)throw Error('Temperatura abaixo do zero absoluto');return x;}
+// Velocidade é calculada por razões exatas para evitar coeficientes periódicos.
+if(category==='speed'){
+ const ratio={ 'km/h':['1000','3600'],'m/s':['1','1'],'mph':['1609344','3600000'],'kn':['1852','3600']};
+ let a=ratio[from],b=ratio[to];return divide(times(times(x,dec(a[0])),dec(b[1])),times(dec(a[1]),dec(b[0])));
+}
+return divide(times(x,dec(u[2])),dec(v[2]));}
+function expression(input,{degrees=true}={}){let expr=String(input).trim().replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/π/g,'pi');if(expr.length>360)throw Error('Expressão muito longa');let tokenRe=/\s*(?:((?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)|([a-zA-Z][a-zA-Z0-9]*)|([()+\-*/^!,%]))/gy;
+let tokens=[],pos=0;while(pos<expr.length){tokenRe.lastIndex=pos;let m=tokenRe.exec(expr);if(!m)throw Error('Símbolo inválido na expressão');tokens.push(m[1]?{t:'num',v:m[1]}:m[2]?{t:'id',v:m[2]}:{t:m[3],v:m[3]});pos=tokenRe.lastIndex;if(tokens.length>200)throw Error('Expressão complexa demais')}
+tokens.push({t:'END'});let i=0,depth=0;const peek=()=>tokens[i].t,take=()=>tokens[i++],expect=t=>{if(peek()!==t)throw Error('Esperado '+t);take()};
+function atom(){if(++depth>35)throw Error('Parênteses aninhados demais');let t=take(),res;if(t.t==='num'){res=dec(t.v)}else if(t.t==='('){res=sum();expect(')')}
+else if(t.t==='id'){
+ let f=t.v.toLowerCase();if(peek()==='('){take();let args=[];if(peek()!==')'){args.push(sum());while(peek()===','){take();args.push(sum())}}expect(')');if(['ncr','combinacoes','choose'].includes(f)){if(args.length!==2)throw Error('nCr precisa de dois argumentos');res=combination(args[0],args[1])}
+else if(['npr','perm'].includes(f)){if(args.length!==2)throw Error('nPr precisa de dois argumentos');res=permutation(args[0],args[1])}
+else if(['root','raiz'].includes(f)){if(args.length!==2)throw Error('raiz(x, n) precisa de dois argumentos');res=nthroot(args[0],args[1])}
+else if(f==='pow'){if(args.length!==2)throw Error('pow(x,y) precisa de dois argumentos');res=power(args[0],args[1])}
+else{if(args.length!==1)throw Error('Função '+f+' precisa de um argumento');res=unary(f,args[0],degrees?'DEG':'RAD')}}
+else if(f==='pi')res=unary('pi',dec(0));else if(f==='e')res=unary('e',dec(0));else throw Error('Constante desconhecida: '+f);
+}else if(t.t==='-')res=neg(atom());else if(t.t==='+')res=atom();else throw Error('Expressão incompleta');while(peek()==='!'){take();res=factorial(res)}depth--;return res;}
+function exp(){let left=atom();if(peek()==='^'){take();left=power(left,exp())}return left}
+function product(){let left=exp();while(['*','/','%'].includes(peek())){let t=take().t,right=exp();left=t==='*'?times(left,right):t==='/'?divide(left,right):times(divide(left,dec(100)),right)}return left}
+function sum(){let left=product();while(['+','-'].includes(peek())){let t=take().t,right=product();left=t==='+'?plus(left,right):sub(left,right)}return left}
+let result=sum();if(peek()!=='END')throw Error('Expressão inválida perto de '+peek());return result;}
+const api={dec,norm,significant,stringify,plus,sub,times,divide,neg,unary,power,nthroot,factorial,permutation,combination,statistics,convert,units:UNITS,expression,pi:()=>unary('pi',dec(0)),e:()=>unary('e',dec(0)),precision:GUARD};
+global.PoteCalcMath=api;
+if(typeof module!=='undefined'&&module.exports)module.exports=api;
+})(typeof window!=='undefined'?window:globalThis);
+</script>
+<script>/* Interface da Potê Calc Quantum PRO. Usa PoteCalcMath (motor decimal local)
+   e math.js 15.2.0 (opcional, baixa via CDN quando há Internet).
+   Sem operações de rede para dados do usuário; não transfere contas. */
+(function(){
+'use strict';
+const root=document.getElementById('calcPlayground');if(!root||root.dataset.ready)return;root.dataset.ready='1';
+const E=window.PoteCalcMath, q=s=>root.querySelector(s), QA=s=>[...root.querySelectorAll(s)],dev=q('#calcDevice');
+let turbo=false,on=true,entry='0',stored=null,operator=null,waiting=false,expr='',hist=[],memo=E.dec(0),memoOn=false,tab='scientific',angle='DEG',sound=true,vibrate=true,audio=null,drag=null,activeCategory='mass',statCache=null,justCompleted=false;
+const limit=()=>turbo?99:12;
+const signs={'+':'+','-':'−','*':'×','/':'÷','^':'^','root':'ⁿ√','nCr':'nCr','nPr':'nPr'};
+const parseText=text=>{let s=String(text||'').trim();if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(',','.');return E.dec(s)};
+function amountText(obj){return E.stringify(obj,{digits:limit()})}
+function external(op,a,b){const m=window.math;if(!m||!m.bignumber)return null;try{const x=m.bignumber(E.stringify(a,{digits:110})),y=b!==undefined?m.bignumber(E.stringify(b,{digits:110})):undefined;const fn={'+':'add','-':'subtract','*':'multiply','/':'divide','^':'pow',sqrt:'sqrt',ln:'log',log:'log10'}[op];if(!fn||typeof m[fn]!=='function')return null;const result=b===undefined?m[fn](x):m[fn](x,y);if(result&&typeof result.toString==='function'&&(!m.typeOf||m.typeOf(result)==='BigNumber'))return E.dec(result.toString())}catch(e){}return null}
+function binary(a,b,op){if(op==='nCr')return E.combination(a,b);if(op==='nPr')return E.permutation(a,b);if(op==='root')return E.nthroot(a,b);const value=external(op,a,b);if(value)return value;if(op==='+')return E.plus(a,b);if(op==='-')return E.sub(a,b);if(op==='*')return E.times(a,b);if(op==='/')return E.divide(a,b);if(op==='^')return E.power(a,b);throw Error('Operação desconhecida')}
+function unary(fn,value){let v=['sqrt','ln','log'].includes(fn)?external(fn,value):null;return v||E.unary(fn,value,angle)}
+function fmt(s){if(['Erro','Limite'].includes(s))return s;const match=/^(-?)(\d+)(?:\.(\d*))?(e([+-]?\d+))?$/i.exec(String(s));if(!match)return s;let ip=match[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.');return(match[1]?'−':'')+ip+(match[3]!==undefined?','+match[3]:'')+(match[4]||'')}
+function render(){let digits=(entry.match(/\d/g)||[]).length,qv=q('#display');qv.textContent=turbo&&digits>18?entry.replace('.',','):fmt(entry);qv.classList.toggle('long-number',digits>18);q('#digitCount').textContent=`${Math.min(99,digits)} / ${limit()} dígitos`;q('#expression').textContent=expr;q('#memBadge').textContent=memoOn?'M':'';q('#scrollDisplay').scrollLeft=turbo?0:q('#scrollDisplay').scrollWidth;q('#modeText').textContent=turbo?'TURBO QUANTUM · 99 DÍGITOS':'HUMILDE · 12 DÍGITOS';q('#modeBadge').textContent=`LCD · ${limit()}`;q('#rocketBtn').setAttribute('aria-pressed',String(turbo));if(turbo)updateProgPreview();updateHeight()}
+function updateHeight(){if(fullscreenActive()){root.style.height="100dvh";return}requestAnimationFrame(()=>{root.style.height=dev.hidden?'88px':Math.max(550,dev.offsetTop+dev.offsetHeight+30)+'px'})}
+function reset(){entry='0';stored=null;operator=null;waiting=false;expr='';justCompleted=false}
+function result(v,title,{save=false}={}){let value=amountText(v);entry=value;expr=title;stored=null;operator=null;waiting=true;justCompleted=true;if(save){hist.unshift({title,value,at:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});hist=hist.slice(0,35);if(tab==='history')renderHistory()}render()}
+function digits(k){if(['Erro','Limite'].includes(entry))reset();if(waiting){entry=k==='.'?'0.':k;waiting=false;justCompleted=false;return}if(k==='.'){if(!entry.includes('.')&&!/e[+-]?\d+$/i.test(entry))entry+='.';return}if((entry.replace(/e[+-]?\d+$/i,'').match(/\d/g)||[]).length>=limit())return;entry=entry==='0'?k:entry==='-0'?'-'+k:entry+k}
+function onKey(key){if(!on)return;try{if(/^\d$/.test(key)||key==='.')digits(key);else if(key==='C')reset();else if(key==='back'){entry=waiting?'0':entry.length<2?'0':entry.slice(0,-1);waiting=false;justCompleted=false}else if(key==='sign'){if(entry!=='0'&&!['Erro','Limite'].includes(entry))entry=entry.startsWith('-')?entry.slice(1):'-'+entry}else if(key==='%'){
+ if(stored&&operator&&['+','-'].includes(operator))entry=amountText(E.divide(E.times(stored,parseText(entry)),E.dec(100)));else entry=amountText(E.divide(parseText(entry),E.dec(100)));waiting=false;justCompleted=false;
+}else if(signs[key]){if(stored!==null&&operator&&!waiting)entry=amountText(binary(stored,parseText(entry),operator));stored=parseText(entry);operator=key;waiting=true;justCompleted=false;expr=fmt(entry)+' '+signs[key]}
+else if(key==='='){if(operator&&stored!==null){let left=E.stringify(stored,{digits:limit()}),right=entry,k=operator;result(binary(stored,parseText(entry),operator),`${fmt(left)} ${signs[k]} ${fmt(right)} =`,{save:true})}}}catch(e){entry='Erro';expr=e.message||'Erro matemático';stored=null;operator=null;waiting=true}render()}
+function doUnary(action){if(!on||!turbo)return;try{if(['pi','e'].includes(action))return result(unary(action,E.dec(0)),action==='pi'?'π · 99 dígitos':'e · 99 dígitos');if(action==='ans')return result(E.dec(hist[0]?.value||entry),'Último resultado');if(action==='copy')return copy(entry);
+ if(['^','root','nCr','nPr'].includes(action)){onKey(action);return}
+ const v=unary(action,parseText(entry));result(v,({square:'x²',cube:'x³',sqrt:'√x',cbrt:'∛x',inverse:'1/x',factorial:'n!',exp:'eˣ',exp10:'10ˣ',sign:'sign(x)'}[action]||action)+(angle==='DEG'&&['sin','cos','tan','asin','acos','atan'].includes(action)?' · DEG':''),{save:true});
+ }catch(e){entry='Erro';expr=e.message||'Erro científico';waiting=true;render()}}
+function copy(v){if(navigator.clipboard?.writeText){navigator.clipboard.writeText(String(v)).then(()=>setToast('Copiado')).catch(()=>setToast('Não foi possível copiar automaticamente'))}else setToast('Cópia não disponível neste navegador')}
+let toastId;
+function setToast(message){let t=q('#toast');t.textContent=message;t.hidden=false;clearTimeout(toastId);toastId=setTimeout(()=>t.hidden=true,2200)}
+function feedback(){try{if(vibrate&&navigator.vibrate)navigator.vibrate(12);if(sound){const C=window.AudioContext||window.webkitAudioContext;if(C){audio=audio||new C();if(audio.state==='suspended')audio.resume();let o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime;o.type='triangle';o.frequency.setValueAtTime(990,t);o.frequency.exponentialRampToValueAtTime(420,t+.025);g.gain.setValueAtTime(.021,t);g.gain.exponentialRampToValueAtTime(.0001,t+.033);o.connect(g);g.connect(audio.destination);o.start(t);o.stop(t+.036)}}}catch(e){}}
+function changeTab(next){tab=next;QA('[data-tab]').forEach(b=>{b.setAttribute('aria-selected',String(b.dataset.tab===tab))});QA('.tabContent').forEach(x=>x.hidden=x.dataset.panel!==tab);if(tab==='converter')renderConvert();if(tab==='history')renderHistory();if(tab==='programmer')updateProgPreview();updateHeight()}
+function sciButtons(){const groups=[
+ ['POTÊ CALC · POTÊNCIAS', [['x²','square','x²','POTÊNCIA'],['x³','cube','x³','POTÊNCIA'],['xʸ','^','xʸ','POTÊNCIA'],['ⁿ√x','root','ⁿ√','ÍNDICE'],['√x','sqrt','√','RAIZ'],['∛x','cbrt','∛','RAIZ'],['1/x','inverse','1/x','INVERSO'],['|x|','abs','|x|','MÓDULO']]],
+ ['TRIGONOMETRIA', [['sin','sin','sin','SENO'],['cos','cos','cos','COSSENO'],['tan','tan','tan','TANGENTE'],['sin⁻¹','asin','asin','ARCO SENO'],['cos⁻¹','acos','acos','ARCO COSSENO'],['tan⁻¹','atan','atan','ARCO TANGENTE']]],
+ ['FUNÇÕES HIPERBÓLICAS', [['sinh','sinh','sinh','SENO H.'],['cosh','cosh','cosh','COSSENO H.'],['tanh','tanh','tanh','TANGENTE H.'],['asinh','asinh','asinh','INVERSA'],['acosh','acosh','acosh','INVERSA'],['atanh','atanh','atanh','INVERSA']]],
+ ['LOGARITMOS, CONSTANTES E CONTAGEM', [['ln','ln','ln','NATURAL'],['log₁₀','log','log','BASE 10'],['eˣ','exp','eˣ','EXPON.'],['10ˣ','exp10','10ˣ','EXPON.'],['π','pi','π','CONSTANTE'],['e','e','e','CONSTANTE'],['n!','factorial','n!','FATORIAL'],['nCr','nCr','nCr','COMBINAÇÃO'],['nPr','nPr','nPr','ARRANJO'],['ANS','ans','ANS','ÚLTIMO']]]];
+ const el=q('#scienceGroups');el.replaceChildren();for(let [header,buttons] of groups){let wrap=document.createElement('div');wrap.className='functionGroup';let h=document.createElement('h4');h.textContent=header;wrap.append(h);let grid=document.createElement('div');grid.className='fancyGrid';for(let [label,action,symbol,small]of buttons){let b=document.createElement('button');b.type='button';b.className='fancyKey';b.dataset.action=action;b.innerHTML=`<span class="fancyTop"></span><small></small>`;b.firstElementChild.textContent=symbol;b.lastElementChild.textContent=small;b.setAttribute('aria-label',label);grid.append(b)}wrap.append(grid);el.append(wrap)}}
+function converterCats(){const el=q('#unitCats');el.replaceChildren();for(let [key,cat] of Object.entries(E.units)){let b=document.createElement('button');b.type='button';b.className='catBtn';b.dataset.cat=key;b.innerHTML=`<span class="catIcon"></span><b></b>`;b.firstElementChild.textContent=cat.symbol;b.lastElementChild.textContent=cat.label;el.append(b)}renderConvert()}
+function renderConvert(){QA('[data-cat]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.cat===activeCategory)));let cat=E.units[activeCategory];const from=q('#unitFrom'),to=q('#unitTo');let selectedFrom=from.dataset.category===activeCategory?from.value:null,selectedTo=to.dataset.category===activeCategory?to.value:null;for(let sel of [from,to]){sel.replaceChildren();for(let option of cat.options){let el=document.createElement('option');el.value=option[0];el.textContent=option[1]+' ('+option[0]+')';sel.append(el)}sel.dataset.category=activeCategory}
+from.value=selectedFrom&&cat.options.some(x=>x[0]===selectedFrom)?selectedFrom:cat.options[0][0];to.value=selectedTo&&cat.options.some(x=>x[0]===selectedTo)?selectedTo:cat.options[1][0];updateConverter()}
+function updateConverter(){let from=q('#unitFrom'),to=q('#unitTo'),amount=q('#unitAmount').value.trim()||'0',box=q('#convertResult'),tag=q('#convertSub');try{let v=E.convert(activeCategory,from.value,to.value,parseText(amount)),s=E.stringify(v,{digits:99});box.dataset.raw=s;box.textContent=fmt(s);tag.textContent=`${from.value} → ${to.value}`;q('#convertIssue').textContent='Conversão calculada. Toque em USAR NO VISOR para continuar.'}catch(e){box.dataset.raw='';box.textContent='—';q('#convertIssue').textContent=e.message}}
+const financeButtons=[['+10%','addpct','10','REAJUSTE'],['−10%','subpct','10','DESCONTO'],['+15%','addpct','15','REAJUSTE'],['−15%','subpct','15','DESCONTO'],['+25%','addpct','25','REAJUSTE'],['−25%','subpct','25','DESCONTO'],['×2','times','2','MULTIPLICAR'],['÷2','divide','2','DIVIDIR'],['Markup +100%','addpct','100','SOBRE CUSTO'],['Margem 30%','margin','30','SOBRE VENDA'],['Margem 40%','margin','40','SOBRE VENDA'],['Comissão 5%','pct','5','DO VALOR'],['Imposto 10%','pct','10','DO VALOR'],['Dividir 3x','divide','3','PARTILHA']];
+function setupFinance(){let area=q('#financeButtons');for(let [label,method,value,hint] of financeButtons){const b=document.createElement('button');b.type='button';b.className='fancyKey financeKey';b.dataset.fmethod=method;b.dataset.fvalue=value;b.innerHTML='<span class="fancyTop"></span><small></small>';b.firstElementChild.textContent=label;b.lastElementChild.textContent=hint;area.append(b)}}
+function applyFinance(method,amount){try{let a=parseText(entry),b=E.dec(amount),result;switch(method){case 'addpct':result=E.times(a,E.plus(E.dec(1),E.divide(b,E.dec(100))));break;case 'subpct':result=E.times(a,E.sub(E.dec(1),E.divide(b,E.dec(100))));break;case 'margin':if(E.sub(E.dec(100),b).n<=0n)throw Error('Margem inválida');result=E.divide(E.times(a,E.dec(100)),E.sub(E.dec(100),b));break;case 'pct':result=E.divide(E.times(a,b),E.dec(100));break;case 'times':result=E.times(a,b);break;case 'divide':result=E.divide(a,b);break;default:return}resultDisplay(result,`${fmt(entry)} · ${method} ${amount}`,true)}catch(e){setToast(e.message)}}
+function resultDisplay(v,title,record){result(v,title,{save:record})}
+function financialSimulation(){try{let cost=parseText(q('#financeCost').value),percent=parseText(q('#financeMargin').value),fixed=parseText(q('#financeFixed').value),interest=parseText(q('#financeRate').value),months=parseText(q('#financePeriods').value);if(cost.n<0n||fixed.n<0n)throw Error('Valores não podem ser negativos');if(percent.n<0n||E.sub(E.dec(100),percent).n<=0n)throw Error('Margem bruta precisa estar entre 0% e 99%');let sell=E.divide(E.times(cost,E.dec(100)),E.sub(E.dec(100),percent)),contribution=E.sub(sell,cost),breakeven=contribution.n?E.divide(fixed,contribution):E.dec(0);
+let grown=E.times(cost,E.power(E.plus(E.dec(1),E.divide(interest,E.dec(100))),months));const fmtVal=v=>fmt(E.stringify(v,{digits:18}));
+q('#financeResults').replaceChildren();const rows=[['Preço com margem',fmtVal(sell)],['Contribuição por unidade',fmtVal(contribution)],['Ponto de equilíbrio (potes)',fmtVal(breakeven)],['Projeção juros compostos',fmtVal(grown)]];for(let [l,v]of rows){let div=document.createElement('div');div.innerHTML='<span></span><strong></strong>';div.firstChild.textContent=l;div.lastChild.textContent=v;q('#financeResults').append(div)};q('#financeResults').dataset.cost=E.stringify(sell,{digits:99});}catch(e){setToast(e.message)}}
+function computeStats(){try{statCache=E.statistics(q('#statInput').value);const holder=q('#statResults');holder.replaceChildren();for(const [k,label] of [['count','Contagem'],['sum','Soma'],['mean','Média'],['median','Mediana'],['std','Desvio padrão'],['variance','Variância'],['min','Mínimo'],['max','Máximo']]){const b=document.createElement('button');b.type='button';b.className='statTile';b.dataset.stat=k;b.innerHTML='<small></small><strong></strong>';b.firstChild.textContent=label;b.lastChild.textContent=k==='count'?String(statCache[k]):fmt(E.stringify(statCache[k],{digits:30}));holder.append(b)}setToast('Estatística calculada')}catch(e){setToast(e.message)}}
+function currentInteger(){let obj=parseText(entry);let s=E.stringify(obj,{digits:99});if(!/^-?\d+$/.test(s))throw Error('Programador usa números inteiros');let n=BigInt(s);if(n<0n||n>18446744073709551615n)throw Error('Programador trabalha com inteiros de 0 a 2⁶⁴−1');return n}
+function updateProgPreview(){if(!turbo||tab!=='programmer')return;try{const n=currentInteger();q('#progDec').textContent=n.toString();q('#progHex').textContent='0x'+n.toString(16).toUpperCase();q('#progBin').textContent=n.toString(2);q('#progOct').textContent='0o'+n.toString(8);q('#progIssue').textContent='64 bits sem sinal · operações bit a bit'}catch(e){for(const id of ['#progDec','#progHex','#progBin','#progOct'])q(id).textContent='—';q('#progIssue').textContent=e.message}}
+function programmerOperation(op){try{const x=currentInteger(),second=BigInt(q('#progOperand').value||0);if(second<0n||second>18446744073709551615n)throw Error('Segundo operando fora de 64 bits');let v;if(op==='and')v=x&second;else if(op==='or')v=x|second;else if(op==='xor')v=x^second;else if(op==='not')v=BigInt.asUintN(64,~x);else if(op==='shl')v=BigInt.asUintN(64,x<<BigInt(Number(second>63n?63n:second)));else if(op==='shr')v=x>>BigInt(Number(second>63n?63n:second));else if(op==='bitlen')return setToast(`Largura: ${x.toString(2).length} bits`);result(E.dec(String(v)),`64-bit · ${op.toUpperCase()}`,{save:true});updateProgPreview()}catch(e){setToast(e.message)}}
+function renderHistory(){const holder=q('#historyList');holder.replaceChildren();if(!hist.length){let e=document.createElement('p');e.className='emptyHistory';e.textContent='Sem cálculos recentes. As contas aparecerão aqui.';holder.append(e)}for(const row of hist){let b=document.createElement('button');b.type='button';b.className='historyRow';b.dataset.historyValue=row.value;b.innerHTML='<span><small></small><b></b></span><strong></strong>';b.querySelector('small').textContent=row.title;b.querySelector('b').textContent=fmt(row.value);b.lastChild.textContent=row.at;holder.append(b)}q('#memoryVal').textContent=fmt(E.stringify(memo,{digits:40}))}
+function useMemory(action){try{const a=parseText(entry);if(action==='MC'){memo=E.dec(0);memoOn=false}else if(action==='MS'){memo=a;memoOn=true}else if(action==='M+'){memo=E.plus(memo,a);memoOn=true}else if(action==='M-'){memo=E.sub(memo,a);memoOn=true}else if(action==='MR'){result(memo,'Memória MR');return}renderHistory();render()}catch(e){setToast(e.message)}}
+function performAction(target){if(target.dataset.action){feedback();doUnary(target.dataset.action)}else if(target.dataset.tab){feedback();changeTab(target.dataset.tab)}else if(target.dataset.cat){feedback();activeCategory=target.dataset.cat;renderConvert()}else if(target.dataset.key!==undefined){feedback();onKey(target.dataset.key)}else if(target.dataset.fmethod){feedback();applyFinance(target.dataset.fmethod,target.dataset.fvalue)}else if(target.dataset.prog){feedback();programmerOperation(target.dataset.prog)}else if(target.dataset.mem){feedback();useMemory(target.dataset.mem)}else if(target.dataset.historyValue){feedback();result(E.dec(target.dataset.historyValue),'Recuperado do histórico')}else if(target.dataset.stat){if(statCache){feedback();result(target.dataset.stat==='count'?E.dec(statCache.count):statCache[target.dataset.stat],`Estatística · ${target.dataset.stat}`)}}}
+root.addEventListener('click',event=>{let b=event.target.closest('button');if(b)performAction(b)});
+q('#rocketBtn').addEventListener('click',()=>{if(!on)return;feedback();turbo=!turbo;dev.classList.toggle('turbo',turbo);q('#advanced').hidden=!turbo;if(!turbo&&entry.replace(/\D/g,'').length>12){try{entry=E.stringify(parseText(entry),{digits:12})}catch(e){entry='0'}}changeTab('scientific');render();setToast(turbo?'🚀 Modo Turbo desbloqueado · 99 dígitos':'Modo Humilde · 12 dígitos')});
+q('#powerBtn').addEventListener('click',()=>{feedback();on=!on;dev.classList.toggle('off',!on);q('#powerBtn').setAttribute('aria-label',on?'Desligar calculadora':'Ligar calculadora');q('#powerBtn').setAttribute('aria-pressed',String(on))});
+
+function notifyHost(type,expanded){
+ if(window.parent===window)return;
+ try{window.parent.postMessage({type,expanded:!!expanded},window.location.origin)}catch(e){}
+}
+function fullscreenActive(){return !!document.fullscreenElement||document.body.classList.contains('pote-calc-faux-fullscreen')}
+function setFullscreenButton(){
+ const active=fullscreenActive(),b=q('#fullscreenBtn');
+ b.setAttribute('aria-pressed',String(active));
+ b.setAttribute('aria-label',active?'Sair da tela cheia':'Entrar em tela cheia');
+ b.title=active?'Sair da tela cheia':'Expandir para tela cheia';
+ b.innerHTML=active?'<svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/></svg>':'<svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg>';
+}
+q('#fullscreenBtn').addEventListener('click',async()=>{
+ feedback();
+ try{
+  if(document.fullscreenElement){await document.exitFullscreen();notifyHost('pote-calc:fullscreen',false)}
+  else if(document.body.classList.contains('pote-calc-faux-fullscreen')){document.body.classList.remove('pote-calc-faux-fullscreen');notifyHost('pote-calc:fullscreen',false)}
+  else if(typeof root.requestFullscreen==='function'){
+   await root.requestFullscreen({navigationUI:'hide'});
+   notifyHost('pote-calc:fullscreen',true);
+  }else throw Error('Fullscreen API não disponível');
+ }catch(e){
+  const active=!document.body.classList.contains('pote-calc-faux-fullscreen');
+  document.body.classList.toggle('pote-calc-faux-fullscreen',active);
+  notifyHost('pote-calc:fullscreen',active);
+ }
+ setFullscreenButton();updateHeight();
+});
+document.addEventListener('fullscreenchange',()=>{setFullscreenButton();notifyHost('pote-calc:fullscreen',!!document.fullscreenElement);updateHeight()});
+window.addEventListener('message',event=>{
+ if(event.origin!==window.location.origin||event.source!==window.parent)return;
+ if(event.data?.type==='pote-calc:close-request'){
+  document.body.classList.remove('pote-calc-faux-fullscreen');
+  if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+ }
+});
+q('#closeBtn').addEventListener('click',()=>{if(window.parent!==window){notifyHost('pote-calc:close',false);return}if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});document.body.classList.remove('pote-calc-faux-fullscreen');setFullscreenButton();dev.hidden=true;q('#reopen').hidden=false;updateHeight()});q('#reopen').addEventListener('click',()=>{dev.hidden=false;q('#reopen').hidden=true;updateHeight()});
+q('#test99').addEventListener('click',()=>{if(!on||!turbo)return;feedback();entry='123456789'.repeat(11);waiting=false;stored=null;operator=null;expr='99 dígitos no visor • demonstração';render()});
+q('#soundBtn').addEventListener('click',()=>{feedback();sound=!sound;q('#soundBtn').textContent=sound?'🔊 Clique ON':'🔇 Clique OFF'});
+q('#vibeBtn').addEventListener('click',()=>{feedback();vibrate=!vibrate;q('#vibeBtn').textContent=vibrate?'📳 Vibração ON':'📳 Vibração OFF'});
+q('#angleBtn').addEventListener('click',()=>{feedback();angle=angle==='DEG'?'RAD':'DEG';q('#angleBtn').textContent=angle;q('#angleBtn').setAttribute('aria-pressed',String(angle==='RAD'));setToast('Ângulo: '+angle)});
+q('#expressionForm').addEventListener('submit',e=>{e.preventDefault();if(!on||!turbo)return;try{let raw=q('#expressionInput').value;let out=E.expression(raw,{degrees:angle==='DEG'});result(out,raw+' =',{save:true})}catch(error){setToast(error.message)}});
+root.addEventListener('click',e=>{const b=e.target.closest('[data-insert]');if(!b)return;feedback();const box=q('#expressionInput');let pos=box.selectionStart||box.value.length;box.value=box.value.slice(0,pos)+b.dataset.insert+box.value.slice(pos);box.focus();box.setSelectionRange(pos+b.dataset.insert.length,pos+b.dataset.insert.length)});
+q('#unitFrom').addEventListener('change',updateConverter);q('#unitTo').addEventListener('change',updateConverter);q('#unitAmount').addEventListener('input',updateConverter);
+q('#swapUnit').addEventListener('click',()=>{feedback();let f=q('#unitFrom'),t=q('#unitTo'),x=f.value;f.value=t.value;t.value=x;updateConverter()});
+q('#convertFromEntry').addEventListener('click',()=>{q('#unitAmount').value=entry;updateConverter();feedback()});
+q('#convertToEntry').addEventListener('click',()=>{if(!q('#convertResult').dataset.raw)return;feedback();result(E.dec(q('#convertResult').dataset.raw),'Conversão: '+q('#convertSub').textContent,{save:true})});
+q('#convertCopy').addEventListener('click',()=>copy(q('#convertResult').dataset.raw||''));
+q('#statCompute').addEventListener('click',()=>{feedback();computeStats()});
+q('#financeCompute').addEventListener('click',()=>{feedback();financialSimulation()});
+q('#financeUse').addEventListener('click',()=>{if(q('#financeResults').dataset.cost)result(E.dec(q('#financeResults').dataset.cost),'Preço sugerido com margem',{save:true})});
+q('#progOperand').addEventListener('input',updateProgPreview);
+q('#clearHistory').addEventListener('click',()=>{hist=[];renderHistory();setToast('Histórico limpo')});
+q('#demoExpression').addEventListener('click',()=>{q('#expressionInput').value='2*(3+4)^2 + sqrt(81)';setToast('Exemplo carregado; toque em CALCULAR')});
+const grip=q('#dragHandle');grip.addEventListener('pointerdown',e=>{if(fullscreenActive())return;if(e.target.closest('button,input,select,textarea'))return;const r=dev.getBoundingClientRect(),parent=root.getBoundingClientRect();drag={x:e.clientX,y:e.clientY,left:r.left-parent.left,top:r.top-parent.top};grip.setPointerCapture(e.pointerId);e.preventDefault()});grip.addEventListener('pointermove',e=>{if(!drag)return;dev.style.left=Math.max(0,Math.min(root.clientWidth-dev.offsetWidth,drag.left+e.clientX-drag.x))+'px';dev.style.top=Math.max(0,drag.top+e.clientY-drag.y)+'px';dev.style.transform='none';updateHeight()});grip.addEventListener('pointerup',()=>drag=null);grip.addEventListener('pointercancel',()=>drag=null);
+root.tabIndex=0;root.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(e.target?.tagName)||e.ctrlKey||e.altKey||e.metaKey)return;let key=e.key;if(key===','||key==='.')key='.';if(key==='Enter')key='=';if(key==='Backspace')key='back';if(key==='Escape'||key==='Delete')key='C';if(!(/^\d$/.test(key)||Object.hasOwn(signs,key)||['.','%','=','back','C'].includes(key)))return;e.preventDefault();feedback();onKey(key)});
+let observer=new ResizeObserver(updateHeight);observer.observe(dev);window.addEventListener('resize',updateHeight);
+window.addEventListener('pote_mathjs_ready',()=>{q('#engineSource').textContent=window.math?'Math.js 15.2 + motor local':'Motor local de precisão';setToast('Math.js 15.2 disponível')});
+try{converterCats();sciButtons();setupFinance();renderHistory();changeTab(tab);render();updateHeight()}catch(err){console.error('Pote Calc UI:',err);q('#bottomStatus').textContent='Erro de inicialização: '+err.message}
+})();
+</script>
+<!-- Motor matemático local PoteCalcMath: execução independente de rede e scripts de terceiros. -->
+</body></html>

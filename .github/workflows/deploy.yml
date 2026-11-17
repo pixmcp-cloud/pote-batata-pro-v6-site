@@ -123,6 +123,11 @@ jobs:
           cp -R assets/recipes public/assets/recipes
           cp -R assets/operations public/assets/operations
           cp -R assets/integrations public/assets/integrations
+          cp pote_calc_quantum_99_fullscreen.html public/pote_calc_quantum_99_fullscreen.html
+          cp pote_calc_launcher.js public/pote_calc_launcher.js
+          cp pote_calc_launcher.css public/pote_calc_launcher.css
+          node --check public/pote_calc_launcher.js
+          node test_pote_calc_launcher.js
           python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
           python3 -c 'import pathlib,re; s=pathlib.Path("public/beta.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'

@@ -241,6 +241,8 @@ once("</body></html>", '<link rel="stylesheet" href="./notifications.css?v=heade
 once("</body></html>", '<link rel="stylesheet" href="./delivery_hub.css?v=maisdelivery-pilot-20261117"><script type="module" src="./delivery_hub.js?v=maisdelivery-pilot-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./motoboy.css?v=motoboy-20261116"><script type="module" src="./motoboy.js?v=motoboy-20261116"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-20261116"><script type="module" src="./pdv_cash_ui.mjs?v=v3-wave1-20261116"></script><script src="./numeric_keyboard.js?v=teclado-numerico-20261116"></script><script src="./module_health.js?v=v3-wave1-20261116"></script></body></html>')
+# Calculadora independente: mesmo DOM no login FREE/PRO/ADM, sem escrita no Firestore.
+once("</body></html>", '<link rel="stylesheet" href="./pote_calc_launcher.css?v=quantum-99-20261117"><script defer src="./pote_calc_launcher.js?v=quantum-99-20261117"></script></body></html>')
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")

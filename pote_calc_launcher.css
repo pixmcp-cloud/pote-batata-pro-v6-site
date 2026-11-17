@@ -1,0 +1,19 @@
+/* Optional launcher in main and floating navigation, safely outside operational data flows. */
+#navdesktop [data-pote-calc-launcher],#navmobile [data-pote-calc-launcher]{display:inline-flex;align-items:center;gap:9px;border:1px solid #d2ad6a78;border-radius:11px;color:#ffe0a5;background:linear-gradient(145deg,#374a61,#1a2838);box-shadow:inset 0 1px #ffffff39,0 5px 9px #0005;cursor:pointer;font-weight:850}
+#navdesktop [data-pote-calc-launcher]:hover,#navmobile [data-pote-calc-launcher]:hover{border-color:#f4c682;background:#445b74}
+.pote-calc-icon{display:inline-flex;width:22px;height:22px;color:#ffe0a0}
+#poteFloatNavigation .pote-calc-float-nav{display:flex;width:100%;align-items:center;gap:10px;padding:13px 15px;text-align:left;color:#ffe3b2;background:#364b67;border:1px solid #caa67688;border-radius:12px;font:750 13px system-ui,sans-serif;cursor:pointer}
+#poteFloatNavigation .pote-calc-float-nav>strong{flex:1;font-weight:750}
+#poteFloatNavigation .pote-calc-float-nav svg{width:21px;height:21px}
+#poteFloatNavigation .pote-calc-float-nav:hover{background:#455e7d;border-color:#ffe5ae}
+#poteCalcOverlay{position:fixed;inset:0;z-index:12000;display:flex;justify-content:center;align-items:center;overflow:hidden;isolation:isolate;padding:10px;overscroll-behavior:contain}
+#poteCalcOverlay[hidden]{display:none!important}
+#poteCalcOverlay .pote-calc-backdrop{position:absolute;inset:0;background:#02091699;backdrop-filter:blur(5px);cursor:pointer}
+#poteCalcOverlay .pote-calc-modal{position:relative;display:block;width:min(505px,100%);height:min(95dvh,1000px);background:transparent;border:0;border-radius:21px;box-shadow:none}
+#poteCalcOverlay #poteCalcFrame{display:block;width:100%;height:100%;border:0;background:transparent;border-radius:18px;color-scheme:dark;overscroll-behavior:contain}
+#poteCalcOverlay .pote-calc-exit{position:absolute;right:9px;bottom:9px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer;background:linear-gradient(155deg,#344962,#172438);border:1px solid #b9c8d7;color:#ffdd9e;border-radius:10px;box-shadow:0 6px 15px #0009;font:900 21px system-ui}
+#poteCalcOverlay.pote-calc-expanded{padding:0;background:#0c1824}
+#poteCalcOverlay.pote-calc-expanded .pote-calc-modal{width:100vw;height:100dvh;border-radius:0}
+#poteCalcOverlay.pote-calc-expanded #poteCalcFrame{border-radius:0}
+#poteCalcOverlay.pote-calc-expanded .pote-calc-backdrop{background:#0e1824}
+@media(max-width:540px){#poteCalcOverlay{padding:0}#poteCalcOverlay .pote-calc-modal{width:100%;height:100dvh}#poteCalcOverlay #poteCalcFrame{border-radius:0}#poteCalcOverlay .pote-calc-exit{bottom:calc(12px + env(safe-area-inset-bottom))}}
