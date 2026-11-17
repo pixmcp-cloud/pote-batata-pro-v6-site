@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Ícone PDV Livresom">
+<defs>
+ <radialGradient id="bg" cx="50%" cy="26%" r="79%"><stop stop-color="#272a2d"/><stop offset=".6" stop-color="#0b0c0d"/><stop offset="1" stop-color="#010101"/></radialGradient>
+ <radialGradient id="glass" cx="38%" cy="26%" r="76%"><stop stop-color="#37393b"/><stop offset=".37" stop-color="#090909"/><stop offset=".82" stop-color="#020202"/><stop offset="1" stop-color="#34383d"/></radialGradient>
+ <linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="100%"><stop stop-color="#fbfcfd"/><stop offset=".2" stop-color="#8b959d"/><stop offset=".5" stop-color="#23272b"/><stop offset=".8" stop-color="#f2f8fa"/><stop offset="1" stop-color="#616b72"/></linearGradient>
+ <linearGradient id="shine" x1="12%" y1="0%" x2="90%" y2="90%"><stop stop-color="#fff" stop-opacity=".94"/><stop offset=".62" stop-color="#e6eef5" stop-opacity=".43"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+ <radialGradient id="foot"><stop stop-color="#e1e7eb" stop-opacity=".35"/><stop offset="1" stop-color="#e1e7eb" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1024" height="1024" rx="117" fill="url(#bg)"/>
+<ellipse cx="514" cy="929" rx="320" ry="36" fill="url(#foot)"/>
+<circle cx="512" cy="481" r="434" fill="#010102" stroke="url(#rim)" stroke-width="18"/>
+<circle cx="512" cy="481" r="412" fill="url(#glass)" stroke="#fafcff" stroke-opacity=".26" stroke-width="3"/>
+<path d="M143 327 C196 159 360 73 529 99 C610 112 692 156 737 216 C538 155 334 225 196 380 Z" fill="url(#shine)"/>
+<path d="M157 326 C202 185 352 117 528 132" stroke="#fff" stroke-opacity=".72" stroke-width="10" stroke-linecap="round" fill="none"/>
+<path d="M243 747 C387 866 685 857 796 696" stroke="#e1eef9" stroke-opacity=".65" stroke-width="20" stroke-linecap="round" fill="none"/>
+<path d="M283 750 C432 823 670 816 755 719" stroke="#f5f9ff" stroke-opacity=".24" stroke-width="7" stroke-linecap="round" fill="none"/>
+<text x="512" y="520" font-family="Arial,Helvetica,sans-serif" font-size="299" font-weight="900" letter-spacing="-13" text-anchor="middle" fill="#fff">PDV</text>
+<text x="512" y="657" font-family="Arial,Helvetica,sans-serif" font-size="86" font-weight="800" letter-spacing="1.8" text-anchor="middle" fill="#fff">POTÊ BATATA</text>
+<path d="M273 708 Q512 676 751 708" fill="none" stroke="#f7b416" stroke-width="8" stroke-linecap="round"/>
+</svg>

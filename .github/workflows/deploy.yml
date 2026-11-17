@@ -26,6 +26,7 @@ jobs:
           mkdir -p public/assets
           cp assets/pote-logo-original.jpg public/assets/pote-logo-original.jpg
           cp -R assets/generic public/assets/generic
+          cp -R assets/brand public/assets/brand
           cp firebase_integration.js public/firebase_integration.js
           cp sync_guard.mjs public/sync_guard.mjs
           cp v2_store_core.mjs public/v2_store_core.mjs
@@ -139,6 +140,7 @@ jobs:
           cp premium_motion.js public/premium_motion.js
           node --check public/premium_motion.js
           node test_premium_motion.js
+          node test_pdv_brand.cjs
           node test_company_pdv_polish.js
           node --check public/top_navigation.js
           node test_top_navigation.js

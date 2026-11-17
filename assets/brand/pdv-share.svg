@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="PDV Potê Batata, gestão para negócios">
+<defs>
+<radialGradient id="bg" cx="50%" cy="26%" r="88%"><stop stop-color="#2b3036"/><stop offset=".62" stop-color="#0a0b0d"/><stop offset="1" stop-color="#010102"/></radialGradient>
+<radialGradient id="glass" cx="37%" cy="23%" r="80%"><stop stop-color="#41464c"/><stop offset=".4" stop-color="#0a0a0b"/><stop offset=".79" stop-color="#000"/><stop offset="1" stop-color="#33383d"/></radialGradient>
+<linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="100%"><stop stop-color="#fff"/><stop offset=".23" stop-color="#7b868d"/><stop offset=".52" stop-color="#17191c"/><stop offset=".8" stop-color="#f7fcff"/><stop offset="1" stop-color="#627078"/></linearGradient>
+<linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%"><stop stop-color="#7b4100"/><stop offset=".42" stop-color="#ffdf70"/><stop offset=".75" stop-color="#e1a619"/><stop offset="1" stop-color="#7c4300"/></linearGradient>
+<linearGradient id="sheen" x1="0%" y1="0%" x2="100%" y2="100%"><stop stop-color="#f9fdff" stop-opacity=".9"/><stop offset=".64" stop-color="#e6eff8" stop-opacity=".24"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<radialGradient id="foot"><stop stop-color="#fff" stop-opacity=".27"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1200" height="630" fill="url(#bg)"/>
+<path d="M750 5 Q985 145 1235 6" fill="none" stroke="#30343a" stroke-width="36"/>
+<path d="M790 5 Q1015 125 1220 7" fill="none" stroke="url(#gold)" stroke-width="5"/>
+<path d="M-30 600 Q680 810 1270 482" fill="none" stroke="#1b1d20" stroke-width="70"/>
+<path d="M-30 601 Q680 808 1270 482" fill="none" stroke="url(#gold)" stroke-width="8"/>
+<ellipse cx="306" cy="544" rx="230" ry="39" fill="url(#foot)"/>
+<circle cx="302" cy="296" r="242" fill="#050506" stroke="url(#rim)" stroke-width="13"/>
+<circle cx="302" cy="296" r="228" fill="url(#glass)" stroke="#dae0e5" stroke-width="3" stroke-opacity=".55"/>
+<path d="M100 224 C155 85 280 65 353 84 C415 100 452 131 490 163 C315 135 202 196 134 273Z" fill="url(#sheen)"/>
+<path d="M153 438 C245 508 411 501 449 426" fill="none" stroke="#eaf3fb" stroke-opacity=".7" stroke-width="18" stroke-linecap="round"/>
+<text x="302" y="301" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="164" font-weight="900" letter-spacing="-8" fill="#fff">PDV</text>
+<text x="302" y="363" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="38" font-weight="800" letter-spacing="1.5" fill="#fff">POTÊ BATATA</text>
+<path d="M175 385 Q300 373 420 385" fill="none" stroke="url(#gold)" stroke-width="6" stroke-linecap="round"/>
+<path d="M570 167 V420" stroke="url(#gold)" stroke-width="5"/>
+<text x="615" y="267" font-family="Arial,Helvetica,sans-serif" font-size="103" font-weight="900" fill="#fff">PDV</text>
+<text x="616" y="348" font-family="Arial,Helvetica,sans-serif" font-size="64" font-weight="700" fill="#fff">POTÊ BATATA</text>
+<rect x="619" y="412" width="538" height="90" rx="45" fill="#08090a" stroke="url(#gold)" stroke-width="5"/>
+<text x="888" y="468" font-family="Arial,Helvetica,sans-serif" font-size="42" font-weight="700" fill="#fff" text-anchor="middle">pdv.livresom.com</text>
+</svg>
