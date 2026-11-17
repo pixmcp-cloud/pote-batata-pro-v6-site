@@ -133,6 +133,10 @@ jobs:
           cp top_navigation.js public/top_navigation.js
           cp top_navigation.css public/top_navigation.css
           cp company_pdv_polish.css public/company_pdv_polish.css
+          cp premium_motion.css public/premium_motion.css
+          cp premium_motion.js public/premium_motion.js
+          node --check public/premium_motion.js
+          node test_premium_motion.js
           node test_company_pdv_polish.js
           node --check public/top_navigation.js
           node test_top_navigation.js

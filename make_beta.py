@@ -240,13 +240,14 @@ once("</body></html>", '<link rel="stylesheet" href="./kitchen_inventory.css?v=k
 once("</body></html>", '<link rel="stylesheet" href="./notifications.css?v=header-bell-20261116"><link rel="stylesheet" href="./admin_broadcast.css?v=notices-20261116"><script type="module" src="./notifications.js?v=notices-20261116"></script><script type="module" src="./admin_broadcast.js?v=notices-20261116"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./delivery_hub.css?v=maisdelivery-pilot-20261117"><script type="module" src="./delivery_hub.js?v=maisdelivery-pilot-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./motoboy.css?v=motoboy-20261116"><script type="module" src="./motoboy.js?v=motoboy-20261116"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-20261116"><script type="module" src="./pdv_cash_ui.mjs?v=pdv-small-badge-20261117"></script><script src="./numeric_keyboard.js?v=teclado-numerico-20261116"></script><script src="./module_health.js?v=v3-wave1-20261116"></script></body></html>')
+once("</body></html>", '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-20261116"><script type="module" src="./pdv_cash_ui.mjs?v=pdv-status-motion-20261117"></script><script src="./numeric_keyboard.js?v=teclado-numerico-20261116"></script><script src="./module_health.js?v=v3-wave1-20261116"></script></body></html>')
 # Calculadora independente: mesmo DOM no login FREE/PRO/ADM, sem escrita no Firestore.
 once("</body></html>", '<link rel="stylesheet" href="./pote_calc_launcher.css?v=quantum-99-20261117"><script defer src="./pote_calc_launcher.js?v=quantum-99-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./tablet_layout.css?v=tablet-responsive-20261117"><script defer src="./tablet_layout.js?v=tablet-responsive-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./compact_account_header.css?v=profile-compact-20261117"><script defer src="./compact_account_header.js?v=profile-compact-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./top_navigation.css?v=topnav-menu-20261117"><script defer src="./top_navigation.js?v=topnav-menu-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./company_pdv_polish.css?v=company-pdv-20261117"></body></html>')
+once("</body></html>", '<link rel="stylesheet" href="./premium_motion.css?v=premium-motion-20261117"><script defer src="./premium_motion.js?v=premium-motion-20261117"></script></body></html>')
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")

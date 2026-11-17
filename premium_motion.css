@@ -1,0 +1,42 @@
+/* Potê Motion: premium, leve, sem custo de API e sem transições bloqueantes. */
+:root{--pote-ease:cubic-bezier(.2,.8,.2,1);--pote-motion-page:235ms}
+#page.pote-motion-enter{animation:pote-page-in var(--pote-motion-page) var(--pote-ease) both}
+#page.pote-motion-enter>.ops-dashboard,#page.pote-motion-enter>.box,#page.pote-motion-enter>.card{
+ animation:pote-section-in 270ms var(--pote-ease) both
+}
+@keyframes pote-page-in{from{opacity:.3;transform:translate3d(0,12px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes pote-section-in{from{filter:brightness(.88)}to{filter:brightness(1)}}
+#poteFloatDrawer{transition:transform 315ms cubic-bezier(.18,.85,.22,1),visibility 315ms!important;will-change:transform}
+#poteFloatBackdrop:not([hidden]){animation:pote-backdrop-in 240ms ease-out both}
+@keyframes pote-backdrop-in{from{opacity:0}to{opacity:1}}
+#poteFloatNavigation button{transition:background-color 155ms ease,border-color 155ms ease,transform 155ms var(--pote-ease),box-shadow 155ms ease!important}
+#poteFloatNavigation button:active{transform:translateX(3px) scale(.99)}
+#navdesktop .navbtn,.pote-top-actions button{transition:background-color 170ms ease,transform 150ms var(--pote-ease),box-shadow 170ms ease!important}
+#navdesktop .navbtn:active,.pote-top-actions button:active{transform:scale(.965)}
+.ops-card{transition:transform 175ms var(--pote-ease),box-shadow 175ms ease,border-color 175ms ease!important}
+.ops-card:active{transform:translateY(2px) scale(.986)!important}
+#poteProfileOverlay:not([hidden]) .pote-profile-card,
+#potePdvDialog:not([hidden]) .pote-pdv-container{animation:pote-modal-in 220ms var(--pote-ease) both}
+@keyframes pote-modal-in{from{opacity:.35;transform:translateY(12px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+/* PDV sem banner: verde quando aberto, vermelho quando fechado. */
+.ops-heading #potePdvTrigger{
+ display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+ gap:1px!important;padding:5px 3px!important;font-size:12px!important;
+ border-color:#d78381!important;background:linear-gradient(155deg,#55272d,#29191f)!important;
+ color:#ffe2de!important;transition:background 180ms ease,border-color 180ms ease,box-shadow 180ms ease!important
+}
+.ops-heading #potePdvTrigger>span{display:none!important}
+.ops-heading #potePdvTrigger strong{display:block!important;font-size:14px!important;font-weight:900!important;letter-spacing:.5px;line-height:1.1!important;color:inherit!important}
+.ops-heading #potePdvTrigger small{display:block!important;font-size:9px!important;font-weight:700!important;background:none!important;border-radius:0!important;padding:0!important;color:inherit!important;line-height:1.1!important}
+.ops-heading #potePdvTrigger.open{background:linear-gradient(155deg,#235d40,#113525)!important;border-color:#63d29a!important;color:#d7ffe5!important}
+.ops-heading #potePdvTrigger:not(.open):after{background:#fa6262!important;box-shadow:0 0 7px #fa62627d!important}
+.ops-heading #potePdvTrigger.open:after{background:#69eb9a!important}
+@media(prefers-reduced-motion:reduce){
+ #page.pote-motion-enter,#page.pote-motion-enter>.ops-dashboard,#page.pote-motion-enter>.box,
+ #page.pote-motion-enter>.card,#poteFloatBackdrop:not([hidden]),
+ #poteProfileOverlay:not([hidden]) .pote-profile-card,#potePdvDialog:not([hidden]) .pote-pdv-container{
+  animation:none!important
+ }
+ #poteFloatDrawer,#poteFloatNavigation button,#navdesktop .navbtn,.pote-top-actions button,
+ .ops-card,.ops-heading #potePdvTrigger{transition:none!important;will-change:auto!important}
+}

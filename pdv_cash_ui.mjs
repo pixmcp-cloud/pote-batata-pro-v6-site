@@ -15,7 +15,7 @@ function ensure(){
  if(trigger){if(!trigger.isConnected)document.body.appendChild(trigger);return}
  trigger=document.createElement("button");
  trigger.id="potePdvTrigger";trigger.type="button";
- trigger.innerHTML='<span aria-hidden="true">▣</span><strong>Caixa PDV</strong><small id="potePdvTurn">Fechado</small>';
+ trigger.innerHTML='<span aria-hidden="true">▣</span><strong>PDV</strong><small id="potePdvTurn">Fechado</small>';
  trigger.title="Abrir frente de caixa e conferir pagamentos";
  trigger.setAttribute("aria-controls","potePdvDialog");trigger.setAttribute("aria-haspopup","dialog");
  trigger.addEventListener("click",()=>visible?close():open());
