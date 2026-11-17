@@ -184,3 +184,17 @@
 
 
 .creative-studio .cs-prompt-actions a.btn{color:#f1dfc3!important;background:#1d2b33!important;border:1px solid #9f8e73!important}
+
+/* Studio options for scene, camera angle and lighting in AI photo prompts. */
+.creative-studio #csPromptScene,
+.creative-studio #csPromptAngle,
+.creative-studio #csPromptLight{
+ display:block;box-sizing:border-box;width:100%;max-width:100%;min-height:46px;
+ border:1px solid #ac9876;border-radius:10px;
+ background:#101923!important;color:#fff!important;padding:10px 13px;
+}
+.creative-studio .cs-prompt-panel .cs-prompt-tip{
+ background:#20362e;border:1px solid #688a6e;border-radius:10px;
+ color:#ddf0dc;font-size:12px;line-height:1.6;padding:12px 13px;margin:14px 0;
+}
+.creative-studio .cs-prompt-panel .cs-prompt-tip strong{color:#f9d9a0}

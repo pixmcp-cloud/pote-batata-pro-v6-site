@@ -1,4 +1,4 @@
-/* Potê Batata Pro — Estúdio de Criativos (offline, sem APIs pagas).
+﻿/* Potê Batata Pro — Estúdio de Criativos (offline, sem APIs pagas).
    A fonte do preço é a função oficial de precificação sellPrice(recipe,'direto').
    Nenhum preço promocional ou ingrediente é inventado. */
 (function(){
@@ -47,7 +47,7 @@ function getRecipe(id){return typeof recipe==='function'?recipe(id):state.data.r
 function catalog(){return (state.data.recipes||[]).filter(r=>typeof allowed==='function'?allowed(r):true)}
 function featuredIngredients(r){
  const refs=(r?.items||r?.ingredients||[]),inventory=state.data.ingredients||[];
- const excluded=/^(batata|sal|agua|água|oleo|óleo|leite integral|leite|manteiga|azeite|tempero|pimenta|açucar|açúcar)$/i;
+ const excluded=/^(?:batata(?:\s|$)|sal(?:\s|$)|tempero(?:\s|$)|água(?:\s|$)|agua(?:\s|$)|óleo(?:\s|$)|oleo(?:\s|$)|leite(?:\s|$)|manteiga(?:\s|$)|azeite(?:\s|$)|pimenta(?:\s|$)|açúcar(?:\s|$)|acucar(?:\s|$))/i;
  const seen=new Set();
  return refs.map(it=>{
   if(typeof it==='string')return inventory.find(i=>String(i.id)===String(it))?.name||it;
@@ -63,22 +63,21 @@ function ingredientsPhrase(names){
  return names.slice(0,-1).join(', ')+' e '+names[names.length-1];
 }
 function descriptionFor(r){
- const name=safe(r?.name||'Nosso sabor',70),s=name.toLocaleLowerCase('pt-BR'),parts=featuredIngredients(r);
- const tagline=safe(r?.tagline||r?.description||'',90).replace(/[.!?]+$/,'');
- // Prioritize the recipe's own description instead of generic promotional claims.
- let copy=tagline?tagline+'.':'';
+ const name=safe(r?.name||'Nosso sabor',70),n=name.toLocaleLowerCase('pt-BR'),parts=featuredIngredients(r);
+ const tagline=safe(r?.tagline||r?.description||'',110).replace(/[.!?]+$/,'').trim();
+ // The chef's own tagline wins: never append a shopping-list of salt, starch and
+ // generic seasonings to a well-written headline.
+ if(tagline&&tagline.length>=12)return safe(tagline+'.',160);
  if(parts.length>=2){
-  const core=ingredientsPhrase(parts.slice(0,3));
-  const detail='Com '+core.charAt(0).toLowerCase()+core.slice(1)+'.';
-  copy+=(copy?' ':'')+detail;
- }else if(parts.length===1){
-  copy+=(copy?' ':'')+parts[0]+' faz parte da receita.';
+  const names=parts.slice(0,3),phrase=ingredientsPhrase(names);
+  return safe('O encontro de '+phrase+' em uma combinação cheia de sabor.',160);
  }
- if(copy)return safe(copy,160);
- if(/morango/.test(s)&&/chocolate/.test(s))return 'Chocolate e morango: dois sabores que se encontram na mesma sobremesa.';
- if(/frango/.test(s))return 'Frango com aquele sabor que chama para a próxima colherada.';
- if(/brigadeiro/.test(s))return 'Brigadeiro para quem gosta de encerrar o dia com um doce especial.';
- return name+' — descubra esse sabor no seu próximo pedido.';
+ if(parts.length===1)return safe('Uma combinação com '+parts[0]+', feita para surpreender.',160);
+ if(tagline)return safe(tagline+'.',160);
+ if(/milho/.test(n)&&/bacon/.test(n))return 'O toque doce do milho com a crocância do bacon.';
+ if(/morango/.test(n)&&/chocolate/.test(n))return 'Chocolate e morango juntos em uma sobremesa especial.';
+ if(/frango/.test(n))return 'Frango em uma receita que merece a próxima colherada.';
+ return 'Descubra o sabor de '+name+'.';
 }
 function copyFor(r,campaign='oferta'){
  const data=CAMPAIGNS[campaign]||CAMPAIGNS.oferta;
@@ -141,7 +140,25 @@ function page(){
  '<section id="csPromptPanel" class="cs-prompt-panel" hidden aria-label="Prompt publicitário para IA">'+
  '<div class="cs-prompt-head"><div><small>CAMINHO GRATUITO</small><h3>Crie sua arte com outra IA</h3></div><button type="button" class="cs-prompt-close" aria-label="Fechar" onclick="creativeClosePrompt()">×</button></div>'+
  '<p>O prompt é criado a partir da receita selecionada. Copie, baixe a foto e envie ambos à IA escolhida. Nenhuma informação é compartilhada automaticamente.</p>'+
- select('Tipo de resultado','csPromptMode',[['ad','Arte completa com texto e preço'],['photo','Somente fotografia, sem textos']],'ad')+
+ select('Resultado para IA','csPromptMode',[['photo','Foto de estúdio (recomendado)'],['ad','Anúncio com texto reduzido']],'photo')+
+ select('Cenário e plataforma','csPromptScene',[
+ ['slate','Pedra preta + estúdio premium'],
+ ['travertine','Pedra clara + luz quente'],
+ ['board','Tábua de madeira + estilo artesanal'],
+ ['tray','Bandeja preta + fundo editorial'],
+ ['neutral','Pedestal bege + fundo minimalista']
+ ],'slate')+
+ select('Ângulo da câmera','csPromptAngle',[
+ ['threeQuarter','3/4 a 35° (recomendado)'],
+ ['low','Ângulo baixo a 20°'],
+ ['top','Levemente superior a 55°']
+ ],'threeQuarter')+
+ select('Cores e iluminação','csPromptLight',[
+ ['appetizing','Quente natural, apetitoso'],
+ ['clean','Luz clara de estúdio'],
+ ['dramatic','Editorial dramático']
+ ],'appetizing')+
+ '<p class="cs-prompt-tip">Recomendado: gere primeiro a foto profissional sem textos e use o Estúdio para aplicar preço e marca com precisão. A IA deverá <strong>substituir o fundo e a mesa original</strong>, preservando a comida.</p>'+
  '<label class="cs-prompt-label" for="csPromptText">Prompt preparado para copiar</label>'+
  '<textarea id="csPromptText" rows="13" readonly spellcheck="false"></textarea>'+
  '<p id="csPromptStatus" class="cs-prompt-status" role="status" aria-live="polite"></p>'+

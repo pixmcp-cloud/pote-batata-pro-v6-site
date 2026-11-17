@@ -13,60 +13,87 @@ function writeStatus(message){
  const text=el('csPromptStatus');if(text)text.textContent=message;
 }
 function notice(message){if(typeof toast==='function')toast(message)}
+const SCENES={
+ slate:{
+  label:'Pedra escura premium',
+  scene:'Coloque o recipiente original sobre uma placa retangular de ardósia preta fosca, levemente elevada sobre uma bancada de estúdio antracite. Fundo seamless cinza-carvão com gradiente discreto, distante e desfocado. Sombra real de contato sob a ardósia, sem ambiente de cozinha.'
+ },
+ travertine:{
+  label:'Pedra clara natural',
+  scene:'Coloque o recipiente sobre uma base de travertino bege claro com textura mineral autêntica e bordas delicadas, sobre superfície de estúdio marfim. Fundo areia neutro desfocado, luz dourada suave, cenário editorial gastronômico minimalista.'
+ },
+ board:{
+  label:'Madeira artesanal',
+  scene:'Coloque o recipiente sobre uma tábua de madeira nogueira natural, limpa, bem acabada e proporcional ao produto. Mesa de madeira escura fosca e fundo marrom profundo desfocado. Visual de restaurante artesanal premium sem poluição de acessórios.'
+ },
+ tray:{
+  label:'Bandeja preta',
+  scene:'Coloque o recipiente sobre uma bandeja circular de metal preto fosco premium, apoiada numa superfície de estúdio neutra. Fundo grafite escuro seamless, bandeja com borda fina, reflexos controlados e sombra de contato convincente.'
+ },
+ neutral:{
+  label:'Pedestal minimalista',
+  scene:'Coloque o recipiente sobre um pequeno pedestal cilíndrico bege fosco de fotografia de produto, com proporções naturais. Fundo off-white quente seamless, cenário clean premium e sombra curta suave realista.'
+ }
+};
+const ANGLES={
+ threeQuarter:'Reposicione virtualmente a câmera para 35–40 graus acima da mesa, enquadramento três quartos frontal; a comida mostra superfície e volume do recipiente. Simulação realista de uma nova fotografia com lente 50–70 mm, sem deformação da embalagem.',
+ low:'Câmera baixa, aproximadamente 20–25 graus acima da mesa, lente 50–70 mm. Mostre a altura da porção e mantenha os ingredientes visíveis na superfície; sem exagerar o tamanho do recipiente.',
+ top:'Câmera levemente superior a 50–55 graus, lente 50–70 mm, suficientemente inclinada para mostrar a comida e a lateral do recipiente, sem virar uma foto aérea plana.'
+};
+const LIGHTS={
+ appetizing:'Luz principal softbox grande a 45 graus pela esquerda, balanço de branco quente moderado (aprox. 5000 K), rebatedor suave à direita, recorte discreto atrás. Cores gastronômicas naturais e vivas: milho amarelo realista, bacon dourado, queijo com textura, verdes frescos sem neon. Contraste médio-alto, microtextura fina, brilho controlado, sombra física macia.',
+ clean:'Iluminação editorial clara com softbox amplo na diagonal, preenchimento neutro e fundo limpo. Branco balanceado, saturação comedida, contraste natural, alimentos frescos, textura real, sombras de contato e destaques sem estourar.',
+ dramatic:'Iluminação editorial dramática controlada, key light quente lateral e rim light fino, fundo escuro elegante, luz de preenchimento suficiente para preservar ingredientes. Pretos profundos sem perder detalhes; cores apetitosas naturais, sem HDR.'
+};
 function buildPrompt(c,mode){
- const ingredients=c.ingredients?.length?c.ingredients.map(x=>clean(x,35)).join(', '):'Não informados; não invente ingredientes.';
- const brandName=clean(c.brand.name||'Marca não cadastrada',80);
- const format=clean(c.ratio,12),dims=sizes[format]||'proporção personalizada';
+ const format=clean(c.ratio,12),dims=sizes[format]||'resolução compatível';
+ const name=clean(c.name,100),brandName=clean(c.brand.name||'Minha empresa',75);
  const photoOnly=mode==='photo';
- const photoFocus=c.photoFocus==='food'?
-  'Close da comida: destacar cobertura, recheio e texturas reais. Se existir logomarca antiga visível na embalagem, prefira enquadrá-la para fora sem falsificar a foto.':
-  c.photoFocus==='center'?'Produto centralizado com equilíbrio entre alimento e fundo.':'Manter o enquadramento natural da fotografia.';
- const textLines=photoOnly?
-  ['SEM TEXTO: não incluir título, nome, preços, CTA, telefone, letras, ícones comerciais ou logotipos. Entregar apenas uma fotografia publicitária limpa; o texto será composto depois no editor.']:
-  [
-   'TEXTO OBRIGATÓRIO E LITERAL NA ARTE (português do Brasil):',
-   'Nome da marca: '+brandName,
-   'Título: '+clean(c.headline,90),
-   'Produto: '+clean(c.name,100),
-   'Descrição: '+clean(c.description,170),
-   c.showPrice?'Preço atual: '+currency(c.priceAd):'Não mostrar valores nem etiquetas de preço.',
-   c.showPrice&&c.showOld?'Preço anterior, menor e riscado: '+currency(c.priceNormal):'Não mostrar preço antigo nem simular descontos.',
-   c.showCta?'Chamada para ação: '+clean(c.cta,80):'Não incluir chamada para ação.',
-   c.showPhone&&c.brand.phone?'Telefone/WhatsApp: '+clean(c.brand.phone,50):'Não mostrar telefone.',
-   c.showLogo?'Caso o arquivo original da logomarca seja enviado como SEGUNDA imagem, usar somente essa logomarca, sem redesenhar. Caso não tenha sido enviada, usar apenas o nome da marca escrito.':'Não usar logotipo gráfico.',
-   'Hierarquia clara: fotografia > nome do produto > preço (se houver) > descrição > chamada. Tipografia comercial legível e margens seguras.',
-   'Não escrever textos extras, nomes fictícios, promoções não informadas ou palavras aleatórias.'
-  ];
- return [
-  'DIREÇÃO DE ARTE PROFISSIONAL — CAMPANHA GASTRONÔMICA',
+ const stage=SCENES[el('csPromptScene')?.value]||SCENES.slate;
+ const angle=ANGLES[el('csPromptAngle')?.value]||ANGLES.threeQuarter;
+ const light=LIGHTS[el('csPromptLight')?.value]||LIGHTS.appetizing;
+ const flavors=(c.ingredients||[]).filter(Boolean).slice(0,4).map(x=>clean(x,45));
+ const sceneFacts=flavors.length?'Ingredientes confirmados: '+flavors.join(', ')+'.':'Os ingredientes não estão descritos na ficha: respeite somente o que aparece na foto.';
+ const shot= [
+  'FOTOGRAFIA DE CAMPANHA GASTRONÔMICA — PRODUÇÃO DE ESTÚDIO',
   '',
-  'TAREFA: crie UMA imagem publicitária usando a FOTO REAL DO PRODUTO ANEXADA pelo usuário. A foto é a referência visual obrigatória. Não substitua por produto genérico.',
+  'Use a FOTO DO PRODUTO ANEXADA como referência da comida e do recipiente, NÃO como cenário final. RECONSTRUA UMA NOVA FOTOGRAFIA PUBLICITÁRIA: recorte o produto e SUBSTITUA COMPLETAMENTE a bancada de inox, a mesa e o fundo da foto original por uma plataforma de fotografia profissional.',
   '',
-  'BRIEFING:',
-  'Marca: '+brandName,
-  'Produto: '+clean(c.name,100),
-  'Campanha: '+clean(c.campaignName,70),
-  'Descrição aprovada: '+clean(c.description,170),
-  'Ingredientes documentados na ficha: '+ingredients,
-  'Formato EXATO: '+format+' ('+dims+' pixels como resolução de referência).',
-  'Identidade e direção visual: '+clean(c.styleName,80)+'. Fotografia gastronômica fotorrealista, luz de estúdio suave, textura real, sombras naturais, acabamento editorial sofisticado e composição com alto apelo comercial.',
+  'PRODUTO: '+name+'. '+sceneFacts,
+  'DIREÇÃO DE CENÁRIO OBRIGATÓRIA: '+stage.scene,
+  'ÂNGULO E CÂMERA: '+angle,
+  'ILUMINAÇÃO E COR: '+light,
   '',
-  'FIDELIDADE INEGOCIÁVEL:',
-  '- Manter o mesmo produto, porção, embalagem, tipo de preparo e ingredientes que aparecem na fotografia. Não inventar coberturas, molhos, utensílios, sabores ou marcas.',
-  '- Valorizar os detalhes da comida por enquadramento, profundidade, luz e contraste sem alterar a identidade do produto.',
-  '- '+photoFocus,
-  '- Não gerar desenho, produto plástico, estética de videogame ou aparência genérica de IA.',
-  '- Não fazer montagem com duas fotos, moldura de celular, selo de IA, assinatura ou marca d’água.',
+  'COMPOSIÇÃO  '+format+' ('+dims+'): recipiente e alimento como protagonistas, ocupando cerca de 65–75% da área principal, perspectiva tridimensional convincente, contato físico real com a plataforma, fundo desfocado e área de respiro para uma campanha. Mostre textura cremosa, dourado e ingredientes REAIS, sem exageros.',
+  'FIDELIDADE: preserve exatamente o tipo de alimento, a porção, os recheios, a distribuição e o recipiente presentes na foto. Pode mudar ângulo, cenário e luz de modo fotográfico plausível; não invente partes ocultas, cobertura nova, ingredientes extras ou recipiente de outro tipo.',
+  'NEGATIVOS: NUNCA manter a bancada industrial/cinza, inox do fundo, pia, azulejos ou ambiente de preparo da imagem original. Nada de foto de celular sem tratamento, visão aérea plana, composição de catálogo amador, aparência plástica, render 3D, HDR excessivo, saturação neon, vapor falso, objetos decorativos que pareçam comida ou montagem de duas imagens.',
+  'REFERÊNCIA: estética de campanha de restaurante premium com food styling natural, fotografia realista de produto, profundidade de campo moderada. O fundo deve ser claramente DIFERENTE do original.',
+  ''
+ ];
+ if(photoOnly){
+  shot.push('MODO FOTOGRAFIA LIMPA (RECOMENDADO): ENTREGUE SOMENTE A FOTO NOVA, SEM QUALQUER TEXTO, PREÇO, LOGOTIPO, WHATSAPP, RÓTULO OU ELEMENTO GRÁFICO. A arte final com marca e preço será feita no editor original para evitar erros de escrita.');
+ }else{
+  shot.push(
+   'MODO ANÚNCIO — DIREÇÃO DE ARTE COM POUCOS TEXTOS:',
+   'A fotografia reconstruída deve continuar dominando a peça (mínimo 70% de impacto visual). NÃO coloque parágrafos ou listas de ingredientes na imagem. A descrição abaixo serve de referência editorial, não deve ser impressa na peça.',
+   'Marca em uma única linha discreta: '+brandName,
+   'Título pequeno no topo: '+clean(c.headline,90),
+   'Produto em destaque: '+name,
+   c.showPrice?'Preço principal em bloco limpo e legível: '+currency(c.priceAd):'NÃO mostrar nenhum preço.',
+   c.showPrice&&c.showOld?'Preço anterior menor e riscado: '+currency(c.priceNormal):'NÃO adicionar preço antigo.',
+   c.showCta?'Chamada curta no rodapé: '+clean(c.cta,70):'NÃO incluir CTA.',
+   c.showPhone&&c.brand.phone?'Telefone pequeno no rodapé: '+clean(c.brand.phone,45):'NÃO incluir telefone.',
+   c.showLogo?'Use logomarca SOMENTE se o arquivo original for enviado separadamente; sem ele escreva o nome da marca.':'NÃO incluir logotipo.',
+   'Tipografia elegante, no máximo cinco blocos discretos, margem de segurança e contraste alto. Nunca cobrir o alimento com letras. NÃO repetir o mesmo texto em locais diferentes. NÃO escrever o número do preço em formato incorreto.'
+  );
+ }
+ shot.push(
   '',
-  ...textLines,
-  '',
-  'RESULTADO:',
-  'Uma única arte para divulgação comercial nas redes sociais. Layout limpo, contraste elegante, produto valorizado e proporção '+format+'.',
-  'Se não conseguir reproduzir preço e texto com precisão, gere a versão fotográfica limpa em vez de publicar informação errada.',
-  'Não invente ingredientes, preços, telefones ou depoimentos. Não altere o logotipo do negócio.',
-  '',
-  'OBSERVAÇÃO: a foto não vem embutida neste prompt. O usuário deve ANEXAR a foto original manualmente na IA escolhida.'
- ].join('\n');
+  'REFERÊNCIA COMERCIAL: '+clean(c.campaignName,80)+' | '+clean(c.styleName,90)+'. Texto interno da ficha (NÃO imprimir): '+clean(c.description,170),
+  'RESULTADO: UMA única imagem realista em '+format+'. Se a IA não conseguir mudar o ângulo mantendo fidelidade ao alimento, conserve a geometria do prato e priorize a nova plataforma, a nova luz e o novo fundo. Não use logotipos inventados.',
+  'Envie a FOTO ORIGINAL manualmente junto com este comando; o texto não contém a imagem.'
+ );
+ return shot.join('\n');
 }
 async function copyPrompt(text){
  if(!text)return false;
@@ -138,6 +165,7 @@ window.creativeDownloadPhoto=async function(){
 const changeControls=new Set([
  'creativeRecipe','creativeRatio','csStyle','csCampaign','csPhotoFocus',
  'creativeOld','creativeSale','creativeHeadline','creativeBody','creativeCta',
+ 'csPromptScene','csPromptAngle','csPromptLight',
  'csShowPrice','csShowOld','csShowPhone','csShowLogo','csShowCta','csPromptMode'
 ]);
 function onPromptFormChange(event){

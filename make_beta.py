@@ -248,7 +248,7 @@ once("</body></html>", '<link rel="stylesheet" href="./compact_account_header.cs
 once("</body></html>", '<link rel="stylesheet" href="./top_navigation.css?v=topnav-menu-20261117"><script defer src="./top_navigation.js?v=topnav-menu-20261117"></script></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./company_pdv_polish.css?v=company-pdv-20261117"></body></html>')
 once("</body></html>", '<link rel="stylesheet" href="./premium_motion.css?v=premium-motion-20261117"><script defer src="./premium_motion.js?v=premium-motion-20261117"></script></body></html>')
-once("</body></html>", '<link rel="stylesheet" href="./creative_studio.css?v=creative-v3-20261117"><script src="./creative_studio.js?v=creative-v3-20261117"></script><script src="./creative_prompt.js?v=prompt-20261117"></script></body></html>')
+once("</body></html>", '<link rel="stylesheet" href="./creative_studio.css?v=creative-v4-20261117"><script src="./creative_studio.js?v=creative-v4-20261117"></script><script src="./creative_prompt.js?v=prompt-v2-20261117"></script></body></html>')
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")

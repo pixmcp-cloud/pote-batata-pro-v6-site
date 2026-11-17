@@ -37,7 +37,7 @@ const context={
 vm.createContext(context);vm.runInContext(fs.readFileSync(__dirname+'/creative_studio.js','utf8'),context);
 let html=context.pageCreative();
 assert(html.includes('value="34,90"'),'price must be from official sellPrice');
-assert(html.includes('Requeijão')&&html.includes('Mussarela'),'ingredients must populate copy');
+assert(html.includes('O favorito de quem ama requeijão'),'the recipe tagline must take priority over generic ingredient lists');
 for(const id of ['csCampaign','csStyle','csPhotoFocus','creativeRecipe','creativeOld','creativeSale','creativeHeadline','creativeBody','creativeCta','csShowPrice','csShowOld','csShowPhone','csShowLogo','csShowCta'])assert(html.includes('id="'+id+'"'),id);
 assert(html.includes('Plano Free'));
 assert(changed,'delegated change listener');
@@ -61,7 +61,7 @@ assert.equal(context.state.creatives[0].old,34.9);
 controls.creativeRecipe.value='b';changed({target:{id:'creativeRecipe'}});
 assert.equal(controls.creativeOld.value,'28,90');
 assert.equal(controls.creativeSale.value,'28,90');
-assert(controls.creativeBody.value.toLowerCase().includes('chocolate')&&controls.creativeBody.value.toLowerCase().includes('morango'));
+assert(controls.creativeBody.value.includes('Um clássico doce'),'campaign must use the actual recipe tagline');
 context.generateCreative();assert.equal(context.state.creatives[0].id,'a','FREE lock');
 isFree=false;controls.csShowOld.checked=false;controls.csCampaign.value='lancamento';changed({target:{id:'csCampaign'}});
 context.generateCreative();assert.equal(context.state.creatives[0].id,'b');
@@ -69,4 +69,21 @@ assert.equal(context.state.creatives[0].campaign,'lancamento');
 assert.equal(context.state.creatives[0].sale,28.9);
 controls.csShowPrice.checked=false;controls.creativeSale.value='';context.generateCreative();
 assert.equal(context.state.creatives[0].showPrice,false);
+// Regression from Milho & Bacon: salt and potato base must not become ad copy.
+context.state.data.ingredients.push(
+ {id:'batata',name:'Batata inglesa'},
+ {id:'sal',name:'Sal e temperos secos'},
+ {id:'milho',name:'Milho verde'},
+ {id:'bacon',name:'Bacon crocante'}
+);
+recipes.push({id:'c',name:'Milho & Bacon',tagline:'Doce do milho, crocante do bacon.',items:[
+ {id:'batata',g:205},{id:'sal',g:3},{id:'milho',g:90},{id:'bacon',g:65}
+]});
+controls.creativeRecipe.value='c';
+changed({target:{id:'creativeRecipe'}});
+assert(controls.creativeBody.value==='Doce do milho, crocante do bacon.','preserve chef tagline without generic ingredient list');
+const milho=context.window.POTE_CREATIVE_PROMPT_READ();
+assert(milho.ingredients.includes('Milho verde')&&milho.ingredients.includes('Bacon crocante'));
+assert(!milho.ingredients.some(x=>/sal|batata/i.test(x)),'exclude base and seasonings from sales highlights');
+console.log('PASS: Milho & Bacon description and highlighted ingredients without salt/batata');
 console.log('PASS: official price 34,90 and 28,90, ingredients, promo -10%, local decimal, Free/Pro, visibility, validations');
