@@ -1,40 +1,140 @@
-/* Premium marketing studio — isolated from operational controls */
-.creative-studio{background:linear-gradient(145deg,#fffdf6,#f4ecdd)!important;border:1px solid #d5c5a5!important}
-.creative-studio h2{letter-spacing:-.03em}
-.creative-studio .cs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,225px),1fr));gap:12px;margin:18px 0}
-.creative-studio .cs-grid .field{min-width:0}
-.creative-studio .cs-grid input,.creative-studio .cs-grid select{width:100%;max-width:100%;min-width:0}
-.creative-studio .cs-options{display:flex;gap:10px 16px;flex-wrap:wrap;border:1px solid #d6c8ad;border-radius:15px;padding:13px 15px;margin:13px 0}
-.creative-studio .cs-options legend{font-weight:800;font-size:12px;padding:0 7px}
-.creative-studio .cs-toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer}
-.creative-studio .cs-toggle input{width:17px;height:17px;accent-color:#246344}
-.creative-studio .actions{display:flex;flex-wrap:wrap;gap:9px}
-.creative-studio .actions .btn{min-height:43px}
-.creative-studio .help{font-size:12px;line-height:1.6}
-.cs-preview{display:flex;flex-direction:column;align-items:center;gap:15px}
-.cs-preview h3{align-self:flex-start}
-.cs-poster{position:relative;display:flex;flex-direction:column;overflow:hidden;isolation:isolate;width:min(100%,445px);background:var(--cs-bg);color:var(--cs-ink);border-radius:18px;box-shadow:0 18px 42px #140d0833}
-.cs-poster .cs-photo{position:absolute;inset:0 0 auto;height:53%;overflow:hidden;background:#443529}
-.cs-poster .cs-photo img{display:block;width:100%;height:100%;object-fit:cover}
-.cs-poster .cs-photo:after{content:"";position:absolute;inset:40% 0 0;background:linear-gradient(transparent,var(--cs-bg))}
-.cs-poster .cs-content{z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:flex-end;gap:7px;min-height:100%;padding:14% 9% 6%}
-.cs-poster .cs-brand{text-transform:uppercase;letter-spacing:.09em;font-weight:800;font-size:clamp(10px,2vw,14px);background:#17120f9e;padding:7px 13px;border-radius:30px;color:#fff6df;max-width:100%;overflow-wrap:anywhere}
-.cs-poster .cs-heading{font-weight:900;text-transform:uppercase;letter-spacing:.01em;font-size:clamp(16px,3.4vw,24px);line-height:1.15;color:var(--cs-accent);overflow-wrap:anywhere}
-.cs-poster .cs-name{font-size:clamp(17px,3.6vw,30px);font-weight:900;line-height:1.13;overflow-wrap:anywhere}
-.cs-poster .cs-description{font-size:clamp(11px,2.1vw,16px);line-height:1.35;margin:1px 0 4px;overflow-wrap:anywhere}
-.cs-poster .cs-prices{display:flex;flex-direction:column;gap:3px}
-.cs-poster .cs-prices s{opacity:.8;font-size:13px}
-.cs-poster .cs-price{font-size:clamp(24px,6vw,47px);color:var(--cs-accent);line-height:1.1}
-.cs-poster .cs-cta{font-size:clamp(10px,2.1vw,15px);letter-spacing:.06em;text-transform:uppercase}
-.cs-poster.cs-clean .cs-brand{background:#ffffffed;color:#213526}
-.cs-poster.cs-clean .cs-photo:after{background:linear-gradient(transparent,#f7f0e3)}
-.cs-poster.cs-fresh .cs-photo:after{background:linear-gradient(transparent,#102d26)}
-.cs-poster[style*="16/9"]{width:min(100%,650px);flex-direction:row}
-.cs-poster[style*="16/9"] .cs-photo{inset:0 auto 0 0;height:100%;width:55%}
-.cs-poster[style*="16/9"] .cs-photo:after{inset:0;background:linear-gradient(90deg,transparent 55%,var(--cs-bg))}
-.cs-poster[style*="16/9"] .cs-content{width:48%;margin-left:auto;padding:6% 4%}
-.cs-caption{width:min(100%,650px);background:#fbf6eb;border:1px solid #ddcbb0;padding:16px;border-radius:13px;color:#2c3127}
-.cs-caption h4{margin:0 0 9px}.cs-caption p{margin:0;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
-@media(max-width:520px){.cs-preview{padding:12px!important}.cs-poster .cs-content{gap:4px}.cs-poster[style*="16/9"] .cs-heading{font-size:12px}.cs-poster[style*="16/9"] .cs-name{font-size:13px}.cs-poster[style*="16/9"] .cs-description{font-size:9px}.cs-poster[style*="16/9"] .cs-price{font-size:18px}}
+/* Estúdio de Criativos — campanha editorial, responsiva, com identidade da conta */
+.creative-studio{
+ position:relative;overflow:hidden;
+ border:1px solid #a7854b!important;
+ background:linear-gradient(145deg,#1b1918 0%,#111719 62%,#1a1714 100%)!important;
+ color:#fff2df!important;border-radius:22px!important;
+ box-shadow:inset 0 1px 0 #fff2dd12,0 20px 44px #0004;
+}
+.creative-studio:before{
+ content:"";position:absolute;inset:-130px -100px auto auto;width:350px;height:340px;
+ background:radial-gradient(circle,#e6b45a22 0%,transparent 68%);pointer-events:none
+}
+.creative-studio .cs-section-title{
+ display:flex;align-items:flex-start;justify-content:space-between;gap:14px;position:relative;margin-bottom:20px
+}
+.creative-studio .cs-section-title small,.cs-preview-title small{
+ display:block;font-size:10px;letter-spacing:.2em;color:#deb46d;font-weight:800;
+}
+.creative-studio .cs-section-title h2{font-size:clamp(22px,5vw,31px);line-height:1.17;margin:7px 0 9px;color:#fff9ee;letter-spacing:-.04em}
+.creative-studio .cs-section-title p{color:#c8c6bf;font-size:13px;line-height:1.5;margin:0;max-width:550px}
+.creative-studio .cs-label{background:#ad7f3430;border:1px solid #d5af6a60;border-radius:30px;white-space:nowrap;padding:6px 11px;font-size:10px;font-weight:800;color:#f5cb86}
+.creative-studio .cs-note{background:#224f403e;color:#cde6d4;border-left:3px solid #87ca9c;padding:10px;font-size:12px;border-radius:8px}
+.creative-studio .cs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:15px;margin:17px 0}
+.creative-studio .cs-grid .field{display:flex;flex-direction:column;gap:7px;min-width:0;color:#e3d5bf;font-size:12px;font-weight:600}
+.creative-studio .cs-grid input,.creative-studio .cs-grid select{
+ box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-height:51px;
+ border:1px solid #807c73;border-radius:12px;padding:10px 14px;
+ background:#0c151e!important;color:#fffdf5!important;font-size:15px!important;
+}
+.creative-studio .cs-grid input:focus,.creative-studio .cs-grid select:focus{
+ border-color:#f7c574!important;outline:2px solid #f7c57455;outline-offset:1px
+}
+.creative-studio .cs-pricing-tools{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+ margin:10px 0 21px;padding:13px 15px;background:#162b2866;border:1px solid #50786d8a;border-radius:13px;
+}
+.creative-studio .cs-pricing-tools p{margin:0;color:#d6e5dd;font-size:12px}
+.creative-studio .cs-pricing-tools strong{color:#fff}
+.creative-studio .cs-pricing-tools small{color:#acbbb4;font-size:10px}
+.creative-studio .cs-discount{display:flex;gap:6px;flex-wrap:wrap}
+.creative-studio .cs-discount button{
+ color:#f2d7a8;background:#3b3020;border:1px solid #987849;border-radius:24px;
+ padding:8px 11px;font-weight:800;font-size:12px;min-height:36px
+}
+.creative-studio .cs-discount button:hover{background:#795625;color:#fff}
+.creative-studio .cs-options{display:flex;gap:12px 18px;flex-wrap:wrap;border:1px solid #6c6659;border-radius:14px;padding:14px 17px;margin:14px 0}
+.creative-studio .cs-options legend{font-weight:800;font-size:12px;color:#f3cd8b;padding:0 9px}
+.creative-studio .cs-toggle{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:600;cursor:pointer;color:#f1e8d9}
+.creative-studio .cs-toggle input{width:17px;height:17px;accent-color:#6dc18e}
+.creative-studio .cs-price-hint{font-size:12px;color:#acdbc2;line-height:1.45;margin:8px 0 14px}
+.creative-studio .cs-actionbar{display:flex;flex-wrap:wrap;gap:9px}
+.creative-studio .cs-actionbar .btn{min-height:45px;flex:1 1 125px;font-weight:800}
+.creative-studio .cs-actionbar .btn:first-child{
+ background:linear-gradient(145deg,#ba863a,#805420)!important;color:#fff8ed!important;border:1px solid #e6b76c!important
+}
+.creative-studio .help{font-size:11px;line-height:1.6;margin-top:14px;color:#b7b6b3}
+.cs-preview{display:flex;flex-direction:column;align-items:center;gap:20px;border-radius:20px!important}
+.cs-preview-title{align-self:stretch}.cs-preview-title h3{font-size:20px;margin:4px 0 0;letter-spacing:-.025em}
+.cs-placeholder{width:min(100%,500px);min-height:300px;border:1px dashed #8f7859;border-radius:19px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;background:radial-gradient(ellipse at 40% 20%,#4a3322,#171618)}
+.cs-placeholder strong{font-size:23px;color:#f5cea0}.cs-placeholder p{max-width:290px;color:#decdb6}
+.cs-poster{
+ --cs-bg:#110f10;--cs-ink:#fff5e4;--cs-accent:#f4c773;
+ position:relative;isolation:isolate;overflow:hidden;
+ display:flex;flex-direction:column;width:min(100%,480px);
+ background:var(--cs-bg);color:var(--cs-ink);border-radius:17px;
+ box-shadow:0 16px 42px #0008;line-height:1.2;text-align:center;
+}
+.cs-poster .cs-photo{position:absolute;inset:0 0 auto;height:71%;background:#554333}
+.cs-poster .cs-photo img{width:100%;height:100%;display:block;object-fit:cover}
+.cs-poster .cs-shadow{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,#08080708 0%,#09090914 30%,var(--cs-bg) 70%)}
+.cs-poster .cs-brand{
+ position:absolute;z-index:2;left:14px;right:14px;top:14px;min-height:42px;
+ display:flex;gap:8px;align-items:center;justify-content:center;
+ padding:7px 12px;border-radius:28px;background:#100f0cbd;
+ border:1px solid #ffffff4a;color:#fff6e6;
+ font-size:clamp(10px,2.2vw,14px);font-weight:900;letter-spacing:.06em;text-transform:uppercase;
+ overflow-wrap:anywhere
+}
+.cs-poster .cs-brand .cs-logo{height:31px;width:31px;border-radius:50%;object-fit:contain;flex-shrink:0}
+.cs-poster .cs-story{
+ position:relative;z-index:1;margin-top:auto;
+ display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+ gap:6px;padding:0 7% 6%;
+ text-shadow:0 2px 6px #0006
+}
+.cs-poster .cs-eyebrow{font-size:clamp(10px,2.4vw,15px);font-weight:900;letter-spacing:.12em;color:var(--cs-accent);text-transform:uppercase}
+.cs-poster h3{font-size:clamp(22px,5.4vw,40px);line-height:1.04;margin:3px 0 0;letter-spacing:-.04em;font-weight:950;overflow-wrap:anywhere;color:var(--cs-ink)}
+.cs-poster .cs-story p{margin:2px 0 6px;font-size:clamp(11px,2.25vw,16px);line-height:1.3;color:var(--cs-ink);max-width:98%;overflow-wrap:anywhere}
+.cs-poster .cs-price-area{display:flex;flex-direction:column;gap:0;align-items:center;justify-content:center}
+.cs-poster .cs-price-area s{font-size:clamp(10px,2.5vw,15px);color:#dfc6a9;letter-spacing:.04em}
+.cs-poster .cs-price-area strong{color:var(--cs-accent);font-size:clamp(27px,6vw,53px);font-weight:950;letter-spacing:-.05em;line-height:1.03}
+.cs-poster .cs-saving{border-radius:8px;background:#426a4c;color:#e7ffdf;font-size:10px;font-weight:800;padding:4px 7px;margin-top:3px}
+.cs-poster .cs-cta{background:var(--cs-accent);color:var(--cs-bg);border-radius:25px;padding:9px 19px;max-width:100%;font-size:clamp(9px,2.2vw,13px);font-weight:900;letter-spacing:.04em;line-height:1.2;text-shadow:none;overflow-wrap:anywhere}
+.cs-poster .cs-phone{font-size:11px;opacity:.92}
+.cs-poster.cs-clean .cs-shadow{background:linear-gradient(180deg,#f2e9d900 0%,#f2e9d966 40%,#f2e9d9 69%)}
+.cs-poster.cs-clean .cs-story{text-shadow:none}
+.cs-poster.cs-clean .cs-brand{background:#fdf6e9e8;color:#243529}
+.cs-poster.cs-fresh .cs-shadow{background:linear-gradient(180deg,#102c2400 0%,#102c2444 33%,#102c24 70%)}
+.cs-poster[style*="16/9"]{width:min(100%,780px)}
+.cs-poster[style*="16/9"] .cs-photo{inset:0 auto 0 0;height:100%;width:63%}
+.cs-poster[style*="16/9"] .cs-shadow{background:linear-gradient(90deg,transparent 20%,var(--cs-bg) 64%)}
+.cs-poster[style*="16/9"] .cs-story{width:43%;margin-left:auto;min-height:100%;padding:13% 3% 5%;gap:4px}
+.cs-poster[style*="16/9"] h3{font-size:clamp(14px,3.2vw,29px)}
+.cs-poster[style*="16/9"] .cs-story p{font-size:clamp(9px,1.9vw,13px)}
+.cs-poster[style*="16/9"] .cs-price-area strong{font-size:clamp(19px,4.2vw,40px)}
+.cs-poster[style*="16/9"] .cs-cta{padding:6px 10px}
+.cs-poster[style*="1/1"] .cs-story{gap:3px;padding-bottom:4%}
+.cs-poster[style*="1/1"] h3{font-size:clamp(18px,5vw,32px)}
+.cs-poster[style*="1/1"] .cs-story p{font-size:clamp(10px,2.2vw,13px)}
+.cs-poster[style*="1/1"] .cs-price-area strong{font-size:clamp(24px,5.5vw,43px)}
+.cs-caption{width:min(100%,720px);background:#201e1c;border:1px solid #7f6751;border-radius:14px;padding:17px;color:#f4e5d1}
+.cs-caption strong{color:#ecc58a}.cs-caption p{margin:10px 0 0;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+@media(max-width:440px){
+ .creative-studio .cs-label{display:none}
+ .creative-studio .cs-section-title h2{font-size:24px}
+ .creative-studio .cs-grid{grid-template-columns:1fr}
+ .cs-poster .cs-brand{min-height:34px;padding:5px 7px;top:8px;left:8px;right:8px}
+ .cs-poster .cs-story{gap:3px}
+ .cs-poster .cs-cta{padding:7px 12px}
+ .cs-poster[style*="16/9"] .cs-story{gap:2px}
+}
 
-.cs-poster .cs-logo{width:27px;height:27px;object-fit:contain;border-radius:50%;vertical-align:middle;margin-right:7px}
+/* Landscape editorial: keep full text and CTA visible in a short 16:9 canvas. */
+.cs-poster[style*="16/9"] .cs-story{justify-content:center!important;padding:5% 2% 2%!important;gap:1px!important}
+.cs-poster[style*="16/9"] .cs-eyebrow{font-size:clamp(8px,1.35vw,12px);line-height:1.1}
+.cs-poster[style*="16/9"] h3{font-size:clamp(12px,2.35vw,23px);line-height:1.02;margin:0}
+.cs-poster[style*="16/9"] .cs-story p{
+ font-size:clamp(8px,1.2vw,11px);line-height:1.15;margin:1px 0;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden
+}
+.cs-poster[style*="16/9"] .cs-price-area s{font-size:10px}
+.cs-poster[style*="16/9"] .cs-price-area strong{font-size:clamp(17px,3vw,32px)}
+.cs-poster[style*="16/9"] .cs-cta{font-size:clamp(7px,1.3vw,10px);padding:5px 8px}
+.cs-poster[style*="16/9"] .cs-phone{display:none}
+
+/* Optional photo framing: use the original uploaded image, never replace it. */
+.cs-poster .cs-photo img{transition:transform .2s ease}
+.cs-poster .cs-photo.cs-focus-food img{transform:scale(1.73);transform-origin:50% 0%}
+.cs-poster .cs-photo.cs-focus-center img{transform:scale(1.08);transform-origin:50% 50%}
+.cs-poster .cs-photo.cs-focus-full img{transform:none;object-position:center center}

@@ -142,6 +142,8 @@ jobs:
           node test_company_pdv_polish.js
           node --check public/top_navigation.js
           node test_top_navigation.js
+          node --check public/creative_studio.js
+          node test_creative_studio.cjs
           node --check public/compact_account_header.js
           node test_compact_account_header.js
           node --check public/pote_calc_launcher.js
