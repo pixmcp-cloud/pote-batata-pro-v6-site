@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const js=fs.readFileSync('tablet_layout.js','utf8');
+const css=fs.readFileSync('tablet_layout.css','utf8');
+const calc=fs.readFileSync('pote_calc_quantum_99_fullscreen.html','utf8');
+const beta=fs.readFileSync('make_beta.py','utf8'),deploy=fs.readFileSync('.github/workflows/deploy.yml','utf8');
+new vm.Script(js);
+for(const id of ['poteSidebarToggle','poteHeroCalculator','poteHomeShortcut'])assert(js.includes(id),id);
+for(const required of ['pote-sidebar-collapsed','repeat(auto-fit','overflow-wrap:break-word','@container','ops-card strong','pote-hero-actions'])assert(css.includes(required),required);
+assert(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'),'tablet should use 2 columns when narrow');
+assert(calc.indexOf('id="scrollDisplay"')<calc.indexOf('id="keypad"'),'keypad below LCD');
+assert(calc.indexOf('id="keypad"')<calc.indexOf('id="advanced"'),'advanced tools below keypad');
+assert((calc.match(/data-key=/g)||[]).length>=20,'preserve basic buttons');
+assert(beta.includes('tablet_layout.js')&&beta.includes('tablet_layout.css'));
+assert(deploy.includes('cp tablet_layout.js')&&deploy.includes('cp tablet_layout.css'));
+console.log('PASS tablet responsiveness, sidebar collapse, hero calculator, keypad ordering');

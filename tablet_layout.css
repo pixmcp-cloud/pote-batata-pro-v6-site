@@ -1,0 +1,33 @@
+/* Layout responsivo seguro: correcao para tablet / desktop e menu lateral recolhivel. */
+@media (min-width:851px){
+  body.pote-sidebar-collapsed .layout{grid-template-columns:minmax(0,1fr)!important}
+  body.pote-sidebar-collapsed .layout>.sidebar{display:none!important}
+  .pote-sidebar-toggle{position:fixed;left:10px;top:calc(50% - 22px);z-index:80;border:1px solid #e7c184;background:linear-gradient(150deg,#354b65,#1a2b42);color:#ffe1a6;border-radius:12px;min-width:44px;min-height:44px;padding:8px 10px;display:grid;place-items:center;box-shadow:inset 0 1px #ffffff7d,0 7px 17px #000a;cursor:pointer}
+  body:not(.pote-sidebar-collapsed) .pote-sidebar-toggle{left:236px}
+  .pote-sidebar-toggle:hover{background:#496481}
+}
+@media (max-width:850px){.pote-sidebar-toggle{display:none!important}}
+.layout,.content,.ops-dashboard,.ops-grid{min-width:0!important}
+.content{container-type:inline-size}
+.ops-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr))!important;align-items:stretch;gap:clamp(13px,1.8cqw,20px)!important}
+.ops-grid>.ops-card{min-width:0!important;width:100%!important;height:auto!important;min-height:170px!important;aspect-ratio:1.55/1!important;overflow:hidden!important}
+.ops-grid .ops-card strong{max-width:100%!important;width:100%!important;padding:0 6px!important;box-sizing:border-box!important;white-space:normal!important;overflow-wrap:break-word!important;word-break:normal!important;text-wrap:balance;font-size:clamp(14px,2.2cqw,19px)!important;line-height:1.22!important}
+.ops-grid .ops-business-card{grid-column:1/-1;min-height:165px!important;max-height:230px;aspect-ratio:auto!important;padding:20px!important}
+.ops-grid .ops-business-card .ops-icon img{object-fit:contain!important;object-position:80% center!important;background:linear-gradient(125deg,#172536,#22354b)}
+.ops-grid .ops-business-card strong{max-width:58%!important;text-align:left!important;margin:0!important;font-size:clamp(17px,3cqw,24px)!important}
+.ops-grid .ops-business-card .ops-chevron{right:16px}
+.ops-grid .ops-card .ops-chevron{right:12px}
+.hero{align-items:center;flex-wrap:wrap}
+.pote-hero-actions{display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-left:auto}
+.pote-hero-actions .home-hero-button{flex:0 0 auto}
+@container (max-width:550px){
+ .ops-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+ .ops-grid>.ops-card{min-height:130px!important;aspect-ratio:1.2/1!important;padding:10px 9px 14px!important}
+ .ops-grid .ops-card strong{font-size:clamp(12px,3.3cqw,17px)!important;padding:0 2px!important}
+ .ops-grid>.ops-business-card{aspect-ratio:auto!important;min-height:155px!important;max-height:215px}
+}
+@container (max-width:330px){
+ .ops-grid{grid-template-columns:minmax(0,1fr)!important}
+ .ops-grid>.ops-card{min-height:155px!important;aspect-ratio:1.65/1!important}
+}
+@media(prefers-reduced-motion:reduce){.pote-sidebar-toggle{transition:none!important}}

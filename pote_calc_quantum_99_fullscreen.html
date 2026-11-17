@@ -184,6 +184,10 @@ body.pote-calc-faux-fullscreen .unitCats{grid-template-columns:repeat(3,minmax(0
 @media(max-width:400px){.tool.fullscreen-btn{min-width:29px;width:29px}.tool.fullscreen-btn svg{width:20px}.brand b{font-size:11px}.head-buttons{gap:4px}.rocket{width:52px}.tool.onoff{min-width:34px}.tool.close{min-width:29px}}
 @media(prefers-reduced-motion:reduce){#calcPlayground:fullscreen *,body.pote-calc-faux-fullscreen *{animation:none!important}}
 
+
+/* Basic digits remain directly below LCD in either mode. */
+.keypad{margin-bottom:19px}
+.advanced{margin-top:5px;margin-bottom:14px}
 </style></head><body><div id="calcPlayground">
   <section id="calcDevice" aria-label="Potê Calc Quantum 99 flutuante">
     <div class="head" id="dragHandle" title="Arraste segurando esta área">
@@ -201,6 +205,13 @@ body.pote-calc-faux-fullscreen .unitCats{grid-template-columns:repeat(3,minmax(0
       <div class="readout" id="scrollDisplay"><div class="display" id="display" role="status" aria-live="off">0</div></div>
       <div class="digit-count" id="digitCount">1 / 12 dígitos</div>
     </div></div>
+    <div id="keypad" class="keypad">
+      <button class="k c" data-key="C">C</button><button class="k fn" data-key="back">⌫</button><button class="k fn" data-key="sign">±</button><button class="k op" data-key="/">÷</button>
+      <button class="k" data-key="7">7</button><button class="k" data-key="8">8</button><button class="k" data-key="9">9</button><button class="k op" data-key="*">×</button>
+      <button class="k" data-key="4">4</button><button class="k" data-key="5">5</button><button class="k" data-key="6">6</button><button class="k op" data-key="-">−</button>
+      <button class="k" data-key="1">1</button><button class="k" data-key="2">2</button><button class="k" data-key="3">3</button><button class="k op" data-key="+">+</button>
+      <button class="k fn" data-key="%">%</button><button class="k" data-key="0">0</button><button class="k" data-key=".">,</button><button class="k eq" data-key="=">=</button>
+    </div>
     <div class="advanced" id="advanced" hidden>
       <div class="turboHero"><div class="tLight">✧</div><div><h3>QUANTUM ENGINE <span class="turboBadge">99</span></h3><p>Controle científico e financeiro · precisão decimal avançada</p></div></div>
       <div class="precisionInfo"><span id="engineSource">Motor local de precisão</span><span>LCD · 99 DÍGITOS</span></div>
@@ -242,13 +253,6 @@ body.pote-calc-faux-fullscreen .unitCats{grid-template-columns:repeat(3,minmax(0
         <div class="sectionTop"><span>MEMÓRIA & HISTÓRICO</span><button id="clearHistory" class="dangerSmall" type="button">LIMPAR</button></div><div class="memoryPad"><div><small>MEMÓRIA ATUAL</small><strong id="memoryVal">0</strong></div><div class="memoryKeys"><button data-mem="MC">MC</button><button data-mem="MR">MR</button><button data-mem="MS">MS</button><button data-mem="M+">M+</button><button data-mem="M-">M−</button></div></div><div id="historyList" class="historyList"></div><p class="technicalNote">Histórico local desta calculadora, sem envio a servidores.</p>
       </section>
       <div class="moreOptions"><button id="soundBtn" aria-pressed="true" type="button">🔊 Clique ON</button><button id="vibeBtn" aria-pressed="true" type="button">📳 Vibração ON</button></div>
-    </div>
-    <div id="keypad" class="keypad">
-      <button class="k c" data-key="C">C</button><button class="k fn" data-key="back">⌫</button><button class="k fn" data-key="sign">±</button><button class="k op" data-key="/">÷</button>
-      <button class="k" data-key="7">7</button><button class="k" data-key="8">8</button><button class="k" data-key="9">9</button><button class="k op" data-key="*">×</button>
-      <button class="k" data-key="4">4</button><button class="k" data-key="5">5</button><button class="k" data-key="6">6</button><button class="k op" data-key="-">−</button>
-      <button class="k" data-key="1">1</button><button class="k" data-key="2">2</button><button class="k" data-key="3">3</button><button class="k op" data-key="+">+</button>
-      <button class="k fn" data-key="%">%</button><button class="k" data-key="0">0</button><button class="k" data-key=".">,</button><button class="k eq" data-key="=">=</button>
     </div>
     <div class="status" id="bottomStatus">VISOR RETRÔ · TECLADO MECÂNICO</div>
   </section>
