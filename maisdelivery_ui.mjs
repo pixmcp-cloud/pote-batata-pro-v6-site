@@ -41,7 +41,12 @@ export async function sendMaisDelivery(operation){
  if(!output)return false;
  try{
   const url=new URL(proxy);
-  if(url.protocol!=="https:"&&!(url.protocol==="http:"&&["localhost","127.0.0.1"].includes(url.hostname)))throw Error("Use URL HTTPS do seu adaptador PHP.");
+  const local=["localhost","127.0.0.1"].includes(url.hostname);
+  const approvedHost=url.hostname==="livresom.com"||url.hostname.endsWith(".livresom.com");
+  if(url.username||url.password||url.search||url.hash)throw Error("O adaptador não pode conter credenciais ou parâmetros no endereço.");
+  if(url.protocol!=="https:"&&!(url.protocol==="http:"&&local))throw Error("Use HTTPS para o adaptador PHP.");
+  if(!local&&!approvedHost)throw Error("Adaptador fora do domínio autorizado. Hospede em livresom.com ou use localhost para testes.");
+  if(!url.pathname.endsWith("/maisdelivery_proxy.php"))throw Error("Use a rota /maisdelivery_proxy.php do adaptador verificado.");
   if(!basic||!token)throw Error("Preencha a Basic Auth e o token de TESTE.");
   const data={empresa:$("mdEmpresa")?.value,restaurante:$("mdRestaurante")?.value,
    produtos:operation===9?[{dsNome:$("mdNome")?.value,dsCategoria:$("mdCategoria")?.value,

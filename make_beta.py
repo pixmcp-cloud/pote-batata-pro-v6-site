@@ -45,7 +45,7 @@ html, n = re.subn(r'<button class="btn danger" onclick="resetAll\(\)">[^<]*</but
 if n != 1: raise SystemExit("Botão de zerar conta não encontrado")
 once("Pesquisa habilitada nesta simulação. Nenhuma chamada externa será enviada.",
      "Busca piloto de estabelecimentos reais no OpenStreetMap. Confirme os dados antes de comprar.")
-once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="index,follow"><meta name="description" content="Gestão Pro: plataforma para batatarias, pizzarias, hamburguerias e lancherias.">')
+once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="noindex,nofollow,noarchive"><meta name="description" content="Gestão Pro: plataforma para batatarias, pizzarias, hamburguerias e lancherias.">')
 
 head = """<style>
 #poteAuthGate{position:fixed;inset:0;z-index:10000;background:#120e0b;display:flex;align-items:center;
@@ -198,17 +198,30 @@ window.POTE_APP={
 };
 resetAll=function(){
  if(!window.POTE_AUTH?.uid){toast('Faça login antes de zerar sua conta.');return;}
- if(window.POTE_SYNC_GUARD?.blocked){toast('Existe conflito de sincronização: exporte o backup e resolva antes de zerar.');return;}
- if(!window.confirm('ZERAR a conta: remover todos os registros operacionais? A operação exige confirmação por escrito após baixar o backup.'))return;
- try{
-  if(!window.POTE_SYNC_GUARD?.downloadPending)throw Error('Exportação completa indisponível');
-  window.POTE_SYNC_GUARD.downloadPending();
- }catch(e){console.warn('Backup não disponível',e);toast('Não foi possível preparar o backup completo. Cancelado.');return;}
- if(window.prompt('O backup completo foi solicitado. Confira o arquivo baixado. Para confirmar a exclusão de todos os seus dados, digite ZERAR:')!=='ZERAR'){
-  toast('Nenhum dado foi zerado.');return;
+ if(window.POTE_SYNC_GUARD?.blocked||window.POTE_SYNC_GUARD?.hasPending?.()){
+  toast('Existe pendência de sincronização. Resolva antes de zerar a conta.');return;
  }
- window.POTE_APP.reset();
- toast('Redefinição solicitada. Confira a confirmação de sincronização na nuvem.');
+ if(!window.confirm('ZERAR a conta? Faça o download do backup e reabra o arquivo para comprovar que ele foi salvo.'))return;
+ const accountUid=window.POTE_AUTH.uid,previous=window.POTE_APP.snapshot();
+ const guard=window.POTE_SYNC_GUARD;
+ if(!guard?.downloadPending||!guard?.verifyBackupFile){
+  toast('Validação de backup não disponível. Operação bloqueada.');return;
+ }
+ try{guard.downloadPending()}
+ catch(error){console.warn('Backup indisponível',error);toast('Falha ao gerar backup. Operação cancelada.');return;}
+ // The browser must return a real File chosen from device storage.
+ void guard.verifyBackupFile(accountUid,previous).then(result=>{
+  if(!result?.ok){toast('Backup não validado: '+String(result?.error||'arquivo incorreto'));return;}
+  if(window.POTE_AUTH?.uid!==accountUid||window.POTE_SYNC_GUARD?.blocked||
+   JSON.stringify(window.POTE_APP.snapshot())!==JSON.stringify(previous)){
+   toast('Os dados ou a conta mudaram. Faça um novo backup antes de zerar.');return;
+  }
+  if(window.prompt('Backup '+result.fileName+' validado. Para confirmar o reset definitivo, digite ZERAR:')!=='ZERAR'){
+   toast('Nenhum dado foi zerado.');return;
+  }
+  window.POTE_APP.reset();
+  toast('Redefinição solicitada. Confira a confirmação de sincronização na nuvem.');
+ }).catch(error=>{console.warn('Validação de backup',error);toast('Falha na verificação. Nenhum dado foi zerado.')});
 };
 const poteOriginalRender=render;
 render=function(...args){

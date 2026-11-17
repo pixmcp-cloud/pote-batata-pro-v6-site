@@ -12,7 +12,14 @@ const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const money=x=>(Number(x)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const labels={batataria:"Batataria",pizzaria:"Pizzaria",hamburgueria:"Hamburgueria",hotdog:"Hot Dog",lancheria:"Lancheria",pastelaria:"Pastelaria"};
 const f=(msg)=>typeof toast==="function"?toast(msg):alert(msg);
-let channel="cardapioai",preview=null,pending=null,lastError="";
+let channel="cardapioai",preview=null,pending=null,lastError="",currentUid=null;
+ function resetTransient(){channel="cardapioai";preview=null;pending=null;lastError="";}
+ window.addEventListener?.("pote:user-logout",()=>{resetTransient();currentUid=null;});
+ window.addEventListener?.("pote:user-ready",()=>{
+  const uid=window.POTE_AUTH?.uid||null;
+  if(currentUid!==uid)resetTransient();
+  currentUid=uid;
+ });
 const active=()=>state?.data?.businessType||"batataria";
 const snapshot=()=>state?.data||{};
 const hub=()=>ensureHub(state);
@@ -94,7 +101,9 @@ function renderPage(){
  'Nenhum canal é conectado automaticamente, e nenhum pedido entra em produção sem conferência.</p>'+
  '<div class="hub-numbers"><div><strong>'+CHANNELS.length+'</strong><small>Plataformas documentadas</small></div>'+
  '<div><strong>'+data.orders.length+'</strong><small>Pedidos na fila</small></div><div><strong>'+data.orders.filter(r=>r.approved).length+'</strong><small>Conferidos</small></div></div></header>'+
- '<h3>1. Plataformas de delivery · status das APIs</h3><div class="hub-platforms">'+CHANNELS.map(platformCard).join("")+'</div>'+renderMaisDelivery()+
+ '<h3>1. Plataformas de delivery · status das APIs</h3><div class="hub-platforms">'+CHANNELS.filter(p=>p.id==="maisdelivery").map(platformCard).join("")+
+ '</div><details class="hub-future"><summary>Outras plataformas documentadas (ainda indisponíveis)</summary><div class="hub-platforms">'+
+ CHANNELS.filter(p=>p.id!=="maisdelivery").map(platformCard).join("")+'</div></details>'+renderMaisDelivery()+
  '<h3>2. Importação manual de pedidos</h3><section class="hub-box"><p>O MaisDelivery está em homologação. As outras APIs automáticas estão em breve. '+
  'Por enquanto, importe um JSON exportado ou recebido legitimamente da sua loja. Nunca cole tokens, senhas ou chaves.</p>'+
  '<div class="hub-inputs"><label>Plataforma<select id="hubProvider" onchange="POTE_DELIVERY_HUB.select(this.value)">'+channelSelect(selected.id)+'</select></label>'+

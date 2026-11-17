@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebas
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {createV2Store} from "./v2_storage.mjs?v=adm-v2-recipes-20261116";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending} from "./sync_guard.mjs?v=safety-20261116";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup} from "./sync_guard.mjs?v=safety-20261116";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
 const firebaseConfig = {
@@ -152,7 +152,42 @@ function downloadPending(){
  document.body.appendChild(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(href),10000);
 }
-window.POTE_SYNC_GUARD={downloadPending,resolvePendingConflict,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
+function verifyBackupFile(expectedUid,expectedState){
+ // Must select the downloaded file from the device: requesting a download alone
+ // is not evidence that the browser actually stored a recoverable backup.
+ if(!expectedUid||!expectedState||auth.currentUser?.uid!==expectedUid)
+  return Promise.resolve({ok:false,error:"Conta mudou durante a verificação."});
+ const picker=document.createElement("input");
+ picker.type="file";picker.accept=".json,application/json";picker.style.display="none";
+ document.body.appendChild(picker);
+ return new Promise(resolve=>{
+  let settled=false;
+  const finish=result=>{
+   if(settled)return;
+   settled=true;picker.remove();resolve(result);
+  };
+  picker.addEventListener("change",async()=>{
+   const file=picker.files?.[0];
+   if(!file)return finish({ok:false,error:"Nenhum arquivo selecionado."});
+   if(file.size>30*1024*1024)return finish({ok:false,error:"Arquivo de backup maior que o limite de verificação."});
+   try{
+    const content=JSON.parse(await file.text());
+    if(content.backupVersion!==1||content.uid!==expectedUid)
+     throw Error("Arquivo pertence a outra conta ou possui versão inválida.");
+    const validity=validateBackup(content.state);
+    if(!validity.ok)throw Error(validity.error||"Backup incompleto.");
+    if(stableJson(content.state)!==stableJson(expectedState))
+     throw Error("Arquivo não corresponde exatamente ao estado atual da conta.");
+    if(auth.currentUser?.uid!==expectedUid)
+     throw Error("Conta alterada durante a verificação.");
+    finish({ok:true,counts:validity.counts,fileName:file.name});
+   }catch(error){finish({ok:false,error:String(error.message||error).slice(0,160)})}
+  },{once:true});
+  picker.addEventListener("cancel",()=>finish({ok:false,error:"Seleção cancelada."}),{once:true});
+  try{picker.click()}catch(error){finish({ok:false,error:"Navegador bloqueou a seleção do arquivo."})}
+ });
+}
+window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
 window.addEventListener("online",()=>{if(ready&&!syncBlocked)queueSave()});
 function refreshEntitlements() {
   if (!window.POTE_AUTH) return;

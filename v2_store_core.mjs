@@ -76,14 +76,20 @@ function assignRanks(entries,previousRecords){
    }else{
     const step=(right-left)/(count+1);
     const minStep=Number.EPSILON*Math.max(1,Math.abs(left),Math.abs(right));
-    if(!(step>minStep))throw Error("Ordenação saturada: requer rebalanceamento seguro");
+    if(!(step>minStep)){
+      // Rebalance small collections; the V2 transaction validates the resulting diff.
+      if(n>=MAX_CHANGES_PER_TX)throw Error("Ordenacao saturada: grupo grande requer importacao em lotes");
+      return entries.map((_,idx)=>idx*1000);
+     }
     for(let j=start+1;j<end;j++)ranks[j]=left+step*(j-start);
    }
   }
   start=end;
  }
- for(let i=1;i<n;i++)if(!(ranks[i]>ranks[i-1]))
-  throw Error("Ordenação sem espaço: requires rebalanceamento seguro");
+ for(let i=1;i<n;i++)if(!(ranks[i]>ranks[i-1])){
+  if(n>=MAX_CHANGES_PER_TX)throw Error("Ordenacao saturada: grupo grande requer importacao em lotes");
+  return entries.map((_,idx)=>idx*1000);
+ }
  return ranks;
 }
 function rowInfo(item,idx){

@@ -2,14 +2,19 @@
 (function(root){
 "use strict";
 if(root.POTE_FINANCE)return;
-const n=v=>{
- if(typeof v==="number")return Number.isFinite(v)?v:0;
- const s=String(v??"").trim().replace(/^R\$/i,"").replace(/\s/g,"");
- if(!s)return 0;
- const normalized=s.includes(",")?s.replace(/\./g,"").replace(",","."):s;
- const number=Number(normalized);
- return Number.isFinite(number)?number:0;
-};
+function parseNumber(v){
+ if(typeof v==="number")return Number.isFinite(v)?v:NaN;
+ let value=String(v??"").trim().replace(/^R\$\s*/i,"").replace(/\s/g,"");
+ if(!value)return NaN;
+ if(value.includes(",")&&value.includes(".")){
+  if(value.lastIndexOf(",")>value.lastIndexOf("."))value=value.replace(/\./g,"").replace(",",".");
+  else value=value.replace(/,/g,"");
+ }else if(value.includes(","))value=value.replace(",",".");
+ if(!/^[+-]?\d+(?:\.\d+)?$/.test(value))return NaN;
+ const number=Number(value);
+ return Number.isFinite(number)?number:NaN;
+}
+const n=v=>{const result=parseNumber(v);return Number.isFinite(result)?result:0};
 const round2=v=>Math.round((n(v)+Number.EPSILON)*100)/100;
 const nonNegative=v=>Math.max(0,n(v));
 const qty=v=>Math.max(1,n(v));
@@ -58,8 +63,10 @@ function result({unitPrice,unitVariableCost,unitFixedCost,feePct,quantity=1,deli
  const fixed=round2(nonNegative(unitFixedCost)*count);
  const contribution=round2(gross-commission-variableCost);
  const estimatedProfit=round2(contribution-fixed-nonNegative(lossCost));
- const unpaid=paymentStatus==="nao_pago";
- return {grossRevenue:round2(gross),receivedRevenue:unpaid?0:round2(gross),
+ const status=String(paymentStatus||"").toLocaleLowerCase("pt-BR").trim();
+ const unpaid=status==="nao_pago",settled=["pago","confirmado","pago em dinheiro"].includes(status);
+ return {grossRevenue:round2(gross),receivedRevenue:settled?round2(gross):0,
+  outstandingRevenue:!settled&&!unpaid?round2(gross):0,
   uncollectedSale:unpaid?round2(gross):0,
   fees:commission,variableCost,fixedAllocation:fixed,
   contributionBeforeFixed:contribution,estimatedProfit,
@@ -67,5 +74,5 @@ function result({unitPrice,unitVariableCost,unitFixedCost,feePct,quantity=1,deli
   markupPct:variableCost+fixed>0?round2(estimatedProfit/(variableCost+fixed)*100):0,
   costKnown:Number.isFinite(Number(unitVariableCost))&&Number.isFinite(Number(unitFixedCost))};
 }
-root.POTE_FINANCE={n,round2,unitCost,beverageCost,roundPrice,fees,suggest,recipeMaterialCost,result};
+root.POTE_FINANCE={n,parseNumber,round2,unitCost,beverageCost,roundPrice,fees,suggest,recipeMaterialCost,result};
 })(typeof window!=="undefined"?window:globalThis);

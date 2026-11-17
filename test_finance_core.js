@@ -22,4 +22,11 @@ const unpaid=F.result({unitPrice:25,unitVariableCost:10,unitFixedCost:3,quantity
 assert.equal(unpaid.receivedRevenue,0);
 assert.equal(unpaid.uncollectedSale,25);
 assert.equal(unpaid.contributionBeforeFixed,15,"Contribution is economic before collection and must not hide receivables");
+assert.equal(F.parseNumber("R$ 1.234,56"),1234.56,"BRL parser must read thousands");
+assert(Number.isNaN(F.parseNumber("1,2,3")),"Invalid monetary values must be rejected");
+const pending=F.result({unitPrice:35,unitVariableCost:12,unitFixedCost:3,quantity:1,paymentStatus:"Informado"});
+assert.equal(pending.receivedRevenue,0,"Unconfirmed Pix must not count as money received");
+assert.equal(pending.outstandingRevenue,35,"Pending sale must be explicit");
+const confirmed=F.result({unitPrice:40,unitVariableCost:15,unitFixedCost:4,paymentStatus:"confirmado"});
+assert.equal(confirmed.receivedRevenue,40);
 console.log("PASS: cálculo financeiro único de custo unitário, markup, margem, preço, lucro e inadimplência.");

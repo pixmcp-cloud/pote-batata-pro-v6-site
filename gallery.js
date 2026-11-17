@@ -17,7 +17,7 @@ shell.innerHTML=`
   <button id="poteGalleryClose" type="button" aria-label="Fechar Galeria">✕</button></header>
   <div class="pote-gallery-info">
    <span><strong id="poteGalleryCount">0</strong> imagens temporárias</span>
-   <span id="poteGalleryMode">Armazenamento local · não sincronizado com Floot</span>
+   <span id="poteGalleryMode">Armazenamento local · não sincronizado entre dispositivos</span>
   </div>
   <div id="poteGalleryFeedback" role="status" class="pote-gallery-feedback"></div>
   <div id="poteGalleryItems" class="pote-gallery-grid"></div>
@@ -185,7 +185,7 @@ function render(){
  $("poteGalleryCount").textContent=String(items.length);
  $("poteGalleryMode").textContent=GALLERY_CLOUD_ENABLED?
   "Firebase Storage · sincronização por conta Google":
-  "Somente neste dispositivo · não sincronizado com Floot";
+  "Somente neste dispositivo · não sincronizado entre dispositivos";
  if(!items.length){$("poteGalleryItems").innerHTML='<div class="pote-gallery-empty"><span>▣</span><h3>Galeria vazia</h3><p>Gere uma arte em Criativos. A imagem será guardada aqui por 42 horas.</p></div>';return}
  $("poteGalleryItems").innerHTML=items.map((v,i)=>`
   <article class="pote-gallery-card">
@@ -254,12 +254,12 @@ $("poteGalleryItems").addEventListener("click",async e=>{
 });
 window.addEventListener("pote:changed",()=>{if(open)refresh()});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&open)refresh()});
-setInterval(()=>{if(open){const now=Date.now();if(all.some(x=>isGalleryExpired(x,now)))refresh();
+setInterval(()=>{if(open&&!document.hidden){const now=Date.now();if(all.some(x=>isGalleryExpired(x,now)))refresh();
  else document.querySelectorAll("[data-gallery-clock]").forEach(el=>{
    const item=all.find(i=>i.id===el.dataset.galleryClock);if(item)el.textContent=galleryTimeRemaining(item,now)
  });}},60000);
 // Coleta oportunista: o navegador não executa limpeza garantida quando fechado.
 cleanupLocal().catch(()=>{});
-setInterval(()=>cleanupLocal().catch(()=>{}),60*60*1000);
+setInterval(()=>{if(!document.hidden)cleanupLocal().catch(()=>{})},60*60*1000);
 window.addEventListener("focus",()=>cleanupLocal().catch(()=>{}));
 window.POTE_GALLERY={open:openGallery,close:closeGallery,refresh,saveImageBlob};

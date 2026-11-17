@@ -27,7 +27,7 @@ const gallery=readFileSync("gallery.js","utf8");
 for(const marker of ["indexedDB.open","objectStore","expiresAtMs","cleanupLocal","window.POTE_GALLERY","image/webp","galleryFileLabel","deleteItem","saveImageBlob"]){
  assert(gallery.includes(marker),"Galeria incompleta: "+marker);
 }
-assert(gallery.includes("não sincronizado com Floot"),"A Galeria deve informar modo local honestamente");
+assert(gallery.includes("não sincronizado entre dispositivos"),"A Galeria deve informar modo local honestamente");
 const html=readFileSync("public/index.html","utf8");
 for(const marker of ["gallery.js?v=galeria-42h","gallery.css?v=galeria-42h"])assert(html.includes(marker),marker+" ausente do deploy");
 const rules=readFileSync("gallery_storage.rules","utf8");

@@ -40,13 +40,29 @@ for(const p of SEED.ingredients.filter(x=>x.category==='Embalagem')){
 }
 state.freeCreativeRecipeId??=state.creatives?.find(c=>c.freeUse)?.id||null;
 if(!state.pricingPreset100V1){
- for(const r of state.data.recipes){r.pricingMode='gain';r.targetGainPct=100;}
+ // Aditive migration: preserve personalized price policies on existing accounts.
+ for(const r of state.data.recipes){
+  if(r.pricingMode!=='gain'&&r.pricingMode!=='margin')r.pricingMode='gain';
+  if(r.targetGainPct===undefined||r.targetGainPct===null||r.targetGainPct==='')r.targetGainPct=100;
+ }
  state.pricingPreset100V1=true;
 }
 function persist(){window.POTE_KITCHEN?.capture?.(state);try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function money(n){return Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
-function num(v){const n=Number(String(v??'').replace(',','.'));return Number.isFinite(n)?n:0}
+function parseBRNumber(v){
+ if(window.POTE_FINANCE?.parseNumber)return window.POTE_FINANCE.parseNumber(v);
+ if(typeof v==='number')return Number.isFinite(v)?v:NaN;
+ let raw=String(v??'').trim().replace(/^R\$\s*/i,'').replace(/\s+/g,'');
+ if(!raw)return NaN;
+ if(raw.includes(',')&&raw.includes('.')){
+  if(raw.lastIndexOf(',')>raw.lastIndexOf('.'))raw=raw.replace(/\./g,'').replace(',','.');
+  else raw=raw.replace(/,/g,'');
+ }else if(raw.includes(','))raw=raw.replace(',','.');
+ if(!/^[+-]?\d+(?:\.\d+)?$/.test(raw))return NaN;
+ const n=Number(raw);return Number.isFinite(n)?n:NaN;
+}
+function num(v){const n=parseBRNumber(v);return Number.isFinite(n)?n:0}
 function commercialDate(time=new Date()){
  const zone=state?.data?.settings?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Sao_Paulo';
  try{
@@ -88,9 +104,12 @@ function freeExtrasOrders(){const current=state.data.businessType||"batataria",b
 function ingredientCustom(){return state.data.ingredients.filter(i=>!i.archived&&!i.templateOrigin&&!SEED.ingredients.some(x=>x.id===i.id))}
 function operationReady(){
  if(!window.POTE_AUTH?.uid)return true; // laboratório local
- if(window.POTE_MODULE_HEALTH?.safeToOperate===false){
+ if(window.POTE_APP_READY&&window.POTE_MODULE_HEALTH?.safeToOperate!==true){
+  window.POTE_HEALTH?.scan?.();
+  if(window.POTE_MODULE_HEALTH?.safeToOperate!==true){
   toast('Operação bloqueada: módulo essencial não carregou. Atualize o aplicativo e confira a conexão.');
   return false;
+  }
  }
  if(window.POTE_SYNC_GUARD?.blocked||navigator.onLine===false){
   toast('Operação suspensa: há conflito de sincronização ou falta de conexão. Exporte seu backup e confira a nuvem.');
@@ -200,15 +219,25 @@ function optionQuote(value,channel='direto',beverageId='',addonId=''){
  return {type,id,combo:originalCombo||c,recipe:r,price:Number(price.toFixed(2)),variable,contribution:price*(1-feeRate(channel)/100)-variable,estimatedProfit:price*(1-feeRate(channel)/100)-variable-fixedPerUnit(),beverages:[q.beverage,extraB].filter(Boolean),addons:[...q.addons,...(extraA?[extraA]:[])],discount:q.discount,fullPrice:q.subtotal+(extraB?num(extraB.sellPrice):0)+(extraA?num(extraA.sellPrice):0)};
 }
 function orderUnitProfit(r,unitPrice,channel){const s=state.data.settings,cost=totalCost(r),feePct=channel==='marketplace'?num(s.marketplaceFee??19):num(s.fee);const net=num(unitPrice)*(1-(feePct+num(s.tax))/100);return net-cost}
+function paymentSettled(order){
+ if(!order||order.status==='cancelado'||order.paymentStatus==='nao_pago')return false;
+ const status=String(order.paymentStatus||'').trim().toLocaleLowerCase('pt-BR');
+ return status==='pago'||status==='confirmado'||status==='pago em dinheiro';
+}
 function totals(){
- const o=state.data.orders.filter(x=>x.status!=='cancelado'&&x.paymentStatus!=='nao_pago');
- const sales=o.reduce((a,x)=>a+num(x.price)*num(x.qty)+num(x.deliveryFee||0),0);
- const delivMargin=o.reduce((a,x)=>a+(num(x.deliveryFee||0)-num(x.deliveryCost||0)),0);
+ const active=state.data.orders.filter(x=>x.status!=='cancelado'&&x.paymentStatus!=='nao_pago');
+ const paid=active.filter(paymentSettled),pending=active.filter(x=>!paymentSettled(x));
+ const gross=x=>x.reduce((a,o)=>a+num(o.price)*num(o.qty)+num(o.deliveryFee||0),0);
+ const contribution=x=>x.reduce((a,o)=>a+num(o.profit)*num(o.qty)+num(o.deliveryFee||0)-num(o.deliveryCost||0),0);
+ const sales=gross(active),receivedRevenue=gross(paid),pendingRevenue=gross(pending);
+ const delivMargin=paid.reduce((a,x)=>a+num(x.deliveryFee||0)-num(x.deliveryCost||0),0);
  const losses=window.POTE_LOSSES?.totals?.()||{cost:0,uncollected:0,count:0};
- const beforeLosses=o.reduce((a,x)=>a+num(x.profit)*num(x.qty),0)+delivMargin;
+ const beforeLosses=contribution(paid);
  const profit=beforeLosses-num(losses.cost);
- return{sales,count:o.length,profit,beforeLosses,lossCost:num(losses.cost),
-  uncollectedSale:num(losses.uncollected),lossCount:losses.count,delivMargin};
+ return{sales,count:active.length,profit,beforeLosses,lossCost:num(losses.cost),
+  uncollectedSale:num(losses.uncollected),lossCount:losses.count,delivMargin,
+  receivedRevenue,pendingRevenue,receivedCount:paid.length,pendingCount:pending.length,
+  registeredProfitEstimate:contribution(active)-num(losses.cost)};
 }
 function setMode(m){if(!['free','pro','adm'].includes(m))return;state.mode=m;persist();render();toast('Perfil de teste: '+m.toUpperCase())}
 function go(tab){if(tab==='business'){window.POTE_BUSINESS?.open();return}if(tab==='gallery'){if(window.POTE_GALLERY?.open)window.POTE_GALLERY.open();else toast('Galeria disponível após iniciar sessão.');return}if(tab==='admin'&&!master()){toast('🔒 Administração exclusiva do Mestre.');return}if(tab==='builder'&&!String(state.expansion||'').startsWith('edit:'))draftItems=[];state.tab=tab;state.expansion=null;persist();render();scrollTo({top:0,behavior:'smooth'})}
@@ -555,8 +584,8 @@ function newOrder(){
  const baseQuote=optionQuote(item,channel,document.getElementById('orderExtraBev')?.value||'','');
  const q=window.POTE_ORDER_CUSTOM?.adjustQuote?.(baseQuote)||baseQuote;
  if(!q||!canOperate(q.recipe.id))return;if(isUnavailable(q.recipe)){toast('⛔ Este sabor está indisponível para novos pedidos.');render();return;}
- const qty=Math.floor(num(document.getElementById('orderQty').value)),price=num(document.getElementById('orderPrice').value),deliveryFee=num(document.getElementById('orderDelivery').value);
- if(qty<1||qty>1000||price<=0||deliveryFee<0){toast('Quantidade, valor unitário ou entrega inválidos.');return}
+ const qty=Math.floor(num(document.getElementById('orderQty').value)),price=parseBRNumber(document.getElementById('orderPrice').value),deliveryFee=parseBRNumber(document.getElementById('orderDelivery').value||'0');
+ if(qty<1||qty>1000||!Number.isFinite(price)||price<=0||!Number.isFinite(deliveryFee)||deliveryFee<0){toast('Quantidade, valor unitário ou entrega inválidos.');return}
  const paymentDetails=window.POTE_PAYMENT?.validate?.();
  if(!paymentDetails)return;
   if(!window.POTE_ORDER?.checkBeforeRegister?.())return;
@@ -642,7 +671,7 @@ function pageReports(){
  const qty=active.reduce((n,o)=>n+num(o.qty),0),average=qty?active.reduce((n,o)=>n+num(o.unitContribution)*num(o.qty),0)/qty:0;
  const fixed=fixedMonthly(),breakEven=average>0?Math.ceil(fixed/average):null;
 
- // Matriz BCG calculation across all recipes
+ // Menu engineering: popularity vs contribution, not a BCG market-share matrix.
  const recipeStats=state.data.recipes.map(r=>{
   const sold=byId[r.id]||0;
   const price=sellPrice(r,'direto');
@@ -656,7 +685,7 @@ function pageReports(){
  const puzzles=recipeStats.filter(x=>x.sold<avgSold&&x.contrib>=avgContrib);
  const dogs=recipeStats.filter(x=>x.sold<avgSold&&x.contrib<avgContrib);
 
- return `<div class="grid"><div class="kpi"><small>Receita registrada</small><strong>${money(t.sales)}</strong></div><div class="kpi"><small>Pedidos ativos</small><strong>${t.count}</strong></div><div class="kpi"><small>Resultado líquido estimado*</small><strong>${money(t.profit)}</strong></div><div class="kpi"><small>Movimentos de estoque</small><strong>${state.data.stockMovements.length}</strong></div></div>
+ return `<div class="grid"><div class="kpi"><small>Vendas registradas (inclui pendentes)</small><strong>${money(t.sales)}</strong></div><div class="kpi"><div class="kpi"><small>Recebimentos confirmados</small><strong>${money(t.receivedRevenue)}</strong></div><div class="kpi"><small>A receber (não confirmado)</small><strong>${money(t.pendingRevenue)}</strong></div><small>Pedidos ativos</small><strong>${t.count}</strong></div><div class="kpi"><small>Resultado estimado sobre pagamentos confirmados*</small><strong>${money(t.profit)}</strong></div><div class="kpi"><small>Movimentos de estoque</small><strong>${state.data.stockMovements.length}</strong></div></div>
  <div class="pote-loss-report"><strong>Resultado antes das perdas: ${money(t.beforeLosses)}</strong> ·
       Custos perdidos: <strong>${money(t.lossCost)}</strong> ·
       Resultado após perdas: <strong>${money(t.profit)}</strong> ·
@@ -665,7 +694,7 @@ function pageReports(){
    </div>
    <div class="box" style="margin-top:16px"><h2>📈 Ponto de equilíbrio mensal</h2><p>Quantos potes você precisa vender para cobrir as despesas fixas mensais? O cálculo usa a <strong>contribuição por unidade antes dos custos fixos</strong>.</p><div class="grid"><div class="kpi"><small>Despesas fixas ativas / mês</small><strong>${money(fixed)}</strong></div><div class="kpi"><small>Contribuição média real</small><strong>${qty?money(average):'Sem pedidos novos'}</strong></div><div class="kpi"><small>Ponto de equilíbrio observado</small><strong>${qty?(breakEven===null?'Não atingível':breakEven+' potes'):'Sem base real'}</strong></div><div class="kpi"><small>Saldo de frete (Taxa - Custo)</small><strong>${money(t.delivMargin)}</strong></div></div><div class="notice">*O resultado considera a contribuição unitária descontada do rateio fixo e o saldo líquido de entrega (taxa cobrada menos custo médio cadastrado em Precificação).</div>
  <h3>Simular ponto de equilíbrio por produto</h3><div class="fields">${select('Receita ou combo','breakItem',options,options[0]?.[0]||'','onchange="refreshBreakEven()"')}${select('Canal','breakChannel',[['direto','Direto'],['marketplace','Marketplace']],'direto','onchange="refreshBreakEven()"')}</div><div id="breakResult" class="notice">${breakEvenMessage(options[0]?.[0]||'','direto')}</div></div>
- <div class="box"><h2>🧭 Engenharia de Cardápio (Matriz BCG)</h2><p>Classificação automática cruzando volume de vendas (média ${avgSold.toFixed(1)} un) e margem de contribuição direta (média ${money(avgContrib)}/pote).</p>
+ <div class="box"><h2>🧭 Engenharia de Cardápio — Popularidade × Contribuição</h2><p>Classificação automática cruzando volume de vendas (média ${avgSold.toFixed(1)} un) e margem de contribuição direta (média ${money(avgContrib)}/pote).</p>
  <div class="bcg-grid">
   <div class="bcg-card bcg-star"><strong>⭐ Estrelas (Alto giro + Alto lucro)</strong><p class="help">Mantenha a qualidade e destaque na vitrine.</p>${stars.length?stars.map(x=>`<div>• ${escapeHtml(x.name)} (${x.sold} un • ${money(x.contrib)})</div>`).join(''):'<small class="muted">Registre vendas para identificar estrelas.</small>'}</div>
   <div class="bcg-card bcg-plow"><strong>🐎 Burros de Carga (Alto giro + Margem menor)</strong><p class="help">Vendem bem; avalie leve ajuste de preço ou combo.</p>${plows.length?plows.map(x=>`<div>• ${escapeHtml(x.name)} (${x.sold} un • ${money(x.contrib)})</div>`).join(''):'<small class="muted">Nenhum sabor nesta faixa.</small>'}</div>
