@@ -19,6 +19,7 @@ jobs:
           cp firebase-bridge.html public/firebase-bridge.html
           python3 sanitize_public.py public/index.html
           python3 add_contacts.py public/index.html
+          cp creative_studio.js public/creative_studio.js
           cp public/index.html public/beta.html
           python3 make_beta.py public/beta.html
           cp public/beta.html public/index.html
