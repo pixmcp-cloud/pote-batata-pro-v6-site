@@ -79,6 +79,8 @@ jobs:
           cp motoboy.css public/motoboy.css
           cp delivery_hub.js public/delivery_hub.js
           cp delivery_hub_core.mjs public/delivery_hub_core.mjs
+          cp maisdelivery_payload.mjs public/maisdelivery_payload.mjs
+          cp maisdelivery_ui.mjs public/maisdelivery_ui.mjs
           cp delivery_hub.css public/delivery_hub.css
           cp notifications.js public/notifications.js
           cp notifications.css public/notifications.css
@@ -198,6 +200,10 @@ jobs:
           node --check public/motoboy.js
           node test_motoboy_core.mjs
           node test_delivery_hub_core.mjs
+          node test_maisdelivery_payload.mjs
+          node test_maisdelivery_ui.mjs
+          node --check public/maisdelivery_ui.mjs
+          node --check public/maisdelivery_payload.mjs
           node test_notification_core.mjs
           node test_notifications_ui.mjs
           node test_admin_broadcast_ui.mjs

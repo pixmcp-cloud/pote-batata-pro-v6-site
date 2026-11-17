@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+globalThis.window={POTE_AUTH:{role:"free"}};
+const {renderMaisDelivery,sendMaisDelivery}=await import("./maisdelivery_ui.mjs");
+assert.equal(renderMaisDelivery(),"","Conta FREE não deve exibir painel API");
+window.POTE_AUTH.role="pro";
+assert.equal(renderMaisDelivery(),"","Conta PRO não deve exibir painel API");
+window.POTE_AUTH.role="admin";
+const html=renderMaisDelivery();
+assert.match(html,/MaisDelivery · API de teste/);
+assert.match(html,/mdEmpresa" type="number" min="1" value="563"/);
+assert.match(html,/mdRestaurante" type="number" min="1" value="50451"/);
+assert.match(html,/maisDeliverySend\(9\)/);
+assert.match(html,/maisDeliverySend\(10\)/);
+assert.match(html,/type="password"/);
+assert.doesNotMatch(html,/eyJ0eXAiOiJKV1Qi/);
+globalThis.document={getElementById:()=>null};
+assert.equal(await sendMaisDelivery(9),false);
+console.log("PASS MaisDelivery UI: ADM exclusivo, IDs sandbox, sem tokens no HTML");

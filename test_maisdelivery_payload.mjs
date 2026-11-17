@@ -1,0 +1,25 @@
+import assert from "node:assert/strict";
+import {MD_TEST_DEFAULTS,toMoneyBR,prepareMaisDelivery} from "./maisdelivery_payload.mjs";
+assert.equal(MD_TEST_DEFAULTS.idEmpresaIntegrada,563);
+assert.equal(toMoneyBR("10,00"),"10,00");
+assert.equal(toMoneyBR("1.234,50"),"1234,50");
+assert.equal(toMoneyBR(29.9),"29,90");
+assert.throws(()=>toMoneyBR("R$ -10"),/Preço/);
+const product={dsNome:"Batata teste",dsCategoria:"Salgados",dsDescricao:"Produto de homologação",
+  vlItem:29.9,qtEstoque:10,flgAtivo:1};
+const nine=prepareMaisDelivery(9,{produtos:[product]});
+assert.deepEqual(Object.keys(nine),["nrOperacao","sandBox","idEmpresaIntegrada","idOrigem","idRestaurante","produtos"]);
+assert.equal(nine.sandBox,true);
+assert.equal(nine.idRestaurante,50451);
+assert.equal(nine.produtos[0].vlItem,"29,90");
+assert.equal(nine.produtos[0].qtEstoque,"10");
+assert.equal(nine.produtos[0].flgAtivo,"1");
+const ten=prepareMaisDelivery(10,{produtos:[{idCardapio:2322865,flgAtivo:0}]});
+assert.equal(ten.produtos[0].idCardapio,2322865);
+assert.equal(ten.produtos[0].flgAtivo,0);
+assert.equal(ten.sandBox,true);
+assert.throws(()=>prepareMaisDelivery(11,{produtos:[product]}),/Somente/);
+assert.throws(()=>prepareMaisDelivery(9,{produtos:[{...product,qtEstoque:-1}]}),/Estoque/);
+assert.throws(()=>prepareMaisDelivery(10,{produtos:[{idCardapio:"",flgAtivo:1}]}),/ID do cardápio/);
+assert.throws(()=>prepareMaisDelivery(9,{produtos:[]}),/1 a 30/);
+console.log("PASS MaisDelivery: operações 9/10, formato BR, somente sandbox, entradas inválidas bloqueadas");

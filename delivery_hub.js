@@ -1,7 +1,9 @@
-/* Hub de Delivery: canais documentados + importação revisada.
-   Credenciais não são solicitadas nem armazenadas. Nenhuma API externa é chamada.
-   O fluxo operacional utiliza newOrder() existente para reservas/baixas seguras. */
+/* Hub de Delivery: importação supervisionada e operações MaisDelivery em sandbox.
+   O painel ADM aceita credenciais somente na sessão de homologação, sem persisti-las.
+   Nenhuma integração é executada sem confirmação explícita do administrador.
+   O fluxo de pedidos utiliza newOrder() existente para reservas/baixas seguras. */
 import {CHANNELS,EXAMPLE,parseImport,stageOrders,ensureHub,suggestRecipes,validChannel} from "./delivery_hub_core.mjs";
+import {renderMaisDelivery,sendMaisDelivery} from "./maisdelivery_ui.mjs";
 (function(){
 "use strict";
 if(window.POTE_DELIVERY_HUB)return;
@@ -82,7 +84,7 @@ function renderPage(){
  '<h2>🔌 Hub de Delivery</h2><p>Importe pedidos para conferência, evite duplicações e associe cada item a uma receita. '+
  'Nenhum canal é conectado automaticamente, e nenhum pedido entra em produção sem conferência.</p>'+
  '<div class="hub-numbers"><div><strong>'+CHANNELS.length+'</strong><small>Plataformas documentadas</small></div>'+
- '<div><strong>'+data.orders.length+'</strong><small>Pedidos na fila</small></div><div><strong>'+data.orders.filter(r=>r.approved).length+'</strong><small>Conferidos</small></div></div></header>'+
+ '<div><strong>'+data.orders.length+'</strong><small>Pedidos na fila</small></div><div><strong>'+data.orders.filter(r=>r.approved).length+'</strong><small>Conferidos</small></div></div></header>'+renderMaisDelivery()+
  '<h3>1. Canais disponíveis para configuração</h3><div class="hub-platforms">'+CHANNELS.map(platformCard).join("")+'</div>'+
  '<h3>2. Importação sem chave de API</h3><section class="hub-box"><p>Integração automática depende de backend seguro, credenciais da loja e aprovação do parceiro. '+
  'Por enquanto, importe um JSON exportado ou recebido legitimamente da sua loja. Nunca cole tokens, senhas ou chaves.</p>'+
@@ -238,6 +240,6 @@ function onRegistered(order){
  row.approved=Object.keys(row.localLinks).length===row.items.length;
  pending=null;
 }
-window.POTE_DELIVERY_HUB={render,select,example,loadFile,analyze,commit,prepare,beforeRegister,onRegistered,
+window.POTE_DELIVERY_HUB={render,select,example,loadFile,analyze,commit,prepare,beforeRegister,onRegistered,maisDeliverySend:sendMaisDelivery,
  get status(){return {selected:channel,pending:pending?.key||null,count:hub().orders.length}},get channels(){return CHANNELS}};
 })();

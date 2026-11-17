@@ -71,3 +71,14 @@
 .hub-platform p{margin-top:12px;min-height:32px}
 @media(max-width:540px){.hub-platform-logo{height:57px;width:57px;border-radius:14px}
  .hub-platform-identity{min-height:57px}}
+
+/* Integração MaisDelivery: somente homologação administrativa */
+.hub-page .md-sandbox{margin-top:20px;border:1px solid #c08e49;background:linear-gradient(125deg,#29241d,#302b24);color:#f8ebd0}
+.md-sandbox h3{margin:0 0 12px;color:#ffe2ae}
+.md-sandbox .hub-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px}
+.md-sandbox .hub-inputs label{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.md-sandbox input,.md-sandbox select{max-width:100%;min-width:0;width:100%;box-sizing:border-box}
+.md-panel{border:1px solid #796445;border-radius:14px;margin:18px 0 12px;padding:15px}
+.md-panel legend{font-weight:700;color:#ffe4b4;padding:0 8px}
+.md-panel .btn{margin-top:12px}
+.md-result{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#141515;border:1px solid #65573d;padding:13px;border-radius:12px;font-size:12px;color:#e9e5d9}
