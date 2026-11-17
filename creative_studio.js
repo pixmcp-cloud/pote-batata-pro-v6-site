@@ -141,7 +141,7 @@ function page(){
  '<div class="cs-prompt-head"><div><small>CAMINHO GRATUITO</small><h3>Crie sua arte com outra IA</h3></div><button type="button" class="cs-prompt-close" aria-label="Fechar" onclick="creativeClosePrompt()">×</button></div>'+
  '<p>Para produzir sua campanha com a sua marca, envie <strong>DUAS IMAGENS à IA</strong>: a foto real do produto e a logomarca original. O prompt pedirá para colocar a logo na arte, sem redesenhá-la.</p>'+
  '<div class="cs-prompt-steps"><span><b>1</b> Baixe a foto do produto</span><span><b>2</b> Baixe a logo da empresa</span><span><b>3</b> No Gemini, anexe as duas imagens e cole o prompt</span></div>'+
- select('Resultado para IA','csPromptMode',[['photo','Foto de estúdio + logo (sem textos extras)'],['ad','Anúncio com logo e textos reduzidos']],'photo')+
+ select('Resultado para IA','csPromptMode',[['ad','Anúncio completo: foto, logo, descrição e preço'],['photo','Somente foto de estúdio + logo (sem descrição)']],'ad')+
  select('Cenário e plataforma','csPromptScene',[
  ['slate','Pedra preta + estúdio premium'],
  ['travertine','Pedra clara + luz quente'],
@@ -159,7 +159,7 @@ function page(){
  ['clean','Luz clara de estúdio'],
  ['dramatic','Editorial dramático']
  ],'appetizing')+
- '<p class="cs-prompt-tip">Recomendado: gere primeiro a foto profissional sem textos e use o Estúdio para aplicar preço e marca com precisão. A IA deverá <strong>substituir o fundo e a mesa original</strong>, preservando a comida.</p>'+
+ '<p class="cs-prompt-tip">O modo <strong>Anúncio completo</strong> inclui foto profissional, logo, título, descrição, preço e CTA. Use <strong>Somente foto</strong> apenas quando quiser acrescentar os textos depois no editor. A IA substitui o cenário e preserva a comida.</p>'+
  '<label class="cs-prompt-label" for="csPromptText">Prompt preparado para copiar</label>'+
  '<textarea id="csPromptText" rows="13" readonly spellcheck="false"></textarea>'+
  '<p id="csPromptStatus" class="cs-prompt-status" role="status" aria-live="polite"></p>'+

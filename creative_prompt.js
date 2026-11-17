@@ -53,60 +53,56 @@ function buildPrompt(c,mode){
  const angle=ANGLES[el('csPromptAngle')?.value]||ANGLES.threeQuarter;
  const light=LIGHTS[el('csPromptLight')?.value]||LIGHTS.appetizing;
  const flavors=(c.ingredients||[]).filter(Boolean).slice(0,4).map(x=>clean(x,45));
- const sceneFacts=flavors.length?'Ingredientes confirmados: '+flavors.join(', ')+'.':'Os ingredientes não estão descritos na ficha: respeite somente o que aparece na foto.';
+ const sceneFacts=flavors.length?'Ingredientes confirmados: '+flavors.join(', ')+'.':'Os ingredientes da ficha não estão informados; usar apenas os visíveis na foto de referência.';
  const includeLogo=!!c.showLogo;
  const logoRequirements=includeLogo?[
-  'IMAGEM 2 = LOGOMARCA ORIGINAL DA EMPRESA. O usuário anexou/irá anexar dois arquivos: a FOTO DO PRODUTO (IMAGEM 1) e a LOGOMARCA (IMAGEM 2). Não confunda a logo com o alimento nem use a logo como textura de fundo.',
-  'APLIQUE A LOGOMARCA DA IMAGEM 2 NA ARTE FINAL: posição preferencial no topo esquerdo ou topo direito, com respiro de segurança; tamanho discreto, porém legível no celular (aproximadamente 12–18% da largura).',
-  'PRESERVAÇÃO RIGOROSA DA LOGO: manter desenho, letras, símbolos, cores, proporção, contorno e legibilidade exatamente como no arquivo enviado. Não redesenhe, não troque a fonte, não estilize em 3D, não altere o nome e não invente uma nova marca.',
-  'A logo deve ficar em uma área de contraste limpo; se necessário, use uma pequena placa/fundo neutro atrás dela, sem deformá-la e sem cobrir o alimento. Evite repetir nome da empresa em texto se ele já estiver legível na logo.',
-  'Se a imagem 2 não tiver sido enviada, solicite a logomarca original antes de criar a arte final; não a invente.'
+  'REFERÊNCIA VISUAL 2 — LOGOMARCA ORIGINAL: APLIQUE A LOGOMARCA DA IMAGEM 2 NA ARTE FINAL. Posicione-a no topo esquerdo ou direito, em área de contraste limpo, com margem de segurança e tamanho legível (aproximadamente 12–18% da largura).',
+  'PRESERVAÇÃO RIGOROSA DA LOGO: reproduza exatamente como no arquivo de referência — desenho, tipografia, cores, símbolos e proporções intactos. Uma pequena placa neutra discreta atrás dela é permitida para garantir legibilidade. Uma única aplicação da marca, sem duplicação do nome em outro local.',
+  'Caso a segunda referência visual não esteja disponível, concentre-se no enquadramento fotográfico sem criar um logotipo fictício.'
  ]:[
-  'A opção de exibir logotipo está desativada na campanha. Não aplicar logomarca gráfica.'
+  'LOGOMARCA: omitida nesta campanha; mantenha o restante da arte conforme as referências.'
  ];
- const shot= [
-  'FOTOGRAFIA DE CAMPANHA GASTRONÔMICA — PRODUÇÃO DE ESTÚDIO',
+ const shot=[
+  'DIREÇÃO DE ARTE — ANÚNCIO GASTRONÔMICO FOTORREALISTA DE ESTÚDIO',
   '',
-  'ANTES DE COMEÇAR: verifique os ANEXOS. IMAGEM 1 é a foto real do produto'+(includeLogo?'; IMAGEM 2 é a logomarca original da empresa. As DUAS imagens são necessárias.':' (a logomarca foi desativada nesta campanha).') ,
-  'Use a FOTO DO PRODUTO (IMAGEM 1) como referência da comida e do recipiente, NÃO como cenário final. RECONSTRUA UMA NOVA FOTOGRAFIA PUBLICITÁRIA: recorte o produto e SUBSTITUA COMPLETAMENTE a bancada de inox, a mesa e o fundo da foto original por uma plataforma de fotografia profissional.',
-  '',
+  'REFERÊNCIA VISUAL 1 — FOTO DO PRODUTO: utilize a IMAGEM 1 para reproduzir fielmente o alimento, o recipiente, os recheios e a porção. RECONSTRUA UMA NOVA CENA DE ESTÚDIO e SUBSTITUA COMPLETAMENTE a bancada de inox, mesa e fundo da fotografia de referência.',
+  'MARCA DO ESTABELECIMENTO: '+brandName+'.',
   'PRODUTO: '+name+'. '+sceneFacts,
-  'DIREÇÃO DE CENÁRIO OBRIGATÓRIA: '+stage.scene,
-  'ÂNGULO E CÂMERA: '+angle,
-  'ILUMINAÇÃO E COR: '+light,
-  '',
-  'COMPOSIÇÃO  '+format+' ('+dims+'): recipiente e alimento como protagonistas, ocupando cerca de 65–75% da área principal, perspectiva tridimensional convincente, contato físico real com a plataforma, fundo desfocado e área de respiro para uma campanha. Mostre textura cremosa, dourado e ingredientes REAIS, sem exageros.',
-  'FIDELIDADE: preserve exatamente o tipo de alimento, a porção, os recheios, a distribuição e o recipiente presentes na foto. Pode mudar ângulo, cenário e luz de modo fotográfico plausível; não invente partes ocultas, cobertura nova, ingredientes extras ou recipiente de outro tipo.',
-  'NEGATIVOS: NUNCA manter a bancada industrial/cinza, inox do fundo, pia, azulejos ou ambiente de preparo da imagem original. Nada de foto de celular sem tratamento, visão aérea plana, composição de catálogo amador, aparência plástica, render 3D, HDR excessivo, saturação neon, vapor falso, objetos decorativos que pareçam comida ou montagem de duas imagens.',
-  'REFERÊNCIA: estética de campanha de restaurante premium com food styling natural, fotografia realista de produto, profundidade de campo moderada. O fundo deve ser claramente DIFERENTE do original.',
-  '',
+  'CENÁRIO E BASE FÍSICA: '+stage.scene,
+  'CÂMERA: '+angle,
+  'ILUMINAÇÃO: '+light,
+  'FORMATO EXATO: '+format+' (resolução de referência '+dims+' pixels).',
+  'Mantenha o alimento e seu recipiente identificáveis; valorize textura, cremosidade e volume com cores naturais. Preserve a geometria e os ingredientes reais. Não acrescente coberturas, molhos, ingredientes, utensílios ou embalagens inexistentes.',
+  'Composição de campanha premium: produto hero, plataforma convincente, sombra real de contato, plano de fundo elegante e profundidade de campo moderada. O cenário deve ser nitidamente diferente da cozinha original.',
   ...logoRequirements,
   ''
  ];
  if(photoOnly){
   shot.push(includeLogo?
-   'MODO FOTO DE ESTÚDIO + LOGO: produza a NOVA fotografia premium com a LOGOMARCA DA IMAGEM 2 aplicada fielmente em um canto de contraste limpo. SEM textos adicionais, preços, telefone, CTA, rótulos ou etiquetas. A logo ORIGINAL é a única identificação gráfica obrigatória.':
-   'MODO FOTO DE ESTÚDIO: produza somente a NOVA fotografia premium, sem textos, logomarca, preços, telefone, CTA ou etiquetas.');
+   'COMPOSIÇÃO FOTOGRÁFICA LIMPA: entregar apenas a nova foto comercial e a logo original da IMAGEM 2 aplicada em canto discreto. Omitir título, descrição, valores, telefone, CTA e quaisquer outros textos.':
+   'COMPOSIÇÃO FOTOGRÁFICA LIMPA: entregar somente a nova fotografia de estúdio, sem títulos, descrições, valores, telefone, CTA ou elementos gráficos.');
  }else{
+  const desc=clean(c.description,160);
   shot.push(
-   'MODO ANÚNCIO — DIREÇÃO DE ARTE COM POUCOS TEXTOS:',
-   'A fotografia reconstruída deve continuar dominando a peça (mínimo 70% de impacto visual). NÃO coloque parágrafos ou listas de ingredientes na imagem. A descrição abaixo serve de referência editorial, não deve ser impressa na peça.',
-   'Marca em uma única linha discreta: '+brandName,
-   'Título pequeno no topo: '+clean(c.headline,90),
-   'Produto em destaque: '+name,
-   c.showPrice?'Preço principal em bloco limpo e legível: '+currency(c.priceAd):'NÃO mostrar nenhum preço.',
-   c.showPrice&&c.showOld?'Preço anterior menor e riscado: '+currency(c.priceNormal):'NÃO adicionar preço antigo.',
-   c.showCta?'Chamada curta no rodapé: '+clean(c.cta,70):'NÃO incluir CTA.',
-   c.showPhone&&c.brand.phone?'Telefone pequeno no rodapé: '+clean(c.brand.phone,45):'NÃO incluir telefone.',
-   includeLogo?'Aplique na composição a logomarca ORIGINAL da IMAGEM 2, proporcional e intacta; não reescreva o nome se já estiver na logo.':'NÃO incluir logotipo.',
-   'Tipografia elegante, no máximo cinco blocos discretos, margem de segurança e contraste alto. Nunca cobrir o alimento com letras. NÃO repetir o mesmo texto em locais diferentes. NÃO escrever o número do preço em formato incorreto.'
+   'LAYOUT PUBLICITÁRIO COMPLETO — TODOS OS TEXTOS ABAIXO SÃO PARTE DA IMAGEM FINAL:',
+   'A foto do produto deverá ocupar a área central dominante, em torno de 60–70% da composição. Reserve áreas de fundo limpo para textos. Distribuição sugerida no story 9:16: logo e título no topo, produto central dominante, descrição curta próxima ao produto e oferta + CTA no rodapé. Sem cobrir a comida.',
+   'TÍTULO SUPERIOR EXATO: "'+clean(c.headline,90)+'"',
+   'NOME DO SABOR EM DESTAQUE: "'+name+'"',
+   'DESCRIÇÃO COMERCIAL OBRIGATÓRIA, legível e sem substituições: "'+desc+'"',
+   'Componha a descrição em 1–3 linhas curtas, com contraste elevado, em região de fundo uniforme. Ela DEVE aparecer na arte final, não apenas servir de referência criativa.',
+   c.showPrice?'PREÇO PRINCIPAL EXATO E DESTACADO: "'+currency(c.priceAd)+'"':'PREÇO: omitir.',
+   c.showPrice&&c.showOld?'PREÇO ANTERIOR EXATO, MENOR E RISCADO: "'+currency(c.priceNormal)+'"':'PREÇO ANTERIOR: omitir.',
+   c.showCta?'CHAMADA FINAL EXATA: "'+clean(c.cta,70)+'"':'CHAMADA: omitir.',
+   c.showPhone&&c.brand.phone?'CONTATO EXATO, DISCRETO: "'+clean(c.brand.phone,45)+'"':'CONTATO: omitir.',
+   'HIERARQUIA: produto e nome do sabor em primeiro plano, preço de oferta em segundo, descrição e CTA bem legíveis; logo no topo sem ocupar espaço excessivo.',
+   'Texto comercial em português do Brasil. Renderize caracteres, acentos, moedas, valores e letras exatamente como fornecidos. Não substituir a descrição por lista de ingredientes, nem omitir os campos obrigatórios.',
+   'Não transformar a composição em um cartaz só de texto: preserve o produto como protagonista e mantenha margens de segurança para stories.'
   );
  }
  shot.push(
   '',
-  'REFERÊNCIA COMERCIAL: '+clean(c.campaignName,80)+' | '+clean(c.styleName,90)+'. Texto interno da ficha (NÃO imprimir): '+clean(c.description,170),
-  'RESULTADO: UMA única imagem realista em '+format+'. Se a IA não conseguir mudar o ângulo mantendo fidelidade ao alimento, conserve a geometria do prato e priorize a nova plataforma, a nova luz e o novo fundo. Não use logotipos inventados.',
-  includeLogo?'ENVIO OBRIGATÓRIO AO GERADOR: anexe 1) FOTO ORIGINAL DO PRODUTO e 2) LOGOMARCA ORIGINAL, como dois arquivos de imagem separados, e cole este prompt.':'ENVIO AO GERADOR: anexe a FOTO ORIGINAL DO PRODUTO e cole este prompt; exibição de logomarca desativada.'
+  'ACABAMENTO: fotografia de alimento para campanha de restaurante premium, cores equilibradas, sombras e reflexos realistas, sem aparência de render 3D, sem HDR exagerado e sem marcas gráficas adicionais.',
+  'ENTREGA: uma única imagem final, na proporção '+format+', com todos os elementos especificados para o modo selecionado.'
  );
  return shot.join('\n');
 }

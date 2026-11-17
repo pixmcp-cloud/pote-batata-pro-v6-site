@@ -47,7 +47,7 @@ assert(fs.readFileSync(__dirname+'/creative_studio.js','utf8').includes('onclick
  assert(copied.includes('Potê Batata')&&copied.includes('48999951729'));
  assert(copied.includes('9:16')&&copied.includes('1080 × 1920'));
  assert(copied.includes('FOTO DO PRODUTO')&&copied.includes('IMAGEM 1'));
- assert(copied.includes('DIREÇÃO DE CENÁRIO OBRIGATÓRIA'));
+ assert(copied.includes('CENÁRIO E BASE FÍSICA'));
  assert(copied.includes('SUBSTITUA COMPLETAMENTE'));
  assert(copied.includes('ardósia preta fosca'));
  assert(copied.includes('35–40 graus'));
@@ -57,12 +57,14 @@ assert(fs.readFileSync(__dirname+'/creative_studio.js','utf8').includes('onclick
  assert(!copied.includes('Sal e temperos secos'));
 
  assert(copied.includes('APLIQUE A LOGOMARCA DA IMAGEM 2')&&copied.includes('PRESERVAÇÃO RIGOROSA DA LOGO'));
+ assert(copied.includes('DESCRIÇÃO COMERCIAL OBRIGATÓRIA')&&copied.includes('Com frango, requeijão e mussarela.'));
+ for(const banned of ['Envie a FOTO ORIGINAL','o usuário deverá','cole este prompt','Não use logotipos inventados','Texto interno da ficha (NÃO imprimir)'])assert(!copied.includes(banned),'customer-facing or contradictory instruction: '+banned);
  controls.csPromptMode.value='photo';
  changes.change({target:{id:'csPromptMode'}});
- assert(controls.csPromptText.value.includes('SEM textos adicionais')&&controls.csPromptText.value.includes('LOGOMARCA DA IMAGEM 2'));
+ assert(controls.csPromptText.value.includes('Omitir título, descrição')&&controls.csPromptText.value.includes('IMAGEM 2'));
  assert(!controls.csPromptText.value.includes('Preço atual:'));
  assert.equal(await context.window.creativeCopyPrompt(),true);
- assert(copied.includes('SEM textos adicionais')&&copied.includes('LOGOMARCA DA IMAGEM 2'));
+ assert(copied.includes('Omitir título, descrição')&&copied.includes('IMAGEM 2'));
  config={...config,name:'Chocolate com morango',ingredients:['Chocolate','Morango'],priceNormal:29.90,priceAd:29.90,showOld:false};
  controls.csPromptMode.value='ad';
  assert.equal(await context.window.creativeCopyPrompt(),true);
@@ -72,9 +74,9 @@ assert(fs.readFileSync(__dirname+'/creative_studio.js','utf8').includes('onclick
  assert(!copied.includes('R$ 34,90'));
  config={...config,showPrice:false,showPhone:false,brand:{name:'Minha marca',phone:'',instagram:'',hasLogo:false}};
  assert.equal(await context.window.creativeCopyPrompt(),true);
- assert(copied.includes('NÃO mostrar nenhum preço'));
- assert(!copied.includes('Preço atual: R$'));
- assert(!copied.includes('Telefone pequeno no rodapé: 48'));
+ assert(copied.includes('PREÇO: omitir.'));
+ assert(!copied.includes('PREÇO PRINCIPAL EXATO E DESTACADO'));
+ assert(!copied.includes('CONTATO EXATO, DISCRETO: "48'));
  assert.equal(await context.window.creativeDownloadPhoto(),true);
  assert.equal(downloads,1);
  config={...config,brand:{...config.brand,logoUrl:'data:image/png;base64,AAAA'}};
