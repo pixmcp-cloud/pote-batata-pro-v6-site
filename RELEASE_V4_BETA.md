@@ -46,3 +46,11 @@ The 35-item technical improvement program is NOT complete. Critical outstanding 
 - Cloud gallery remains disabled; no new recurring fees were authorized.
 
 Do not claim all 35 fixes are complete. Do not deploy firestore.hardened.rules without a migration and compatibility review.
+
+## Deployment verification
+- Public main commit: f4ec3c2de69a12b416483f21b3b68b7655ca3c1b.
+- GitHub Actions workflow: 44147206716, completed success.
+- GitHub Pages tested directly over HTTPS, status 200.
+- Login gate, V4 module cache version, incremental V2 code, financial report and noindex all present.
+- A real Firestore Emulator concurrency test additionally validated competing V2 clients, without touching live data.
+- Remaining critical Free quota weakness (F19) is unchanged in production. Never describe this as full 35/35 approval.

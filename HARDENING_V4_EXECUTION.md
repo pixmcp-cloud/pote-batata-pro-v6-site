@@ -1,7 +1,12 @@
 # Potê Batata Pro — V4 hardening (17/11/2026)
 
 Base: d5421e914258c0baa2399072d3a146c1da54bb23
-Branch: hardening/v4-20261117 (isolated). Main/public site unchanged.
+Branch: hardening/v4-20261117.
+Published tested frontend subset to main: f4ec3c2de69a12b416483f21b3b68b7655ca3c1b.
+GitHub Actions: completed success, run 44147206716.
+Public GitHub Pages HTTP 200, verified login, financial report, noindex and V2 incremental sync.
+Previous main was tagged rollback-pre-v4-20261117.
+Production Firestore rules were NOT changed.
 Local verified full-Git backup SHA-256: 8793A30634BA18A82657C3DD9E0967E8CB3F966718376AC7D6BB84921690A598.
 Important: Git backup contains CODE, not live Firestore data or device-local gallery images.
 No paid service, Firebase rules deployment, migration, or Floot edit performed.
@@ -11,7 +16,7 @@ No paid service, Firebase rules deployment, migration, or Floot edit performed.
 | Item | Status | Work / blocker |
 |---|---|---|
 | F01 | Coded, tested | Separates registered, confirmed and pending money in report; Finance Core no longer counts unconfirmed Pix as received. |
-| F02 | Blocked | True atomic stock reservation needs a trustworthy backend transaction plus concurrent devices. |
+| F02 | Emulator-verified transaction guard; still partial | Two real Firestore Emulator V2 clients competing to consume 8 units from a balance of 10 resulted in one committed order and one conflict, with correct stock. Independent server-side stock invariants are not yet present. |
 | F03 | Partial | Strict BR currency parser and safer order prices; other input forms still need migration. |
 | F04 | Coded, tested | Preserves custom pricing modes and gain percentages in legacy migration. |
 | F05 | Blocked | Cancellation/stock/refund atomicity depends on F02 backend strategy. |
@@ -68,3 +73,12 @@ Do not merge into main or change production rules until actual data backups are 
 - Parallel V2 simulation: exactly one order can consume 8 units from a balance of 10; one rejects with conflict.
 - Incremental V2 sync reads only touched documents when pulse history is contiguous; lost events trigger full refresh.
 - No Firestore rules changed in production; no paid backend or Floot edits.
+
+## Public beta V4 verification
+- GitHub Pages workflow run 44147206716 completed SUCCESS.
+- Online site HTTP 200, login gate, new V2 cache, adjusted report and noindex verified.
+- Local suite 85/85 succeeded before public push.
+- Real Emulator concurrency test (test_firestore_v2_live_concurrency.cjs) PASS: 2 authenticated contexts, exactly one accepted checkout, one conflict, tenant isolation.
+- Known critical unresolved: F19 Free quota directly bypassable through authenticated Firestore V2 writes. Draft rules for F18 are tested but not deployed, and cannot fix F19 alone.
+- No live Firestore rules deployment, no data migration, no Firebase Storage, no paid services, no Floot change.
+- The 35-item program remains INCOMPLETE. This release is a validated beta subset, not a full commercial security signoff.
