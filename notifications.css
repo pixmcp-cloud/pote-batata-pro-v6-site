@@ -43,3 +43,47 @@
 .pote-notice-empty{font-size:12px;padding:16px;color:#bfcdd9}
 @media(max-width:580px){#poteNotifications{right:12px;top:72px}#poteBell{width:49px;height:49px;border-radius:16px}
  .pote-bell-icon{font-size:23px}.pote-notice-drawer{top:61px}}
+
+/* Barra superior: notificações ao lado do menu, nunca abaixo dele. */
+#poteNotifications{
+ top:12px;
+ right:78px;
+ --pote-notice-drawer-offset:66px;
+ z-index:9996;
+}
+#poteBell{width:48px;height:48px;border-radius:16px}
+.pote-notice-drawer{
+ right:calc(-1 * var(--pote-notice-drawer-offset));
+ top:58px;
+ max-width:calc(100vw - 24px);
+}
+@media(max-width:850px){
+ #poteNotifications{
+  top:11px;
+  right:69px;
+  --pote-notice-drawer-offset:57px;
+ }
+ #poteBell{width:47px;height:47px;border-radius:16px}
+ .pote-bell-icon{font-size:23px}
+ .pote-notice-drawer{top:57px;right:calc(-1 * var(--pote-notice-drawer-offset))}
+ .headin .brand{padding-right:120px!important}
+}
+@media(max-width:390px){
+ #poteNotifications{
+  top:10px;
+  right:64px;
+  --pote-notice-drawer-offset:52px;
+ }
+ #poteBell{width:44px;height:44px;border-radius:14px}
+ .pote-notice-drawer{top:54px}
+ .headin .brand{padding-right:115px!important}
+}
+/* Modais precisam manter seu próprio fechar visível acima dos controles globais. */
+body:has([role="dialog"][aria-modal="true"]:not([hidden])) #poteFloatToggle,
+body:has([role="dialog"][aria-modal="true"]:not([hidden])) #poteNotifications,
+body:has(#poteStockUpdate:not([hidden])) #poteFloatToggle,
+body:has(#poteStockUpdate:not([hidden])) #poteNotifications{
+ visibility:hidden!important;
+ pointer-events:none!important;
+}
+body:has(#poteFloatDrawer.is-open) #poteNotifications{visibility:hidden!important;pointer-events:none!important}
