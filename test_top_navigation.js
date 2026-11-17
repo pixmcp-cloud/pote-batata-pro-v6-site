@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const js=fs.readFileSync('top_navigation.js','utf8'),css=fs.readFileSync('top_navigation.css','utf8');
+const beta=fs.readFileSync('make_beta.py','utf8'),workflow=fs.readFileSync('.github/workflows/deploy.yml','utf8');
+new vm.Script(js);
+for(const marker of ['poteTopActions','poteHomeShortcut','poteHeroCalculator','POTE_CALC','poteFloatNavigation','data-tab="admin"'])assert(js.includes(marker),'Missing '+marker);
+assert(js.includes('toolbar.appendChild(home)')&&js.includes('toolbar.appendChild(calc)'),'Move both icons to header');
+assert(css.includes('.hero{display:none!important}'),'Remove obsolete page hero');
+assert(css.includes('.head{position:sticky!important;top:0!important'),'Sticky header');
+assert(css.includes('#poteFloatToggle{top:'),'Hamburger in header');
+assert(css.includes('#navdesktop [data-tab="admin"]'),'Exclusive admin remains profile-only');
+assert(beta.includes('top_navigation.js?v=topnav-20261117'));
+assert(workflow.includes('cp top_navigation.css public/top_navigation.css'));
+console.log('PASS sticky header, home/calc, removed hero, profile-only admin menu');

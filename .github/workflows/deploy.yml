@@ -130,6 +130,10 @@ jobs:
           cp tablet_layout.js public/tablet_layout.js
           cp compact_account_header.js public/compact_account_header.js
           cp compact_account_header.css public/compact_account_header.css
+          cp top_navigation.js public/top_navigation.js
+          cp top_navigation.css public/top_navigation.css
+          node --check public/top_navigation.js
+          node test_top_navigation.js
           node --check public/compact_account_header.js
           node test_compact_account_header.js
           node --check public/pote_calc_launcher.js
