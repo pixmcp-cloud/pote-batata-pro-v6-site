@@ -14,6 +14,19 @@ root.innerHTML='<button type="button" id="poteBell" aria-label="Abrir notificaç
  '<div class="pote-notice-tools"><button type="button" id="poteNoticeReadAll">Marcar todas como lidas</button><span id="poteNoticeStatus"></span></div>'+
  '<div id="poteNoticeList" class="pote-notice-list"></div></section>';
 document.body.appendChild(root);
+// Mount alongside the actual hamburger in the sticky toolbar, not using screen offsets.
+function mountBell(){
+ const bar=document.getElementById('poteTopActions');
+ const menu=document.getElementById('poteFloatToggle');
+ if(!bar||!menu||menu.parentElement!==bar)return false;
+ if(root.parentElement!==bar||root.nextElementSibling!==menu)bar.insertBefore(root,menu);
+ return true;
+}
+if(!mountBell()){
+ document.addEventListener('DOMContentLoaded',mountBell,{once:true});
+ window.addEventListener('pote:changed',mountBell);
+}
+
 const $=id=>document.getElementById(id),bell=$("poteBell"),drawer=$("poteNoticeDrawer");
 let messages=[],items=[],connectedUid=null,unsub=null,listenerError="";
 function logged(){return !!window.POTE_AUTH?.uid&&auth.currentUser?.uid===window.POTE_AUTH.uid}

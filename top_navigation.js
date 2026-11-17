@@ -29,6 +29,8 @@
   /* Requested order: clickable logo | Calculator | Home | hamburger. */
   toolbar.appendChild(calc);
   toolbar.appendChild(home);
+  const notices=document.getElementById('poteNotifications');
+  if(notices&&notices.parentElement!==toolbar)toolbar.appendChild(notices);
   const menu=document.getElementById('poteFloatToggle');
   if(menu&&menu.parentElement!==toolbar)toolbar.appendChild(menu);
   const brand=header.querySelector('.brand');
