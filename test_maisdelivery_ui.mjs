@@ -6,7 +6,7 @@ window.POTE_AUTH.role="pro";
 assert.equal(renderMaisDelivery(),"","Conta PRO não deve exibir painel API");
 window.POTE_AUTH.role="admin";
 const html=renderMaisDelivery();
-assert.match(html,/MaisDelivery · API de teste/);
+assert.match(html,/MaisDelivery · Em teste/);
 assert.match(html,/mdEmpresa" type="number" min="1" value="563"/);
 assert.match(html,/mdRestaurante" type="number" min="1" value="50451"/);
 assert.match(html,/maisDeliverySend\(9\)/);

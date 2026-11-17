@@ -27,14 +27,23 @@ function canWrite(){
  return true;
 }
 const channelSelect=(selected)=>CHANNELS.map(p=>'<option value="'+p.id+'" '+(p.id===selected?"selected":"")+'>'+esc(p.name)+'</option>').join("");
-const platformCard=p=>'<article class="hub-platform" data-channel="'+esc(p.id)+'">'+
+const platformCard=p=>{
+ const testing=p.id==="maisdelivery";
+ const admin=window.POTE_AUTH?.role==="admin";
+ return '<article class="hub-platform" data-channel="'+esc(p.id)+'" data-api-status="'+(testing?"testing":"soon")+'">'+
  '<div class="hub-platform-identity"><span class="hub-platform-logo"><img alt="Logo '+esc(p.name)+'" loading="lazy" src="./assets/integrations/'+esc(p.id)+'.png?v=logos-20261116" onerror="this.hidden=true;this.parentNode.classList.add(\'brand-missing\')">'+
  '<span class="hub-logo-fallback" aria-hidden="true">'+esc(p.name.slice(0,2).toUpperCase())+'</span></span>'+
  '<strong>'+esc(p.name)+'</strong></div>'+
- '<div class="hub-connection-state">🔒 Ainda não conectado</div><p>'+esc(p.access)+'</p>'+
- '<div class="hub-card-actions"><button class="btn mini line" type="button" data-channel="'+p.id+'" onclick="POTE_DELIVERY_HUB.select(this.dataset.channel)">Selecionar</button> '+
+ '<div class="hub-connection-state '+(testing?"hub-status-testing":"hub-status-soon")+'">'+
+ (testing?"Em teste · sandbox":"Em breve")+'</div>'+
+ '<p>'+(testing?"API em homologação. Ainda não conectado a uma loja real.": "Integração automática em desenvolvimento.")+'</p>'+
+ '<div class="hub-card-actions">'+
+ (testing?(admin?'<button class="btn mini" type="button" onclick="POTE_DELIVERY_HUB.openMaisDelivery()">Abrir testes</button>':
+ '<button class="btn mini line" type="button" disabled title="Testes de API restritos à administração">Em teste</button>'):
+ '<button class="btn mini line" type="button" disabled>Em breve</button>')+
  '<a href="'+esc(p.doc)+'" target="_blank" rel="noopener noreferrer" class="btn mini line">Documentação oficial</a></div>'+
- '<small class="hub-partner-note">Identificação visual da plataforma; não indica parceria nem integração ativa.</small></article>';
+ '<small class="hub-partner-note">Identificação visual não indica parceria ou conexão automática ativa. Importação manual de JSON disponível abaixo.</small></article>';
+};
 function inboxItem(row,orderIndex,item,index){
  const branchOpts=options().flatMap(x=>{
   const items=(x.branch?.recipes||[]).filter(r=>!r.franchiseLocked&&r.id&&r.name);
@@ -84,9 +93,9 @@ function renderPage(){
  '<h2>🔌 Hub de Delivery</h2><p>Importe pedidos para conferência, evite duplicações e associe cada item a uma receita. '+
  'Nenhum canal é conectado automaticamente, e nenhum pedido entra em produção sem conferência.</p>'+
  '<div class="hub-numbers"><div><strong>'+CHANNELS.length+'</strong><small>Plataformas documentadas</small></div>'+
- '<div><strong>'+data.orders.length+'</strong><small>Pedidos na fila</small></div><div><strong>'+data.orders.filter(r=>r.approved).length+'</strong><small>Conferidos</small></div></div></header>'+renderMaisDelivery()+
- '<h3>1. Canais disponíveis para configuração</h3><div class="hub-platforms">'+CHANNELS.map(platformCard).join("")+'</div>'+
- '<h3>2. Importação sem chave de API</h3><section class="hub-box"><p>Integração automática depende de backend seguro, credenciais da loja e aprovação do parceiro. '+
+ '<div><strong>'+data.orders.length+'</strong><small>Pedidos na fila</small></div><div><strong>'+data.orders.filter(r=>r.approved).length+'</strong><small>Conferidos</small></div></div></header>'+
+ '<h3>1. Plataformas de delivery · status das APIs</h3><div class="hub-platforms">'+CHANNELS.map(platformCard).join("")+'</div>'+renderMaisDelivery()+
+ '<h3>2. Importação manual de pedidos</h3><section class="hub-box"><p>O MaisDelivery está em homologação. As outras APIs automáticas estão em breve. '+
  'Por enquanto, importe um JSON exportado ou recebido legitimamente da sua loja. Nunca cole tokens, senhas ou chaves.</p>'+
  '<div class="hub-inputs"><label>Plataforma<select id="hubProvider" onchange="POTE_DELIVERY_HUB.select(this.value)">'+channelSelect(selected.id)+'</select></label>'+
  '<label>ID da loja (não é uma senha)<input id="hubStore" value="'+esc(data.storeAliases[selected.id]||"")+'" placeholder="Ex.: minha-loja-01" maxlength="100" autocomplete="off"></label>'+
@@ -113,6 +122,13 @@ function select(id){
  if(!validChannel(id))return;
  channel=id;preview=null;
  if(state.tab==="deliveryhub")renderApp();
+}
+function openMaisDelivery(){
+ if(window.POTE_AUTH?.role!=="admin"){f("Testes da API MaisDelivery disponíveis apenas para a administração.");return false}
+ const panel=$("mdSandboxPanel");
+ if(!panel){f("Abra o Hub de Delivery para configurar o teste.");return false}
+ panel.scrollIntoView?.({behavior:"smooth",block:"start"});
+ return true;
 }
 function renderApp(){if(typeof window.render==="function")window.render()}
 function example(){
@@ -240,6 +256,6 @@ function onRegistered(order){
  row.approved=Object.keys(row.localLinks).length===row.items.length;
  pending=null;
 }
-window.POTE_DELIVERY_HUB={render,select,example,loadFile,analyze,commit,prepare,beforeRegister,onRegistered,maisDeliverySend:sendMaisDelivery,
+window.POTE_DELIVERY_HUB={render,select,openMaisDelivery,example,loadFile,analyze,commit,prepare,beforeRegister,onRegistered,maisDeliverySend:sendMaisDelivery,
  get status(){return {selected:channel,pending:pending?.key||null,count:hub().orders.length}},get channels(){return CHANNELS}};
 })();

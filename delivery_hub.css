@@ -82,3 +82,10 @@
 .md-panel legend{font-weight:700;color:#ffe4b4;padding:0 8px}
 .md-panel .btn{margin-top:12px}
 .md-result{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#141515;border:1px solid #65573d;padding:13px;border-radius:12px;font-size:12px;color:#e9e5d9}
+
+/* Situação real das conexões: somente MaisDelivery em sandbox. */
+.hub-platform[data-api-status="testing"]{border-color:#c6a062a0;background:linear-gradient(145deg,#344351,#162b37)}
+.hub-status-testing{background:#6b4a1e;color:#ffeac2;border:1px solid #d0a75e}
+.hub-status-soon{background:#344456;color:#d7e0e9;border:1px solid #6b7f91}
+.hub-platform button:disabled{opacity:.67;cursor:not-allowed;box-shadow:none}
+#mdSandboxPanel{scroll-margin-top:83px}

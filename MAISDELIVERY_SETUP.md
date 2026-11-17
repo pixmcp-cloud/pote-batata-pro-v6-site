@@ -31,3 +31,10 @@ Os campos de autenticação ficam apenas na interface temporariamente, não no F
 - A extensão PHP cURL é necessária. `php -l server/maisdelivery_proxy.php` deve passar em ambiente com PHP instalado; o PC de desenvolvimento não dispõe do comando PHP.
 - O painel é exclusivo da conta ADM. A API não é exibida para usuários FREE/PRO.
 - A resposta de operação `10` não foi homologada; a relação 1/0 é baseada no exemplo fornecido.
+
+## Estado da interface (17/11/2026)
+- No Hub de Delivery, MaisDelivery aparece como **Em teste · sandbox**, sem afirmar conexão ativa.
+- As outras 11 plataformas aparecem como **Em breve**, com botão de API desativado e documentação disponível.
+- A importação manual JSON segue operando de modo supervisionado para canais existentes.
+- O painel de teste das operações 9 e 10 é visível somente ao ADM, acessível pelo botão **Abrir testes** no cartão do MaisDelivery.
+- **Não é homologação de ponta a ponta:** até que o PHP do adaptador esteja instalado no domínio, nenhuma requisição ao MaisDelivery será executada a partir do aplicativo.

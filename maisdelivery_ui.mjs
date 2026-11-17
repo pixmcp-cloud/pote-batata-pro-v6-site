@@ -7,9 +7,9 @@ const onlyAdmin=()=>window.POTE_AUTH?.role==="admin";
 const storedProxy=()=>{try{return sessionStorage.getItem("pote-md-proxy")||""}catch{return ""}};
 export function renderMaisDelivery(){
  if(!onlyAdmin())return "";
- return '<section class="hub-box md-sandbox" aria-label="Integração MaisDelivery Sandbox">'+
- '<h3>MaisDelivery · API de teste</h3>'+
- '<p class="hub-hint">Operações 9 (produto) e 10 (ativar/desativar). Somente sandbox. Não altera estoque, pedidos ou financeiro do Potê Batata Pro.</p>'+
+ return '<section id="mdSandboxPanel" class="hub-box md-sandbox" aria-label="Integração MaisDelivery Sandbox">'+
+ '<h3>MaisDelivery · Em teste</h3>'+
+ '<p class="hub-hint">Sandbox, ainda sem conexão ativa. Operações 9 (produto) e 10 (ativar/desativar). Não altera estoque, pedidos ou financeiro do Potê Batata Pro.</p>'+
  '<div class="hub-inputs">'+
  '<label>URL do adaptador PHP (HTTPS)<input id="mdProxy" type="url" placeholder="https://seu-site.com/api/maisdelivery_proxy.php" autocomplete="off" value="'+esc(storedProxy())+'"></label>'+
  '<label>ID empresa<input id="mdEmpresa" type="number" min="1" value="563"></label>'+
