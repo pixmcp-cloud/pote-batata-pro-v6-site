@@ -47,3 +47,13 @@ body:has(#poteProfileOverlay:not([hidden])) #poteFloatToggle{visibility:hidden!i
  #poteTopActions #poteBell{width:43px!important;height:49px!important}
  #poteTopActions .pote-notice-drawer{right:-49px!important}
 }
+
+/* Reliable bell visibility even before the Firebase module initializes. */
+#poteTopActions #poteNotifications{visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+#poteTopActions #poteBell{display:grid!important;place-items:center!important;cursor:pointer!important;background:#24354d!important;border:1px solid #d5b581!important;color:#f4d399!important;box-shadow:none!important}
+#poteTopActions #poteBell .pote-bell-icon{font-size:24px!important;line-height:1!important}
+
+/* Prevent toolbar padding from creating horizontal overflow on narrow mobile widths. */
+.head,.headin{box-sizing:border-box!important;max-width:100vw!important}
+.headin>.brand{min-width:0!important;overflow:hidden!important}
+#poteTopActions{min-width:0!important;max-width:calc(100vw - 52px)!important}

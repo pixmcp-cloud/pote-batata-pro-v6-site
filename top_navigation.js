@@ -29,9 +29,24 @@
   /* Requested order: clickable logo | Calculator | Home | hamburger. */
   toolbar.appendChild(calc);
   toolbar.appendChild(home);
-  const notices=document.getElementById('poteNotifications');
-  if(notices&&notices.parentElement!==toolbar)toolbar.appendChild(notices);
+  // A notification shortcut must be visible even if the async Firebase module has not loaded.
+  let notices=document.getElementById('poteNotifications');
+  if(!notices){
+   notices=document.createElement('div');notices.id='poteNotifications';
+   notices.innerHTML='<button id="poteBell" type="button" aria-label="Abrir notificações" aria-expanded="false"><span class="pote-bell-icon" aria-hidden="true">🔔</span><span id="poteNoticeCount" class="pote-bell-count" hidden>0</span></button><section id="poteNoticeDrawer" class="pote-notice-drawer" role="dialog" aria-label="Notificações" hidden><header><h2>Notificações</h2><button id="poteNoticeClose" type="button">Fechar</button></header><p class="pote-notice-empty">Conectando às notificações da conta.</p></section>';
+   notices.querySelector('#poteBell').addEventListener('click',()=>{
+    const drawer=document.getElementById('poteNoticeDrawer');
+    if(window.POTE_NOTIFY?.open)window.POTE_NOTIFY.open();
+    else if(drawer){drawer.hidden=!drawer.hidden;notices.querySelector('#poteBell').setAttribute('aria-expanded',String(!drawer.hidden))}
+   });
+   notices.querySelector('#poteNoticeClose').addEventListener('click',()=>{const d=document.getElementById('poteNoticeDrawer');if(d)d.hidden=true});
+  }
+  notices.hidden=false;
   const menu=document.getElementById('poteFloatToggle');
+  if(notices.parentElement!==toolbar||notices.nextElementSibling!==menu){
+   if(menu&&menu.parentElement===toolbar)toolbar.insertBefore(notices,menu);
+   else toolbar.appendChild(notices);
+  }
   if(menu&&menu.parentElement!==toolbar)toolbar.appendChild(menu);
   const brand=header.querySelector('.brand');
   if(brand&&!brand.dataset.poteMenuClickable){

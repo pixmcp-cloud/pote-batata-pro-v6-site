@@ -6,7 +6,7 @@ import {getFirestore,collection,onSnapshot,query,orderBy,limit} from "https://ww
 import {notificationState,mergeNotifications,unreadCount,markRead} from "./notification_core.mjs?v=notices-20261116";
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const root=document.createElement("div");root.id="poteNotifications";root.hidden=true;
+const root=document.getElementById("poteNotifications")||document.createElement("div");root.id="poteNotifications";root.hidden=false;
 root.innerHTML='<button type="button" id="poteBell" aria-label="Abrir notificações" aria-expanded="false" aria-controls="poteNoticeDrawer">'+
  '<span aria-hidden="true" class="pote-bell-icon">🔔</span><span id="poteNoticeCount" class="pote-bell-count" hidden>0</span></button>'+
  '<section id="poteNoticeDrawer" class="pote-notice-drawer" role="dialog" aria-label="Central de notificações" hidden>'+
@@ -71,7 +71,13 @@ function markAll(){if(!logged())return;
  paint();
 }
 function toggle(force){
- if(!logged())return;
+ if(!logged()){
+  drawer.hidden=false;
+  bell.setAttribute("aria-expanded","true");
+  $("poteNoticeStatus").textContent="Entre na sua conta para ver os avisos.";
+  $("poteNoticeList").innerHTML='<p class="pote-notice-empty">Notificações protegidas: entre na sua conta.</p>';
+  return;
+ }
  const show=typeof force==="boolean"?force:drawer.hidden;
  drawer.hidden=!show;
  bell.setAttribute("aria-expanded",String(show));
@@ -79,7 +85,7 @@ function toggle(force){
 }
 function disconnect(){
  if(unsub){unsub();unsub=null}
- connectedUid=null;messages=[];items=[];listenerError="";toggle(false);
+ connectedUid=null;messages=[];items=[];listenerError="";drawer.hidden=true;bell.setAttribute("aria-expanded","false");
  root.hidden=true;
  bell.classList.remove("has-unread");
  $("poteNoticeCount").hidden=true;
