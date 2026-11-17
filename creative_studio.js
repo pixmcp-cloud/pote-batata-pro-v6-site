@@ -139,8 +139,9 @@ function page(){
  actions+
  '<section id="csPromptPanel" class="cs-prompt-panel" hidden aria-label="Prompt publicitário para IA">'+
  '<div class="cs-prompt-head"><div><small>CAMINHO GRATUITO</small><h3>Crie sua arte com outra IA</h3></div><button type="button" class="cs-prompt-close" aria-label="Fechar" onclick="creativeClosePrompt()">×</button></div>'+
- '<p>O prompt é criado a partir da receita selecionada. Copie, baixe a foto e envie ambos à IA escolhida. Nenhuma informação é compartilhada automaticamente.</p>'+
- select('Resultado para IA','csPromptMode',[['photo','Foto de estúdio (recomendado)'],['ad','Anúncio com texto reduzido']],'photo')+
+ '<p>Para produzir sua campanha com a sua marca, envie <strong>DUAS IMAGENS à IA</strong>: a foto real do produto e a logomarca original. O prompt pedirá para colocar a logo na arte, sem redesenhá-la.</p>'+
+ '<div class="cs-prompt-steps"><span><b>1</b> Baixe a foto do produto</span><span><b>2</b> Baixe a logo da empresa</span><span><b>3</b> No Gemini, anexe as duas imagens e cole o prompt</span></div>'+
+ select('Resultado para IA','csPromptMode',[['photo','Foto de estúdio + logo (sem textos extras)'],['ad','Anúncio com logo e textos reduzidos']],'photo')+
  select('Cenário e plataforma','csPromptScene',[
  ['slate','Pedra preta + estúdio premium'],
  ['travertine','Pedra clara + luz quente'],
@@ -164,8 +165,9 @@ function page(){
  '<p id="csPromptStatus" class="cs-prompt-status" role="status" aria-live="polite"></p>'+
  '<div class="cs-prompt-actions"><button class="btn" type="button" onclick="creativeCopyPrompt()">Copiar prompt</button>'+
  '<button class="btn line" type="button" onclick="creativeDownloadPhoto()">Baixar foto original</button>'+
+ '<button class="btn line" type="button" onclick="creativeDownloadLogo()">Baixar logomarca</button>'+
  '<a class="btn line" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Abrir Gemini</a></div>'+
- '<small class="cs-prompt-help">No Gemini, anexe a foto e cole o comando. Recursos gratuitos podem ter limites. Revise preço, marca e ingredientes antes de publicar.</small>'+
+ '<small class="cs-prompt-help">Anexe a foto COMO PRIMEIRA IMAGEM e a logo COMO SEGUNDA IMAGEM. Depois cole o prompt. A logo precisa ser legível, com proporção e cores originais. Nenhum arquivo é enviado automaticamente. O Gemini pode impor limites gratuitos.</small>'+
  '</section>'+
  '<p class="help">O preço promocional não altera a precificação nem o PDV. Confira a oferta antes de compartilhar. Ingredientes descritos são extraídos da ficha cadastrada.</p>'+
  '</section><section class="box cs-preview"><div class="cs-preview-title"><div><small>PRÉVIA DA CAMPANHA</small><h3>O anúncio que seu cliente verá</h3></div></div>'+
@@ -372,7 +374,7 @@ window.POTE_CREATIVE_PROMPT_READ=function(){
  if(showPrice&&showOld&&!(priceNormal>priceAd))return {error:'O preço anterior deve ser maior que o preço do anúncio.'};
  const suggested=copyFor(r,campaign),brand=state.data.brand||{};
  return {id:r.id,name:r.name,ingredients:featuredIngredients(r),
-  brand:{name:brand.name||'',phone:brand.phone||'',instagram:brand.instagram||'',hasLogo:!!brand.logoUrl},
+  brand:{name:brand.name||'',phone:brand.phone||'',instagram:brand.instagram||'',hasLogo:!!brand.logoUrl,logoUrl:brand.logoUrl||''},
   ratio,campaignName:CAMPAIGNS[campaign].label,styleName:STYLES[style],
   headline:safe(chosen('creativeHeadline')||suggested.headline,90),
   description:safe(chosen('creativeBody')||suggested.body,160),

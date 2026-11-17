@@ -8,7 +8,7 @@ const controls={
 };
 let config={
  id:'r01',name:'Frango Cremoso',ingredients:['Frango','Requeijão','Mussarela'],
- brand:{name:'Potê Batata',phone:'48999951729',instagram:'@potebatata',hasLogo:true},
+ brand:{name:'Potê Batata',phone:'48999951729',instagram:'@potebatata',hasLogo:true,logoUrl:'data:image/png;base64,AAAA'},
  ratio:'9:16',campaignName:'Oferta do dia',styleName:'Noite dourada',
  headline:'OFERTA DO DIA',description:'Com frango, requeijão e mussarela.',
  cta:'PEÇA PELO WHATSAPP',priceNormal:34.90,priceAd:24.90,
@@ -46,7 +46,7 @@ assert(fs.readFileSync(__dirname+'/creative_studio.js','utf8').includes('onclick
  assert(copied.includes('R$ 24,90')&&copied.includes('R$ 34,90'));
  assert(copied.includes('Potê Batata')&&copied.includes('48999951729'));
  assert(copied.includes('9:16')&&copied.includes('1080 × 1920'));
- assert(copied.includes('FOTO DO PRODUTO ANEXADA'));
+ assert(copied.includes('FOTO DO PRODUTO')&&copied.includes('IMAGEM 1'));
  assert(copied.includes('DIREÇÃO DE CENÁRIO OBRIGATÓRIA'));
  assert(copied.includes('SUBSTITUA COMPLETAMENTE'));
  assert(copied.includes('ardósia preta fosca'));
@@ -56,13 +56,13 @@ assert(fs.readFileSync(__dirname+'/creative_studio.js','utf8').includes('onclick
  assert(!copied.includes('Manter o mesmo produto, porção, embalagem'));
  assert(!copied.includes('Sal e temperos secos'));
 
- assert(copied.includes('Use logomarca SOMENTE se o arquivo original for enviado separadamente'));
+ assert(copied.includes('APLIQUE A LOGOMARCA DA IMAGEM 2')&&copied.includes('PRESERVAÇÃO RIGOROSA DA LOGO'));
  controls.csPromptMode.value='photo';
  changes.change({target:{id:'csPromptMode'}});
- assert(controls.csPromptText.value.includes('SEM QUALQUER TEXTO'));
+ assert(controls.csPromptText.value.includes('SEM textos adicionais')&&controls.csPromptText.value.includes('LOGOMARCA DA IMAGEM 2'));
  assert(!controls.csPromptText.value.includes('Preço atual:'));
  assert.equal(await context.window.creativeCopyPrompt(),true);
- assert(copied.includes('SEM QUALQUER TEXTO'));
+ assert(copied.includes('SEM textos adicionais')&&copied.includes('LOGOMARCA DA IMAGEM 2'));
  config={...config,name:'Chocolate com morango',ingredients:['Chocolate','Morango'],priceNormal:29.90,priceAd:29.90,showOld:false};
  controls.csPromptMode.value='ad';
  assert.equal(await context.window.creativeCopyPrompt(),true);
@@ -77,6 +77,13 @@ assert(fs.readFileSync(__dirname+'/creative_studio.js','utf8').includes('onclick
  assert(!copied.includes('Telefone pequeno no rodapé: 48'));
  assert.equal(await context.window.creativeDownloadPhoto(),true);
  assert.equal(downloads,1);
+ config={...config,brand:{...config.brand,logoUrl:'data:image/png;base64,AAAA'}};
+ assert.equal(await context.window.creativeDownloadLogo(),true);
+ assert.equal(downloads,2,'logo must download as a separate file');
+ const missing=config;config={...config,brand:{...config.brand,logoUrl:''}};
+ assert.equal(await context.window.creativeDownloadLogo(),false);
+ assert(message.includes('Logomarca não cadastrada'));
+ config=missing;
  const previous=config;config={error:'Preço inválido'};
  assert.equal(await context.window.creativeOpenPrompt(),false);
  assert.equal(message,'Preço inválido');

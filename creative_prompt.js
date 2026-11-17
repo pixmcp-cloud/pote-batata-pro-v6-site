@@ -54,10 +54,21 @@ function buildPrompt(c,mode){
  const light=LIGHTS[el('csPromptLight')?.value]||LIGHTS.appetizing;
  const flavors=(c.ingredients||[]).filter(Boolean).slice(0,4).map(x=>clean(x,45));
  const sceneFacts=flavors.length?'Ingredientes confirmados: '+flavors.join(', ')+'.':'Os ingredientes não estão descritos na ficha: respeite somente o que aparece na foto.';
+ const includeLogo=!!c.showLogo;
+ const logoRequirements=includeLogo?[
+  'IMAGEM 2 = LOGOMARCA ORIGINAL DA EMPRESA. O usuário anexou/irá anexar dois arquivos: a FOTO DO PRODUTO (IMAGEM 1) e a LOGOMARCA (IMAGEM 2). Não confunda a logo com o alimento nem use a logo como textura de fundo.',
+  'APLIQUE A LOGOMARCA DA IMAGEM 2 NA ARTE FINAL: posição preferencial no topo esquerdo ou topo direito, com respiro de segurança; tamanho discreto, porém legível no celular (aproximadamente 12–18% da largura).',
+  'PRESERVAÇÃO RIGOROSA DA LOGO: manter desenho, letras, símbolos, cores, proporção, contorno e legibilidade exatamente como no arquivo enviado. Não redesenhe, não troque a fonte, não estilize em 3D, não altere o nome e não invente uma nova marca.',
+  'A logo deve ficar em uma área de contraste limpo; se necessário, use uma pequena placa/fundo neutro atrás dela, sem deformá-la e sem cobrir o alimento. Evite repetir nome da empresa em texto se ele já estiver legível na logo.',
+  'Se a imagem 2 não tiver sido enviada, solicite a logomarca original antes de criar a arte final; não a invente.'
+ ]:[
+  'A opção de exibir logotipo está desativada na campanha. Não aplicar logomarca gráfica.'
+ ];
  const shot= [
   'FOTOGRAFIA DE CAMPANHA GASTRONÔMICA — PRODUÇÃO DE ESTÚDIO',
   '',
-  'Use a FOTO DO PRODUTO ANEXADA como referência da comida e do recipiente, NÃO como cenário final. RECONSTRUA UMA NOVA FOTOGRAFIA PUBLICITÁRIA: recorte o produto e SUBSTITUA COMPLETAMENTE a bancada de inox, a mesa e o fundo da foto original por uma plataforma de fotografia profissional.',
+  'ANTES DE COMEÇAR: verifique os ANEXOS. IMAGEM 1 é a foto real do produto'+(includeLogo?'; IMAGEM 2 é a logomarca original da empresa. As DUAS imagens são necessárias.':' (a logomarca foi desativada nesta campanha).') ,
+  'Use a FOTO DO PRODUTO (IMAGEM 1) como referência da comida e do recipiente, NÃO como cenário final. RECONSTRUA UMA NOVA FOTOGRAFIA PUBLICITÁRIA: recorte o produto e SUBSTITUA COMPLETAMENTE a bancada de inox, a mesa e o fundo da foto original por uma plataforma de fotografia profissional.',
   '',
   'PRODUTO: '+name+'. '+sceneFacts,
   'DIREÇÃO DE CENÁRIO OBRIGATÓRIA: '+stage.scene,
@@ -68,10 +79,14 @@ function buildPrompt(c,mode){
   'FIDELIDADE: preserve exatamente o tipo de alimento, a porção, os recheios, a distribuição e o recipiente presentes na foto. Pode mudar ângulo, cenário e luz de modo fotográfico plausível; não invente partes ocultas, cobertura nova, ingredientes extras ou recipiente de outro tipo.',
   'NEGATIVOS: NUNCA manter a bancada industrial/cinza, inox do fundo, pia, azulejos ou ambiente de preparo da imagem original. Nada de foto de celular sem tratamento, visão aérea plana, composição de catálogo amador, aparência plástica, render 3D, HDR excessivo, saturação neon, vapor falso, objetos decorativos que pareçam comida ou montagem de duas imagens.',
   'REFERÊNCIA: estética de campanha de restaurante premium com food styling natural, fotografia realista de produto, profundidade de campo moderada. O fundo deve ser claramente DIFERENTE do original.',
+  '',
+  ...logoRequirements,
   ''
  ];
  if(photoOnly){
-  shot.push('MODO FOTOGRAFIA LIMPA (RECOMENDADO): ENTREGUE SOMENTE A FOTO NOVA, SEM QUALQUER TEXTO, PREÇO, LOGOTIPO, WHATSAPP, RÓTULO OU ELEMENTO GRÁFICO. A arte final com marca e preço será feita no editor original para evitar erros de escrita.');
+  shot.push(includeLogo?
+   'MODO FOTO DE ESTÚDIO + LOGO: produza a NOVA fotografia premium com a LOGOMARCA DA IMAGEM 2 aplicada fielmente em um canto de contraste limpo. SEM textos adicionais, preços, telefone, CTA, rótulos ou etiquetas. A logo ORIGINAL é a única identificação gráfica obrigatória.':
+   'MODO FOTO DE ESTÚDIO: produza somente a NOVA fotografia premium, sem textos, logomarca, preços, telefone, CTA ou etiquetas.');
  }else{
   shot.push(
    'MODO ANÚNCIO — DIREÇÃO DE ARTE COM POUCOS TEXTOS:',
@@ -83,7 +98,7 @@ function buildPrompt(c,mode){
    c.showPrice&&c.showOld?'Preço anterior menor e riscado: '+currency(c.priceNormal):'NÃO adicionar preço antigo.',
    c.showCta?'Chamada curta no rodapé: '+clean(c.cta,70):'NÃO incluir CTA.',
    c.showPhone&&c.brand.phone?'Telefone pequeno no rodapé: '+clean(c.brand.phone,45):'NÃO incluir telefone.',
-   c.showLogo?'Use logomarca SOMENTE se o arquivo original for enviado separadamente; sem ele escreva o nome da marca.':'NÃO incluir logotipo.',
+   includeLogo?'Aplique na composição a logomarca ORIGINAL da IMAGEM 2, proporcional e intacta; não reescreva o nome se já estiver na logo.':'NÃO incluir logotipo.',
    'Tipografia elegante, no máximo cinco blocos discretos, margem de segurança e contraste alto. Nunca cobrir o alimento com letras. NÃO repetir o mesmo texto em locais diferentes. NÃO escrever o número do preço em formato incorreto.'
   );
  }
@@ -91,7 +106,7 @@ function buildPrompt(c,mode){
   '',
   'REFERÊNCIA COMERCIAL: '+clean(c.campaignName,80)+' | '+clean(c.styleName,90)+'. Texto interno da ficha (NÃO imprimir): '+clean(c.description,170),
   'RESULTADO: UMA única imagem realista em '+format+'. Se a IA não conseguir mudar o ângulo mantendo fidelidade ao alimento, conserve a geometria do prato e priorize a nova plataforma, a nova luz e o novo fundo. Não use logotipos inventados.',
-  'Envie a FOTO ORIGINAL manualmente junto com este comando; o texto não contém a imagem.'
+  includeLogo?'ENVIO OBRIGATÓRIO AO GERADOR: anexe 1) FOTO ORIGINAL DO PRODUTO e 2) LOGOMARCA ORIGINAL, como dois arquivos de imagem separados, e cole este prompt.':'ENVIO AO GERADOR: anexe a FOTO ORIGINAL DO PRODUTO e cole este prompt; exibição de logomarca desativada.'
  );
  return shot.join('\n');
 }
@@ -162,6 +177,43 @@ window.creativeDownloadPhoto=async function(){
   return false;
  }
 };
+window.creativeDownloadLogo=async function(){
+ const c=source();if(c.error){notice(c.error);return false}
+ const src=c.brand?.logoUrl;
+ if(!src){
+  notice('Logomarca não cadastrada. Adicione sua logo no Perfil ou anexe o arquivo original diretamente na IA.');
+  writeStatus('Não foi encontrada uma logomarca no cadastro. Faça o upload no Perfil ou anexe a imagem original na IA.');
+  return false;
+ }
+ try{
+  const image=await new Promise((resolve,reject)=>{
+   const img=new Image();
+   if(/^https?:\/\//i.test(src))img.crossOrigin='anonymous';
+   img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Logomarca inacessível'));
+   img.src=src;
+  });
+  const canvas=document.createElement('canvas');
+  const scale=Math.min(1,2400/Math.max(image.width,image.height));
+  canvas.width=Math.max(1,Math.round(image.width*scale));
+  canvas.height=Math.max(1,Math.round(image.height*scale));
+  const drawing=canvas.getContext('2d');if(!drawing)throw new Error('Canvas indisponível');
+  drawing.drawImage(image,0,0,canvas.width,canvas.height);
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Falha ao preparar logo')),'image/png'));
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;
+  a.download='logomarca-original-'+clean(c.brand.name||'empresa',48).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]/g,'-')+'.png';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  writeStatus('Logomarca original baixada. Envie a foto do produto e a logo como duas imagens à IA.');
+  notice('Logo baixada. Anexe a foto e a logo no Gemini.');
+  return true;
+ }catch(err){
+  console.warn('Erro ao exportar logomarca',err);
+  notice('Não foi possível baixar a logo. Salve o arquivo original do Perfil ou anexe-o diretamente no Gemini.');
+  return false;
+ }
+};
+
 const changeControls=new Set([
  'creativeRecipe','creativeRatio','csStyle','csCampaign','csPhotoFocus',
  'creativeOld','creativeSale','creativeHeadline','creativeBody','creativeCta',

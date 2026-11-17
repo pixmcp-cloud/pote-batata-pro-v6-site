@@ -198,3 +198,26 @@
  color:#ddf0dc;font-size:12px;line-height:1.6;padding:12px 13px;margin:14px 0;
 }
 .creative-studio .cs-prompt-panel .cs-prompt-tip strong{color:#f9d9a0}
+
+/* Two-image AI handoff: clear sequential guidance on mobile. */
+.creative-studio .cs-prompt-steps{
+ display:grid;gap:7px;margin:13px 0;padding:12px;
+ border-radius:12px;border:1px solid #65856a;
+ background:#1e342c;color:#e5f5e5;
+}
+.creative-studio .cs-prompt-steps span{
+ display:flex;align-items:center;gap:11px;
+ font-size:12px;line-height:1.45;font-weight:650;
+}
+.creative-studio .cs-prompt-steps b{
+ flex:0 0 25px;height:25px;border-radius:50%;
+ display:grid;place-items:center;
+ background:#c89b50;color:#1b1913;font-size:12px;
+}
+.creative-studio .cs-prompt-actions .btn{
+ flex:1 1 140px;
+}
+@media(max-width:450px){
+ .creative-studio .cs-prompt-steps{padding:11px}
+ .creative-studio .cs-prompt-actions .btn{flex-basis:100%}
+}
