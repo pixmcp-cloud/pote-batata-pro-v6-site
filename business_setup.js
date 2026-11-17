@@ -114,7 +114,9 @@ function refreshIdentity(){
  if(topLogo)topLogo.src=isBranded?"./assets/pote-logo-original.jpg":(brand.logoUrl||GENERIC_LOGO);
  const favicon=document.querySelector('link[rel="icon"]');
  if(favicon)favicon.href=isBranded?"./assets/pote-logo-original.jpg":GENERIC_LOGO;
- if(topName)topName.textContent=isBranded?"POTÊ BATATA PRO":on?"GESTÃO PRO · ADM":"GESTÃO PRO";
+ const registeredCompany=String(brand.name||"").trim();
+ const companyName=isBranded&&(!registeredCompany||registeredCompany.toLowerCase()==="meu negócio")?"Potê Batata":registeredCompany||"Meu Negócio";
+ if(topName)topName.textContent=companyName;
  if(topSub)topSub.textContent=isBranded?(on?"GESTÃO ONLINE":"FRANQUIA OFICIAL"):(on?"ADM · ":"")+(currentItem()?.label?.toUpperCase()||"ESCOLHA SEU NEGÓCIO");
  const floatTitle=$("poteFloatBrand");
  if(floatTitle)floatTitle.textContent=isBranded?"POTÊ BATATA PRO":on?"GESTÃO PRO · ADM":"GESTÃO PRO";
@@ -246,5 +248,7 @@ $("poteBusinessOverlay").addEventListener("click",e=>{
 });
 window.POTE_BUSINESS={open:()=>show(true),close:()=>show(false),choose:select,refresh:refreshIdentity,normalizeAccountBrand,
  neutralBrand,importBatatariaTemplates,current,types:TYPES,refreshAccess:()=>{if(opened)show(true)}};
+window.addEventListener?.("pote:changed",refreshIdentity);
+window.addEventListener?.("pote:user-ready",refreshIdentity);
 refreshIdentity();
 })();

@@ -30,6 +30,10 @@ function setup(role="free"){
  vm.runInContext(script,ctx,{filename:"business_setup.js"});
  return {ctx,state,window,document,get persistCount(){return persisted},get renderCount(){return rendered}};
 }
+const companyAccount=setup("free");
+companyAccount.state.data.brand.name="Café da Ana";
+companyAccount.window.POTE_BUSINESS.refresh();
+assert.equal(companyAccount.document.getElementById("poteHeadName").textContent,"Café da Ana","Cabeçalho deve mostrar marca da conta cliente");
 const neutral=setup("free");
 assert.equal(neutral.state.data.recipes.length,0,"Nova conta deve iniciar sem receitas");
 assert.equal(neutral.window.POTE_BUSINESS.current(),"");
@@ -117,7 +121,7 @@ assert(src.includes("window.POTE_AUTH?.role==='admin'"),"Fotos originais não es
 const menu=fs.readFileSync("floating_menu.js","utf8");
 assert(menu.includes('["business","Negócio"]'));
 const result=fs.readFileSync("public/index.html","utf8");
-assert(result.includes("business_setup.js?v=pastelaria-20261116"));
+assert(result.includes("business_setup.js?v=company-label-20261117"));
 assert(result.includes("business_setup.css?v=business-universes-20261115"));
 assert(result.includes("GESTÃO PRO"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));

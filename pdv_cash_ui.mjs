@@ -12,7 +12,7 @@ const snapshot=()=>window.POTE_APP?.snapshot?.()||null;
 const status=msg=>{let element=document.getElementById("potePdvMessage");if(element)element.textContent=msg};
 let trigger=null,modal=null,visible=false,delay=null;
 function ensure(){
- if(trigger)return;
+ if(trigger){if(!trigger.isConnected)document.body.appendChild(trigger);return}
  trigger=document.createElement("button");
  trigger.id="potePdvTrigger";trigger.type="button";
  trigger.innerHTML='<span aria-hidden="true">▣</span><strong>Caixa PDV</strong><small id="potePdvTurn">Fechado</small>';
@@ -62,10 +62,15 @@ function textField(label,name,placeholder="",type="text"){
 }
 function render(){
  ensure();
- trigger.hidden=!access();
+ const heading=document.querySelector(".ops-heading");
+ if(heading&&trigger.parentElement!==heading)heading.appendChild(trigger);
+ else if(!heading&&trigger.parentElement!==document.body)document.body.appendChild(trigger);
+ trigger.hidden=!access()||!heading;
  const s=currentSession();
  trigger.querySelector("#potePdvTurn").textContent=s?"Aberto":"Fechado";
  trigger.classList.toggle("open",!!s);
+ trigger.setAttribute("aria-label","Caixa PDV "+(s?"aberto":"fechado")+". Abrir frente de caixa");
+ trigger.title="Caixa PDV "+(s?"aberto":"fechado")+" · Ver turno e pagamentos";
  if(!access()){close();return}
  if(!visible)return;
  const data=snapshot()?.data||{orders:[]};
@@ -276,4 +281,11 @@ for(const event of ["pote:user-ready","pote:changed","pote:license-updated","pot
  });
 window.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&visible)close()});
 ensure();refresh();
+/* Reattach the same button when Home is rebuilt, preserving its click handler. */
+const pageRoot=document.getElementById("page");
+if(pageRoot)new MutationObserver(()=>{
+ const heading=pageRoot.querySelector(".ops-heading");
+ if(heading&&trigger.parentElement!==heading)refresh();
+ else if(!heading&&(!trigger.hidden||!trigger.isConnected))refresh();
+}).observe(pageRoot,{childList:true,subtree:false});
 window.POTE_PDV={open,close,refresh,getSessionId,currentSession,printOrder,ticketHtml};

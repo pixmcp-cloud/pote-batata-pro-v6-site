@@ -1,0 +1,32 @@
+/* Nome individual do negócio visível junto à logo, inclusive no celular. */
+.headin>.brand>span{display:block!important;flex:1 1 auto!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+#poteHeadName{display:block!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:clamp(11px,2.8vw,16px)!important;line-height:1.2!important;font-weight:800!important}
+@media(max-width:550px){
+ .headin>.brand>span{display:block!important}
+ #poteHeadSubtitle{display:none!important}
+ .headin>.brand{gap:6px!important}
+}
+@media(max-width:390px){
+ #poteHeadName{font-size:12px!important}
+ .headin>.brand img{width:31px!important;height:31px!important}
+}
+/* Caixa PDV discreto: botão quadrado junto de Central de Operações. */
+.ops-heading{align-items:center!important}
+.ops-heading .ops-status{display:none!important}
+.ops-heading #potePdvTrigger{
+ position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+ z-index:2!important;display:grid!important;place-items:center!important;flex:0 0 47px!important;
+ width:47px!important;min-width:47px!important;height:47px!important;min-height:47px!important;
+ padding:4px!important;margin:0!important;gap:0!important;
+ border:1px solid #8cb8a285!important;border-radius:11px!important;
+ color:#b8d9c7!important;background:linear-gradient(145deg,#24394a,#182b37)!important;
+ box-shadow:inset 0 1px #ffffff2c,0 4px 10px #0007!important;
+ font-size:20px!important;line-height:1!important
+}
+.ops-heading #potePdvTrigger>span{display:block!important;font-size:23px!important;line-height:1!important}
+.ops-heading #potePdvTrigger strong,.ops-heading #potePdvTrigger small{display:none!important}
+.ops-heading #potePdvTrigger.open{border-color:#82c9a5!important;color:#b7f4d3!important;background:linear-gradient(145deg,#244937,#16342c)!important}
+.ops-heading #potePdvTrigger:after{content:"";position:absolute;right:5px;top:5px;width:7px;height:7px;border-radius:50%;background:#d7a26f;box-shadow:0 0 0 2px #0c1c25}
+.ops-heading #potePdvTrigger.open:after{background:#6de5a1;box-shadow:0 0 6px #6de5a175}
+.ops-heading #potePdvTrigger[hidden]{display:none!important}
+@media(max-width:550px){.ops-heading #potePdvTrigger{flex-basis:43px!important;width:43px!important;min-width:43px!important;height:43px!important;min-height:43px!important}.ops-heading h1{font-size:clamp(22px,5.9vw,29px)!important}}

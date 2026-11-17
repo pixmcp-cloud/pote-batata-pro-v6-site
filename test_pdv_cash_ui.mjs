@@ -12,7 +12,8 @@ const body=new FakeEl(),events=new Map(),app={
  data:{cashSessions:[],cashMovements:[],orders:[],brand:{name:"Potê de Teste"}}
 };
 let writes=0,lastEvent=0;
-globalThis.document={body,createElement:()=>new FakeEl()};
+const homeHeading=new FakeEl();
+globalThis.document={body,createElement:()=>new FakeEl(),querySelector:s=>s===".ops-heading"?homeHeading:null,getElementById:()=>null};
 Object.defineProperty(globalThis,"navigator",{value:{onLine:true},configurable:true});
 globalThis.window={
  POTE_APP_READY:true,POTE_AUTH:{uid:"t1",role:"free",proActive:false,franchiseActive:false,email:"teste"},
