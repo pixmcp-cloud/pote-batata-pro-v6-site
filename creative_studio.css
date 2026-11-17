@@ -138,3 +138,49 @@
 .cs-poster .cs-photo.cs-focus-food img{transform:scale(1.73);transform-origin:50% 0%}
 .cs-poster .cs-photo.cs-focus-center img{transform:scale(1.08);transform-origin:50% 50%}
 .cs-poster .cs-photo.cs-focus-full img{transform:none;object-position:center center}
+
+
+/* Prompt para IA — extensão nativa do Estúdio, sem dependências nem créditos externos. */
+.creative-studio .cs-prompt-button{border:1px solid #c99e59!important;background:#3e301e!important;color:#ffdb95!important}
+.creative-studio .cs-prompt-panel{
+ margin-top:19px;padding:clamp(14px,3vw,23px);border-radius:18px;
+ border:1px solid #c3a06b;background:linear-gradient(145deg,#162c27,#11161c 70%);
+ box-shadow:inset 0 1px 0 #fff2d41a;min-width:0;max-width:100%;overflow:hidden;color:#f8efe4;
+}
+.creative-studio .cs-prompt-panel[hidden]{display:none!important}
+.creative-studio .cs-prompt-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
+.creative-studio .cs-prompt-head h3{margin:6px 0;font-size:clamp(19px,4vw,26px);letter-spacing:-.025em;color:#f9e1b4}
+.creative-studio .cs-prompt-head small{font-size:10px;letter-spacing:.17em;font-weight:900;color:#a1dcb2}
+.creative-studio .cs-prompt-head button{
+ flex-shrink:0;width:38px;height:38px;border:1px solid #a89676;border-radius:11px;
+ background:#172530;color:#fff;font-size:25px;line-height:1;
+}
+.creative-studio .cs-prompt-panel>p{color:#d6decf;font-size:13px;line-height:1.5;margin:11px 0}
+.creative-studio .cs-prompt-panel>label{display:block;margin:12px 0 7px;font-weight:800;color:#ead5b4;font-size:12px}
+.creative-studio #csPromptMode{
+ width:100%;min-height:46px;border:1px solid #ac9876;border-radius:10px;
+ background:#101923!important;color:#fff!important;padding:10px 13px;max-width:100%;
+}
+.creative-studio #csPromptText{
+ display:block;box-sizing:border-box;width:100%;max-width:100%;min-height:230px;
+ background:#09131b!important;color:#e8f1df!important;border:1px solid #8fa698!important;
+ border-radius:12px;padding:16px;resize:vertical;white-space:pre-wrap;
+ font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+.creative-studio .cs-prompt-status{min-height:22px;color:#a3e5b4!important;font-size:12px;font-weight:800}
+.creative-studio .cs-prompt-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:10px}
+.creative-studio .cs-prompt-actions .btn{
+ flex:1 1 155px;box-sizing:border-box;text-align:center;display:inline-flex;
+ justify-content:center;align-items:center;min-height:45px;text-decoration:none;
+ font-size:13px;white-space:normal;
+}
+.creative-studio .cs-prompt-actions .btn:first-child{
+ background:#c5954c!important;color:#17120a!important;border:1px solid #eac07d!important
+}
+.creative-studio .cs-prompt-help{display:block;color:#b5bfc1;font-size:11px;line-height:1.55;margin-top:14px}
+@media(max-width:450px){.creative-studio .cs-prompt-actions .btn{flex-basis:100%}.creative-studio #csPromptText{min-height:225px}}
+
+.cs-placeholder{box-sizing:border-box;max-width:100%}
+
+
+.creative-studio .cs-prompt-actions a.btn{color:#f1dfc3!important;background:#1d2b33!important;border:1px solid #9f8e73!important}

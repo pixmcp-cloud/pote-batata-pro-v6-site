@@ -108,6 +108,7 @@ function page(){
  const showPrice=flag(current,'showPrice',true);
  const actions='<div class="actions cs-actionbar"><button class="btn" type="button" onclick="generateCreative()">Gerar arte</button>'+
   '<button class="btn line" type="button" onclick="creativeAutoCopy()">Novo texto sugerido</button>'+
+  '<button class="btn line cs-prompt-button" type="button" onclick="creativeOpenPrompt()">✦ Prompt para IA grátis</button>'+
   '<button class="btn line" type="button" onclick="window.POTE_GALLERY?.open()">Galeria · 42 horas</button>'+
   (existing?'<button class="btn line" type="button" onclick="downloadCreative()">Baixar PNG</button><button class="btn line" type="button" onclick="copyCreativeCaption()">Copiar legenda</button>':'')+'</div>';
  const idSelected=esc(id);
@@ -137,6 +138,18 @@ function page(){
  boxCheck('Chamada para ação','csShowCta',flag(current,'showCta',true))+
  '</fieldset><p class="cs-price-hint" id="csPriceHint" aria-live="polite">Para anunciar desconto, escolha um percentual ou preencha um preço menor que o preço atual.</p>'+
  actions+
+ '<section id="csPromptPanel" class="cs-prompt-panel" hidden aria-label="Prompt publicitário para IA">'+
+ '<div class="cs-prompt-head"><div><small>CAMINHO GRATUITO</small><h3>Crie sua arte com outra IA</h3></div><button type="button" class="cs-prompt-close" aria-label="Fechar" onclick="creativeClosePrompt()">×</button></div>'+
+ '<p>O prompt é criado a partir da receita selecionada. Copie, baixe a foto e envie ambos à IA escolhida. Nenhuma informação é compartilhada automaticamente.</p>'+
+ select('Tipo de resultado','csPromptMode',[['ad','Arte completa com texto e preço'],['photo','Somente fotografia, sem textos']],'ad')+
+ '<label class="cs-prompt-label" for="csPromptText">Prompt preparado para copiar</label>'+
+ '<textarea id="csPromptText" rows="13" readonly spellcheck="false"></textarea>'+
+ '<p id="csPromptStatus" class="cs-prompt-status" role="status" aria-live="polite"></p>'+
+ '<div class="cs-prompt-actions"><button class="btn" type="button" onclick="creativeCopyPrompt()">Copiar prompt</button>'+
+ '<button class="btn line" type="button" onclick="creativeDownloadPhoto()">Baixar foto original</button>'+
+ '<a class="btn line" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer">Abrir Gemini</a></div>'+
+ '<small class="cs-prompt-help">No Gemini, anexe a foto e cole o comando. Recursos gratuitos podem ter limites. Revise preço, marca e ingredientes antes de publicar.</small>'+
+ '</section>'+
  '<p class="help">O preço promocional não altera a precificação nem o PDV. Confira a oferta antes de compartilhar. Ingredientes descritos são extraídos da ficha cadastrada.</p>'+
  '</section><section class="box cs-preview"><div class="cs-preview-title"><div><small>PRÉVIA DA CAMPANHA</small><h3>O anúncio que seu cliente verá</h3></div></div>'+
  (existing?card(existing):'<div class="cs-placeholder"><strong>Seu anúncio começa aqui</strong><p>Escolha o produto e clique em Gerar arte. A foto original será usada no resultado.</p></div>')+
@@ -330,6 +343,28 @@ async function exportPng(options={}){
   notify('Arte PNG '+w+' × '+h+' exportada.');
  }catch(error){console.error('Creative Studio',error);notify('Não foi possível exportar a imagem. Confira a foto cadastrada.')}
 }
+window.POTE_CREATIVE_PROMPT_READ=function(){
+ const id=chosen('creativeRecipe'),r=getRecipe(id);
+ if(!r||(typeof allowed==='function'&&!allowed(r)))return {error:'Selecione um produto liberado no cardápio.'};
+ if(typeof pro==='function'&&!pro()&&state.freeCreativeRecipeId&&state.freeCreativeRecipeId!==id)return {error:'O plano Free permite criar conteúdo apenas para o produto liberado.'};
+ const ratio=chosen('creativeRatio','9:16'),campaign=chosen('csCampaign','oferta'),style=chosen('csStyle','premium');
+ if(!FORMATS[ratio]||!CAMPAIGNS[campaign]||!STYLES[style])return {error:'Selecione formato e campanha válidos.'};
+ const priceNormal=parseMoney(chosen('creativeOld')),priceAd=parseMoney(chosen('creativeSale'));
+ const showPrice=!!$('csShowPrice')?.checked,showOld=!!$('csShowOld')?.checked;
+ if(showPrice&&!(priceAd>0))return {error:'Verifique o preço do anúncio. O prompt não pode inventar valores.'};
+ if(showPrice&&showOld&&!(priceNormal>priceAd))return {error:'O preço anterior deve ser maior que o preço do anúncio.'};
+ const suggested=copyFor(r,campaign),brand=state.data.brand||{};
+ return {id:r.id,name:r.name,ingredients:featuredIngredients(r),
+  brand:{name:brand.name||'',phone:brand.phone||'',instagram:brand.instagram||'',hasLogo:!!brand.logoUrl},
+  ratio,campaignName:CAMPAIGNS[campaign].label,styleName:STYLES[style],
+  headline:safe(chosen('creativeHeadline')||suggested.headline,90),
+  description:safe(chosen('creativeBody')||suggested.body,160),
+  cta:safe(chosen('creativeCta')||suggested.cta,70),
+  priceNormal:amount(priceNormal),priceAd:amount(priceAd),showPrice,showOld,
+  showPhone:!!$('csShowPhone')?.checked,showLogo:!!$('csShowLogo')?.checked,showCta:!!$('csShowCta')?.checked,
+  photoFocus:chosen('csPhotoFocus','food'),
+  source:typeof imageSource==='function'?imageSource(r):''};
+};
 window.copyCreativeCaption=async()=>{
  const c=getActive();if(!c){notify('Gere a arte primeiro.');return}
  try{await navigator.clipboard.writeText(caption(c));notify('Legenda copiada.')}

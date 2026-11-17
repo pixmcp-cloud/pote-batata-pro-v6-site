@@ -21,6 +21,7 @@ jobs:
           python3 add_contacts.py public/index.html
           cp creative_studio.js public/creative_studio.js
           cp creative_studio.css public/creative_studio.css
+          cp creative_prompt.js public/creative_prompt.js
           cp public/index.html public/beta.html
           python3 make_beta.py public/beta.html
           cp public/beta.html public/index.html
@@ -143,6 +144,8 @@ jobs:
           node --check public/top_navigation.js
           node test_top_navigation.js
           node --check public/creative_studio.js
+          node --check public/creative_prompt.js
+          node test_creative_prompt.cjs
           node test_creative_studio.cjs
           node --check public/compact_account_header.js
           node test_compact_account_header.js

@@ -1,4 +1,4 @@
-﻿const puppeteer=require('C:/Users/LIVRESOM/AppData/Local/npm-cache/_npx/4b4c857f6efdfb61/node_modules/puppeteer');
+const puppeteer=require('C:/Users/LIVRESOM/AppData/Local/npm-cache/_npx/4b4c857f6efdfb61/node_modules/puppeteer');
 const path=require('path'),fs=require('fs'),assert=require('assert').strict;
 const root=__dirname;
 (async()=>{
@@ -30,11 +30,40 @@ const root=__dirname;
  await page.addStyleTag({content:'.box{padding:16px;margin:12px;border-radius:16px}.field{display:flex;flex-direction:column;gap:5px;font-size:13px}.field input,.field select{padding:10px}.actions{display:flex;gap:8px}.btn{padding:10px;border:1px solid #888;border-radius:8px}'});
  await page.addStyleTag({path:path.join(root,'creative_studio.css')});
  await page.addScriptTag({path:path.join(root,'creative_studio.js')});
+ await page.addScriptTag({path:path.join(root,'creative_prompt.js')});
  await page.evaluate(()=>render());
  assert.equal(await page.$eval('#creativeOld',e=>e.value),'34,90','official price must be filled');
  assert.equal(await page.$eval('#creativeSale',e=>e.value),'34,90','price cannot be fabricated as a discount');
  assert((await page.$eval('#creativeBody',e=>e.value)).toLowerCase().includes('requeijão'),'copy must use recipe ingredient data');
  const labels=await page.$$('#csCampaign option'); assert.equal(labels.length,6);
+ await page.click('.cs-prompt-button');
+ const prompt=await page.$eval('#csPromptText',e=>e.value);
+ assert(prompt.includes('Frango Cremoso')&&prompt.includes('Requeijão')&&prompt.includes('Mussarela'),'prompt uses actual recipe');
+ assert(prompt.includes('R$ 34,90')&&prompt.includes('9:16'),'prompt uses real price and ratio');
+ assert(prompt.includes('POTÊ BATATA')||prompt.includes('Potê Batata'),'brand in prompt');
+ const promptLayout=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,view:innerWidth,hidden:document.getElementById('csPromptPanel').hidden}));
+ console.log('PROMPT_LAYOUT',promptLayout,await page.evaluate(()=>[...document.querySelectorAll('*')].map(x=>({id:x.id,cls:x.className,tag:x.tagName,rect:x.getBoundingClientRect()})).filter(v=>v.rect.right>innerWidth+1).slice(0,18).map(v=>({id:v.id,cls:String(v.cls).slice(0,45),tag:v.tag,right:v.rect.right,left:v.rect.left,width:v.rect.width}))));assert(promptLayout.scroll<=promptLayout.view+1&&!promptLayout.hidden,'prompt mobile layout');
+ await page.$('#csPromptPanel').then(x=>x.screenshot({path:path.join(root,'test_prompt_panel_mobile.png')}));
+ const geminiHref=await page.$eval('#csPromptPanel a[href]',e=>e.href);
+ assert(geminiHref.startsWith('https://gemini.google.com/'),'must open official Gemini');
+ await page.$eval('#creativeHeadline',e=>{e.value='SUPER OFERTA DE HOJE';e.dispatchEvent(new Event('input',{bubbles:true}))});
+ assert((await page.$eval('#csPromptText',e=>e.value)).includes('SUPER OFERTA DE HOJE'),'live prompt must refresh when copy changes');
+ assert((await page.$eval('#csPromptStatus',e=>e.textContent)).includes('atualizado'));
+ for(const width of [320,375,430]){
+  await page.setViewport({width,height:844,deviceScaleFactor:1});
+  const info=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,view:innerWidth,rect:document.getElementById('csPromptPanel').getBoundingClientRect().toJSON()}));
+  assert(info.scroll<=width+1,'prompt overflow at '+width+' px: '+JSON.stringify(info));
+ }
+ await page.setViewport({width:390,height:844,deviceScaleFactor:1});
+ const photoSaved=await page.evaluate(()=>creativeDownloadPhoto());
+ assert.equal(photoSaved,true,'actual product photo must be exportable from browser');
+ console.log('PASS browser: prompt reacts to copy edits, responsive 320/375/430 and downloads original photo');
+ await page.select('#csPromptMode','photo');
+ const photoOnly=await page.$eval('#csPromptText',e=>e.value);
+ assert(photoOnly.includes('SEM TEXTO')&&!photoOnly.includes('Preço atual:'),'photo-only prompt');
+ await page.click('.cs-prompt-close');
+ assert(await page.$eval('#csPromptPanel',e=>e.hidden),'prompt close');
+ console.log('PASS browser: prompt opens, live real recipe and price, manual photo-only, responsive panel');
  const ratio=[['9:16',1080,1920],['1:1',1080,1080],['4:5',1080,1350],['16:9',1920,1080]];
  for(const [i,w,h] of ratio){
   await page.select('#creativeRatio',i);
@@ -66,8 +95,13 @@ const root=__dirname;
  await page.select('#creativeRecipe','b');
  assert.equal(await page.$eval('#creativeOld',el=>el.value),'28,90');
  assert.equal(await page.$eval('#creativeSale',el=>el.value),'28,90');
+ await page.click('.cs-prompt-button');
+ const second=await page.$eval('#csPromptText',e=>e.value);
+ assert(second.includes('Brigadeiro')&&!second.includes('Frango Cremoso'),'prompt updates when selected product changes');
+ assert(second.includes('R$ 28,90')&&!second.includes('R$ 34,90'),'no stale pricing in prompt');
+ await page.evaluate(()=>creativeClosePrompt());
+ console.log('PASS browser: Prompt reads current form before saving the creative');
   assert.equal(errors.length,0,'page errors: '+errors.join(', '));
  console.log('PASS campaign suggestion, style and visibility toggles; no JS page errors');
  }finally{await browser.close()}
 })().catch(e=>{console.error('FAIL',e);process.exit(1)});
-
