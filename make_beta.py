@@ -387,7 +387,7 @@ BODY_ASSETS = (
 # F08: authenticated beta uses Creative Studio V7 exclusively. The offline
 # V6 demonstration retains its legacy generator; never remove its fallback.
 creative_start = html.find("function pageCreative(){")
-creative_end = html.find("function pageAdmin(){", creative_start)
+creative_end = html.find("function pageBrand(){", creative_start)
 if creative_start < 0 or creative_end < 0 or html.count("function pageCreative(){") != 1:
     raise SystemExit("F08: legacy generator boundary changed; refusing non-verifiable removal")
 creative_guard = (
