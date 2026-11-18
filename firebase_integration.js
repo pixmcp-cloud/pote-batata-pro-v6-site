@@ -132,12 +132,30 @@ function showBackupButton(){
  }
  if(recovery)recovery.hidden=!active||!syncBlocked;
 }
-function resolvePendingConflict(){
+async function resolvePendingConflict(){
  if(!active||!syncBlocked)return false;
- // Exportação é explícita; não é possível verificar se o navegador salvou o arquivo.
- try{downloadPending()}catch(error){setStatus("Falha ao exportar backup. Conflito preservado.");return false}
- if(!window.confirm("Foi solicitado o download do backup pendente. Confira se o arquivo foi salvo. Recarregar a versão da nuvem descarta estas alterações locais, que só poderão ser recuperadas pelo JSON exportado. Continuar?"))return false;
- try{localStorage.removeItem(pendingKey(active.uid))}catch(error){setStatus("Não foi possível liberar o backup pendente.");return false}
+ const uid=active.uid;
+ const backup=existingPending(uid);
+ const expected=backup?.state||safeState();
+ // Never discard a pending order on the strength of the download click alone.
+ try{downloadPending()}catch(error){
+  setStatus("Falha ao exportar backup. Conflito preservado.");return false;
+ }
+ setStatus("Confirme seu backup: selecione o arquivo JSON que acabou de baixar.");
+ const checked=await verifyBackupFile(uid,expected);
+ if(!checked?.ok){
+  setStatus("Conflito preservado: "+String(checked?.error||"backup não verificado"));
+  return false;
+ }
+ if(active?.uid!==uid||auth.currentUser?.uid!==uid||!syncBlocked||
+  stableJson(existingPending(uid)?.state||safeState())!==stableJson(expected)){
+  setStatus("A conta ou o backup mudou. Conflito preservado.");
+  return false;
+ }
+ if(!window.confirm("Backup verificado ("+checked.fileName+"). Recarregar os dados da nuvem? As alterações locais pendentes ficarão somente no arquivo JSON. Confirme que encerrou as outras abas do Potê Batata."))return false;
+ try{localStorage.removeItem(pendingKey(uid))}catch(error){
+  setStatus("Não foi possível liberar o backup pendente.");return false;
+ }
  ready=false;
  syncBlocked=false;
  pendingThisSession=false;
@@ -209,7 +227,10 @@ function verifyBackupFile(expectedUid,expectedState){
 function showRecovery(){
  if(!syncBlocked)return;
  showBackupButton();
- const target=document.getElementById("poteSyncResolve")||document.getElementById("potePendingSyncBackup")||syncEl;
+ const orderNotice=document.getElementById("poteOrderSyncWarning");
+ if(orderNotice){orderNotice.hidden=false;}
+ const target=orderNotice||document.getElementById("poteSyncResolve")||
+  document.getElementById("potePendingSyncBackup")||syncEl;
  if(target){target.scrollIntoView?.({behavior:"smooth",block:"center"});target.focus?.({preventScroll:true})}
 }
 window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};

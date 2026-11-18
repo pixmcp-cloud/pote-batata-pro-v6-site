@@ -15,8 +15,12 @@ function toCents(x){
  return Number.isSafeInteger(cents)&&cents>=0?cents:NaN;
 }
 function calculate(total,received){
- const owing=toCents(total),paid=toCents(received);
- if(!Number.isFinite(owing)||!Number.isFinite(paid))return {valid:false,reason:"Informe valores monetários válidos."};
+ const owing=toCents(total),raw=String(received??"").trim();
+ // Cash tendered is optional when the customer pays the exact total.
+ // Empty is not an invalid amount; an explicit malformed amount still fails.
+ if(!Number.isFinite(owing))return {valid:false,reason:"Total do pedido inválido."};
+ const paid=raw?toCents(raw):owing;
+ if(!Number.isFinite(paid))return {valid:false,reason:"Valor recebido inválido. Digite, por exemplo, 30,00."};
  if(paid<owing)return {valid:false,reason:"Dinheiro insuficiente: faltam "+money((owing-paid)/100)+".",
    total:owing/100,received:paid/100,missing:(owing-paid)/100};
  return {valid:true,total:owing/100,received:paid/100,change:(paid-owing)/100};
@@ -45,10 +49,11 @@ function sync(){
  if(!cash){preview.innerHTML="<strong>Total previsto: "+money(total)+"</strong><span>Pagamento: "+
    ({pix:"Pix",cartao:"Cartão",entrega:"Na entrega",outro:"Outro"}[method]||method)+
    ". Ao concluir a venda, o recebimento entra automaticamente no Caixa PDV, sem uma segunda confirmação.</span>";return}
- const calc=calculate(String(total.toFixed(2)),$("orderCashReceived")?.value||"");
+ const rawReceived=$("orderCashReceived")?.value||"";
+ const calc=calculate(String(total.toFixed(2)),rawReceived);
  preview.innerHTML="<strong>Valor total: "+money(total)+"</strong><span>"+
  (Number.isFinite(calc.received)?"Dinheiro recebido: "+money(calc.received)+" · ":"")+
- (calc.valid?"Troco a devolver: <b>"+money(calc.change)+"</b>":calc.reason)+"</span>";
+ (calc.valid?(!String(rawReceived).trim()?"Valor exato considerado. ":"")+"Troco a devolver: <b>"+money(calc.change)+"</b>":calc.reason)+"</span>";
  preview.dataset.valid=String(calc.valid);
 }
 function validate(){
