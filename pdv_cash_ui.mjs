@@ -306,6 +306,21 @@ function render(){
   (overdue.length?'<details class="pote-pdv-details" data-pdv-detail="old-receivables"><summary>Ver '+overdue.length+
      ' recebimento(s) de turnos antigos</summary><p class="pote-pdv-note">Após conferir, eles entram no total de hoje sem mudar o fechamento anterior.</p>'+pastList+'</details>':'')+
   '</section>'+
+   '<section class="pote-pdv-box pote-pdv-cash-tools" data-pdv-detail="movements">'+
+   '<div class="pote-pdv-box-header"><span class="pote-pdv-step">MOVIMENTAÇÃO DO CAIXA</span>'+
+   '<h3>Retirada e reforço de dinheiro</h3>'+
+   '<p>Registre o dinheiro físico que sai ou entra na gaveta. Pix e cartão não são sangria.</p></div>'+
+   '<div class="pote-pdv-quick-actions">'+
+   '<button type="button" data-pdv-action="withdraw" class="pote-pdv-quick-withdraw">− Retirada / Sangria</button>'+
+   '<button type="button" data-pdv-action="supply" class="pote-pdv-quick-supply">+ Reforço / Suprimento</button></div>'+
+   '<div class="pote-pdv-movement-editor" id="potePdvMovementEditor" hidden>'+
+   '<h3 id="potePdvMovementTitle">Registrar retirada / sangria</h3>'+
+   '<form data-pdv-form="movement"><input type="hidden" name="kind" value="sangria">'+
+   textField("Valor em dinheiro (R$)","amount","Ex.: 50,00")+
+   textField("Motivo obrigatório","reason","Ex.: depósito bancário")+
+   '<div class="pote-pdv-movement-buttons"><button type="submit" class="pote-pdv-primary">Salvar movimentação</button>'+
+   '<button type="button" data-pdv-action="cancel-movement" class="pote-pdv-movement-cancel">Cancelar</button></div></form></div>'+
+   '<p class="pote-pdv-note">O saldo da gaveta será atualizado; a movimentação ficará registrada no turno.</p></section>'+
   '<section class="pote-pdv-box pote-pdv-closing"><div class="pote-pdv-box-header"><span class="pote-pdv-step">PASSO 4</span>'+
   '<h3>Conferir e fechar o caixa</h3>'+
   '<p>Conte somente <strong>notas e moedas</strong>. Pix e cartão aparecem no relatório acima, mas não ficam na gaveta.</p></div>'+
@@ -321,15 +336,6 @@ function render(){
   'Digite o dinheiro contado acima para ver se há sobra ou falta antes de fechar.</div>'+
   '<button type="submit" class="pote-pdv-primary">Conferir e fechar caixa</button></form>'+
   '<p class="pote-pdv-note">A diferença ficará no histórico. Fechar o turno não confirma nem cobra pagamentos pendentes.</p></section>'+
-  '<details class="pote-pdv-details" data-pdv-detail="movements"><summary>Mais opções · entradas, retiradas e reembolsos</summary>'+
-  '<p class="pote-pdv-note"><strong>Entrada extra (suprimento):</strong> dinheiro colocado na gaveta para troco. '+
-  '<strong>Retirada (sangria):</strong> dinheiro removido da gaveta, por exemplo para depositar no banco.</p>'+
-  '<form data-pdv-form="movement"><label>O que aconteceu?<select name="kind">'+
-  '<option value="sangria">Retirada (sangria)</option>'+
-  '<option value="suprimento">Coloquei dinheiro no caixa (suprimento)</option></select></label>'+
-  textField("Valor movimentado (R$)","amount","Ex.: 50,00")+
-  textField("Motivo da movimentação","reason","Ex.: Retirada para depósito")+
-  '<button type="submit">Salvar movimentação</button></form></details>'+
   '<details class="pote-pdv-details" data-pdv-detail="receipts"><summary>Comandas e recibos não fiscais · '+recent.length+
   ' pedido(s) mostrado(s)</summary>'+
   (recent.length?recent.map(o=>
@@ -390,6 +396,7 @@ function submit(form){
   }else if(type==="movement"){
    const movement=mutate(data=>registerCashMovement(data,{
     id:id(),kind:payload.kind,amount:parseMoney(payload.amount),reason:payload.reason}));
+   movementEditorKind=null;updateMovementPanel();
    status(({sangria:"Retirada (sangria)",suprimento:"Entrada (suprimento)",reembolso:"Reembolso"}[movement.kind]||"Movimentação")+" registrada: "+brl(movement.amount));
   }else if(type==="close"){
    const data=snapshot()?.data;
