@@ -301,3 +301,54 @@ test("stock shortage does not write order, movements, pulse or journal",async()=
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
 
 });
+
+function finishFixture(method="Pix"){
+ const {db}=makeStore(),app=appFor(db);
+ const path=recordPath(UID,UNIVERSE,"orders","o1"),original=db.current(path).record;
+ db.seed(path,{record:{...original,item:{...original.item,
+  paymentMethod:method,paymentStatus:"pendente",cashSessionId:"s1"}}});
+ const cashPath=recordPath(UID,UNIVERSE,"cashSessions","s1");
+ db.seed(cashPath,{record:{universe:UNIVERSE,group:"cashSessions",
+  id:"s1",rank:1,item:{status:"open"}}});
+ return {db,app,path,cashPath};
+}
+test("F20 finish: one-click Pix receipt without duplicate PDV credit",async()=>{
+ const {db,app,path}=finishFixture("Pix");
+ assert.equal((await app.fetch(request(payload(OP1)),env)).status,200);
+ const docsBefore=db.docs.size;
+ const finish=()=>app.fetch(request(payload(OP2),"/v1/orders/finish"),env);
+ const first=await finish();
+ assert.equal(first.status,200,await first.text());
+ const receipt=await first.json();
+ assert.equal(receipt.receiptRecorded,true);
+ assert.equal(receipt.bankReconciled,false);
+ const order=db.current(path).record.item;
+ assert.equal(order.status,"entregue");
+ assert.equal(order.paymentStatus,"pago");
+ assert.equal(order.paymentDeclarationSource,"operator");
+ assert.equal(db.docs.size,docsBefore+1,"Only worker journal may be added");
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,2);
+ assert.equal((await (await finish()).json()).alreadyApplied,true);
+ assert.equal((await app.fetch(request(payload(OP3),"/v1/orders/finish"),env)).status,409);
+});
+test("F20 finish: payment on delivery stays pending",async()=>{
+ const {db,app,path}=finishFixture("Cart?o na entrega");
+ assert.equal((await app.fetch(request(payload(OP1)),env)).status,200);
+ const result=await app.fetch(request(payload(OP2),"/v1/orders/finish"),env);
+ assert.equal(result.status,200);
+ assert.equal((await result.json()).receiptRecorded,false);
+ const order=db.current(path).record.item;
+ assert.equal(order.status,"entregue");
+ assert.equal(order.paymentStatus,"pendente");
+ assert.equal(order.paymentConfirmedAt,undefined);
+});
+test("F20 finish: closed shift cannot silently confirm sale",async()=>{
+ const {db,app,path,cashPath}=finishFixture("Dinheiro");
+ assert.equal((await app.fetch(request(payload(OP1)),env)).status,200);
+ db.seed(cashPath,{record:{universe:UNIVERSE,group:"cashSessions",
+  id:"s1",rank:1,item:{status:"closed"}}});
+ assert.equal((await app.fetch(request(payload(OP2),"/v1/orders/finish"),env)).status,409);
+ assert.equal(db.current(path).record.item.status,"em_producao");
+ assert.equal(db.current(path).record.item.paymentStatus,"pendente");
+});
+
