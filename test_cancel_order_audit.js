@@ -90,8 +90,25 @@ assert.equal(el("poteCancelReturn").disabled,true);
 assert.equal(C.perform("return"),false,"Sem cadastro de ingrediente não pode estornar parcialmente");
 assert.equal(potato.stock,beforeFail);
 assert.equal(state.data.stockMovements.length,oldCount);
+// F05: um estorno já registrado não deve ser repetido se um marcador legado sumir.
+const replay=order("replay","cancelado",true);
+replay.stockRestored=false;
+state.data.orders.push(replay);
+state.data.stockMovements.unshift({id:"return-replay",referenceId:"replay",quantity:1000,
+ reason:"Estorno de estoque por cancelamento"});
+assert.equal(C.canRecover(replay),false,"Histórico de estorno impede retorno duplo mesmo sem marcador");
+assert.equal(C.open("replay"),false);
+// O mesmo bloqueio precisa existir dentro da ação, se o movimento chegar após abrir.
+const race=order("race","cancelado",true);
+state.data.orders.push(race);
+assert.equal(C.open("race"),true);
+const beforeRace=state.data.ingredients.find(x=>x.id==="batata").stock;
+state.data.stockMovements.unshift({id:"return-race",referenceId:"race",quantity:1000,
+ reason:"Estorno de estoque por cancelamento"});
+assert.equal(C.perform("return"),false,"Revalida movimentações antes da mutação");
+assert.equal(state.data.ingredients.find(x=>x.id==="batata").stock,beforeRace);
 assert(persists>=5&&renders>=5);
 const src=read("source/pote_app_base.html"),pub=read("public/index.html");
 assert(src.includes("POTE_CANCEL?.open"));
-assert(pub.includes("cancel_order_flow.js?v=v3-wave1-20261116"));
+assert(pub.includes("cancel_order_flow.js?v=restock-idempotent-20261118"));
 console.log("PASS: reserva sem baixa, restituição de batata/bacon/pote/refri, cancelamento de entregue, recuperação legada, perda, sem duplo estorno e sem estorno parcial.");

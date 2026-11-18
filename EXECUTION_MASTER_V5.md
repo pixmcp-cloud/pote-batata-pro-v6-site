@@ -14,7 +14,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F02 | Parcial (bloqueio de estoque negativo publicado) | Duas sessões disputam 10 unidades, com uma única gravação. Nova vulnerabilidade confirmada: escrita direta de estoque negativo via SDK era aceita; correção de validação numérica/não negativa publicada nas regras, testada no Emulator após exploração reproduzida. Vínculos pedido-consumo ainda exigem validação server-side. |
 | F03 | Parcial | Compras e ajustes preservam saldos pt-BR. O PDV rejeita valores inválidos sem gravar. Faltam os demais formulários. |
 | F04 | Implementado | A suíte preserva markup personalizado e cobre cálculo para receitas novas. |
-| F05 | Parcial | Cancelamento e perdas têm regressões locais. Falta homologar estornos e reembolsos sob falha e concorrência. |
+| F05 | Parcial; proteção adicional testada | O cancelamento agora confere também o histórico de movimentos positivos de estorno para impedir devolver estoque duas vezes quando `stockRestored` estiver ausente/incoerente; o teste cobre movimento já registrado e movimento que surge depois de abrir a janela. Falta enforcement autoritativo server-side, multiusuário e reembolso sob falha. |
 | F06 | Pendente | O limite de transação mantém a operação íntegra. Falta protocolo para importações acima de 290 alterações. |
 | F07 | Implementado | A suíte verifica a disponibilidade dos módulos essenciais. |
 | F08 | Pendente | O gerador legado ainda serve de fallback. A remoção depende de validar a página-base e a galeria no fluxo normal. |
@@ -29,7 +29,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F17 | Parcial | O login passou em Chrome emulado de 320 a 768 px. Faltam perfil de performance, acessibilidade e teste em Android físico. |
 | F18 | Publicado nas regras; testado no Emulator | Inspeção autenticada das regras de produção mostrou proteção de coleções legadas para Free, idêntica à main em `a7796e4`; ataque SDK falhou no Emulator. Homologação em conta real ainda pendente. |
 | F19 | Regras publicadas; testes de SDK no Emulator | Quotas por chaves canônicas já estão nas regras ativas. Testes Emulator rejeitam segunda receita Free e permitem Pro; validar fluxos reais, catálogo e tentativas alternativas antes de certificação comercial. |
-| F20 | Parcial; candidata testada | Além da imutabilidade existente, foram reproduzidos e bloqueados no Emulator reembolso e pagamento tardio sem pedido/turno de origem, motivo ou comprovante. Faltam validação autoritativa da existência do pedido, valor real, antifraude e eventos compensatórios atômicos. Detalhes em `SECURITY_F20_20261118.md`. |
+| F20 | Parcial; proteção estrutural publicada | Além da imutabilidade existente, regras novas publicadas exigem pedido/turno de origem e conferência adequada em reembolso e pagamento tardio; verificação pós-deploy por API e SHA-256. Faltam validação server-side da existência do pedido, valor efetivo, antifraude e eventos atômicos. Detalhes em `SECURITY_F20_20261118.md`. |
 | F21 | Pendente | Falta inventariar ativos publicados e decidir a hospedagem do SaaS comercial. |
 | F22 | Implementado | Engenharia de cardápio coberta pelos testes da beta. |
 | F23 | Testado em emulador | Exportação JSON, substituição dos dados e restauração em segunda sessão. Importação é cancelada se a conta ou o estado muda durante a leitura. Faltam backup e restauração de IndexedDB e teste físico. |

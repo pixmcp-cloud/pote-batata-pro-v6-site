@@ -15,7 +15,12 @@ function wasDeducted(order){
   Number(m.quantity)<0&&/produ|bebida vendida|baixa/i.test(m.reason||""));
  return movement||order?.status==="em_producao"||order?.status==="entregue";
 }
-function canRecover(order){return !!order&&order.status==="cancelado"&&wasDeducted(order)&&order.stockRestored!==true&&order.stockReturnDeclined!==true}
+function hasStockReturnMovement(order){
+ return !!order&&(data().stockMovements||[]).some(move=>
+  move.referenceId===order.id&&Number(move.quantity)>0&&
+  /^Estorno (?:de estoque|bebida) por cancelamento$/i.test(String(move.reason||"")));
+}
+function canRecover(order){return !!order&&order.status==="cancelado"&&wasDeducted(order)&&order.stockRestored!==true&&order.stockReturnDeclined!==true&&!hasStockReturnMovement(order)}
 function needs(order){
  const qty=Math.max(1,Number(order.qty)||1),ins=new Map(),drinks=new Map();
  if(order.stockOverrideApproved&&order.stockActualConsumed){
@@ -99,7 +104,7 @@ function close(){
 function perform(action){
  window.POTE_STOCK?.normalizeInventory?.(data());
  const order=findOrder(selected);
- if(!order||order.stockRestored===true&&action==="return")return false;
+ if(!order||action==="return"&&(order.stockRestored===true||hasStockReturnMovement(order)))return false;
  if(order.status==="cancelado"&&!canRecover(order))return false;
  const recovery=order.status==="cancelado",deducted=wasDeducted(order);
  if(recovery&&action==="discard")return false;

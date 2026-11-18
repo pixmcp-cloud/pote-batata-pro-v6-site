@@ -350,7 +350,7 @@ BODY_ASSETS = (
     '<script src="./order_guard.js?v=audit-20261115"></script>'
     '<script src="./cost_history.js?v=v3-cost-20261116"></script>'
     '<script src="./losses.js?v=v3-wave1-20261116"></script>'
-    '<script src="./cancel_order_flow.js?v=v3-wave1-20261116"></script>'
+    '<script src="./cancel_order_flow.js?v=restock-idempotent-20261118"></script>'
     '<script src="./exit_guard.js?v=android-back-drafts-v5-20261117"></script>'
     '<script src="./recipe_photo.js?v=recipe-square-v5-20261117"></script>'
     '<script type="module" src="./franchise_sync.js?v=admin-all-universes-20261116"></script>'
