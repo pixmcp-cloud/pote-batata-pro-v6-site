@@ -121,6 +121,19 @@ service cloud.firestore {
             ]))
         );
     }
+    // F02/F20: impedir saldos físicos negativos ou não numéricos diretamente no SDK.
+    // A conferência transacional de consumo e reserva continua sendo requisito separado.
+    function validInventoryStock(record) {
+      return !(record.group in ['ingredients', 'beverages']) || (
+        record.item is map && (
+          !record.item.keys().hasAny(['stock']) || (
+            record.item.stock is number
+            && record.item.stock >= 0
+            && record.item.stock <= 1000000000
+          )
+        )
+      );
+    }
     function validRecordDocument(document, record) {
       return document.keys().hasOnly(['record', 'updatedAt'])
         && document.get('updatedAt', null) == request.time
@@ -135,7 +148,7 @@ service cloud.firestore {
           'expenses', 'recipeVersions', 'recipeTrash', 'purchases',
           'stockMovements', 'beverages', 'addons', 'combos', 'prepBatches',
           'checklist', 'losses', 'garimpoOffers', 'cashSessions', 'cashMovements'
-        ];
+        ] && validInventoryStock(record);
     }
     function validFinancialPayload(record) {
       let item = record.item;

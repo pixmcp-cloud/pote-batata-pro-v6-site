@@ -1,8 +1,8 @@
 # Potê Batata Pro | Candidata para homologação
 
-Base `2ff10f3`, revisão de 17/11/2026. O pacote usa `firestore.hardened.rules` para os testes de cotas. A configuração de produção `firebase.json` continua apontando para `firestore.rules`.
+Base de referência histórica `2ff10f3` (17/11/2026), atualizada nesta auditoria pela branch derivada de `main` em `a7796e4` (18/11/2026). O pacote usa `firestore.hardened.rules` para os testes de cotas. A configuração de produção `firebase.json` continua apontando para `firestore.rules`.
 
-A página pública respondeu por HTTPS com o cliente `v4-pulse-20261117`. O acesso de leitura ao inventário privado de contas e metadados foi bloqueado pela revisão automática. Os resultados de compatibilidade abaixo usam contas sintéticas no emulador. A configuração efetiva das regras e a composição das contas em produção aguardam verificação.
+A página pública respondeu por HTTPS com o cliente `v4-pulse-20261117`. O acesso de leitura ao inventário privado de contas e metadados foi bloqueado pela revisão automática. Os resultados de compatibilidade abaixo usam contas sintéticas no emulador. As regras realmente implantadas foram verificadas por API autenticada em modo leitura em 18/11: SHA-256 `35bdcf296a11528fe298420e0f56373fe36bb6ee948e9f6eef57eb6f7520224b`, idênticas ao `firestore.rules` de `main` antes da correção F02. As contas atuais não foram inspecionadas nem modificadas.
 
 Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator registrou 3 testes aprovados com as regras de referência e 7 com a candidata, incluindo os subcasos de contas antigas. A coleta de preços ao vivo ficou fora da suíte local.
 
@@ -11,7 +11,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | ID | Estado | Evidência ou pendência de aceite |
 | --- | --- | --- |
 | F01 | Implementado | Cálculos e reconciliação de pagamentos cobertos pela suíte Node da beta. |
-| F02 | Parcial | Duas sessões disputam 10 unidades, com uma única gravação. Baixa de insumo e bebida do catálogo testada. A regra candidata protege a revisão, mas o saldo e os vínculos do pedido ainda exigem validação no servidor. |
+| F02 | Parcial (nova correção em homologação) | Duas sessões disputam 10 unidades, com uma única gravação. Nova vulnerabilidade confirmada: escrita direta de estoque negativo via SDK era aceita; correção candidata de validação numérica/não negativa e teste de exploração no Emulator. Vínculos pedido-consumo ainda exigem validação server-side. |
 | F03 | Parcial | Compras e ajustes preservam saldos pt-BR. O PDV rejeita valores inválidos sem gravar. Faltam os demais formulários. |
 | F04 | Implementado | A suíte preserva markup personalizado e cobre cálculo para receitas novas. |
 | F05 | Parcial | Cancelamento e perdas têm regressões locais. Falta homologar estornos e reembolsos sob falha e concorrência. |
@@ -27,8 +27,8 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F15 | Pendente | Falta versionar e limitar as dependências entre módulos globais. |
 | F16 | Testado | A inserção em uma lacuna saturada com 311 receitas faz duas escritas. A lista inteira volta na ordem esperada e mudanças acima do limite são recusadas. |
 | F17 | Parcial | O login passou em Chrome emulado de 320 a 768 px. Faltam perfil de performance, acessibilidade e teste em Android físico. |
-| F18 | Testado em emulador | Escrita Free em coleções legadas é recusada pela candidata. A promoção depende do inventário V1. |
-| F19 | Testado em emulador | Cota Free aplicada às chaves canônicas, catálogo inicial preservado, e Pro expirado mantém o histórico e pode salvar alterações independentes. Contas antigas acima da cota ainda exigem conciliação antes da promoção. |
+| F18 | Publicado nas regras; testado no Emulator | Inspeção autenticada das regras de produção mostrou proteção de coleções legadas para Free, idêntica à main em `a7796e4`; ataque SDK falhou no Emulator. Homologação em conta real ainda pendente. |
+| F19 | Regras publicadas; testes de SDK no Emulator | Quotas por chaves canônicas já estão nas regras ativas. Testes Emulator rejeitam segunda receita Free e permitem Pro; validar fluxos reais, catálogo e tentativas alternativas antes de certificação comercial. |
 | F20 | Parcial | Imutabilidade de movimentos financeiros, identidade dos modelos e revisão de inventário têm validação. Falta a trilha completa de eventos e compensações. |
 | F21 | Pendente | Falta inventariar ativos publicados e decidir a hospedagem do SaaS comercial. |
 | F22 | Implementado | Engenharia de cardápio coberta pelos testes da beta. |
@@ -38,7 +38,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F26 | Implementado | Política local de galeria por 42 horas coberta pela suíte. |
 | F27 | Parcial | Ajustes para abas ocultas presentes na base. Falta medir CPU e leituras. |
 | F28 | Testado localmente | Antes do login, pedidos e caixa começam zerados. O teste Chrome confere o estado real renderizado. O painel de simulação usa dados próprios. |
-| F29 | Testado localmente | O workflow verifica as regras atuais e candidatas em um projeto demo. Falta executar no remoto e confirmar a versão efetivamente implantada. |
+| F29 | Publicado/verificado, parcial | Workflow de regras `44224427191` aprovado no GitHub Actions; leitura autenticada do ruleset de produção e hash realizados. Nova proteção de estoque ainda exige pipeline e nova release separada, sem confundir teste com deploy. |
 | F30 | Implementado | Casos de isolamento e limpeza do Delivery cobertos pela suíte. |
 | F31 | Parcial | Contrato do MaisDelivery tem testes locais. Falta homologar a integração com credenciais sandbox. |
 | F32 | Adiado | Galeria continua local. |
