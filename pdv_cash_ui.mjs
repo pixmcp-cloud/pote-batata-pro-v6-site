@@ -12,6 +12,8 @@ const access=()=>!!window.POTE_APP_READY&&!!window.POTE_AUTH?.uid&&
 const snapshot=()=>window.POTE_APP?.snapshot?.()||null;
 const status=msg=>{let element=document.getElementById("potePdvMessage");if(element)element.textContent=msg};
 let trigger=null,modal=null,visible=false,delay=null,lastModalFingerprint=null;
+const expandedCashDetails=new Set();
+let movementEditorKind=null;
 function ensure(){
  if(trigger){if(!trigger.isConnected)document.body.appendChild(trigger);return}
  trigger=document.createElement("button");
@@ -32,9 +34,21 @@ function ensure(){
  '<a href="https://www.sef.sc.gov.br/orientacoes/nff-nota-fiscal-facil-mei-microempreendedor-individual" target="_blank" rel="noopener noreferrer">MEI/SC: veja a emissão gratuita pelo Nota Fiscal Fácil, quando habilitado</a>.</p></details></section>';
  document.body.appendChild(modal);
  modal.addEventListener("click",event=>{
-  if(event.target===modal)close();
+  if(event.target===modal){close();return}
+  const summary=event.target.closest?.('details[data-pdv-detail] > summary');
+  if(summary&&modal.contains(summary)){
+   event.preventDefault();event.stopPropagation();
+   const detail=summary.parentElement,key=detail.dataset.pdvDetail;
+   const opening=!expandedCashDetails.has(key);
+   if(opening)expandedCashDetails.add(key);else expandedCashDetails.delete(key);
+   detail.open=opening;
+   summary.setAttribute("aria-expanded",String(opening));
+   if(opening)requestAnimationFrame(()=>revealCashSection(detail));
+   return;
+  }
   const button=event.target.closest?.("[data-pdv-action]");if(!button)return;
-  event.preventDefault();action(button.dataset.pdvAction,button.dataset.orderId);
+  event.preventDefault();event.stopPropagation();
+  action(button.dataset.pdvAction,button.dataset.orderId);
  });
  modal.addEventListener("submit",event=>{event.preventDefault();submit(event.target)});
  modal.addEventListener("input",event=>{if(event.target?.name==="countedCash")updateCountPreview(event.target.value)});
@@ -165,16 +179,32 @@ function refreshPage(){
 }
 /* An unrelated app autosave must NOT recreate an expanded <details> in the
    cashier. Browser-native open state belongs to the user until they tap it. */
-function captureCashDetails(body){
- return new Set([...(body.querySelectorAll?.('details[open][data-pdv-detail]')||[])]
-  .map(item=>item.dataset.pdvDetail));
+function captureCashDetails(body){return new Set(expandedCashDetails)}
+function updateMovementPanel(){
+ const panel=modal?.querySelector?.("#potePdvMovementEditor");
+ if(!panel)return;
+ panel.hidden=!movementEditorKind;
+ const kind=panel.querySelector?.('input[name="kind"]');
+ if(kind)kind.value=movementEditorKind||"sangria";
+ const title=panel.querySelector?.("#potePdvMovementTitle");
+ if(title)title.textContent=movementEditorKind==="suprimento"?
+  "Adicionar troco / suprimento":"Registrar retirada / sangria";
+}
+function revealCashSection(section){
+ const scroller=modal?.querySelector?.("#potePdvBody");
+ if(!scroller||!section?.getBoundingClientRect)return;
+ const bounds=section.getBoundingClientRect(),parent=scroller.getBoundingClientRect();
+ const delta=bounds.top-parent.top-12;
+ if(delta>0||bounds.top<parent.top+8)
+  scroller.scrollTop=Math.max(0,scroller.scrollTop+delta);
 }
 function restoreCashDetails(body,openDetails,scrollY){
  for(const item of body.querySelectorAll?.('details[data-pdv-detail]')||[]){
   item.open=openDetails.has(item.dataset.pdvDetail);
+  item.querySelector?.("summary")?.setAttribute?.("aria-expanded",String(item.open));
  }
- const scroller=modal?.querySelector('.pote-pdv-container');
- if(scroller&&scrollY!==null)scroller.scrollTop=scrollY;
+ if(scrollY!==null&&Number.isFinite(scrollY))body.scrollTop=scrollY;
+ updateMovementPanel();
 }
 function fingerprintCash(data,session){
  return JSON.stringify([
@@ -200,7 +230,7 @@ function render(){
  const nextFingerprint=fingerprintCash(data,s);
  if(nextFingerprint===lastModalFingerprint)return; // No data change: leave details and forms intact.
  const openedDetails=captureCashDetails(body);
- const scroller=modal.querySelector('.pote-pdv-container');
+ const scroller=body;
  const scrollY=scroller?.scrollTop??null;
  lastModalFingerprint=nextFingerprint;
  if(!s){
@@ -276,6 +306,21 @@ function render(){
   (overdue.length?'<details class="pote-pdv-details" data-pdv-detail="old-receivables"><summary>Ver '+overdue.length+
      ' recebimento(s) de turnos antigos</summary><p class="pote-pdv-note">Após conferir, eles entram no total de hoje sem mudar o fechamento anterior.</p>'+pastList+'</details>':'')+
   '</section>'+
+   '<section class="pote-pdv-box pote-pdv-cash-tools" data-pdv-detail="movements">'+
+   '<div class="pote-pdv-box-header"><span class="pote-pdv-step">MOVIMENTAÇÃO DO CAIXA</span>'+
+   '<h3>Retirada e reforço de dinheiro</h3>'+
+   '<p>Registre o dinheiro físico que sai ou entra na gaveta. Pix e cartão não são sangria.</p></div>'+
+   '<div class="pote-pdv-quick-actions">'+
+   '<button type="button" data-pdv-action="withdraw" class="pote-pdv-quick-withdraw">− Retirada / Sangria</button>'+
+   '<button type="button" data-pdv-action="supply" class="pote-pdv-quick-supply">+ Reforço / Suprimento</button></div>'+
+   '<div class="pote-pdv-movement-editor" id="potePdvMovementEditor" hidden>'+
+   '<h3 id="potePdvMovementTitle">Registrar retirada / sangria</h3>'+
+   '<form data-pdv-form="movement"><input type="hidden" name="kind" value="sangria">'+
+   textField("Valor em dinheiro (R$)","amount","Ex.: 50,00")+
+   textField("Motivo obrigatório","reason","Ex.: depósito bancário")+
+   '<div class="pote-pdv-movement-buttons"><button type="submit" class="pote-pdv-primary">Salvar movimentação</button>'+
+   '<button type="button" data-pdv-action="cancel-movement" class="pote-pdv-movement-cancel">Cancelar</button></div></form></div>'+
+   '<p class="pote-pdv-note">O saldo da gaveta será atualizado; a movimentação ficará registrada no turno.</p></section>'+
   '<section class="pote-pdv-box pote-pdv-closing"><div class="pote-pdv-box-header"><span class="pote-pdv-step">PASSO 4</span>'+
   '<h3>Conferir e fechar o caixa</h3>'+
   '<p>Conte somente <strong>notas e moedas</strong>. Pix e cartão aparecem no relatório acima, mas não ficam na gaveta.</p></div>'+
@@ -291,15 +336,6 @@ function render(){
   'Digite o dinheiro contado acima para ver se há sobra ou falta antes de fechar.</div>'+
   '<button type="submit" class="pote-pdv-primary">Conferir e fechar caixa</button></form>'+
   '<p class="pote-pdv-note">A diferença ficará no histórico. Fechar o turno não confirma nem cobra pagamentos pendentes.</p></section>'+
-  '<details class="pote-pdv-details" data-pdv-detail="movements"><summary>Mais opções · entradas, retiradas e reembolsos</summary>'+
-  '<p class="pote-pdv-note"><strong>Entrada extra (suprimento):</strong> dinheiro colocado na gaveta para troco. '+
-  '<strong>Retirada (sangria):</strong> dinheiro removido da gaveta, por exemplo para depositar no banco.</p>'+
-  '<form data-pdv-form="movement"><label>O que aconteceu?<select name="kind">'+
-  '<option value="sangria">Retirada (sangria)</option>'+
-  '<option value="suprimento">Coloquei dinheiro no caixa (suprimento)</option></select></label>'+
-  textField("Valor movimentado (R$)","amount","Ex.: 50,00")+
-  textField("Motivo da movimentação","reason","Ex.: Retirada para depósito")+
-  '<button type="submit">Salvar movimentação</button></form></details>'+
   '<details class="pote-pdv-details" data-pdv-detail="receipts"><summary>Comandas e recibos não fiscais · '+recent.length+
   ' pedido(s) mostrado(s)</summary>'+
   (recent.length?recent.map(o=>
@@ -360,6 +396,7 @@ function submit(form){
   }else if(type==="movement"){
    const movement=mutate(data=>registerCashMovement(data,{
     id:id(),kind:payload.kind,amount:parseMoney(payload.amount),reason:payload.reason}));
+   movementEditorKind=null;updateMovementPanel();
    status(({sangria:"Retirada (sangria)",suprimento:"Entrada (suprimento)",reembolso:"Reembolso"}[movement.kind]||"Movimentação")+" registrada: "+brl(movement.amount));
   }else if(type==="close"){
    const data=snapshot()?.data;
@@ -384,6 +421,16 @@ function parseMoney(value){
 }
 function action(name,orderId){
  if(name==="hide"){close();return}
+ if(name==="withdraw"||name==="supply"){
+  movementEditorKind=name==="withdraw"?"sangria":"suprimento";
+  updateMovementPanel();
+  const panel=modal?.querySelector?.("#potePdvMovementEditor");
+  if(panel)requestAnimationFrame(()=>revealCashSection(panel));
+  return;
+ }
+ if(name==="cancel-movement"){
+  movementEditorKind=null;updateMovementPanel();return;
+ }
  const data=snapshot()?.data,order=data?.orders?.find(x=>x.id===orderId);
  if(!order)return;
  if(name==="kitchen"||name==="receipt"){
@@ -466,10 +513,11 @@ function printOrder(order,options){
 }
 function open(){
  if(!access())return;
- ensure();lastModalFingerprint=null;visible=true;modal.hidden=false;render();
+ ensure();expandedCashDetails.clear();movementEditorKind=null;
+ lastModalFingerprint=null;visible=true;modal.hidden=false;render();
  modal.querySelector('button[data-pdv-action="hide"]')?.focus();
 }
-function close(){visible=false;lastModalFingerprint=null;if(modal)modal.hidden=true}
+function close(){visible=false;lastModalFingerprint=null;expandedCashDetails.clear();movementEditorKind=null;if(modal)modal.hidden=true}
 function refresh(){
  ensure();
  // Evita substituir o input focado no celular: isso fecharia/reabriria o teclado.

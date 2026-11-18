@@ -182,3 +182,52 @@
 .pote-pdv-page-secondary{background:#203a2b;color:#d1f7dc}
 .pote-pdv-page-help{border:1px solid #405846;border-radius:13px;padding:14px;background:#18261e;color:#c4d7c8;font-size:12px;line-height:1.75;margin:0}
 @media(max-width:590px){.pote-pdv-page{gap:12px;padding:0 2px}.pote-pdv-page-heading,.pote-pdv-page-summary,.pote-pdv-page-chart{padding:16px}.pote-pdv-page-controls{grid-template-columns:1fr}.pote-pdv-page-foot strong{font-size:18px}}
+
+/* PDV v6: isolated scrolling and quick cash movement buttons. */
+#potePdvDialog{align-items:center;overflow:hidden;overscroll-behavior:contain}
+.pote-pdv-container{
+ display:flex;flex-direction:column;overflow:hidden;
+ width:min(795px,100%);height:min(92dvh,960px);
+ max-height:calc(100dvh - 14px);min-height:0;min-width:0;
+}
+.pote-pdv-container>header{position:relative;top:auto;flex:0 0 auto}
+#potePdvMessage{flex:0 0 auto}
+#potePdvBody{
+ display:grid;flex:1 1 auto;min-height:0;min-width:0;
+ overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+ scrollbar-gutter:stable;scroll-padding-top:12px;scroll-padding-bottom:18px;
+ -webkit-overflow-scrolling:touch;
+}
+.pote-pdv-disclaimer-details{flex:0 0 auto;margin:0 18px 12px;padding:7px 0 0}
+.pote-pdv-details{min-width:0;overflow-wrap:anywhere}
+.pote-pdv-details[open]{overflow:visible}
+.pote-pdv-details>summary{touch-action:manipulation;user-select:none}
+.pote-pdv-cash-tools{border:1px solid #7db18e;background:linear-gradient(145deg,#1d3a2a,#172b20)}
+.pote-pdv-quick-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pote-pdv-container .pote-pdv-quick-actions button{
+ min-height:54px;text-align:left;font-size:13px;line-height:1.45;
+ padding:12px 14px;border:1px solid #a2d4ae;
+}
+.pote-pdv-container .pote-pdv-quick-withdraw{background:#60462c;color:#fff1d8;border-color:#bb945b}
+.pote-pdv-container .pote-pdv-quick-supply{background:#274d39;color:#eaffed;border-color:#609c77}
+#potePdvMovementEditor[hidden]{display:none!important}
+.pote-pdv-movement-editor{
+ margin-top:12px;border-top:1px solid #58745e;padding-top:14px;
+ display:grid;gap:10px;
+}
+.pote-pdv-movement-editor>h3{margin:0 0 4px}
+.pote-pdv-movement-buttons{display:grid;grid-template-columns:2fr 1fr;gap:9px}
+.pote-pdv-container .pote-pdv-movement-cancel{background:#35483b;color:#edffef;border:1px solid #779281}
+@media(max-width:650px){
+ #potePdvDialog{padding:6px;align-items:stretch}
+ .pote-pdv-container{
+  height:calc(100dvh - 12px - env(safe-area-inset-bottom));
+  max-height:calc(100dvh - 12px - env(safe-area-inset-bottom));
+  border-radius:14px;
+ }
+ .pote-pdv-container>header{padding:13px 16px}
+ .pote-pdv-container header h2{font-size:22px}
+ #potePdvBody{padding:0 11px 15px}
+ .pote-pdv-container .pote-pdv-quick-actions button{font-size:12px}
+}
+@media(max-width:340px){.pote-pdv-quick-actions,.pote-pdv-movement-buttons{grid-template-columns:1fr}}
