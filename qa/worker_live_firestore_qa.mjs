@@ -18,9 +18,9 @@ if(!token||token.length<50)throw Error("A short-lived QA access token is require
 const full=p=>DB+"/documents/"+p.split("/").map(encodeURIComponent).join("/");
 const key=(group,id)=>recordPath(uid,universe,group,id);
 const row=(group,id,item)=>({record:{universe,group,id,rank:1,item}});
-const order=id=>({id,status:"recebido",stockDeducted:false,qty:2,price:30,
+const order=(id,grams=100,withWater=true)=>({id,status:"recebido",stockDeducted:false,qty:2,price:30,
  paymentMethod:"Pix",paymentStatus:"Informado",
- items:[{id:"potato",g:100,yieldPct:100}],beverageItems:[{id:"water",qty:1}]});
+ items:[{id:"potato",g:grams,yieldPct:100}],beverageItems:withWater?[{id:"water",qty:1}]:[]});
 async function http(url,body,method="GET"){
  const response=await fetch(url,{
   method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
@@ -40,6 +40,8 @@ async function seed(){
   [root+"/appState/v2InventoryGuard",{revision:0}],
   [root+"/appState/v2Pulse",{eventId:"seed",sensitive:false,changedKeys:[]}],
   [key("orders","o1"),row("orders","o1",order("o1"))],
+  [key("orders","o2"),row("orders","o2",order("o2",400,false))],
+  [key("orders","o3"),row("orders","o3",order("o3",400,false))],
   [key("ingredients","potato"),row("ingredients","potato",{id:"potato",name:"Batata",stock:1000})],
   [key("beverages","water"),row("beverages","water",{id:"water",name:"Água",stock:10})]
  ];
@@ -83,14 +85,14 @@ async function run(){
    accessToken:async()=>token}),
   clock:()=>new Date()
  });
- const req=(op,action="produce",decision)=>new Request(
+ const req=(op,action="produce",decision,orderId="o1")=>new Request(
   "https://worker.qa.invalid/v1/orders/"+action,{
    method:"POST",headers:{Origin:ORIGIN,Authorization:"Bearer synthetic-qa-token",
     "Content-Type":"application/json"},
-   body:JSON.stringify({universe,orderId:"o1",operationId:op,
+   body:JSON.stringify({universe,orderId,operationId:op,
     ...(decision?{decision}:{})})
   });
- const op1=randomUUID(),op2=randomUUID();
+ const op1=randomUUID(),op2=randomUUID(),op3=randomUUID(),op4=randomUUID(),op5=randomUUID();
  let started=false;
  try{
   await seed();started=true;
@@ -106,8 +108,25 @@ async function run(){
   assert.equal((await read(key("ingredients","potato"))).record.item.stock,1000);
   assert.equal((await read(key("beverages","water"))).record.item.stock,10);
   assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,2);
+  const race=await Promise.all([
+   worker.fetch(req(op3,"produce",undefined,"o2"),env),
+   worker.fetch(req(op4,"produce",undefined,"o3"),env)
+  ]);
+  const statuses=race.map(r=>r.status).sort((a,b)=>a-b);
+  assert.deepEqual(statuses,[200,409],
+   "Two simultaneous REST orders must not oversell 1000g; got "+statuses);
+  assert.equal((await read(key("ingredients","potato"))).record.item.stock,200);
+  const winner=race[0].status===200?"o2":"o3";
+  const loser=winner==="o2"?"o3":"o2";
+  const loss=await worker.fetch(req(op5,"cancel","loss",winner),env);
+  assert.equal(loss.status,200,JSON.stringify(await loss.json()));
+  assert.equal((await read(key("ingredients","potato"))).record.item.stock,200);
+  assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,4);
+  const rejected=await worker.fetch(req(randomUUID(),"produce",undefined,loser),env);
+  assert.equal(rejected.status,409);
+  assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,4);
   console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
-   " effects=produce/retry/cancel/stock/guard");
+   " effects=produce/retry/cancel/race/loss/stock/guard");
  }finally{
   if(started){
    const deleted=await cleanup();
