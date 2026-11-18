@@ -366,7 +366,7 @@ BODY_ASSETS = (
     '<link rel="stylesheet" href="./motoboy.css?v=motoboy-20261116">'
     '<script type="module" src="./motoboy.js?v=motoboy-20261116"></script>'
     '<link rel="stylesheet" href="./pdv_cash.css?v=pdv-visible-v5-20261118">'
-    '<script type="module" src="./pdv_cash_ui.mjs?v=pdv-visible-v5-20261118"></script>'
+    '<script type="module" src="./pdv_cash_ui.mjs?v=cash-accordion-stable-20261118"></script>'
     '<script src="./numeric_keyboard.js?v=teclado-numerico-20261116"></script>'
     '<script src="./module_health.js?v=v3-wave1-20261116"></script>'
     '<link rel="stylesheet" href="./pote_calc_launcher.css?v=quantum-99-20261117">'

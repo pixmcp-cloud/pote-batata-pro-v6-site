@@ -11,7 +11,7 @@ const access=()=>!!window.POTE_APP_READY&&!!window.POTE_AUTH?.uid&&
  (window.POTE_AUTH.role==="admin"||window.POTE_AUTH.proActive===true||window.POTE_AUTH.franchiseActive===true);
 const snapshot=()=>window.POTE_APP?.snapshot?.()||null;
 const status=msg=>{let element=document.getElementById("potePdvMessage");if(element)element.textContent=msg};
-let trigger=null,modal=null,visible=false,delay=null;
+let trigger=null,modal=null,visible=false,delay=null,lastModalFingerprint=null;
 function ensure(){
  if(trigger){if(!trigger.isConnected)document.body.appendChild(trigger);return}
  trigger=document.createElement("button");
@@ -155,6 +155,25 @@ function refreshPage(){
  if(!next||el.innerHTML===next.innerHTML)return;
  el.replaceWith(next);
 }
+/* An unrelated app autosave must NOT recreate an expanded <details> in the
+   cashier. Browser-native open state belongs to the user until they tap it. */
+function captureCashDetails(body){
+ return new Set([...(body.querySelectorAll?.('details[open][data-pdv-detail]')||[])]
+  .map(item=>item.dataset.pdvDetail));
+}
+function restoreCashDetails(body,openDetails,scrollY){
+ for(const item of body.querySelectorAll?.('details[data-pdv-detail]')||[]){
+  item.open=openDetails.has(item.dataset.pdvDetail);
+ }
+ const scroller=modal?.querySelector('.pote-pdv-container');
+ if(scroller&&scrollY!==null)scroller.scrollTop=scrollY;
+}
+function fingerprintCash(data,session){
+ return JSON.stringify([
+  window.POTE_AUTH?.uid||'',session?.id||null,session?.status||null,
+  data.cashSessions||[],data.cashMovements||[],data.orders||[]
+ ]);
+}
 function render(){
  ensure();
  const heading=document.querySelector(".ops-heading");
@@ -170,6 +189,12 @@ function render(){
  if(!visible)return;
  const data=snapshot()?.data||{orders:[]};
  const body=modal.querySelector("#potePdvBody");
+ const nextFingerprint=fingerprintCash(data,s);
+ if(nextFingerprint===lastModalFingerprint)return; // No data change: leave details and forms intact.
+ const openedDetails=captureCashDetails(body);
+ const scroller=modal.querySelector('.pote-pdv-container');
+ const scrollY=scroller?.scrollTop??null;
+ lastModalFingerprint=nextFingerprint;
  if(!s){
   const latest=lastClosedSession(data);
   const last=latest?'<div class="pote-pdv-last"><strong>Último fechamento</strong>'+
@@ -184,13 +209,14 @@ function render(){
    textField("Dinheiro inicial para troco (R$)","openingCash","Ex.: 100,00")+
    '<p class="pote-pdv-note">Se a gaveta estiver vazia, digite 0,00.</p>'+
    '<button type="submit" class="pote-pdv-primary">Abrir caixa e começar</button></form></section>'+
-   last+'<details class="pote-pdv-details"><summary>Consultar fechamentos anteriores</summary>'+
+   last+'<details class="pote-pdv-details" data-pdv-detail="closed-history"><summary>Consultar fechamentos anteriores</summary>'+
    sessionHistory(data)+'</details>'+
    '<section class="pote-pdv-box"><div class="pote-pdv-box-header"><span class="pote-pdv-step">RELATÓRIO DO PDV</span>'+
    '<h3>Recebimentos do '+(latest?'último caixa':'primeiro caixa')+'</h3>'+
    '<p>'+(latest?'Valores do último turno fechado, separados por forma de pagamento.':
    'O gráfico começa em zero e será preenchido quando houver vendas confirmadas.')+'</p></div>'+
    receiptChart(summarizePdvReceipts(reportForDisplay(data,latest)))+'</section>';
+  restoreCashDetails(body,openedDetails,scrollY);
   return;
  }
  const summary=calculateCash(data,s.id);
@@ -239,7 +265,7 @@ function render(){
   '<h3>Confirme os pagamentos <span class="pote-pdv-count">'+count+'</span></h3>'+
   '<p>Vendeu no Pix ou cartão? O valor já está registrado na lista abaixo, mas <strong>não conta como recebido</strong> até você conferir o extrato ou a maquininha e tocar em <strong>Confirmar recebimento</strong>.</p></div>'+
   pendingList+
-  (overdue.length?'<details class="pote-pdv-details"><summary>Ver '+overdue.length+
+  (overdue.length?'<details class="pote-pdv-details" data-pdv-detail="old-receivables"><summary>Ver '+overdue.length+
      ' recebimento(s) de turnos antigos</summary><p class="pote-pdv-note">Após conferir, eles entram no total de hoje sem mudar o fechamento anterior.</p>'+pastList+'</details>':'')+
   '</section>'+
   '<section class="pote-pdv-box pote-pdv-closing"><div class="pote-pdv-box-header"><span class="pote-pdv-step">PASSO 4</span>'+
@@ -247,7 +273,7 @@ function render(){
   '<p>Conte somente <strong>notas e moedas</strong>. Pix e cartão aparecem no relatório acima, mas não ficam na gaveta.</p></div>'+
   '<div class="pote-pdv-check-number"><small>DINHEIRO QUE DEVE TER NA GAVETA</small>'+
   '<strong>'+brl(summary.expectedCash)+'</strong></div>'+
-  '<details class="pote-pdv-details"><summary>Entenda de onde veio esse valor</summary>'+
+  '<details class="pote-pdv-details" data-pdv-detail="cash-equation"><summary>Entenda de onde veio esse valor</summary>'+
   cashEquation(summary)+'</details>'+
   (summary.cancelledCashAwaitingRefund>0?
    '<p class="pote-pdv-warn">Atenção: '+brl(summary.cancelledCashAwaitingRefund)+
@@ -257,7 +283,7 @@ function render(){
   'Digite o dinheiro contado acima para ver se há sobra ou falta antes de fechar.</div>'+
   '<button type="submit" class="pote-pdv-primary">Conferir e fechar caixa</button></form>'+
   '<p class="pote-pdv-note">A diferença ficará no histórico. Fechar o turno não confirma nem cobra pagamentos pendentes.</p></section>'+
-  '<details class="pote-pdv-details"><summary>Mais opções · entradas, retiradas e reembolsos</summary>'+
+  '<details class="pote-pdv-details" data-pdv-detail="movements"><summary>Mais opções · entradas, retiradas e reembolsos</summary>'+
   '<p class="pote-pdv-note"><strong>Entrada extra (suprimento):</strong> dinheiro colocado na gaveta para troco. '+
   '<strong>Retirada (sangria):</strong> dinheiro removido da gaveta, por exemplo para depositar no banco.</p>'+
   '<form data-pdv-form="movement"><label>O que aconteceu?<select name="kind">'+
@@ -266,7 +292,7 @@ function render(){
   textField("Valor movimentado (R$)","amount","Ex.: 50,00")+
   textField("Motivo da movimentação","reason","Ex.: Retirada para depósito")+
   '<button type="submit">Salvar movimentação</button></form></details>'+
-  '<details class="pote-pdv-details"><summary>Comandas e recibos não fiscais · '+recent.length+
+  '<details class="pote-pdv-details" data-pdv-detail="receipts"><summary>Comandas e recibos não fiscais · '+recent.length+
   ' pedido(s) mostrado(s)</summary>'+
   (recent.length?recent.map(o=>
    '<div class="pote-pdv-order"><div><b>'+esc(o.name)+'</b><small>'+esc(o.status)+' · '+
@@ -277,8 +303,9 @@ function render(){
     !(data.cashMovements||[]).some(m=>m.kind==="reembolso"&&m.orderId===o.id)?
     '<button type="button" data-pdv-action="refund" data-order-id="'+esc(o.id)+'">Devolver dinheiro</button>':"")+
    '</div></div>').join(""):'<p>Nenhum pedido vinculado ao turno.</p>')+'</details>'+
-  '<details class="pote-pdv-details"><summary>Histórico de caixas já fechados</summary>'+
+  '<details class="pote-pdv-details" data-pdv-detail="closed-history"><summary>Histórico de caixas já fechados</summary>'+
   sessionHistory(data)+'</details>';
+ restoreCashDetails(body,openedDetails,scrollY);
 }
 function sessionHistory(data){
  const past=(data.cashSessions||[]).filter(s=>s.status==="closed").slice(0,8);
@@ -431,10 +458,10 @@ function printOrder(order,options){
 }
 function open(){
  if(!access())return;
- ensure();visible=true;modal.hidden=false;render();
+ ensure();lastModalFingerprint=null;visible=true;modal.hidden=false;render();
  modal.querySelector('button[data-pdv-action="hide"]')?.focus();
 }
-function close(){visible=false;if(modal)modal.hidden=true}
+function close(){visible=false;lastModalFingerprint=null;if(modal)modal.hidden=true}
 function refresh(){
  ensure();
  // Evita substituir o input focado no celular: isso fecharia/reabriria o teclado.
