@@ -77,6 +77,16 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
  assert.equal((await(await go()).json()).alreadyApplied,true);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,475);
+});test("F05 stock loss once",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const b={universe:UNIVERSE,operationId:OP2,group:"ingredients",itemId:"batata",delta:-20,reason:"loss",note:"higiene"};
+ const fn=()=>app.fetch(request(b,"/v1/inventory/adjust"),env);
+ assert.equal((await fn()).status,200);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,380);
+ const e=db.current(recordPath(UID,UNIVERSE,"losses","cf-loss-"+OP2)).record.item;
+ assert.equal(e.quantityBase,20);
+ assert.equal(e.costKnown,false);
+ assert.equal((await(await fn()).json()).alreadyApplied,true);
 });test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
