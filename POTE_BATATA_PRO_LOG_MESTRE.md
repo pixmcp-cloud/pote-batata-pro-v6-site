@@ -324,3 +324,17 @@ Dupla trava real: requisição com PRODUCTION_CUTOVER_APPROVED=false devolveu 42
 NÃO testado em REST real ainda: corrida de dois pedidos e cancelamento com perda; testes HTTP sintéticos e SDK Emulator dessas rotas já passaram anteriormente. Tentativa de extensão não aplicada por bloqueio de ferramenta, sem alterar o repositório.
 Worker Cloudflare público, produção Firebase, regras comerciais, credenciais permanentes e planos pagos: INALTERADOS.
 PRÓXIMA AÇÃO EXATA: ampliar teste REST real para concorrência e perda, depois criar serviço Google de homologação de menor privilégio e testar JWT/OAuth sem expor credenciais.
+### CHECKPOINT: F02/F05 - corrida real do Firestore aprovada / 18-11-2026
+GitHub: pixmcp-cloud/pote-batata-pro-v6-site
+Branch candidata: feat/f35-completion-audit-20261118
+Commit de código: 7b0b0d878bcd9ed9872183f613d1b2fc3676c481
+Implementação: ampliado qa/worker_live_firestore_qa.mjs para dois pedidos simultâneos e cancelamento por perda após produção.
+Teste de sintaxe: node --check qa/worker_live_firestore_qa.mjs — APROVADO.
+Suite Worker: npm.cmd test --prefix workers/antifraud — 25/25 APROVADOS.
+REST Cloud Firestore REAL do QA, execução isolada: QA_LIVE_REST_WORKER_PASS, status final 0; produção, retry idempotente, cancelamento, corrida de dois pedidos (um sucesso e um conflito), perda sem reentrada no estoque e guard V2 foram verificados.
+19 documentos sintéticos removidos ao final: QA_LIVE_REST_SYNTHETIC_CLEANUP=19.
+OAuth: sessão temporária do PC, credenciais não copiadas ao GitHub nem ao log.
+Cloudflare staging /health: HTTP 200 com writesEnabled=false; nenhum cutover público ou serviço pago ativado.
+Firestore QA: pote-batata-qa-20261118, plano gratuito isolado; projeto comercial não alterado.
+PENDENTE: identidade de serviço Google de menor privilégio para Worker, bloqueio da escrita direta via SDK sem interromper o PDV, homologação das regras candidatas, reconciliação financeira.
+PRÓXIMA AÇÃO EXATA: elaborar/revisar a política de Rules candidata para impedir bypass do navegador, validar no Emulator e preservar compatibilidade antes de qualquer publicação.
