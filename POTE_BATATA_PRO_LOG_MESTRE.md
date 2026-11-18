@@ -1,0 +1,278 @@
+---
+tipo: checkpoint-de-continuidade
+projeto: Potê Batata Pro
+referencia: 2026-11-18
+estado: desenvolvimento-validado-em-laboratorio-sem-publicacao-comercial
+repositorio: pixmcp-cloud/pote-batata-pro-v6-site
+branch_de_trabalho: feat/f35-completion-audit-20261118
+head_branch_verificado: aaa2a104724a3355ae75a9078d7f59df1e144667
+head_main_verificado: 4cf0622f6f250b4e7422ae88e09a5943fb409935
+commits_a_frente_da_main: 19
+commits_atras_da_main: 0
+arquivo_fonte_adicional: AUDIT_35_PROGRESS_20261118.md
+---
+
+# LOG MESTRE DE CONTINUIDADE — POTÊ BATATA PRO
+
+**Finalidade:** transportar o estado exato do projeto entre conversas, evitando perda de contexto, alterações repetidas, correções contraditórias e afirmações de conclusão sem testes. Este arquivo é um registro de trabalho, não uma autorização automática para mudanças de produção.
+
+## 0. INSTRUÇÃO OBRIGATÓRIA PARA A PRÓXIMA CONVERSA
+
+Em toda nova conversa sobre o projeto, consultar automaticamente a cópia no PC ou a cópia versionada no GitHub:
+
+1. **Leia integralmente este documento primeiro**, incluindo todos os 35 itens, requisitos de negócio e bloqueios de segurança. Não peça ao usuário que reconte o projeto.
+2. Informe concisamente o ponto de parada e o primeiro passo técnico; depois **continue a execução imediatamente** com os conectores disponíveis. Não transforme este arquivo em mera proposta sem agir.
+3. Confira no GitHub o `main`, a branch de trabalho, o HEAD, eventuais commits novos e o diff antes de editar. Este arquivo registra um checkpoint de 18/11/2026 e pode ser superado por mudanças posteriores.
+4. **Edite código exclusivamente no GitHub** (branch de trabalho, commits rastreáveis), conforme preferência expressa do proprietário. O computador conectado pode ser usado para ler, compilar, testar e operar o GitHub autenticado; não modificar diretamente o código local do projeto nem atuar no Floot sem pedido explícito.
+5. Preserve produção, contas e dados reais. Não faça migrações destrutivas, deploy de Rules em produção, ativações de serviços pagos, mudanças de domínio ou abertura de escrita do Worker sem a autorização específica exigida para ações de risco. A aprovação geral das 35 melhorias não substitui autorização de custos ou cutover comercial.
+6. Não refaça itens validados sem motivo objetivo; priorize pendências e regressões. Registre cada nova mudança, commit, comandos executados, resultados dos testes e bloqueios.
+7. Na ausência de conector, descreva precisamente o que falta. **Não conclua que o computador está offline por um conector indisponível**; não confunda acesso ao PC com conexão USB do Android.
+8. Se a sessão não comportar tudo, encerre com **checkpoint atualizado**, commits, último teste concluído, pendências e comando/ação seguinte, sem sugerir que trabalho continuará em segundo plano.
+
+## 1. IDENTIFICAÇÃO E OBJETIVO DO PROJETO
+
+- **Aplicativo:** Potê Batata Pro, plataforma de gestão para pequenos estabelecimentos de alimentação e futuras franquias.
+- **Repositório GitHub:** https://github.com/pixmcp-cloud/pote-batata-pro-v6-site
+- **Site comercial existente:** https://pdv.livresom.com — não alterar por inferência; verificar antes de declarar qual release está no ar.
+- **Firebase:** projeto `potobatata-b71f3`. Uso de Firebase Auth com login Google, Firestore V2 por conta, Rules versionadas e ambientes Emulator locais.
+- **Cloudflare:** Worker de homologação `pote-batata-guard-staging` em `workers/antifraud/`; cliente tem ponte `worker_bridge.mjs` / `firebase_integration.js`.
+- **Floot:** plataforma original vinculada ao desenvolvimento; **não editar pelo Floot** sem solicitação expressa.
+- **Funcionalidades principais:** receitas, precificação, estoque, pedidos, PDV e caixa, despesas, perdas, clientes, fornecedores, criativos, relatórios, franquias, administração, autenticação e licenciamento Free/Pro.
+- **Critério econômico:** evitar custos recorrentes desnecessários; usar o que já existe e não contratar/ativar recursos pagos sem aprovação específica.
+
+### Comportamentos de negócio já estabelecidos
+
+- Ao pressionar **Concluir** uma venda, o pedido deve registrar automaticamente os recebimentos do caixa/PDV quando a forma for dinheiro, Pix ou cartão; **sem segunda confirmação manual**. Pedido com pagamento na entrega permanece pendente.
+- Relatórios e gráfico do PDV devem discriminar dinheiro, Pix e cartão, contando somente recebimentos marcados como confirmados; não misturar lucro, contribuição, vendas a receber e perdas.
+- Produção baixa ingredientes e bebidas pelas quantidades corretas. Cancelamento antes da produção não gera baixa física; após produção deve permitir devolver ao estoque **uma vez** ou lançar perda física, com histórico verificável e sem duplicar movimentos.
+- Vendas, caixa, estoque e configurações comerciais pertencem à conta/universo correto; conta Free nova não deve herdar vendas ou estoque de outras contas.
+- Acesso administrativo deve depender de identidade/claim verificada pelo servidor, nunca de botão, parâmetro de URL ou texto editável do navegador.
+- Franquia ativa deve receber permissões e catálogo autorizados, preservando isolamento dos dados financeiros privados.
+- Experiência mobile limpa, simples, menus e cabeçalho fixo, imagens oficiais e mensagens internas sem redirecionamento inesperado ao login.
+
+## 2. PONTO EXATO DE PARADA, VERIFICADO NO GITHUB
+
+**Comparação executada em 18/11/2026 por conector GitHub:**
+
+| Propriedade | Valor |
+| --- | --- |
+| Repositório | `pixmcp-cloud/pote-batata-pro-v6-site` |
+| Base / produção Git | `main` — `4cf0622f6f250b4e7422ae88e09a5943fb409935` |
+| Branch candidata | `feat/f35-completion-audit-20261118` |
+| HEAD da candidata | `aaa2a104724a3355ae75a9078d7f59df1e144667` |
+| Comparação com `main` | **19 commits à frente, 0 atrás** |
+| Arquivos alterados na candidata | **14** |
+| Alterações no diff | **302 inserções / 29 exclusões** |
+| Merge em `main` | **NÃO realizado** |
+| Deploy comercial nesta execução | **NÃO realizado** |
+| Estado da versão pública | Preservada; não assumir que branch candidata esteja publicada |
+
+**Última ação de código:** commit `aaa2a104724a3355ae75a9078d7f59df1e144667` alterou `qa/mobile/run_everything.ps1` para o relatório indicar explicitamente quando o Firebase Emulator é omitido pela opção `-SkipFirebase`. A última execução de regressão mobile completa após correção do F08 terminou com código zero; o commit apenas ajustou a mensagem de reporte.
+
+Links de navegação:
+- Branch: https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/tree/feat/f35-completion-audit-20261118
+- Comparação: https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/compare/main...feat/f35-completion-audit-20261118
+- Registro versionado anterior: https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/blob/feat/f35-completion-audit-20261118/AUDIT_35_PROGRESS_20261118.md
+- Arquivo de configuração Worker: https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/blob/feat/f35-completion-audit-20261118/workers/antifraud/wrangler.toml
+
+## 3. O QUE FOI IMPLEMENTADO NA ÚLTIMA SESSÃO
+
+1. **F03/F09 — parsing monetário:** `finance_core.js` passou a interpretar agrupamento brasileiro de milhares (ex.: `1.234`) de forma consistente com estoque e PDV. Novo `test_numeric_parser_consistency.cjs`; também aprovado `test_finance_core.js`.
+2. **F07/F15 — saúde dos módulos:** `module_health.js` ganhou contrato de métodos obrigatórios para módulos críticos, não apenas verificação de que um objeto global existe. `test_module_health.js` cobre módulos ausentes, incompletos e recuperação.
+3. **F08 — criativos:** `make_beta.py` remove do **HTML autenticado** as implementações duplicadas do gerador legado, preservando o módulo moderno `creative_studio.js` e mantendo a demonstração offline independente. Atenção: a primeira tentativa removeu por engano `pageBrand` e `saveBrand`, detectado por QA. Corrigido ao delimitar a substituição até `function pageBrand(){`. A suíte de 8 telas móveis **passou depois da correção**. Não repetir o corte amplo que terminava em `function pageAdmin(){`.
+4. **F21/F35 — auditoria de arquivos:** novos `qa/release_asset_inventory.mjs` e `qa/test_release_asset_inventory.mjs` para inventário SHA-256 de assets, referências ausentes e arquivos potencialmente sensíveis. Testes integrados à `.github/workflows/deploy.yml`, com ordem compatível com `build_hosting.py`.
+5. **F02/F05/F20 — segundo bloqueio no Worker:** além de `ENABLE_WRITES=true`, projetos reais exigem `PRODUCTION_CUTOVER_APPROVED=true`; ambas as variáveis permanecem `false` em `workers/antifraud/wrangler.toml`. Projetos `demo-*` do Emulator seguem trilha de teste. A operação real permanece desativada.
+6. **F29 — clareza de QA:** `qa/mobile/run_everything.ps1` passou a registrar se os testes Firestore foram ou não executados.
+7. **Documentação:** `AUDIT_35_PROGRESS_20261118.md` registra os 35 itens e pendências. O log mestre é persistido no PC e no GitHub; o usuário não deve anexá-lo em conversas futuras.
+
+### Lista completa dos 14 arquivos modificados/adicionados na branch
+
+```
+.github/workflows/deploy.yml
+AUDIT_35_PROGRESS_20261118.md
+finance_core.js
+make_beta.py
+module_health.js
+qa/mobile/run_everything.ps1
+qa/release_asset_inventory.mjs
+qa/test_release_asset_inventory.mjs
+test_module_health.js
+test_numeric_parser_consistency.cjs
+workers/antifraud/README.md
+workers/antifraud/src/index.mjs
+workers/antifraud/test/worker.test.mjs
+workers/antifraud/wrangler.toml
+```
+
+## 4. EVIDÊNCIAS DE TESTES: NÃO CONFUNDIR LABORATÓRIO COM PRODUÇÃO
+
+**Confirmado na sessão anterior:**
+
+- Worker (`npm.cmd test --prefix workers/antifraud`): **20/20** testes unitários aprovados; `npm.cmd run check` passou.
+- Worker usando transações reais do SDK contra Firestore Emulator: testes de produção, cancelamento, idempotência e consumo concorrente aprovados **nas duas configurações** de Rules.
+- Firebase Emulator: **10/10** testes na configuração de referência e **10/10** na candidata, incluindo permissões, recuperação V1, estoque negativo, gravação atômica e concorrência.
+- `qa/mobile/run_everything.ps1` em execução completa anterior ao ajuste final F08: código de saída **0**. Depois do ajuste F08, nova execução com `-SkipFirebase` passou, com código **0**, cobrindo Chrome/PDV/mobile; a validação Firestore da configuração de Worker foi executada separadamente.
+- **8 perfis de tela**: 320, 360, 375, 390, 430, 844 (paisagem), 768 (tablet) e 1366 (desktop), sem falhas no último ensaio.
+- **5 cenários** de venda simulada no PDV; Pix, cartão e dinheiro registrando entrada automaticamente; pagamento na entrega fica pendente.
+- Criativos: exportações PNG testadas em 9:16, 1:1, 4:5 e 16:9; geração e layout mobile aprovados.
+- Inventário final: **216 arquivos**, **7.741.149 bytes**, **zero** caminhos locais ausentes e **zero** arquivos suspeitos detectados pelas regras do verificador. Isso **não equivale** a auditoria de segurança completa.
+- Backup V1/V2, isolamentos de contas, limites e permissões foram exercitados em simulação e Emulator; **não** em migração real de produção.
+
+**Pontos que NÃO foram comprovados:** Android físico/APK nativo, custos operacionais reais, integração Firestore REST em projeto de teste não emulado, desempenho com dados comerciais vivos, estorno bancário, isolamento comercial ao vivo de múltiplas contas e publicação controlada da candidata.
+
+**Diagnóstico adicional:** alguns ensaios de interface PDV registraram mensagens de teste `Firebase: No Firebase App '[DEFAULT]' has been created`, embora a suíte tenha aprovado o comportamento simulado. Investigar se isso decorre apenas do harness isolado antes de considerar ausência de erros de console no ambiente real.
+
+## 5. MATRIZ DOS 35 ITENS — NÃO REABRIR SEM NECESSIDADE
+
+| ID | Estado no checkpoint | Trabalho realmente pendente / aceite final |
+| --- | --- | --- |
+| F01 | Implementado e testado localmente | Conciliação bancária/PSP real |
+| F02 | **PARCIAL — crítico** | Backend autoritativo, bloqueio coerente de escritas diretas no corte, testes REST reais |
+| F03 | Parcial, parser BRL melhorado | Demais formulários e entradas extremas |
+| F04 | Implementado/testado | Aceite comercial |
+| F05 | **PARCIAL — crítico** | Cancelamento/estorno com Worker em projeto real isolado, multiaparelho |
+| F06 | Parcial | Lotes grandes financeiros e de estoque precisam de operação backend idempotente |
+| F07 | Contratos reforçados/testados | Falha efetiva de carga em browser real |
+| F08 | Feito na candidata/testado após regressão | Smoke test Android físico autenticado |
+| F09 | Parcial | Eliminar demais parsers/funções redundantes |
+| F10 | Simulado/testado com V1 preservado | Exportação, verificação e migração de contas reais, sem perda |
+| F11 | Parcial | Modelo unificado de autorização cliente/servidor |
+| F12 | Parcial | Reduzir monólito/text substitution com regressão controlada |
+| F13 | Implementado/testado | Latência e custo de leituras Firestore vivo |
+| F14 | Implementado/testado | Carga em aparelho de pouca memória |
+| F15 | Contratos de módulos críticos entregues | Formalizar demais interfaces globais |
+| F16 | Testado | Escala de ordenação/posicionamento |
+| F17 | Emulado em 8 perfis | Android físico, acessibilidade, memória e performance |
+| F18 | Regras versionadas/testadas; situação real a verificar | Auditar efetiva versão de Rules publicada e Free real |
+| F19 | Controles Free versionados/testados; situação real a verificar | Teste de quotas Free/Pro por SDK e rotas alternativas no ambiente isolado |
+| F20 | **PARCIAL — crítico** | Auditoria servidor, reconciliação de recebimentos/reembolsos reais |
+| F21 | Inventário de release adicionado | Estratégia de site comercial, autenticação, rollout e monitoramento |
+| F22 | Implementado/testado | Aprovação gerencial |
+| F23 | Backup JSON emulado | Restauração mobile real/IndexedDB |
+| F24 | Claims ADM implementados/testados | Homologação ADM com conta real de teste |
+| F25 | Implementado/testado | Estados reais de integrações externas |
+| F26 | Implementado/testado | Retenção da galeria local |
+| F27 | Parcial | Perfil de CPU/memória/rede e custo de Firestore |
+| F28 | Testado em browser | Conta real recém-criada totalmente vazia |
+| F29 | QA automatizado, logs claros | Aprovação de ambiente real e revisão de release |
+| F30 | Implementado/testado | Alternância real de contas sem retenção cruzada |
+| F31 | Contratos MaisDelivery locais | Sandbox oficial e teste ponta a ponta autenticado |
+| F32 | **ADIADO POR CUSTO** | Não ativar galeria cloud/Storage sem aprovação |
+| F33 | Concorrência Firestore emulada | Dois aparelhos reais no mesmo estabelecimento |
+| F34 | Testado localmente | Fornecedores/preços externos, cache e rate limit reais |
+| F35 | Auditoria de assets entregue | Fallback de CDN/auth e homologação de rede real |
+
+**Nota de precisão:** documentação anterior usou expressões como "regras publicadas" em F18/F19. A última sessão **não implantou Rules de produção**. Na retomada, conferir diretamente a configuração vigente do Firebase antes de assumir que a segurança Free está completa no ar.
+
+## 6. BLOQUEIOS DE SEGURANÇA E ECONOMIA INEGOCIÁVEIS
+
+- **NÃO** alterar `CLOUD_WORKER_ACTIVE=false` no `firebase_integration.js` até o cutover homologado.
+- **NÃO** ativar `ENABLE_WRITES` nem `PRODUCTION_CUTOVER_APPROVED` em projeto real sem homologação e autorização específica.
+- **NÃO** inserir `GCP_PRIVATE_KEY`, JWT, tokens de acesso ou arquivos `.env` no GitHub, chat, relatório, navegador ou resposta. Quando autorizado, usar segredos do Cloudflare e identidade com privilégios mínimos.
+- **NÃO** presumir que estar logado em um site no navegador concede autorização de API ou de CLI; checar sessão e permissões.
+- **NÃO** executar deploy diretamente em produção, troca de Firestore Rules, serviços pagos, upgrade de plano, Cloud Storage/galeria em nuvem, migração destrutiva ou reset de contas sem aprovação específica.
+- **NÃO** permitir dois caminhos concorrentes para baixar estoque (browser SDK e Worker) quando ativar backend autoritativo; fazer transição conjunta e reversível.
+- Preservar contas Free/Pro e seus dados, saldos, histórico de caixa, custos, movimentos e backups; em testes sempre usar dados sintéticos.
+- Fronteira entre "venda registrada" e "Pix/cartão efetivamente liquidado": não alegar confirmação bancária quando há apenas marcação interna do app.
+- Manter backups verificáveis e rollback de código, Rules e dados de teste.
+
+## 7. CONECTORES E AMBIENTES — COMO RETOMAR SEM PEDIR O CONTEXTO DE NOVO
+
+**GitHub:** conector de leitura estava acessível. O conector inicialmente retornou HTTP 403 ao tentar criar branch/arquivo. O acesso GitHub já autenticado no **Remote Desktop Commander** permitiu criar e enviar branch e gravar conteúdo pela API do GitHub, sempre de modo versionado. **Não expor nem copiar tokens.** Reavaliar permissões da sessão nova antes de qualquer write.
+
+**Computador autorizado via Desktop Commander (referência histórica, não prova de conexão atual):**
+
+```
+Dispositivo: DESKTOP-9481JM1
+Sistema: Windows
+Device ID: da842e31-12f0-4fa5-9996-1696404896f2
+Plugin: Remote Desktop Commander
+```
+
+**Caminho local original informado:** `C:\Users\LIVRESOM\Documents\GitHub\pote-batata-pro-v6-site` — estava em branch **antiga** `v3-audit-37-20261116`, com arquivos **untracked**. **NÃO resetar, limpar ou sobrescrever esse diretório.**
+
+**Laboratório temporário da última sessão:** `$env:TEMP\pote-f35-qa-20261118` — clone separado para compilações/testes. A existência atual desse diretório deve ser verificada, não presumida. A política de não editar código diretamente no computador segue válida; correções devem ir ao GitHub, e o clone deve ser atualizado apenas para testar.
+
+**Compilação:** `python build_hosting.py` prepara `public/`. O script extrai os comandos do workflow até a primeira linha `node --check public/premium_motion.js`; **não inserir comandos antes dessa âncora**, pois isso causou falha de build e já foi corrigido.
+
+**Testes usuais (em clone descartável e seguro):**
+
+```powershell
+# Atualize o clone temporário com a branch candidata antes dos testes.
+python build_hosting.py
+node --test qa/test_release_asset_inventory.mjs
+node qa/release_asset_inventory.mjs public
+node test_numeric_parser_consistency.cjs
+node test_module_health.js
+node test_finance_core.js
+npm.cmd ci --prefix workers/antifraud --ignore-scripts --no-audit --no-fund
+npm.cmd run check --prefix workers/antifraud
+npm.cmd test --prefix workers/antifraud
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File qa\mobile\run_everything.ps1
+```
+
+No Windows, **usar `npm.cmd`**, não `npm`, porque a política de PowerShell bloqueou o wrapper `npm.ps1`. Para Firebase Emulator, o laboratório anterior usava o Java do Android Studio (`C:\Program Files\Android\Android Studio\jbr`) e `firebase.cmd`; conferir instalações e portas antes de executar. Alguns testes Chrome exigem Puppeteer e `NODE_PATH` local descritos em `qa/mobile/run_everything.ps1`.
+
+`-SkipFirebase` no runner omite **explicitamente** os testes Firestore; não anunciar essa execução como validação integral do Emulator. `-SkipBuild` pode reaproveitar um pacote antigo, portanto usar build novo no corte final.
+
+## 8. PRIMEIRA TAREFA TÉCNICA A EXECUTAR NA RETOMADA
+
+**Foco:** F02 + F05 + F20, segurança de estoque, cancelamento e auditoria financeira — **antes de novas animações, novas telas ou embelezamento**.
+
+### Sequência objetiva
+
+1. Abrir GitHub, conferir diffs e HEADs. Reusar a branch atual ou nova branch baseada nela, não `main` antigo. Verificar ferramentas conectadas e PC autorizado.
+2. Ler **integralmente**: `workers/antifraud/src/index.mjs`, `auth.mjs`, `domain.mjs`, `firestore.mjs`, `worker_bridge.mjs`, `firebase_integration.js`, `firestore.rules`, `firestore.hardened.rules` e testes relevantes. Confirmar que a dupla trava do Worker e `CLOUD_WORKER_ACTIVE=false` permanecem intactos.
+3. Verificar se há projeto Firebase **de teste isolado, não emulado** e acesso legítimo a Worker staging, sem tocar produção; se não houver, continuar implementando/validando com mocks e Emulator, sem simular implantação real.
+4. Priorizar teste end-to-end **Worker → OAuth de serviço → Firestore REST de teste → sincronização V2 → Rules**: pedido de teste, baixa de ingredientes/bebida, duas transações simultâneas, repetição de `operationId`, cancelamento/devolução única, cancelamento/perda, pedido sem saldo, mudança de conta e falha de rede.
+5. Garantir política de escrita que impeça bypass do browser **antes** de qualquer ativação de operações autoritativas. Testar continuidade de vendas, migrações e contas Free. Fazer ensaio de rollback.
+6. Auditar trilha financeira de Pix/cartão/dinheiro e diferenças entre marcado como recebido e confirmação real externa. Provar que nenhuma venda é contada ou estornada duas vezes.
+7. Reexecutar suites Worker, Emulator, Chrome, PDV e franquias; documentar commits e resultados, além das limitações.
+8. Apenas depois de homologação e autorização específica, planejar cutover comercial controlado e reversível. **Não fazer corte unilateral**.
+
+### Critério de conclusão deste próximo bloco
+
+Um teste reproduzível no ambiente não emulado de homologação confirma que todas as mutações de pedido, estoque e perdas passam por um único backend autoritativo, as Rules impedem bypass, o histórico financeiro é coerente, duas sessões concorrentes não causam estoque negativo/duplicidade, e o cliente sincroniza corretamente após interrupção. Se isso não for comprovado, o bloco continua **parcial**.
+
+## 9. PROTOCOLO DE REGISTRO AO FINAL DE CADA CONTINUAÇÃO
+
+Anexar ao final deste log, preservando histórico, um bloco com:
+
+```
+CHECKPOINT: AAAA-MM-DDTHH:MM:SS[timezone]
+GitHub main SHA:
+GitHub branch de trabalho:
+GitHub HEAD SHA:
+Arquivos/commits novos:
+Alterações concluídas por ID (F01-F35):
+Testes executados (comando, ambiente, resultado):
+Falhas encontradas e correções:
+Estado da produção e dos dados reais:
+Mudanças com custo ou impacto irreversível (se nenhuma, escrever NENHUMA):
+Pendências e riscos restantes:
+PRÓXIMA AÇÃO EXATA:
+```
+
+Não marcar "feito" sem evidência. Se o GitHub mostrar commits mais recentes que este log, o estado real do repositório prevalece e este documento deve ser atualizado.
+
+---
+
+**Mensagem opcional para iniciar nova conversa sem anexar arquivos:**
+
+> Acesse e leia INTEGRALMENTE o log mestre no PC ou GitHub antes de agir. Confirme o último commit e a tarefa pendente; confira a branch no GitHub; continue a implementação pela F02/F05/F20 imediatamente, sem repetir tarefas já aprovadas. Edite código somente pelo GitHub. Preserve produção e não ative serviços pagos ou migrações destrutivas. Registre as novas evidências no log.
+## 10. REGRA PERMANENTE: LOG NO PC E GITHUB (solicitação 18/11/2026)
+
+- O usuário NÃO anexará novamente o log. Sempre consultá-lo proativamente em C:\Users\LIVRESOM\Documents\POTE_BATATA_PRO_LOG_MESTRE.md via Desktop Commander, ou no GitHub se o PC estiver indisponível.
+- Cópia GitHub: https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/blob/feat/f35-completion-audit-20261118/POTE_BATATA_PRO_LOG_MESTRE.md
+- Ao concluir cada serviço ou bloco de alterações, atualizar primeiro o log no GitHub com commit verificável, testes, diffs, riscos, data e próxima ação. Em seguida sincronizar a cópia do PC, verificar hash/conteúdo.
+- Não fazer commit do log diretamente em main por poder disparar deploy. Manter na branch de homologação até integração homologada.
+- Não registrar tokens, credenciais, chaves de serviço, dados privados ou de clientes. Nunca presumir execução assíncrona após encerrar a conversa.
+- Se Desktop Commander não estiver acessível em alguma sessão, não concluir que o PC está offline; ler o GitHub e apontar qual acesso faltou.
+
+### CHECKPOINT: 2026-11-18 (persistência centralizada)
+GitHub main inicial: 4cf0622f6f250b4e7422ae88e09a5943fb409935
+GitHub branch: feat/f35-completion-audit-20261118
+GitHub HEAD de código anterior ao log: aaa2a104724a3355ae75a9078d7f59df1e144667
+Ação: cópia integral do log mestre salva no PC e no GitHub. A operação posterior de homologação deverá produzir novo checkpoint verificável.
+Produção e dados reais: preservados. Serviços pagos e cutover: nenhum.
+PRÓXIMA AÇÃO EXATA: validar camada Worker-Firestore REST no laboratório isolado para F02/F05/F20.
