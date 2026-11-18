@@ -35,3 +35,13 @@ O runtime local responde HTTP 200 em /health e HTTP 423 nas operações enquanto
 6. Só após homologação completa, passar ENABLE_WRITES=true e fechar nas Firestore Rules a escrita direta dos campos críticos (pedidos, estoque e movimentos). Manter rollback dos dois lados.
 
 **Limitação importante:** enquanto o navegador ainda pode escrever diretamente por Firebase SDK, este Worker não é uma barreira antifraude obrigatória. Não ativar regras de bloqueio antes da migração do cliente. O Google service account tem acesso elevado e exige segredo seguro e rotação. O plano gratuito Workers tem limites; transações Firestore continuam consumindo cotas Firebase. Nenhum serviço pago foi ativado aqui.
+
+## Primeira implantação na conta Cloudflare — 18/11/2026
+
+O painel antigo `/workers/onboarding` devolve 404. O caminho correto é **Workers & Pages**: `https://dash.cloudflare.com/?to=/:account/workers/workers-and-pages`. O Wrangler confirmou que a conta estava autenticada. Como a conta ainda não tem um subdomínio `workers.dev`, foi criada a configuração `wrangler.private.toml` com `workers_dev = false` e `ENABLE_WRITES = "false"` para enviar a primeira versão **sem publicar qualquer rota**.
+
+Comando aplicado: `wrangler deploy --config wrangler.private.toml`.
+
+Resultado confirmado pelo Wrangler: Worker `pote-batata-guard-staging` carregado na Cloudflare, versão `beed9a8a-1858-4a74-bdde-cb73a0416c6c`, com `No targets deployed`. `wrangler deployments list --config wrangler.private.toml` confirmou a versão. **Não existe URL pública, não há fluxo do aplicativo apontando para esse Worker, não há segredos de conta de serviço Google configurados, e nenhuma transação real foi executada.**
+
+Depois que o proprietário criar o subdomínio gratuitamente no painel, será possível testar o deploy com o `wrangler.toml` padrão (mantendo `ENABLE_WRITES=false`), acessar `/health`, configurar credenciais apenas por secrets e homologar em Firebase de testes antes de qualquer ativação transacional. Não ativar `ENABLE_WRITES=true` sem integração e bloqueio das regras de cliente concluídos.
