@@ -4,7 +4,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  const source=fs.readFileSync("firebase_integration.js","utf8").split("\n").filter(s=>!/^import /.test(s)).join("\n");
  const copy=x=>JSON.parse(JSON.stringify(x));
  const mk=()=>({data:{orders:[],ingredients:[],recipes:[],clients:[],suppliers:[],expenses:[],losses:[]}});
- let local=mk(),reloads=0;
+ let local=mk(),reloads=0,wrongFileOnce=true;
  const cloud={};
  cloud["users/u"]={email:"test@example.com"};
  cloud["users/u/appState/main"]={state:copy(local),updatedAt:{seconds:100}};
@@ -23,7 +23,15 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
   console:{...console,warn(){}},JSON,Number,String,Date,Array,Object,Math,Promise,Map,Set,Intl,Error,Blob,URL,
   stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,pendingMatchesLoadedState,
   localStorage:storage,navigator:{userAgent:""},
-  document:{getElementById:id=>elements.get(id)||null,createElement:()=>({style:{},addEventListener(){},click(){},remove(){}}),body:{classList:{toggle(){}},appendChild(){}}},
+  document:{getElementById:id=>elements.get(id)||null,createElement:tag=>{
+   const listeners={};
+   const node={style:{},addEventListener:(type,cb)=>listeners[type]=cb,
+    click:()=>listeners.change?.(),remove(){}};
+   if(tag==="input")node.files=[{size:1024,name:"verified-account-backup.json",
+    text:async()=>JSON.stringify({backupVersion:1,uid:"u",state:wrongFileOnce?
+     mk():JSON.parse(store.get(pendingKey("u"))).state})}];
+   return node;
+  },body:{classList:{toggle(){}},appendChild(){}}},
   window:{POTE_USE_V2:false,confirm:()=>true,location:{reload(){reloads++}},
    POTE_APP:{snapshot:()=>copy(local),applyState:x=>{local=copy(x)},reset:()=>{local=mk()},isPristineDemo:()=>false},
    POTE_BUSINESS:{refresh(){}},addEventListener:(name,cb)=>{listens[name]=cb},
@@ -97,7 +105,11 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  assert.equal(transactions,previous,"Blocked state must never attempt new transactions");
  assert(elements.get("potePendingSyncBackup").hidden===false);
  assert(elements.get("poteSyncResolve").hidden===false);
- assert.equal(context.window.POTE_SYNC_GUARD.resolvePendingConflict(),true);
+ assert.equal(await context.window.POTE_SYNC_GUARD.resolvePendingConflict(),false,
+   "Wrong backup cannot clear the sync conflict");
+ assert.equal(reloads,0);assert(store.has(pendingKey("u")));
+ wrongFileOnce=false;
+ assert.equal(await context.window.POTE_SYNC_GUARD.resolvePendingConflict(),true);
  assert.equal(reloads,1);
  assert.equal(store.has(pendingKey("u")),false);
  assert.equal(context.window.POTE_SYNC_GUARD.blocked,false);
