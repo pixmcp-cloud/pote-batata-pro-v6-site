@@ -37,6 +37,7 @@ jobs:
           cp legacy_migration_v2.mjs public/legacy_migration_v2.mjs
           cp migration_preview.mjs public/migration_preview.mjs
           cp operation_integrity.mjs public/operation_integrity.mjs
+          cp worker_bridge.mjs public/worker_bridge.mjs
           cp free_limits.mjs public/free_limits.mjs
           cp free_id_policy.mjs public/free_id_policy.mjs
           cp finance_core.js public/finance_core.js
@@ -172,6 +173,7 @@ jobs:
           node test_sync_integration.js
           node test_inventory_integrity.mjs
           node test_operation_integrity.mjs
+          node test_worker_bridge.mjs
           node test_franchise_financial_report.mjs
           node test_legacy_migration.mjs
           node test_v2_batch_planner.mjs

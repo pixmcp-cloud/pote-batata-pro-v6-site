@@ -26,15 +26,17 @@ jobs:
           java-version: '21.0.8'
       - name: Instalar dependências dos testes
         run: npm ci --prefix qa/firestore --ignore-scripts
+      - name: Instalar dependências do Worker para testes transacionais
+        run: npm ci --prefix workers/antifraud --ignore-scripts --no-audit --no-fund
       - name: Verificar regras, concorrência e restauração no projeto demo
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-pote-hardening --config firebase.emulator.qa.json
-          "node --test --test-concurrency=1 test_firestore_rules_emulator.cjs test_firestore_f02_atomic_guard.cjs test_firestore_f02_multistock.cjs test_firestore_cash_event_fields.cjs test_firestore_stock_nonnegative.cjs test_firestore_v2_live_concurrency.cjs test_firestore_f06_bulk.cjs test_firestore_f10_migration.cjs test_firestore_franchise_report.cjs test_firestore_v2_backup_restore.cjs"
+          "node --test --test-concurrency=1 test_firestore_rules_emulator.cjs test_firestore_f02_atomic_guard.cjs test_firestore_f02_multistock.cjs test_firestore_cash_event_fields.cjs test_firestore_stock_nonnegative.cjs test_firestore_v2_live_concurrency.cjs test_firestore_f06_bulk.cjs test_firestore_f10_migration.cjs test_firestore_worker_emulator.cjs test_firestore_franchise_report.cjs test_firestore_v2_backup_restore.cjs"
       - name: Verificar regras candidatas e cotas no projeto demo
         env:
           POTE_HARDENED_RULES: '1'
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-pote-hardening --config firebase.hardened.qa.json
-          "node --test --test-concurrency=1 test_firestore_rules_emulator.cjs test_firestore_f02_atomic_guard.cjs test_firestore_f02_multistock.cjs test_firestore_cash_event_fields.cjs test_firestore_stock_nonnegative.cjs test_firestore_f06_bulk.cjs test_firestore_quota_singleton.cjs test_firestore_free_client.cjs test_firestore_f10_migration.cjs test_firestore_franchise_report.cjs test_firestore_v2_legacy_compatibility.cjs"
+          "node --test --test-concurrency=1 test_firestore_rules_emulator.cjs test_firestore_f02_atomic_guard.cjs test_firestore_f02_multistock.cjs test_firestore_cash_event_fields.cjs test_firestore_stock_nonnegative.cjs test_firestore_f06_bulk.cjs test_firestore_quota_singleton.cjs test_firestore_free_client.cjs test_firestore_f10_migration.cjs test_firestore_worker_emulator.cjs test_firestore_franchise_report.cjs test_firestore_v2_legacy_compatibility.cjs"

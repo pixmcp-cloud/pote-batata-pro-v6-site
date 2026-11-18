@@ -5,6 +5,7 @@ import {createV2Store} from "./v2_storage.mjs?v=f20-late-atomic-20261118";
 import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs?v=f10-closed-shifts-20261118";
 import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState} from "./sync_guard.mjs?v=v4-backup-20261117";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
+import {createWorkerBridge} from "./worker_bridge.mjs?v=cf-bridge-staging-20261118";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
@@ -51,6 +52,23 @@ let pendingThisSession=false;
 let v2Store=null;
 // A versão V2 inicia contas de teste limpas em coleções por registro, sem migrar appState/main.
 const useV2=window.POTE_USE_V2!==false;
+// Staging-only: enabling the Worker also requires Firebase Rules cutover and
+// server credentials. Never toggle via localStorage, query strings or devtools.
+const CLOUD_WORKER_ACTIVE=false;
+window.POTE_WORKER=createWorkerBridge({
+ enabled:CLOUD_WORKER_ACTIVE,
+ endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
+ getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
+  proActive:Boolean(window.POTE_AUTH?.proActive),
+  syncBlocked:syncBlocked||saving}),
+ flush:async()=>!syncBlocked&&!saving&&ready&&useV2&&await syncV2(),
+ refresh:async()=>{
+  if(!v2Store||!ready||syncBlocked)throw Error("Sincronização indisponível");
+  await v2Store.load();
+  lastJson=JSON.stringify(safeState());
+  setStatus("Operação confirmada no servidor; estoque sincronizado.");
+ }
+});
 window.POTE_APP_READY=false;
 const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
 function showBrowserHint() { if (browserHint) browserHint.hidden = false; }

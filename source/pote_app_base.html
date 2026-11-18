@@ -654,6 +654,15 @@ function produce(id){
  window.POTE_STOCK?.normalizeInventory?.(state.data);
  const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='recebido'||!canOperate(o.recipeId))return;
   if(!window.POTE_ORDER?.checkBeforeProduce?.(o))return;
+ // When server-side stock is enabled, the server performs the ONLY inventory
+ // mutation. Never subtract locally or send the same stock movement twice.
+ if(window.POTE_WORKER?.enabled===true){
+  window.POTE_WORKER.produce(id,state.data.businessType||"batataria").then(()=>{
+   state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);
+   toast('Produção confirmada no servidor; estoque atualizado.');
+  }).catch(error=>toast('Produção não confirmada: '+String(error.message||error),'error'));
+  return;
+ }
  const qty=Math.max(1,num(o.qty)),needed=new Map(),needBevs=new Map();
  for(const row of o.items||[]){const i=ingredient(row.id);if(!i&&!o.stockOverrideApproved){toast('Item não encontrado: '+row.ingredientName);return}const y=Math.max(.01,num(row.yieldPct??i?.yield)/100);needed.set(row.id,(needed.get(row.id)||0)+num(row.g)*qty/y)}
  for(const b of o.beverageItems||[])needBevs.set(b.id,(needBevs.get(b.id)||0)+num(b.qty)*qty);

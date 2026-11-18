@@ -51,6 +51,7 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
   const token=await accessToken(env,requestFetch);
   const response=await requestFetch(prefix+path,{
    method,headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+   signal:AbortSignal.timeout(10000),
    ...(body===undefined?{}:{body:JSON.stringify(body)})
   });
   if(response.status===404)return {missing:true};

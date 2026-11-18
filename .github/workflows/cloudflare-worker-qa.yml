@@ -3,10 +3,18 @@ on:
   push:
     paths:
       - 'workers/antifraud/**'
+      - 'worker_bridge.mjs'
+      - 'test_worker_bridge.mjs'
+      - 'test_firestore_worker_emulator.cjs'
+      - 'qa/workers/**'
       - '.github/workflows/cloudflare-worker-qa.yml'
   pull_request:
     paths:
       - 'workers/antifraud/**'
+      - 'worker_bridge.mjs'
+      - 'test_worker_bridge.mjs'
+      - 'test_firestore_worker_emulator.cjs'
+      - 'qa/workers/**'
       - '.github/workflows/cloudflare-worker-qa.yml'
 permissions:
   contents: read
@@ -30,11 +38,14 @@ jobs:
         run: npm run check
       - name: Testar autenticação, idempotência, estoque e concorrência
         run: npm test
+      - name: Verificar a ponte do navegador em modo seguro
+        run: node ../../test_worker_bridge.mjs
       - name: Compilar para runtime Cloudflare SEM PUBLICAR
         run: npx wrangler deploy --dry-run --outdir .wrangler/build-qa
       - name: Garantir que a API de escrita permanece DESATIVADA
         run: |
           grep -q 'ENABLE_WRITES = "false"' wrangler.toml
+          grep -q 'const CLOUD_WORKER_ACTIVE=false;' ../../firebase_integration.js
           if grep -R -E 'BEGIN PRIVATE KEY|CLOUDFLARE_API_TOKEN=' src/ wrangler.toml; then
             echo 'Credencial encontrada no código versionado!'
             exit 1

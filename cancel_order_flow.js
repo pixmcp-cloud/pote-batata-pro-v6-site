@@ -116,6 +116,29 @@ function perform(action){
   $("poteCancelError").textContent="Não foi possível devolver: "+missing.join(", ");
   return false;
  }
+ // Authoritative mode commits remotely; browser must not also restore stock,
+ // write losses, or persist a second journal. Legacy flow stays unchanged
+ // while the Worker flag is disabled.
+ if(window.POTE_WORKER?.enabled===true){
+  if(recovery){
+   $("poteCancelError").hidden=false;
+   $("poteCancelError").textContent="Regularização histórica exige auditoria manual.";
+   return false;
+  }
+  const buttons=[$("poteCancelReturn"),$("poteCancelDiscard")];
+  buttons.forEach(button=>{if(button)button.disabled=true});
+  return window.POTE_WORKER.cancel(order.id,data().businessType||"batataria",
+   action==="discard"?"loss":"return").then(()=>{
+    close();if(typeof render==="function")render();
+    window.POTE_ORDER?.scrollToOrders?.(order.id);
+    if(typeof toast==="function")toast('Pedido cancelado e estoque confirmado no servidor.');
+    return true;
+   }).catch(error=>{
+    $("poteCancelError").hidden=false;
+    $("poteCancelError").textContent="Cancelamento não confirmado: "+String(error.message||error);
+    return false;
+   }).finally(()=>buttons.forEach(button=>{if(button)button.disabled=false}));
+ }
  // A perda é uma parte obrigatória do cancelamento. Se o módulo falhar,
  // impedir cancelamento sem contabilização e restaurar a mutação em memória.
  if(deducted&&action==="discard"&&typeof window.POTE_LOSSES?.recordCancelled!=="function"){

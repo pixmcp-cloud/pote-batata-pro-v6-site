@@ -44,6 +44,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  const auth={currentUser:null},store=new Map();
  const ctx={
   ...guard,createV2Store:v2.createV2Store,
+  createWorkerBridge:opts=>({enabled:false,stagingEndpoint:opts.endpoint}),
   console:{...console,warn(){}},window:{
    POTE_USE_V2:true,
    POTE_APP:{snapshot:()=>copy(state),reset:()=>{state=fresh()},applyState:newState=>{state=copy(newState)},
