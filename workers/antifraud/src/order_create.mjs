@@ -83,6 +83,69 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   if(!Array.isArray(r.items)||r.items.length<1||r.items.length>32||
     r.packagingIngredientIds?.length||r.costEstimateMode==="estimated")
    bad("recipe_review_required","Receita exige conferência do catálogo");
-  // F02_ORDER_VALIDATE_INGREDIENTS_AND_COMMIT
+    const rows=[],source=[];
+  for(const row of r.items){
+   if(!validId(row?.id)||typeof row.g!=="number"||
+     !Number.isFinite(row.g)||row.g<=0||row.g>1000000)
+    bad("recipe_review_required","Ingrediente da ficha inválido");
+   source.push({id:row.id,g:row.g,
+    path:recordPath(uid,universe,"ingredients",row.id)});
+  }
+  const ingDocs=await Promise.all(source.map(entry=>tx.get(entry.path)));
+  let materialCost=0;
+  for(let i=0;i<source.length;i++){
+   const part=source[i],stock=ingDocs[i]?.data?.record,item=stock?.item;
+   if(!stock||stock.group!=="ingredients"||stock.universe!==universe||
+      stock.id!==part.id||!item||item.archived)
+    bad("missing_stock","Ingrediente sem cadastro",409);
+   const yieldPct=Number(item.yield??100),onHand=Number(item.stock);
+   if(!Number.isFinite(yieldPct)||yieldPct<1||yieldPct>1000||
+      !Number.isFinite(onHand)||onHand<0)
+    bad("invalid_stock","Estoque ou rendimento inválido");
+   const need=part.g*qty/(yieldPct/100);
+   if(!Number.isFinite(need)||need>1e9||onHand+0.00002<need)
+    bad("insufficient_stock","Saldo físico insuficiente");
+   materialCost+=part.g*costUnit(item)/(yieldPct/100);
+   rows.push({id:part.id,g:part.g,yieldPct,ingredientName:
+    String(item.name||part.id).slice(0,150),
+    measureUnit:item.measureUnit||"g"});
+  }
+  if(!Number.isFinite(materialCost)||materialCost<=0)
+   bad("cost_review_required","Custo da receita não está disponível");
+  const minimum=Number(r.serverMinimumGainPct??100);
+  if(!Number.isFinite(minimum)||minimum<0||minimum>500)
+   bad("price_review_required","Margem do servidor não validada");
+  if(r.serverSalePriceCents+0.00001<materialCost*(1+minimum/100)*100)
+   bad("price_below_cost","Preço abaixo da margem mínima aprovada");
+  const at=clock().toISOString(),price=r.serverSalePriceCents/100;
+  const method={pix:"Pix",cash:"Dinheiro",card:"Cartão",
+   delivery:"Na entrega"}[paymentMethod];
+  const order={id:orderId,recipeId,name:String(r.name||recipeId).slice(0,180),
+   qty,price,deliveryFee:0,cashSessionId,paymentMethod:method,
+   paymentStatus:"pendente",status:"recebido",stockDeducted:false,
+   createdAt:at,date:at.slice(0,10),channel:"direto",
+   items:rows,beverageItems:[],unitVariableCost:
+    Math.round(materialCost*100)/100,
+   costSnapshot:{version:1,costKnown:true,estimated:false,
+    totalMaterialCost:Math.round(materialCost*qty*100)/100,missingCosts:[]},
+   priceSource:"server_recipe_snapshot",
+   serverPriceVersion:1,serverPriceRevision:r.serverPriceRevision??1,
+   stockReservationStatus:"not_reserved",bankReconciled:false};
+  const changed=[orderPath.split("/").at(-1)];
+  const writes=[
+   put(orderPath,{record:{universe,group:"orders",id:orderId,
+    rank:-clock().getTime(),item:order}},null),
+   put(guardPath,{revision:guard.data.revision+1},guard),
+   put(pulsePath,{eventId:"cf-"+operationId,
+    previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
+    affected:1,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
+   put(eventPath,{action:"order_create",universe,orderId,recipeId,
+    qty,cashSessionId,paymentMethod,operationId,
+    priceCents:r.serverSalePriceCents,actorUid:uid},null)
+  ];
+  await tx.commit(writes);
+  return {ok:true,alreadyApplied:false,orderId,operationId,
+   priceCents:r.serverSalePriceCents,status:"recebido",
+   reservationStatus:"not_reserved"};
  }finally{await tx.rollback()}
 }
