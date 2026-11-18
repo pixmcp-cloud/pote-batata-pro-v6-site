@@ -119,7 +119,7 @@ function fixture({stock=400,extraOrder=false}={}){
   });
  }
  const send=(operationId,props)=>app.fetch(request(operationId,props),env);
- return {db,env,app,send};
+ return {db,env,app,send,request};
 }
 test("F02 end-to-end REST HTTP adapter: stock, beverage, pulse and retry",async()=>{
  const {db,send}=fixture();
