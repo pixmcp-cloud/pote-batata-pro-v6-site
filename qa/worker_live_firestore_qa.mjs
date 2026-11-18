@@ -125,7 +125,18 @@ async function run(){
   const rejected=await worker.fetch(req(randomUUID(),"produce",undefined,loser),env);
   assert.equal(rejected.status,409);
   assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,4);
-  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
+  const adjustmentId=randomUUID();
+  const adjustBody={operationId:adjustmentId,universe,group:"ingredients",
+   itemId:"potato",delta:500,reason:"purchase",note:"Reposição teste QA"};
+  const adjustReq=()=>new Request("https://worker.qa.invalid/v1/inventory/adjust",{
+   method:"POST",headers:{Origin:ORIGIN,Authorization:"Bearer synthetic-qa-token",
+    "Content-Type":"application/json"},body:JSON.stringify(adjustBody)
+  });
+  const added=await worker.fetch(adjustReq(),env);
+  assert.equal(added.status,200,JSON.stringify(await added.json()));
+  assert.equal((await read(key("ingredients","potato"))).record.item.stock,700);
+  assert.equal((await(await worker.fetch(adjustReq(),env)).json()).alreadyApplied,true);
+  assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,5);  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
    " effects=produce/retry/cancel/race/loss/stock/guard");
  }finally{
   if(started){
