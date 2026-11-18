@@ -53,14 +53,18 @@ export function planOperation({action,decision,order,stock,universe,operationId,
   throw new OperationalError("Pedido não encontrado",404,"order_missing");
  if(!["produce","cancel"].includes(action))
   throw new OperationalError("Operação desconhecida",400);
- const qty=action==="cancel"&&order.stockDeducted!==true?new Map():quantities(order);
+ const reservedProduce=action==="produce"&&order.status==="recebido"&&
+   order.stockDeducted===true&&order.stockReservationStatus==="reserved";
+ const qty=reservedProduce||
+   (action==="cancel"&&order.stockDeducted!==true)?new Map():quantities(order);
  const nextOrder={...order};
  const movements=[],stockUpdates=[],losses=[];
  const isProduce=action==="produce";
  if(isProduce){
-  if(order.status!=="recebido"||order.stockDeducted===true)
+  if(order.status!=="recebido"||(order.stockDeducted===true&&!reservedProduce))
    throw new OperationalError("Pedido já produzido ou em estado incompatível",409,"order_state");
   nextOrder.status="em_producao";nextOrder.producedAt=at;nextOrder.stockDeducted=true;
+  if(reservedProduce)nextOrder.stockReservationStatus="consumed";
  }else{
   if(order.status==="cancelado")
    throw new OperationalError("Pedido já cancelado",409,"order_state");
@@ -96,7 +100,7 @@ export function planOperation({action,decision,order,stock,universe,operationId,
     stockAlreadyDeducted:true,stockMovement:false});
   }
  }
- const mutateStock=isProduce||(action==="cancel"&&order.stockDeducted===true&&decision==="return");
+ const mutateStock=(isProduce&&!reservedProduce)||(action==="cancel"&&order.stockDeducted===true&&decision==="return");
  if(mutateStock){
   let n=0;
   for(const [kindId,needed] of qty){

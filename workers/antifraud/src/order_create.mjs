@@ -1,6 +1,6 @@
 /* F02: constrained server-priced direct order creation; not enabled for clients.
  * Unsupported addons, combos, promotions and unset server price fail closed.
- * Stock is checked but NOT reserved; production rechecks inventory atomically.
+ * Stock is reserved atomically with order creation; no double consumption in production.
  */
 import {OperationalError,recordPath} from "./domain.mjs";
 const bad=(code,message,status=409)=>{throw new OperationalError(message,status,code)};
@@ -93,6 +93,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   }
   const ingDocs=await Promise.all(source.map(entry=>tx.get(entry.path)));
   let materialCost=0;
+  const reserveByIngredient=new Map();
   for(let i=0;i<source.length;i++){
    const part=source[i],stock=ingDocs[i]?.data?.record,item=stock?.item;
    if(!stock||stock.group!=="ingredients"||stock.universe!==universe||
@@ -106,9 +107,22 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    if(!Number.isFinite(need)||need>1e9||onHand+0.00002<need)
     bad("insufficient_stock","Saldo físico insuficiente");
    materialCost+=part.g*costUnit(item)/(yieldPct/100);
+   const prior=reserveByIngredient.get(part.id);
+   if(prior)prior.needed+=need;
+   else reserveByIngredient.set(part.id,{path:part.path,prior:ingDocs[i],item,onHand,needed:need});
    rows.push({id:part.id,g:part.g,yieldPct,ingredientName:
     String(item.name||part.id).slice(0,150),
     measureUnit:item.measureUnit||"g"});
+  }
+  const reservations=[];
+  for(const [ingredientId,snapshot] of reserveByIngredient){
+   const needed=Math.round(snapshot.needed*1e5)/1e5;
+   if(!Number.isFinite(needed)||needed<=0||needed>1e9||
+      snapshot.onHand+0.00002<needed)
+    bad("insufficient_stock","Estoque insuficiente para reservar pedido");
+   const after=Math.round((snapshot.onHand-needed)*1e5)/1e5;
+   if(after<0)bad("insufficient_stock","Saldo negativo bloqueado");
+   reservations.push({ingredientId,...snapshot,needed,after});
   }
   if(!Number.isFinite(materialCost)||materialCost<=0)
    bad("cost_review_required","Custo da receita não está disponível");
@@ -122,7 +136,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    delivery:"Na entrega"}[paymentMethod];
   const order={id:orderId,recipeId,name:String(r.name||recipeId).slice(0,180),
    qty,price,deliveryFee:0,cashSessionId,paymentMethod:method,
-   paymentStatus:"pendente",status:"recebido",stockDeducted:false,
+   paymentStatus:"pendente",status:"recebido",stockDeducted:true,
    createdAt:at,date:at.slice(0,10),channel:"direto",
    items:rows,beverageItems:[],unitVariableCost:
     Math.round(materialCost*100)/100,
@@ -130,22 +144,44 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
     totalMaterialCost:Math.round(materialCost*qty*100)/100,missingCosts:[]},
    priceSource:"server_recipe_snapshot",
    serverPriceVersion:1,serverPriceRevision:r.serverPriceRevision??1,
-   stockReservationStatus:"not_reserved",bankReconciled:false};
-  const changed=[orderPath.split("/").at(-1)];
+   stockReservationStatus:"reserved",bankReconciled:false};
+  const movements=reservations.map((entry,index)=>{
+   const id="cf-reserve-"+operationId+"-"+index;
+   return {path:recordPath(uid,universe,"stockMovements",id),id,
+    item:{id,at,ingredientId:entry.ingredientId,
+     ingredientName:String(entry.item.name||entry.ingredientId).slice(0,180),
+     quantity:-entry.needed,reason:"Reserva de pedido",
+     referenceId:orderId,previousStock:entry.onHand,afterStock:entry.after,
+     stockMovement:true}};
+  });
+  const changed=[orderPath.split("/").at(-1),
+   ...reservations.map(entry=>entry.path.split("/").at(-1)),
+   ...movements.map(entry=>entry.path.split("/").at(-1))];
   const writes=[
    put(orderPath,{record:{universe,group:"orders",id:orderId,
     rank:-clock().getTime(),item:order}},null),
    put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"cf-"+operationId,
     previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
-    affected:1,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
+    affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
    put(eventPath,{action:"order_create",universe,orderId,recipeId,
     qty,cashSessionId,paymentMethod,operationId,
-    priceCents:r.serverSalePriceCents,actorUid:uid},null)
+    priceCents:r.serverSalePriceCents,actorUid:uid,
+    stockReservationStatus:"reserved"},null)
   ];
+  for(const entry of reservations){
+   writes.push(put(entry.path,{record:{...entry.prior.data.record,
+    item:{...entry.item,stock:entry.after}}},entry.prior));
+  }
+  for(const movement of movements){
+   writes.push(put(movement.path,{record:{
+    universe,group:"stockMovements",id:movement.id,
+    rank:-clock().getTime(),item:movement.item}},null));
+  }
+  if(writes.length>100)bad("too_many_items","Pedido excede limite da transação");
   await tx.commit(writes);
   return {ok:true,alreadyApplied:false,orderId,operationId,
    priceCents:r.serverSalePriceCents,status:"recebido",
-   reservationStatus:"not_reserved"};
+   reservationStatus:"reserved"};
  }finally{await tx.rollback()}
 }

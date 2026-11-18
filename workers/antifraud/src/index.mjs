@@ -141,12 +141,16 @@ export function createWorkerApp({
       ordered.data.record.id!==orderId||ordered.data.record.universe!==universe)
     throw new OperationalError("Pedido não encontrado nesta unidade",404,"order_missing");
    const original=ordered.data.record;
-   const counts=action==="cancel"&&original.item.stockDeducted!==true?
+   const reservedProduce=action==="produce"&&
+    original.item.stockDeducted===true&&
+    original.item.stockReservationStatus==="reserved";
+   const counts=reservedProduce||
+    (action==="cancel"&&original.item.stockDeducted!==true)?
     new Map():quantities(original.item);
    // Don't trust any item or quantity supplied by the browser.
    const stock=new Map(),references=new Map();
    const load=[];
-   const needInventory=action==="produce"||(action==="cancel"&&
+   const needInventory=(action==="produce"&&!reservedProduce)||(action==="cancel"&&
     original.item.stockDeducted===true&&decision==="return");
    if(needInventory){
     for(const key of counts.keys()){
