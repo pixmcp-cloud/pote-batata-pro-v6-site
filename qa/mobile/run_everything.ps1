@@ -51,5 +51,6 @@ try {
     & firebase.cmd emulators:exec --only firestore --project demo-pote-hardening --config firebase.hardened.qa.json $refTests
     Check "Firestore Emulator candidato"
   }
-  Write-Output "QA_LABORATORY_COMPLETED: todos os perfis Android Chrome, PDV, finanças, backup, sincronização e emuladores passaram."
+  if($SkipFirebase){ Write-Output "QA_LABORATORY_COMPLETED: Chrome, PDV, finanças, backup e sincronização aprovados; Firestore Emulator não executado (-SkipFirebase)." }
+  else { Write-Output "QA_LABORATORY_COMPLETED: Chrome, PDV, finanças, backup, sincronização e Firestore Emulator aprovados nas duas configurações." }
 } finally {Pop-Location}
