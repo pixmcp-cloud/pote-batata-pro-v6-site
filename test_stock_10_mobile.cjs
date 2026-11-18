@@ -27,6 +27,16 @@ if(!puppeteer)throw Error("Puppeteer missing");
     downloadPending(){backups++},showRecovery(){}};
    window.confirm=()=>true;
    document.getElementById("poteAuthGate")?.remove();
+   const seed=window.POTE_APP.snapshot();
+   seed.data.businessType="batataria";
+   seed.data.ingredients=[{id:"batata",name:"Batata",stock:8000,minimum:2500,
+     measureUnit:"g",purchasePrice:8,purchaseQuantity:1,purchaseUnit:"kg"},
+    {id:"pote",name:"Embalagem",stock:100,minimum:20,
+     measureUnit:"un",category:"Embalagem"}];
+   seed.data.beverages=[{id:"cola",name:"Refrigerante",stock:40,minimum:10}];
+   seed.data.recipes=[{id:"r1",name:"Batata QA",items:[{id:"batata",g:250}],
+    packagingIngredientIds:["pote"]}];
+   window.POTE_APP.applyState(seed);
    go("ingredients");
    const panel=document.getElementById("poteStockCriticalTest");
    if(!panel)throw Error("Stock test action missing from inventory");
