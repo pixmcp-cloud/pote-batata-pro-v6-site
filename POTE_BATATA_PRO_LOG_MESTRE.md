@@ -311,3 +311,16 @@ Projeto comercial potobatata-b71f3: NÃO ALTERADO.
 Serviços pagos, ligação com faturamento e migração destrutiva: NENHUM.
 Atenção: ambiente de homologação utiliza quota gratuita do Spark; não mudar de plano nem ativar faturamento.
 PRÓXIMA AÇÃO EXATA: executar Worker com adaptador Firestore REST real nesta base QA isolada usando somente dados sintéticos e conta autenticada de teste; não ativar Worker público.
+### CHECKPOINT: REST real de homologação aprovado / 18-11-2026
+Branch: feat/f35-completion-audit-20261118
+Commit de código: fb75e4c89384b00088907c8e676354df7a4d91af
+Arquivo novo: qa/worker_live_firestore_qa.mjs
+Ambiente: projeto exclusivo pote-batata-qa-20261118, Firestore Standard southamerica-east1, freeTier=true, billingEnabled=false.
+Teste HTTP Cloud Firestore real (sem emulador): beginTransaction 200; rollback 200; leitura OAuth 200.
+Teste E2E Worker + adapter REST Cloud Firestore: PASS, exit 0. Produção, baixa física de batata e bebida, retry idempotente, cancelamento com devolução, guard revision 2.
+Remoção de dados sintéticos: 13 documentos, confirmada ao terminar o ensaio.
+Autenticação: token de curta duração injetado somente no processo; não salvo no código, no PC nem neste log.
+Dupla trava real: requisição com PRODUCTION_CUTOVER_APPROVED=false devolveu 423.
+NÃO testado em REST real ainda: corrida de dois pedidos e cancelamento com perda; testes HTTP sintéticos e SDK Emulator dessas rotas já passaram anteriormente. Tentativa de extensão não aplicada por bloqueio de ferramenta, sem alterar o repositório.
+Worker Cloudflare público, produção Firebase, regras comerciais, credenciais permanentes e planos pagos: INALTERADOS.
+PRÓXIMA AÇÃO EXATA: ampliar teste REST real para concorrência e perda, depois criar serviço Google de homologação de menor privilégio e testar JWT/OAuth sem expor credenciais.
