@@ -138,7 +138,9 @@ test("F02 REST HTTP: server-approved recipe creates order then produces once",as
  const first=await go();assert.equal(first.status,200,await first.text());
  assert.equal(db.read(rpath("orders","fresh")).record.item.price,30);
  assert.equal((await(await go()).json()).alreadyApplied,true);
- assert.equal(db.read(rpath("ingredients","batata")).record.item.stock,400);
+ assert.equal(db.read(rpath("ingredients","batata")).record.item.stock,200,
+  "Ingredients were reserved at order creation");
+ assert.equal(db.read(rpath("orders","fresh")).record.item.stockReservationStatus,"reserved");
  assert.equal((await send(op2,{orderId:"fresh"})).status,200);
  assert.equal(db.read(rpath("ingredients","batata")).record.item.stock,200);
 });
