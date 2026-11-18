@@ -154,6 +154,46 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
    "http://worker.local/v1/orders/cancel","return","reserved-f02"),options);
   assert.equal(reservedCancel.status,200,await reservedCancel.text());
   assert.equal((await get("ingredients","potato")).stock,200);
+  // F02: two different orders race for the same final 200 g.
+  // Only one may reserve 125 g; the loser must not create an order,
+  // movement, or negative stock (real optimistic Firestore transaction).
+  const raceIds=["reserved-race-a","reserved-race-b"];
+  const raceOperationIds=[
+   "f02-reservation-emulator-20261118-race-a",
+   "f02-reservation-emulator-20261118-race-b"
+  ];
+  const raceReq=(i)=>new Request("http://worker.local/v1/orders/create",{
+   method:"POST",headers:{"Authorization":"Bearer emulator-owner",
+    "Origin":"https://pdv.livresom.com","Content-Type":"application/json"},
+   body:JSON.stringify({...createBody,orderId:raceIds[i],
+    operationId:raceOperationIds[i]})
+  });
+  const concurrentCreates=await Promise.all(raceIds.map((_,i)=>
+   fetchAsService(raceReq(i),options)));
+  const statuses=concurrentCreates.map(response=>response.status).sort();
+  assert.deepEqual(statuses,[200,409],
+   "Only one concurrent reservation may consume remaining stock");
+  assert.equal((await get("ingredients","potato")).stock,75,
+   "Only the winning order consumes 125 g");
+  const createdOrders=await Promise.all(raceIds.map(id=>get("orders",id)));
+  assert.equal(createdOrders.filter(Boolean).length,1,
+   "Rejected order must not be saved");
+  const winner=createdOrders.findIndex(Boolean),loser=1-winner;
+  assert.equal(createdOrders[winner].stockReservationStatus,"reserved");
+  const replayWinner=await fetchAsService(raceReq(winner),options);
+  assert.equal(replayWinner.status,200);
+  assert.equal((await replayWinner.json()).alreadyApplied,true);
+  const replayLoser=await fetchAsService(raceReq(loser),options);
+  assert.equal(replayLoser.status,409);
+  assert.equal((await get("ingredients","potato")).stock,75);
+  const cancelWinner=await fetchAsService(newReq(
+   "f02-reservation-emulator-20261118-race-cancel",
+   "http://worker.local/v1/orders/cancel","return",raceIds[winner]),options);
+  assert.equal(cancelWinner.status,200,await cancelWinner.text());
+  assert.equal((await get("ingredients","potato")).stock,200,
+   "Reservation cancellation must refund stock exactly once");
+  console.log("PASS F02 SDK EMULATOR CONCURRENCY: 2 orders, one reservation, retry safe, no negative stock.");
+
   console.log("PASS F02 SDK EMULATOR: atomic reservation, replay, production without double deduction, cancel once.");
   console.log("PASS WORKER SDK EMULATOR: transactions, 2-stock units, idempotency, cancellation, 2 devices with only one successful stock deduction.");
  }finally{await env.cleanup()}
