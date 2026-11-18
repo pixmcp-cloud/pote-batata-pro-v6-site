@@ -161,6 +161,9 @@ function renderPage(){
   '<div class="pote-pdv-page-chart"><h3>Entradas por forma de pagamento</h3>'+
   receiptChart(receipts)+'</div>'+
   '<div class="pote-pdv-page-equation">'+extra+'</div>'+
+  (active?'<div class="pote-pdv-page-cash-actions" aria-label="Movimentações de dinheiro do caixa">'+
+   '<button type="button" class="pote-pdv-page-withdraw" onclick="window.POTE_PDV.openMovement(&quot;sangria&quot;)">Retirada / Sangria</button>'+
+   '<button type="button" class="pote-pdv-page-supply" onclick="window.POTE_PDV.openMovement(&quot;suprimento&quot;)">Reforço / Suprimento</button></div>':'')+
   '<div class="pote-pdv-page-controls"><button type="button" class="pote-pdv-page-action" onclick="window.POTE_PDV?.open?.()">'+
   (active?'Conferir recebimentos e fechar caixa':last?'Abrir novo caixa ou consultar histórico':'Abrir meu primeiro caixa')+
   '</button><button type="button" class="pote-pdv-page-secondary" onclick="goOrdersSection(\'new\')">Registrar novo pedido</button></div>'+
@@ -511,6 +514,20 @@ function printOrder(order,options){
  popup.document.open();popup.document.write(ticketHtml(order,options));popup.document.close();
  return true;
 }
+function openMovement(kind){
+ if(!access())return false;
+ const actionName=kind==="sangria"?"withdraw":kind==="suprimento"?"supply":null;
+ if(!actionName||!currentSession())return false;
+ open();
+ action(actionName);
+ const panel=modal?.querySelector("#potePdvMovementEditor");
+ if(!panel||panel.hidden)return false;
+ requestAnimationFrame(()=>{
+  revealCashSection(panel);
+  panel.querySelector('input[name="amount"]')?.focus({preventScroll:true});
+ });
+ return true;
+}
 function open(){
  if(!access())return;
  ensure();expandedCashDetails.clear();movementEditorKind=null;
@@ -541,5 +558,5 @@ if(pageRoot)new MutationObserver(()=>{
  if(heading&&trigger.parentElement!==heading)refresh();
  else if(!heading&&(!trigger.hidden||!trigger.isConnected))refresh();
 }).observe(pageRoot,{childList:true,subtree:false});
-window.POTE_PDV={open,close,refresh,renderPage,completeSalePayment,getSessionId,currentSession,printOrder,ticketHtml};
+window.POTE_PDV={open,openMovement,close,refresh,renderPage,completeSalePayment,getSessionId,currentSession,printOrder,ticketHtml};
 if(window.POTE_ROUTE_BRIDGE?.current?.().tab==="pdv")window.requestAnimationFrame(()=>window.render?.());

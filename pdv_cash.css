@@ -231,3 +231,15 @@
  .pote-pdv-container .pote-pdv-quick-actions button{font-size:12px}
 }
 @media(max-width:340px){.pote-pdv-quick-actions,.pote-pdv-movement-buttons{grid-template-columns:1fr}}
+
+/* PDV v7: main-page cash movement actions above cashier close. */
+.pote-pdv-page-cash-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.pote-pdv-page-cash-actions button{
+ min-height:58px;border-radius:13px;padding:12px 14px;
+ font-size:14px;font-weight:800;line-height:1.35;cursor:pointer;text-align:center;
+ border:1px solid transparent;overflow-wrap:anywhere;
+}
+.pote-pdv-page-withdraw{background:linear-gradient(125deg,#66422a,#49301d);border-color:#c59e68!important;color:#fff0d9}
+.pote-pdv-page-supply{background:linear-gradient(125deg,#23563b,#173a28);border-color:#79ba8d!important;color:#effff0}
+.pote-pdv-page-cash-actions button:focus-visible{outline:3px solid #eaca91;outline-offset:3px}
+@media(max-width:390px){.pote-pdv-page-cash-actions{grid-template-columns:1fr}.pote-pdv-page-cash-actions button{min-height:52px}}
