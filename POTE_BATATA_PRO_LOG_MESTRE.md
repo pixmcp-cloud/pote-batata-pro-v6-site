@@ -276,3 +276,15 @@ GitHub HEAD de código anterior ao log: aaa2a104724a3355ae75a9078d7f59df1e144667
 Ação: cópia integral do log mestre salva no PC e no GitHub. A operação posterior de homologação deverá produzir novo checkpoint verificável.
 Produção e dados reais: preservados. Serviços pagos e cutover: nenhum.
 PRÓXIMA AÇÃO EXATA: validar camada Worker-Firestore REST no laboratório isolado para F02/F05/F20.
+
+### CHECKPOINT: F02/F20 - leitura de health efetiva / 18-11-2026
+GitHub branch: feat/f35-completion-audit-20261118
+GitHub HEAD de código deste bloco: c57b81e78fe47e3d7c3d89bec926ed251e1854f6
+Arquivos alterados: workers/antifraud/src/index.mjs, workers/antifraud/test/worker.test.mjs
+Resultado: GET /health informa writesEnabled=true somente se ENABLE_WRITES=true E projeto demo-* OU PRODUCTION_CUTOVER_APPROVED=true. Assim o indicador corresponde à dupla trava já exigida pelas rotas de escrita.
+Problema detectado: parêntese inválido no primeiro commit; corrigido antes de liberar testes; asserção repetida removida do teste de falta de estoque.
+Teste: npm.cmd run check --prefix workers/antifraud APROVADO; npm.cmd test --prefix workers/antifraud APROVADO (20/20); node test_worker_bridge.mjs APROVADO.
+Ambiente: clone isolado em TEMP; código alterado exclusivamente no GitHub.
+Produção, Rules, chaves, custos e dados reais: INALTERADOS.
+Pendências críticas: Firestore REST real não emulado, identidade segura de serviço, fechamento coerente da escrita direta SDK e conciliação F20.
+PRÓXIMA AÇÃO EXATA: intensificar validação de transações REST HTTP para F02/F05 no laboratório isolado, sem tocar credenciais reais.
