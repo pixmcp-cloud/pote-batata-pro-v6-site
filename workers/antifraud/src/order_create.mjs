@@ -20,7 +20,7 @@ function validate(b){
   bad("invalid_order_request","Dados de pedido inválidos",400);
  return b;
 }
-function costUnit(item){
+export function costUnit(item){
  if(item.averageCostKnown===true){
   const x=Number(item.averageUnitCost);
   if(Number.isFinite(x)&&x>0)return x;

@@ -9,6 +9,7 @@ import {adjustInventory} from "./stock_adjust.mjs";
 import {confirmOperatorReceipt} from "./receipt.mjs";
 import {openCashSession,closeCashSession} from "./cash_session.mjs";
 import {createSimpleOrder} from "./order_create.mjs";
+import {approveRecipePrice} from "./catalog_approve.mjs";
 import {finishSale} from "./finish_sale.mjs";
 import {ingestAsaasWebhook} from "./asaas_webhook.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
@@ -54,6 +55,7 @@ export function createWorkerApp({
    route==="/v1/cash/open"?"cash_open":
    route==="/v1/cash/close"?"cash_close":
    route==="/v1/orders/create"?"order_create":
+   route==="/v1/catalog/approve-price"?"approve_price":
    route==="/v1/orders/finish"?"finish_sale":null;
   if(!action)return json({error:"not_found"},404,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
@@ -83,6 +85,10 @@ export function createWorkerApp({
   }
   if(action==="order_create"){
    const result=await createSimpleOrder(body,{user,env,repository,clock,hasAccess});
+   return json(result,200,headers);
+  }
+  if(action==="approve_price"){
+   const result=await approveRecipePrice(body,{user,env,repository,clock,hasAccess});
    return json(result,200,headers);
   }
   if(action==="cash_close"){
