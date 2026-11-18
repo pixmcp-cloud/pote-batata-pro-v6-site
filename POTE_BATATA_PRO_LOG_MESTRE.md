@@ -365,3 +365,15 @@ Sintaxe CI worker atualizada para incluir novo módulo (commit 61935df).
 Nenhuma migração real, implantação comercial, conta paga ou alteração de regras comerciais.
 PENDENTE: criação de pedidos, compras com histórico de custos, movimentações de caixa/recebimentos, integração progressiva com o frontend, service identity de menor privilégio, Rules candidatas e homologação física Android.
 PRÓXIMA AÇÃO EXATA: implementar rotas financeiras e/ou cadastro de pedidos com idempotência, validação de autorização e testes, mantendo a versão pública protegida.
+### CHECKPOINT: F20 - recebimento declarado no backend / 18-11-2026
+GitHub branch candidata: feat/f35-completion-audit-20261118
+Módulo: workers/antifraud/src/receipt.mjs (commits 32d3462, f464b6b, 6784833 e 2c8b089).
+Nova rota: POST /v1/orders/receipt (commit afe8cb3), ainda desativada na versão pública.
+Regra: recebe apenas universe, orderId, operationId e reference opcional; lê pedido e valor do servidor, exige pedido entregue com estoque baixado, turno de caixa existente e aberto, conta Pro/franquia autorizada, método Dinheiro/Pix/Cartão. Grava confirmação declarada pelo operador, banco NÃO conciliado, evento idempotente, revisão e pulso V2 numa única transação. Não cria cashMovements repetidos nem aceita valores monetários do navegador.
+Testes: F20 confirma valor do pedido e uma única operação, rejeita pedido não entregue; Worker 31/31 e worker_bridge PASS, exit 0.
+Firestore QA REST REAL: recebimento de pedido sintético o4, valor 6000 centavos, bankReconciled=false, idempotência, revisão V2 7. Ensaio com token OAuth local de curta duração; autenticação Firebase do usuário final foi simulada. Exit 0, 27 documentos sintéticos removidos.
+Documentação Workers README atualizada (commit becceaf). Script CI verifica receipt.mjs (commit aa6e8d7).
+Staging: GET /health HTTP 200, writesEnabled=false. main comercial permanece 4cf0622.
+Pendentes F20: fluxo sem caixa aberto, rotas de abertura/fechamento de turno, conciliação bancária, integração progressiva do cliente e bloqueio direto das Rules; nenhuma destas pendências foi declarada pronta.
+Automação de continuidade: criada e ativa, frequência horária, leitura do log GitHub/PC, alterações exclusivamente na branch e testes. Executará somente quando a plataforma iniciar a tarefa; não pressupor execução ou acessos antes de verificar.
+PRÓXIMA AÇÃO EXATA: desenvolver criação de pedido e abertura de caixa server-side e incluir testes de negação para turno fechado. Preservar dados reais e planos gratuitos.
