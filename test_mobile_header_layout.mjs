@@ -12,6 +12,6 @@ assert(css.includes('body:has([role="dialog"][aria-modal="true"]:not([hidden])) 
 for(const id of ["potePendingSyncBackup","poteFullAccountBackup","poteSyncResolve"]){
  assert(mobile.includes(id),id+" deve caber na largura do cartão");
 }
-assert(builder.includes("notifications.css?v=header-bell-20261116"),"Novo CSS precisa invalidar cache");
+assert(builder.includes("notifications.css?v=inline-detail-20261117"),"Novo CSS precisa invalidar cache");
 assert(builder.includes("mobile.css?v=header-sync-20261116"),"Layout do backup precisa invalidar cache");
 console.log("PASS: menu+sininho alinhados, X de modais livre, backup responsivo e cache atualizado.");

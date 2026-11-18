@@ -11,8 +11,8 @@ root.innerHTML='<button type="button" id="poteBell" aria-label="Abrir notificaç
  '<span aria-hidden="true" class="pote-bell-icon">🔔</span><span id="poteNoticeCount" class="pote-bell-count" hidden>0</span></button>'+
  '<section id="poteNoticeDrawer" class="pote-notice-drawer" role="dialog" aria-label="Central de notificações" hidden>'+
  '<header><div><small>ALERTAS DA SUA CONTA</small><h2>Notificações</h2></div><button type="button" id="poteNoticeClose" aria-label="Fechar notificações">✕</button></header>'+
- '<div class="pote-notice-tools"><button type="button" id="poteNoticeReadAll">Marcar todas como lidas</button><span id="poteNoticeStatus"></span></div>'+
- '<div id="poteNoticeList" class="pote-notice-list"></div></section>';
+ '<div class="pote-notice-tools" id="poteNoticeTools"><button type="button" id="poteNoticeReadAll">Marcar todas como lidas</button><span id="poteNoticeStatus"></span></div>'+
+ '<div id="poteNoticeList" class="pote-notice-list"></div><section id="poteNoticeDetail" class="pote-notice-detail" aria-label="Mensagem completa" hidden></section></section>';
 document.body.appendChild(root);
 // Mount alongside the actual hamburger in the sticky toolbar, not using screen offsets.
 function mountBell(){
@@ -28,7 +28,7 @@ if(!mountBell()){
 }
 
 const $=id=>document.getElementById(id),bell=$("poteBell"),drawer=$("poteNoticeDrawer");
-let messages=[],items=[],connectedUid=null,unsub=null,listenerError="";
+let messages=[],items=[],connectedUid=null,unsub=null,listenerError="",selectedId=null;
 function logged(){return !!window.POTE_AUTH?.uid&&auth.currentUser?.uid===window.POTE_AUTH.uid}
 function safeData(){return typeof state!=="undefined"&&state?.data?state.data:null}
 function readStore(){return safeData()?notificationState(state.data).read:{}}
@@ -50,6 +50,27 @@ function paint(){
  $("poteNoticeCount").hidden=count===0;
  $("poteNoticeCount").textContent=count>99?"99+":String(count);
  if(drawer.hidden)return;
+ const selected=selectedId?items.find(x=>x.id===selectedId):null;
+ if(selectedId&&!selected)selectedId=null;
+ const detail=$("poteNoticeDetail");
+ const showDetail=!!selected;
+ $("poteNoticeTools").hidden=showDetail;
+ $("poteNoticeList").hidden=showDetail;
+ detail.hidden=!showDetail;
+ if(showDetail){
+  const href=/^https:\/\/[^\s]+$/i.test(selected.href||"")?selected.href:"";
+  detail.innerHTML='<div class="pote-notice-detail-top">'+
+   '<button type="button" id="poteNoticeBack" data-notice-back>← Voltar às notificações</button>'+
+   '<span>'+esc(selected.source)+'</span></div>'+
+   '<span class="pote-notice-detail-date">'+esc(fmt(selected.at))+'</span>'+
+   '<h3>'+esc(selected.title)+'</h3>'+
+   '<div class="pote-notice-detail-body">'+esc(selected.body)+'</div>'+
+   (href?'<div class="pote-notice-detail-link"><p>Esta mensagem contém um link adicional. A leitura da mensagem já está completa acima.</p>'+
+     '<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">'+
+     'Abrir link externo (nova aba)</a></div>':'')+
+   '<button type="button" class="pote-notice-detail-finish" data-notice-back>Voltar à lista</button>';
+  return;
+ }
  $("poteNoticeStatus").textContent=listenerError?"Comunicados indisponíveis: "+listenerError:
  count?count+" não lida(s)":"Tudo lido";
  $("poteNoticeList").innerHTML=items.length?items.map(x=>
@@ -58,9 +79,27 @@ function paint(){
   '<p>'+esc(x.body)+'</p><div class="pote-notice-actions"><span>'+esc(x.source)+'</span>'+
   (x.unread?'<button type="button" data-notice-read="'+esc(x.id)+'">Marcar como lida</button>':'<span class="read-tag">✓ Lida</span>')+
   (x.kind==="order"?'<button type="button" data-notice-open="'+esc(x.id)+'">Abrir Hub</button>':
-   x.href?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.href)+'">Ver mensagem</a>':"")+
+   x.kind==="broadcast"?'<button type="button" data-notice-detail="'+esc(x.id)+'">Ver mensagem</button>':"")+
   '</div></article>').join(""):
   '<p class="pote-notice-empty">Nenhuma notificação. Pedidos importados e comunicados aparecerão aqui.</p>';
+}
+function viewMessage(id){
+ if(!logged()||!safeData())return false;
+ const selected=currentNotifications().find(x=>x.id===id&&x.kind==="broadcast");
+ if(!selected)return false;
+ selectedId=id;
+ mark(id);
+ paint();
+ $("poteNoticeBack")?.focus?.();
+ return true;
+}
+function backToList(){
+ if(!selectedId)return;
+ const previous=selectedId;
+ selectedId=null;
+ paint();
+ const button=[...$("poteNoticeList").querySelectorAll("[data-notice-detail]")].find(x=>x.dataset.noticeDetail===previous);
+ button?.focus?.();
 }
 function mark(id){if(!logged())return;
  if(markRead(readStore(),id)){if(typeof persist==="function")persist();paint()}
@@ -79,13 +118,14 @@ function toggle(force){
   return;
  }
  const show=typeof force==="boolean"?force:drawer.hidden;
+ if(!show)selectedId=null;
  drawer.hidden=!show;
  bell.setAttribute("aria-expanded",String(show));
  paint();
 }
 function disconnect(){
  if(unsub){unsub();unsub=null}
- connectedUid=null;messages=[];items=[];listenerError="";drawer.hidden=true;bell.setAttribute("aria-expanded","false");
+ connectedUid=null;messages=[];items=[];listenerError="";selectedId=null;drawer.hidden=true;bell.setAttribute("aria-expanded","false");
  root.hidden=true;
  bell.classList.remove("has-unread");
  $("poteNoticeCount").hidden=true;
@@ -112,15 +152,23 @@ $("poteNoticeReadAll").addEventListener("click",markAll);
 $("poteNoticeList").addEventListener("click",event=>{
  const read=event.target.closest("[data-notice-read]");
  if(read){mark(read.dataset.noticeRead);return}
+ const detailButton=event.target.closest("[data-notice-detail]");
+ if(detailButton){viewMessage(detailButton.dataset.noticeDetail);return;}
  const open=event.target.closest("[data-notice-open]");
  if(open){mark(open.dataset.noticeOpen);toggle(false);if(typeof go==="function")go("deliveryhub");}
 });
-document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!drawer.hidden)toggle(false)});
+$("poteNoticeDetail").addEventListener("click",event=>{
+ if(event.target.closest("[data-notice-back]"))backToList();
+});
+document.addEventListener("keydown",event=>{
+ if(event.key!=="Escape"||drawer.hidden)return;
+ if(selectedId)backToList();else toggle(false);
+});
 window.addEventListener("pote:user-ready",connect);
 window.addEventListener("pote:user-logout",disconnect);
 window.addEventListener("pote:changed",paint);
 window.addEventListener("pote:notice-update",paint);
 window.POTE_NOTIFY={refresh:paint,open:()=>toggle(true),close:()=>toggle(false),
- mark,markAll,get unread(){return unreadCount(currentNotifications())},
+ viewMessage,backToList,mark,markAll,get unread(){return unreadCount(currentNotifications())},
  get count(){return currentNotifications().length}};
 if(logged())connect();

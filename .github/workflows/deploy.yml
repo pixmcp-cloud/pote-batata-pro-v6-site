@@ -245,6 +245,7 @@ jobs:
           node --check public/maisdelivery_payload.mjs
           node test_notification_core.mjs
           node test_notifications_ui.mjs
+          node test_notification_inline_message.mjs
           node test_mobile_header_layout.mjs
           node test_admin_broadcast_ui.mjs
           node test_notification_integration.js
