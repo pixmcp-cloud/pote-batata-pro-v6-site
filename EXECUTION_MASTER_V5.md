@@ -11,7 +11,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | ID | Estado | Evidência ou pendência de aceite |
 | --- | --- | --- |
 | F01 | Implementado | Cálculos e reconciliação de pagamentos cobertos pela suíte Node da beta. |
-| F02 | Parcial (nova correção em homologação) | Duas sessões disputam 10 unidades, com uma única gravação. Nova vulnerabilidade confirmada: escrita direta de estoque negativo via SDK era aceita; correção candidata de validação numérica/não negativa e teste de exploração no Emulator. Vínculos pedido-consumo ainda exigem validação server-side. |
+| F02 | Parcial (bloqueio de estoque negativo publicado) | Duas sessões disputam 10 unidades, com uma única gravação. Nova vulnerabilidade confirmada: escrita direta de estoque negativo via SDK era aceita; correção de validação numérica/não negativa publicada nas regras, testada no Emulator após exploração reproduzida. Vínculos pedido-consumo ainda exigem validação server-side. |
 | F03 | Parcial | Compras e ajustes preservam saldos pt-BR. O PDV rejeita valores inválidos sem gravar. Faltam os demais formulários. |
 | F04 | Implementado | A suíte preserva markup personalizado e cobre cálculo para receitas novas. |
 | F05 | Parcial | Cancelamento e perdas têm regressões locais. Falta homologar estornos e reembolsos sob falha e concorrência. |
@@ -38,7 +38,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F26 | Implementado | Política local de galeria por 42 horas coberta pela suíte. |
 | F27 | Parcial | Ajustes para abas ocultas presentes na base. Falta medir CPU e leituras. |
 | F28 | Testado localmente | Antes do login, pedidos e caixa começam zerados. O teste Chrome confere o estado real renderizado. O painel de simulação usa dados próprios. |
-| F29 | Publicado/verificado, parcial | Workflow de regras `44224427191` aprovado no GitHub Actions; leitura autenticada do ruleset de produção e hash realizados. Nova proteção de estoque ainda exige pipeline e nova release separada, sem confundir teste com deploy. |
+| F29 | Publicado/verificado, parcial | Workflow de regras `44224427191` aprovado no GitHub Actions; leitura autenticada do ruleset de produção e hash realizados. Nova proteção de saldo físico publicada em produção com release verificada por API e snapshot de rollback. |
 | F30 | Implementado | Casos de isolamento e limpeza do Delivery cobertos pela suíte. |
 | F31 | Parcial | Contrato do MaisDelivery tem testes locais. Falta homologar a integração com credenciais sandbox. |
 | F32 | Adiado | Galeria continua local. |
@@ -52,3 +52,5 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 2. Validar o leitor das duas famílias de chaves e a sequência de ativação. O cliente publicado precisa reconhecer as chaves novas antes da primeira gravação canônica e as regras candidatas precisam estar ativas quando o cliente começar a substituir registros de cota.
 3. Fazer login Google com perfis de teste Free, Pro, Pro vencido e administrador. Conferir estoque, cotas, sincronização, backup e recuperação usando a mesma versão de cliente e regras em homologação.
 4. Guardar a versão do site, o conteúdo das regras em produção e o ponto de recuperação dos dados. Após homologar, verificar o deploy e repetir os testes essenciais no ambiente publicado.
+
+Para evidências de auditoria F18/F19/F02/F20/F29, hashes efetivos, bateria de testes e rollback, consulte `SECURITY_AUDIT_20261118.md` (atualizado após o deploy de regras).

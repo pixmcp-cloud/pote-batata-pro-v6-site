@@ -1,7 +1,7 @@
 # Potê Batata Pro — Auditoria de segurança | 18/11/2026
 
 ## Escopo e limites
-Execução na worktree isolada `audit/f18-f19-f02-20261118`, derivada de `main` no commit `a7796e4921aa9a2d951bd5afbd80dd832ed731bf`. Projeto de produção: `potobatata-b71f3`, domínio oficial `https://pdv.livresom.com`. Nenhum dado foi apagado, migrado ou alterado no Firestore real nesta fase. Nenhum serviço pago foi ativado. Os testes de gravação foram executados **exclusivamente** no projeto demo `demo-pote-hardening` do Firebase Emulator.
+Execução na worktree isolada `audit/f18-f19-f02-20261118`, derivada de `main` no commit `a7796e4921aa9a2d951bd5afbd80dd832ed731bf`. Projeto de produção: `potobatata-b71f3`, domínio oficial `https://pdv.livresom.com`. Somente as regras de segurança do Firestore foram atualizadas após homologação; nenhum documento, pedido, conta, estoque ou credencial foi apagado, migrado ou alterado. Nenhum serviço pago foi ativado. Os testes de gravação foram executados **exclusivamente** no projeto demo `demo-pote-hardening` do Firebase Emulator.
 
 ## Ponto de recuperação
 - Git bundle criado e verificado: `C:\Users\LIVRESOM\Documents\GitHub\_POTE_BACKUPS\pote-pre-security-20261118.bundle`.
@@ -23,7 +23,7 @@ Emulador:
 
 **Correção:** `firestore.rules` e `firestore.hardened.rules` passam a impedir gravações de `stock` negativo, não numérico ou excessivamente grande nos registros de `ingredients` e `beverages`. A verificação usa apenas os dados da solicitação, sem novos `get()` ou leituras cobradas pelas regras. A preservação da revisão transacional do V2 permanece inalterada.
 
-**Depois:** a suíte de quatro testes do Firebase Emulator passou (4/4), incluindo as três tentativas de saldo negativo e uma de estoque como texto; valores zero/positivos e atualização do nome continuaram permitidos. Os conjuntos anteriores F18/F19 também devem permanecer verdes no CI da branch.
+**Depois:** a suíte de quatro testes do Firebase Emulator passou (4/4), incluindo as três tentativas de saldo negativo e uma de estoque como texto; valores zero/positivos e atualização do nome continuaram permitidos. As suítes do Emulator passaram 4/4 na referência e 8/8 na candidata; a rotina geral de 89 testes Node passou sem falhas e os workflows remotos foram concluídos com sucesso.
 
 **Compatibilidade com snapshot anterior de testes:** 22 saldos de bebidas e 137 saldos de ingredientes verificados no backup do dia anterior, todos como tipos numéricos (inteiros ou decimais). Snapshot é histórico e não comprova o estado atual de todas as contas.
 
@@ -41,3 +41,15 @@ Emulador:
 - F19/F20/F24: modelar alterações permitidas em templates, validar identidades/claims e trilha de eventos compensatórios.
 - Problema da venda no cartão: reproduzir na conta afetada com backup local verificado e duas sessões; não assumir que a correção de aparência resolve conflito real.
 - F06/F12/F15/F17: chunking >290 mudanças, build determinístico, contratos de módulos, performance e acessibilidade Android.
+
+## Registro de implantação — 18/11/2026
+- **Commit de código e testes:** `323ec55d28e511343d1adcb7fb1888147f984077`, integrado na `main` via fast-forward (sem reescrever histórico).
+- **CI remoto de regras aprovado:** https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/actions/runs/44232267942
+- **CI de publicação do repositório aprovado:** https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/actions/runs/44232267945
+- **Comando restrito utilizado:** `firebase.cmd deploy --only firestore:rules --project potobatata-b71f3 --non-interactive`. Firebase reportou compilação bem-sucedida e `Deploy complete`.
+- **Ruleset efetivamente implantado (verificação posterior via API):** `projects/potobatata-b71f3/rulesets/55d783eb-f0f8-4a66-9b53-e278eeb3cbc5`.
+- **SHA-256 remoto = arquivo publicado:** `fdd0c15a80110f90396a273933e7cba9a1e8501527c575eb9717af689da5c596`.
+- **Rollback preservado:** versão anterior `35bdcf296a11528fe298420e0f56373fe36bb6ee948e9f6eef57eb6f7520224b` em `_POTE_BACKUPS\firestore-live-audit-20261118.rules`; versão nova em `_POTE_BACKUPS\firestore-live-post-audit-20261118.rules`.
+- **Regressão local:** 89/89 testes Node, 4/4 Emulator de referência, 8/8 Emulator candidato, zero falhas.
+- **Custos:** regra com validação local da solicitação, sem leituras adicionais; não ativados Blaze, Functions, Storage nem novos serviços pagos.
+- **Limites:** não houve smoke test autenticado no Android nem alteração/inspeção direta dos documentos atuais em produção. F02 e F20 continuam parciais.
