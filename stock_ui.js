@@ -146,6 +146,7 @@ function renderPanel(state,data){
    <div><small>Abaixo do mínimo</small><strong>${low}</strong></div>
   </div>
  </div>
+ ${criticalStockPermitted()?'<section class="notice" id="poteStockCriticalTest" style="border-color:#bc9655;background:#231d14"><strong>SIMULAÇÃO CONTROLADA — ESTOQUE A 10%</strong><p>Coloca os insumos, embalagens e bebidas deste negócio em 10% do estoque mínimo configurado. Sem mínimo, usa a necessidade de uma receita ou o saldo atual. Preserva os saldos anteriores para restaurar.</p><div class="actions"><button type="button" class="btn" onclick="POTE_STOCK_UI.criticalStock10Apply()">Aplicar estoque 10% (teste)</button><button type="button" class="btn line" onclick="POTE_STOCK_UI.criticalStock10Restore()">Restaurar estoque anterior</button></div><small>Disponível somente à conta administradora. Bloqueado enquanto houver conflito de sincronização.</small></section>':''}
  ${window.POTE_KITCHEN?.renderPanel?.(state.data)||""}
  ${window.POTE_APP_AUDIT?.panel?.(state.data)||""}
  ${priorityPanel(visible,held,recipeRisk)}
@@ -338,8 +339,156 @@ function clearSearch(){
  if(field){field.value="";field.focus?.()}
  filter("");
 }
+
+const criticalStockBackupKey=()=> "pote-stock-critical10-v1:"+String(window.POTE_AUTH?.uid||"")+
+ ":"+String(state?.data?.businessType||"batataria");
+function criticalStockPermitted(){
+ const auth=window.POTE_AUTH;
+ return !!auth?.uid&&auth.role==="admin"&&
+  String(auth.email||"").toLowerCase()==="pixmcp@gmail.com"&&
+  (state.data.businessType||"batataria")==="batataria";
+}
+function criticalStockTarget(item,recipeNeed=0,integer=false){
+ const min=Number(item?.minimum),physical=Number(item?.stock);
+ const needed=Number.isFinite(min)&&min>0?min:
+  Number.isFinite(recipeNeed)&&recipeNeed>0?recipeNeed:
+  Number.isFinite(physical)&&physical>0?physical:0;
+ const raw=Math.max(0,needed*0.1);
+ return integer||String(item?.measureUnit||"").toLowerCase()==="un"?
+  Math.floor(raw):Math.round(raw*1000)/1000;
+}
+function criticalRecipeNeeds(){
+ const needs=new Map();
+ const addRecipe=items=>{
+  const counts=new Map();
+  for(const row of items||[]){
+   if(typeof row?.id!=="string")continue;
+   const n=Number(row.g);
+   if(Number.isFinite(n)&&n>0)counts.set(row.id,(counts.get(row.id)||0)+n);
+  }
+  for(const [id,qty] of counts)
+   needs.set(id,Math.max(needs.get(id)||0,qty));
+ };
+ for(const r of state.data.recipes||[]){
+  if(r?.archived||r?.unavailable)continue;
+  addRecipe(r.items);
+  for(const id of r.packagingIngredientIds||[])
+   needs.set(id,Math.max(needs.get(id)||0,1));
+ }
+ for(const a of state.data.addons||[]){
+  const id=a?.ingredientId,n=Number(a?.quantity);
+  if(id&&Number.isFinite(n)&&n>0)needs.set(id,Math.max(needs.get(id)||0,n));
+ }
+ return needs;
+}
+function criticalStockReady(){
+ if(!criticalStockPermitted())throw Error("Recurso exclusivo da conta administradora do Potê Batata.");
+ if(window.POTE_APP_READY!==true)throw Error("Aguarde carregar os dados da sua conta.");
+ if(window.POTE_SYNC_GUARD?.blocked||window.POTE_SYNC_GUARD?.hasPending?.()){
+  window.POTE_SYNC_GUARD?.showRecovery?.();
+  throw Error("Há conflito/backup pendente. Resolva antes de alterar o estoque.");
+ }
+ if(navigator.onLine===false)throw Error("Sem conexão. Estoque não alterado.");
+}
+function criticalStock10Apply(){
+ try{
+  criticalStockReady();
+  const key=criticalStockBackupKey();
+  if(localStorage.getItem(key))throw Error("Já existe backup dos saldos anteriores. Restaure antes de aplicar novamente.");
+  const rows=[
+   ...(state.data.ingredients||[]).filter(i=>i&&!i.archived)
+    .map(item=>({item,kind:"ingredient"})),
+   ...(state.data.beverages||[]).filter(i=>i&&!i.archived)
+    .map(item=>({item,kind:"beverage"}))
+  ];
+  if(!rows.length)throw Error("Nenhum item ativo encontrado para simulação.");
+  const needs=criticalRecipeNeeds();
+  const data=rows.map(({item,kind})=>{
+   const before=Number(item.stock);
+   if(!Number.isFinite(before)||before<0||typeof item.id!=="string"||!item.id)
+    throw Error("Saldo ou identificador inválido: "+String(item.name||item.id));
+   const after=criticalStockTarget(item,needs.get(item.id)||0,kind==="beverage");
+   return {id:item.id,kind,before,after,name:String(item.name||item.id)};
+  });
+  const affected=data.filter(x=>x.after!==x.before);
+  if(!affected.length){toast("Os itens já estão nos saldos-alvo de 10%.");return false;}
+  if(!confirm("SIMULAÇÃO CONTROLADA: ajustar "+affected.length+
+   " item(ns) para 10% do estoque mínimo (ou necessidade da receita quando não houver mínimo). "+
+   "Esse ajuste é somente para seus dados de teste; NÃO registra compra ou perda. "+
+   "Os saldos originais serão guardados para restauração. Confirmar?"))return false;
+  // Backup export runs while the original state is still intact.
+  window.POTE_SYNC_GUARD?.downloadPending?.();
+  localStorage.setItem(key,JSON.stringify({version:1,uid:window.POTE_AUTH.uid,
+   universe:state.data.businessType||"batataria",createdAt:new Date().toISOString(),
+   items:data}));
+  const byKey=new Map(data.map(x=>[x.kind+":"+x.id,x]));
+  const now=new Date().toISOString();
+  state.data.stockMovements??=[];
+  for(const {item,kind} of rows){
+   const v=byKey.get(kind+":"+item.id);
+   if(!v||v.before===v.after)continue;
+   item.stock=v.after;
+   state.data.stockMovements.unshift({
+    id:"stock10-"+Date.now()+"-"+uid(),at:now,
+    ingredientId:kind==="ingredient"?item.id:null,
+    beverageId:kind==="beverage"?item.id:null,
+    ingredientName:item.name,kind:"simulacao-estoque10",
+    quantity:v.after-v.before,previousStock:v.before,afterStock:v.after,
+    reason:"TESTE: estoque 10% do mínimo. Não é perda nem compra.",
+    referenceId:"stock10:"+window.POTE_AUTH.uid
+   });
+  }
+  persist();render();
+  window.dispatchEvent(new Event("pote:changed"));
+  toast("Estoque de teste ajustado para 10% em "+affected.length+
+   " itens. Saldos originais preservados para restauração.");
+  return true;
+ }catch(error){alert(String(error?.message||error));return false}
+}
+function criticalStock10Restore(){
+ try{
+  criticalStockReady();
+  const key=criticalStockBackupKey(),raw=localStorage.getItem(key);
+  if(!raw)throw Error("Nenhuma simulação anterior disponível neste aparelho.");
+  const backup=JSON.parse(raw);
+  if(backup.version!==1||backup.uid!==window.POTE_AUTH.uid||
+   backup.universe!==(state.data.businessType||"batataria")||
+   !Array.isArray(backup.items))throw Error("Backup de estoque incompatível com esta conta.");
+  const groups={ingredient:state.data.ingredients||[],beverage:state.data.beverages||[]};
+  for(const record of backup.items){
+   const item=groups[record.kind]?.find(x=>x.id===record.id);
+   if(!item||Number(item.stock)!==record.after)
+    throw Error("O saldo de "+record.name+" mudou desde o teste. "+
+     "A restauração automática foi bloqueada para preservar alterações posteriores.");
+  }
+  if(!confirm("Restaurar todos os saldos originais da simulação de 10%? "+
+   "As movimentações históricas serão preservadas."))return false;
+  const now=new Date().toISOString();
+  state.data.stockMovements??=[];
+  for(const record of backup.items){
+   const item=groups[record.kind].find(x=>x.id===record.id);
+   if(record.before===record.after)continue;
+   item.stock=record.before;
+   state.data.stockMovements.unshift({
+    id:"stock10-restore-"+Date.now()+"-"+uid(),at:now,
+    ingredientId:record.kind==="ingredient"?item.id:null,
+    beverageId:record.kind==="beverage"?item.id:null,
+    ingredientName:item.name,kind:"restauracao-simulacao10",
+    quantity:record.before-record.after,previousStock:record.after,
+    afterStock:record.before,reason:"TESTE: restaurar saldos anteriores ao estoque 10%.",
+    referenceId:"stock10-restore:"+window.POTE_AUTH.uid
+   });
+  }
+  localStorage.removeItem(key);
+  persist();render();window.dispatchEvent(new Event("pote:changed"));
+  toast("Saldos originais restaurados, sem apagar os registros de ajuste.");
+  return true;
+ }catch(error){alert(String(error?.message||error));return false}
+}
+
 window.POTE_STOCK_UI={renderPanel,selectIngredient,preview,openPurchase,savePurchase,
- adjustStock,saveReference,filter,clearSearch,normalized,costUnit,restockPanel,jumpToNeed,returnToOrder};
+ adjustStock,saveReference,filter,clearSearch,normalized,costUnit,restockPanel,jumpToNeed,returnToOrder,
+ criticalStockTarget,criticalStock10Apply,criticalStock10Restore,criticalStockPermitted};
 window.stockSelectIngredient=selectIngredient;
 window.stockConfirmPurchase=savePurchase;
 window.stockOpenPurchase=openPurchase;
