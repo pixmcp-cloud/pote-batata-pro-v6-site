@@ -124,7 +124,32 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  const body={universe:UNIVERSE,orderId:"o1",operationId:OP2};
  assert.equal((await app.fetch(request(body,"/v1/orders/receipt"),env)).status,409);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
-});test("staging mode fails closed, health exposes no customer data",async()=>{
+});test("F20 cash opening is atomic, idempotent and single-session",async()=>{
+ const {db}=makeStore(),app=appFor(db),control="users/"+UID+"/appState/v2CashControl__"+UNIVERSE;
+ db.seed(control,{version:1,activeSessionId:null});
+ const body={universe:UNIVERSE,operationId:OP1,openingCashCents:5000,operator:"Caixa QA"};
+ const go=()=>app.fetch(request(body,"/v1/cash/open"),env);
+ const first=await go();assert.equal(first.status,200,await first.text());
+ const reply=await (await go()).json();assert.equal(reply.alreadyApplied,true);
+ const sessionId="cf-turn-"+OP1;
+ const shift=db.current(recordPath(UID,UNIVERSE,"cashSessions",sessionId)).record.item;
+ assert.equal(shift.openingCash,50);
+ assert.equal(shift.status,"open");
+ assert.equal(db.current(control).activeSessionId,sessionId);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
+ const other={...body,operationId:OP2};
+ assert.equal((await app.fetch(request(other,"/v1/cash/open"),env)).status,409);
+ assert.equal(db.current(control).activeSessionId,sessionId);
+});
+test("F20 cash opening fails closed without migration and validates money",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const body={universe:UNIVERSE,operationId:OP1,openingCashCents:0};
+ assert.equal((await app.fetch(request(body,"/v1/cash/open"),env)).status,409);
+ assert.equal((await app.fetch(request({...body,openingCashCents:"1000"},"/v1/cash/open"),env)).status,400);
+ assert.equal((await app.fetch(request({...body,openingCashCents:-1},"/v1/cash/open"),env)).status,400);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+});
+test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
  assert.equal(health.status,200);
