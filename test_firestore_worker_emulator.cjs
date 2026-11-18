@@ -131,6 +131,13 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
    method:"POST",headers:{"Authorization":"Bearer emulator-owner",
     "Origin":"https://pdv.livresom.com","Content-Type":"application/json"},
    body:JSON.stringify(createBody)});
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const db=ctx.firestore(),ref=sdk.doc(db,"users",uid,"records",
+    recordPath(uid,universe,"ingredients","potato").split("/").at(-1));
+   await sdk.updateDoc(ref,{"record.item.purchasePrice":10,
+    "record.item.purchaseQuantity":1,"record.item.purchaseUnit":"kg",
+    "record.item.measureUnit":"g"});
+  });
   const createResponse=await fetchAsService(createReq(),options);
   assert.equal(createResponse.status,200,await createResponse.text());
   assert.equal((await get("ingredients","potato")).stock,75);
