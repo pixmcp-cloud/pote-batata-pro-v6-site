@@ -87,6 +87,11 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  assert.equal(e.quantityBase,20);
  assert.equal(e.costKnown,false);
  assert.equal((await(await fn()).json()).alreadyApplied,true);
+});test("F02 adjustment rejects oversubtraction",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const b={universe:UNIVERSE,operationId:OP3,group:"ingredients",itemId:"batata",delta:-999,reason:"loss"};
+ assert.equal((await app.fetch(request(b,"/v1/inventory/adjust"),env)).status,409);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
 });test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
