@@ -109,7 +109,8 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
    "Wrong backup cannot clear the sync conflict");
  assert.equal(reloads,0);assert(store.has(pendingKey("u")));
  wrongFileOnce=false;
- assert.equal(await context.window.POTE_SYNC_GUARD.resolvePendingConflict(),true);
+ assert.equal(await context.window.POTE_SYNC_GUARD.resolvePendingConflict(),true,
+  elements.get("poteSyncStatus").textContent);
  assert.equal(reloads,1);
  assert.equal(store.has(pendingKey("u")),false);
  assert.equal(context.window.POTE_SYNC_GUARD.blocked,false);
