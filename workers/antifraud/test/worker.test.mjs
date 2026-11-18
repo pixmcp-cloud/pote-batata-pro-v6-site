@@ -112,7 +112,7 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  const body={universe:UNIVERSE,operationId:OP3,orderId:"o1"};
  const go=()=>app.fetch(request(body,"/v1/orders/receipt"),env);
  const first=await go();
- assert.equal(first.status,200,await first.text());
+ assert.equal(first.status,200);
  assert.equal((await first.json()).amountCents,7000);
  assert.equal(db.current(p).record.item.paymentStatus,"pago");
  assert.equal(db.current(p).record.item.bankReconciled,false);
