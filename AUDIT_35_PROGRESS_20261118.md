@@ -75,3 +75,8 @@ Essas evidências são **de homologação local automatizada**, não de Android 
 6. Nenhum serviço pago ou migração destrutiva sem autorização específica. Firebase e Workers continuam sujeitos às franquias/cotas do plano existente.
 
 **Estado oficial deste corte:** a branch tem melhorias implementadas e laboratório automatizado aprovado, mas **não está liberada para publicação comercial**; os riscos de credenciais, transações REST reais, regras de segurança e testes físicos permanecem explicitamente abertos.
+
+
+### Atualizacao F02 (18/11/2026): duas reservas simultaneas e precos server-only
+Reserva concorrente no Firestore SDK Emulator: exatamente uma aceita, outra 409, sem saldo negativo, replay idempotente. O vendedor autenticado podera aprovar preco via POST /v1/catalog/approve-price somente apos habilitacao controlada do Worker; o servidor valida custos, margem e receita. O pedido exige documento privado users/{uid}/serverPrices/*, com bloqueio Firestore Rules contra leitura/escrita do navegador. Revisao do preco e receita validada no SDK Emulator e nas Rules candidatas.
+QA: Worker 58/58, ponte antiga PASS, Firestore Emulator base PASS e candidata de cutover PASS. STATUS F02 PARCIAL: faltam integracao da UI/bridge, catalogo, complementos/combos, dispositivo fisico e ativacao assistida. Nenhum codigo Worker novo foi publicado comercialmente; main e538e64 permanece ativo.
