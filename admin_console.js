@@ -188,7 +188,11 @@ async function loadAudit(){
   await assertAdmin();
   const records=await getDocs(query(collection(db,"licenseAudit"),orderBy("at","desc"),limit(30)));
   $("poteAdmAudit").innerHTML=records.empty?'<p class="pote-adm-empty">Nenhuma licença concedida nesta central.</p>':
-   records.docs.map(d=>{const a=d.data();return `<div class="pote-adm-event"><span>${esc(fmtDate(a.at))}</span><strong>${esc(a.targetEmail||a.targetUid)}</strong><span>${esc(a.fromTerm||"free")} → ${esc(a.toTerm||"free")}</span><small>${esc(a.action||"alteração")}</small></div>`}).join("");
+   records.docs.map(d=>{const a=d.data();const receipt=a.paymentMethod==="pix_manual"?
+   " · Pix recebido R$ "+(Number(a.paymentAmountCents)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+
+   " · Ref.: "+String(a.paymentReference||""):
+   a.paymentMethod==="courtesy"?" · Cortesia (R$ 0,00) · "+String(a.paymentReference||""):
+   " · Pagamento não informado no histórico anterior";return `<div class="pote-adm-event"><span>${esc(fmtDate(a.at))}</span><strong>${esc(a.targetEmail||a.targetUid)}</strong><span>${esc(a.fromTerm||"free")} → ${esc(a.toTerm||"free")}</span><small>${esc(a.action||"alteração")}${esc(receipt)}</small></div>`}).join("");
  }catch(e){$("poteAdmAudit").textContent="Histórico indisponível: "+(e.code||e.message)}
 }
 async function changeLicense(revoke=false){
