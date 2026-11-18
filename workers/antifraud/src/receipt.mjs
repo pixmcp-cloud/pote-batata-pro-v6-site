@@ -26,6 +26,41 @@ export async function confirmOperatorReceipt(body,{user,env,repository,clock,has
  const guardPath=root+"/appState/v2InventoryGuard",pulsePath=root+"/appState/v2Pulse";
  const tx=await repository(env).transaction();
  try{
-  // F20_RECEIPT_TRANSACTION
+    const [profile,meta,guard,pulse,ordered,event]=await Promise.all([
+   tx.get(root),tx.get(root+"/appState/v2"),tx.get(guardPath),
+   tx.get(pulsePath),tx.get(orderPath),tx.get(eventPath)
+  ]);
+  if(!profile||!hasAccess(profile.data,user,universe))
+   fail("not_allowed","Conta sem permissão",403);
+  if(event){
+   const prev=event.data;
+   if(prev.action!=="receipt"||prev.universe!==universe||
+      prev.orderId!==orderId||prev.reference!==reference)
+    fail("idempotency_conflict","Identificador já utilizado");
+   return {ok:true,alreadyApplied:true,orderId,operationId,
+    amountCents:prev.amountCents,method:prev.method,bankReconciled:false};
+  }
+  if(!meta||meta.data?.schemaVersion!==2||meta.data?.migration?.status==="copying"||
+     !guard||!Number.isInteger(guard.data?.revision)||!pulse?.data?.eventId)
+   fail("not_ready","Sincronização V2 não está pronta");
+  const rec=ordered?.data?.record,order=rec?.item;
+  if(!rec||rec.group!=="orders"||rec.id!==orderId||
+     rec.universe!==universe||!order)
+   fail("order_missing","Pedido não encontrado",404);
+  if(order.status!=="entregue"||order.stockDeducted!==true)
+   fail("order_state","Conclua a venda antes de registrar recebimento");
+  if(order.paymentConfirmedAt||["pago","confirmado","pago em dinheiro"].includes(
+    String(order.paymentStatus||"").toLowerCase()))
+   fail("already_paid","Pagamento já registrado");
+  const method=methodFor(order.paymentMethod);
+  if(!method)fail("payment_method","Forma de pagamento não permitida");
+  const qty=Number(order.qty),price=Number(order.price),fee=Number(order.deliveryFee||0);
+  if(!Number.isFinite(qty)||qty<=0||qty>10000||!Number.isFinite(price)||
+     price<0||price>1e8||!Number.isFinite(fee)||fee<0||fee>1e8)
+   fail("invalid_amount","Valor armazenado inválido");
+  const amountCents=Math.round(qty*price*100)+Math.round(fee*100);
+  if(!Number.isSafeInteger(amountCents)||amountCents<=0||amountCents>1e10)
+   fail("invalid_amount","Valor total fora dos limites");
+  // F20_RECEIPT_SESSION_AND_COMMIT
  }finally{await tx.rollback()}
 }
