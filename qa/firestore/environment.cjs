@@ -15,10 +15,10 @@ function readConfig(filename) {
   return JSON.parse(fs.readFileSync(path.join(root, filename), 'utf8'));
 }
 
-function initializeEmulator({ hardened = false } = {}) {
-  const config = readConfig(hardened ? 'firebase.hardened.qa.json' : 'firebase.emulator.qa.json');
+function initializeEmulator({ hardened = false, cutover = false } = {}) {
+  const config = readConfig(cutover ? 'firebase.worker_cutover.qa.json' : hardened ? 'firebase.hardened.qa.json' : 'firebase.emulator.qa.json');
   const rulesFile = config.firestore.rules;
-  if (!hardened && rulesFile !== readConfig('firebase.json').firestore.rules) {
+  if (!hardened && !cutover && rulesFile !== readConfig('firebase.json').firestore.rules) {
     throw new Error('O emulador deve testar o arquivo de regras configurado em firebase.json.');
   }
 
