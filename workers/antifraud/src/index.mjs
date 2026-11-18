@@ -48,7 +48,8 @@ export function createWorkerApp({
    route==="/v1/orders/cancel"?"cancel":
    route==="/v1/inventory/adjust"?"adjust":
    route==="/v1/orders/receipt"?"receipt":
-   route==="/v1/cash/open"?"cash_open":null;
+   route==="/v1/cash/open"?"cash_open":
+   route==="/v1/cash/close"?"cash_close":null;
   if(!action)return json({error:"not_found"},404,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
