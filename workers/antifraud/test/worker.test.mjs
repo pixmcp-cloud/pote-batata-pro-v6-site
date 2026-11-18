@@ -119,6 +119,11 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
  assert.equal((await(await go()).json()).alreadyApplied,true);
  assert.equal([...db.docs.keys()].filter(k=>k.includes("cashMovements")).length,0);
+});test("F20 no receipt for an unfinished sale",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const body={universe:UNIVERSE,orderId:"o1",operationId:OP2};
+ assert.equal((await app.fetch(request(body,"/v1/orders/receipt"),env)).status,409);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
 });test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
