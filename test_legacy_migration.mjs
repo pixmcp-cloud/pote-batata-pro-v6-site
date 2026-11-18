@@ -20,7 +20,7 @@ const legacyFree={data:{businessType:"batataria",businessUniverses:{},
  recipes:[{id:"old-recipe-1"},{id:"old-recipe-2"}],
  ingredients:[{id:"old-potato",stock:2000}],
  orders:[{id:"old-order",status:"cancelado"}],
- cashSessions:[{id:"cash-1",status:"closed"}],
+ cashSessions:[{id:"cash-1",status:"closed",closedAt:"2026-11-17T18:00:00Z",closedSummary:{sales:20}}],
  cashMovements:[{id:"cash-movement-1",kind:"reembolso",amount:20}],
  recipeVersions:[{id:"version-1"}],
  recipeTrash:[{id:"trash-1"}],
@@ -34,4 +34,7 @@ assert.equal(legacyFree.data.recipes.length,2);
 const tagged=historical.preview.documents.map(x=>x.collection);
 for(const group of ["cashSessions","cashMovements","recipeVersions","recipeTrash","checklist"])
  assert(tagged.includes(group),"Cannot omit legacy group "+group);
-console.log("PASS F10 preview: V1 backup, stable fingerprint, archived branch, record count and duplicate rejection.");
+const malformedClosed=JSON.parse(JSON.stringify(legacyFree));
+malformedClosed.data.cashSessions=[{id:"historical-closed",status:"closed",closedAt:"2026-11-17T18:00:00Z"}];
+await assert.rejects(()=>prepareLegacyMigration(malformedClosed,{free:false}),/sem resumo\/data compatíveis/);
+console.log("PASS F10 preview: V1 original, 19 groups, Free history, invalid closed shifts rejected before migration.");

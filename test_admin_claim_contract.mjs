@@ -19,7 +19,7 @@ for(const file of ["firebase_integration.js","admin_console.js",
 const beta=text("make_beta.py");
 for(const file of ["firebase_integration.js","admin_console.js",
  "admin_permissions.js","admin_broadcast.js"]){
- assert(beta.includes(file+"?v="+(file==="firebase_integration.js"?"f10-verified-migration-20261118":file==="admin_console.js"?"franchise-report-20261118":"f24-admin-claim-20261118")),
+ assert(beta.includes(file+"?v="+(file==="firebase_integration.js"?"f10-closed-shifts-20261118":file==="admin_console.js"?"franchise-report-20261118":"f24-admin-claim-20261118")),
   "Client must request fresh admin auth module: "+file);
 }
 console.log("PASS F24: server + all admin screens require signed custom claim and verified Google identity.");

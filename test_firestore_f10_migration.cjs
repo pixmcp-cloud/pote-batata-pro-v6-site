@@ -10,6 +10,11 @@ ingredients:[{id:"batata",stock:20000}],orders:[
  {id:"o1",status:"recebido",qty:2,price:30,createdAt:"2026-11-17T10:00:00Z"}],
 stockMovements:[{id:"m1",ingredientId:"batata",quantity:-10,reason:"Produção",referenceId:"o1"}],
 expenses:[{id:"e1",amount:50,at:"2026-11-17T10:00:00Z"}],
+cashSessions:[{id:"shift-1",status:"closed",openedAt:"2026-11-17T08:00:00Z",
+ openingCash:50,operator:"Caixa A",closedAt:"2026-11-17T18:00:00Z",
+ countedCash:70,expectedCash:70,difference:0,closedSummary:{sales:20,expectedCash:70}}],
+cashMovements:[{id:"shift-event-1",kind:"suprimento",sessionId:"shift-1",
+ amount:20,reason:"Troco",at:"2026-11-17T08:30:00Z"}],
 clients:[{id:"c1",name:"Cliente"}],settings:{tax:5},brand:{name:"Batataria original"}}};
 (async()=>{
  const {prepareLegacyMigration,migrateLegacyV2}=await import("./legacy_migration_v2.mjs");
@@ -57,7 +62,10 @@ clients:[{id:"c1",name:"Cliente"}],settings:{tax:5},brand:{name:"Batataria origi
   assert.equal(applied[0].data.orders[0].id,"o1");
   assert.equal(applied[0].data.businessUniverses.pizzaria.recipes[0].id,"pizza-1");
   assert.equal(applied[0].data.ingredients[0].stock,20000);
+  assert.equal(applied[0].data.cashSessions[0].status,"closed");
+  assert.deepEqual(applied[0].data.cashSessions[0].closedSummary,{sales:20,expectedCash:70});
+  assert.equal(applied[0].data.cashMovements[0].amount,20);
   v2.dispose();
-  console.log("PASS F10 real emulator: staged V1->V2; interruption preserves original; retry, copy comparison and cutover succeed; V2 sees archived universes.");
+  console.log("PASS F10 real emulator: V1 preserved, migration interrupted and resumed, legacy closed cash session + movements recovered, archived universes kept.");
  }finally{await env.cleanup()}
 })().catch(e=>{console.error("F10 MIGRATION FAILED",e.stack||e);process.exitCode=1});

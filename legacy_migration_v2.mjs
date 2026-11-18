@@ -6,6 +6,8 @@ import {splitState,combineState} from "./v2_store_core.mjs";
 import {stableJson,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
 const fail=(code,message)=>{const error=Error(message);error.code=code;throw error};
+const stagedLegacyRecord=record=>record.group==="cashSessions"&&record.item?.status==="closed"
+ ? {...record,item:{...record.item,status:"open"}} : record;
 const digest=async v=>{
  const bytes=new TextEncoder().encode(stableJson(v));
  const hash=await crypto.subtle.digest("SHA-256",bytes);
@@ -19,6 +21,13 @@ export async function prepareLegacyMigration(source,{free=false}={}){
  if(jsonBytes(normalized.meta)>MAX_APPSTATE_BYTES)fail("migration/too-big","Metadados legados excedem o limite seguro.");
  if(normalized.records.size!==preview.documents.length)
   fail("migration/duplicate","Quantidade de registros divergente no plano de migração.");
+ for(const record of normalized.records.values()){
+  if(record.group==="cashSessions"&&record.item?.status==="closed"&&
+     (typeof record.item.closedAt!=="string"||!record.item.closedSummary||
+      typeof record.item.closedSummary!=="object"||Array.isArray(record.item.closedSummary)))
+   fail("migration/legacy-cash","Caixa encerrado antigo sem resumo/data compatíveis: "+record.id+
+    ". Faça backup e revise o histórico antes de migrar.");
+ }
  return {fingerprint:await digest(state),state,normalized,preview,recordCount:normalized.records.size};
 }
 export function inspectLegacyBackup(contents,uid,expectedState){
@@ -75,7 +84,8 @@ export async function migrateLegacyV2({uid,db,sdk,planned,onProgress=()=>{},batc
     fail("migration/conflict","Migração sofreu alteração externa.");
    const fresh=slice.filter(([,record],i)=>{
     const found=rows[i];
-    if(found.exists()&&!same(found.data()?.record,record))
+    if(found.exists()&&!same(found.data()?.record,record)&&
+       !same(found.data()?.record,stagedLegacyRecord(record)))
      fail("migration/conflict","Registro migrado divergente: "+record.id);
     return !found.exists();
    });
@@ -85,7 +95,7 @@ export async function migrateLegacyV2({uid,db,sdk,planned,onProgress=()=>{},batc
     fail("migration/conflict","Guarda de migração ausente.");
    const eventId="migration-"+planned.fingerprint.slice(0,12)+"-"+start;
    for(const [key,record] of fresh)
-    tx.set(recordRef(key),{record,updatedAt:serverTimestamp()});
+    tx.set(recordRef(key),{record:stagedLegacyRecord(record),updatedAt:serverTimestamp()});
    tx.set(guard,{revision:rev+1,updatedAt:serverTimestamp()});
    tx.set(pulse,{eventId,previousEventId:priorPulse.data().eventId,
     origin:"migration-v1",sensitive:true,affected:fresh.length,
@@ -94,6 +104,43 @@ export async function migrateLegacyV2({uid,db,sdk,planned,onProgress=()=>{},batc
   });
   confirmed+=outcome;done+=slice.length;
   onProgress({confirmed,processed:done,total:list.length});
+ }
+ // Caixas já encerrados no V1 são criados provisoriamente como abertos
+ // apenas enquanto V2 está inacessível (migration=copying). A operação
+ // de fechamento usa o protocolo normal das regras Firestore, preservando
+ // integralmente os campos históricos e sem alterar appState/main.
+ const closed=list.filter(([,record])=>record.group==="cashSessions"&&record.item?.status==="closed");
+ for(let start=0;start<closed.length;start+=batchSize){
+  const slice=closed.slice(start,start+batchSize);
+  await runTransaction(db,async tx=>{
+   const [oldRoot,g,previous,...rows]=await Promise.all([
+    tx.get(root),tx.get(guard),tx.get(pulse),
+    ...slice.map(([key])=>tx.get(recordRef(key)))
+   ]);
+   if(oldRoot.data()?.migration?.status!=="copying"||
+      oldRoot.data().migration.fingerprint!==planned.fingerprint)
+    fail("migration/conflict","Migração de caixas foi modificada externamente.");
+   const pending=slice.filter(([,record],i)=>{
+    const seen=rows[i].data()?.record;
+    if(same(seen,record))return false;
+    if(!same(seen,stagedLegacyRecord(record)))
+     fail("migration/conflict","Caixa histórico divergente: "+record.id);
+    return true;
+   });
+   if(!pending.length)return;
+   const rev=Number(g.data()?.revision);
+   if(!Number.isInteger(rev)||rev<0||!previous.exists())
+    fail("migration/conflict","Revisão do caixa ausente.");
+   for(const [key,record] of pending)
+    tx.set(recordRef(key),{record,updatedAt:serverTimestamp()});
+   tx.set(guard,{revision:rev+1,updatedAt:serverTimestamp()});
+   tx.set(pulse,{
+    eventId:"migration-close-"+planned.fingerprint.slice(0,12)+"-"+start,
+    previousEventId:previous.data().eventId,
+    origin:"migration-v1",sensitive:true,affected:pending.length,
+    changedKeys:pending.map(([key])=>key),metaChanged:false,updatedAt:serverTimestamp()
+   });
+  });
  }
  const cloud=await getDocs(collection(db,"users",uid,"records"));
  const result=new Map();
