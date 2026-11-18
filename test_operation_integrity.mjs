@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {recordId} from "./v2_store_core.mjs";
 import {validateProductionJournalDiff,validateCancellationJournalDiff,validateCashJournalDiff} from "./operation_integrity.mjs";
+import {confirmPaymentOnSaleCompletion} from "./pdv_cash_core.mjs";
 const universe="batataria";
 const rec=(group,id,item)=>({universe,group,id,rank:1,item:{id,...item}});
 const change=(before,after)=>({kind:"record",key:recordId(universe,(after||before).group,(after||before).id),before,after});
@@ -64,4 +65,43 @@ assert.throws(()=>validateProductionJournalDiff({changes:[change(initial,inProdu
 const pixOrder=rec("orders","order-1",{...unpaidCancelled.item,paymentMethod:"Pix"});
 const invalidRefundState={...next,records:new Map([...next.records,[recordId(universe,"orders","order-1"),pixOrder]])};
 assert.throws(()=>validateCashJournalDiff(before,invalidRefundState,changes),/Reembolso/);
-console.log("PASS F02/F05/F20: production journal, physical returns, order losses, refund value, duplicate events, shift and payment checks.");
+// Caso real: pedido feito em turno que já fechou; o próprio clique em
+// "Concluir" cria o late_payment e confirma recebimento na MESMA transação.
+const oldTurnData={
+ orders:[{id:"late-order",status:"entregue",qty:2,price:50,
+  paymentMethod:"Pix",paymentStatus:"nao_pago",cashSessionId:"closed-shift"}],
+ cashSessions:[{id:"closed-shift",status:"closed",closedAt:"2026-11-17T23:00:00Z",
+  closedSummary:{expectedCash:0}},
+ {id:"current-shift",status:"open",openingCash:0}],
+ cashMovements:[]
+};
+const originalOrder=structuredClone(oldTurnData.orders[0]);
+const completed=confirmPaymentOnSaleCompletion(oldTurnData,{
+ orderId:"late-order",operator:"Caixa QA",at:"2026-11-18T10:00:00Z"});
+assert.equal(completed.recorded,true);
+assert.equal(completed.late,true);
+assert.equal(oldTurnData.cashMovements.length,1);
+assert.equal(oldTurnData.orders[0].paymentStatus,"pago");
+assert.equal(oldTurnData.cashSessions[0].status,"closed");
+const originOrder=rec("orders","late-order",originalOrder);
+const confirmedOrder=rec("orders","late-order",oldTurnData.orders[0]);
+const settlement=rec("cashMovements",oldTurnData.cashMovements[0].id,oldTurnData.cashMovements[0]);
+const originState={meta:{},records:new Map([
+ [recordId(universe,"orders","late-order"),originOrder]])};
+const confirmedState={meta:{},records:new Map([
+ ...originState.records,
+ [recordId(universe,"orders","late-order"),confirmedOrder],
+ [recordId(universe,"cashMovements",settlement.id),settlement]])};
+const settlementDiff={changes:[change(originOrder,confirmedOrder),change(null,settlement)]};
+assert.equal(validateCashJournalDiff(originState,confirmedState,settlementDiff).checked,1,
+ "Pagamento confirmado e evento tardio devem ser aceitos juntos");
+assert.equal(confirmPaymentOnSaleCompletion(oldTurnData,{orderId:"late-order"}).recorded,false,
+ "Repetir conclusão não pode criar cobrança nova");
+assert.equal(oldTurnData.cashMovements.length,1);
+const alreadyPaidOrigin=rec("orders","late-order",{
+ ...originalOrder,paymentStatus:"pago",paymentConfirmedAt:"2026-11-17T22:00:00Z"});
+const alreadyPaidState={meta:{},records:new Map([[recordId(universe,"orders","late-order"),alreadyPaidOrigin]])};
+assert.throws(()=>validateCashJournalDiff(alreadyPaidState,confirmedState,settlementDiff),
+ /Pagamento antigo sem comprovante|já confirmado|duplicado/,
+ "Uma cobrança já paga anteriormente deve continuar rejeitada");
+console.log("PASS F02/F05/F20: produção, estornos e recebimento tardio idempotente junto à conclusão do pedido.");

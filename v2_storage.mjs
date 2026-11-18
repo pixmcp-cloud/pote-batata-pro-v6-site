@@ -5,7 +5,7 @@ import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
 import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
 import {validateInventoryJournalDiff} from "./inventory_integrity.mjs";
-import {validateProductionJournalDiff,validateCancellationJournalDiff,validateCashJournalDiff} from "./operation_integrity.mjs";
+import {validateProductionJournalDiff,validateCancellationJournalDiff,validateCashJournalDiff} from "./operation_integrity.mjs?v=f20-late-atomic-20261118";
 import {planV2Batches} from "./v2_batch_planner.mjs";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);

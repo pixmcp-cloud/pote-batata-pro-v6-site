@@ -114,8 +114,24 @@ export function validateCashJournalDiff(before,next,diff){
    error("Turno de origem incorreto no movimento: "+event.id);
   if(event.kind==="reembolso"&&(order.status!=="cancelado"||!paymentConfirmed(order)||paymentKind(order.paymentMethod)!=="cash"||String(event.reason||"").trim().length===0))
    error("Reembolso sem pedido cancelado, pago em dinheiro e motivo documentado.");
-  if(event.kind==="late_payment"&&(order.status==="cancelado"||paymentConfirmed(order)||!["cash","pix","card"].includes(event.paymentMethod)||!String(event.reference||"").trim()))
-   error("Pagamento antigo sem comprovante ou pedido válido.");
+  if(event.kind==="late_payment"){
+   const previousOrder=before?.records?.get(orderKey)?.item;
+   const confirmationInThisCommit=previousOrder&&!paymentConfirmed(previousOrder)&&
+    paymentConfirmed(order)&&diff.changes.some(ch=>
+     ch.kind==="record"&&ch.before?.group==="orders"&&
+     ch.after?.group==="orders"&&ch.after.universe===m.universe&&
+     ch.after.id===event.orderId&&!paymentConfirmed(ch.before.item)&&
+     paymentConfirmed(ch.after.item));
+   // O pedido pode ser confirmado no MESMO commit do recebimento tardio
+   // (ex.: "Concluir" com turno original já encerrado). Continuamos
+   // recusando pagamentos já confirmados antes desta operação.
+   const duplicateConfirmation=paymentConfirmed(previousOrder)||
+    (paymentConfirmed(order)&&!confirmationInThisCommit);
+   if(order.status==="cancelado"||duplicateConfirmation||
+      !["cash","pix","card"].includes(event.paymentMethod)||
+      !String(event.reference||"").trim())
+    error("Pagamento antigo já confirmado, duplicado ou sem comprovante válido.");
+  }
   const duplicate=[...next.records.values()].filter(x=>x.group==="cashMovements"&&x.universe===m.universe&&
    x.item?.kind===event.kind&&x.item?.orderId===event.orderId);
   if(duplicate.length!==1)error("Movimento financeiro duplicado: "+event.orderId);
