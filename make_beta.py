@@ -384,6 +384,20 @@ BODY_ASSETS = (
     '<script src="./creative_studio.js?v=creative-v7-20261117"></script>'
     '<script src="./creative_prompt.js?v=prompt-v5-20261117"></script>'
 )
+# F08: authenticated beta uses Creative Studio V7 exclusively. The offline
+# V6 demonstration retains its legacy generator; never remove its fallback.
+creative_start = html.find("function pageCreative(){")
+creative_end = html.find("function pageAdmin(){", creative_start)
+if creative_start < 0 or creative_end < 0 or html.count("function pageCreative(){") != 1:
+    raise SystemExit("F08: legacy generator boundary changed; refusing non-verifiable removal")
+creative_guard = (
+    "function pageCreative(){return '<div class=\"box\"><h2>Estúdio de Criativos indisponível</h2>"
+    "<p>Recarregue a página. Nenhum dado foi alterado.</p></div>'}\n"
+    "function creativeHTML(){return ''}\n"
+    "function generateCreative(){toast('Estúdio de Criativos indisponível; tente recarregar.')}\n"
+    "async function downloadCreative(){toast('Exportação indisponível; tente recarregar.')}\n"
+)
+html = html[:creative_start] + creative_guard + html[creative_end:]
 once("</body>", BODY_ASSETS + "</body>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
 html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
