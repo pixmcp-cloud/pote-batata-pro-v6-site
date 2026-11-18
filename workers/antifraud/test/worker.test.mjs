@@ -202,6 +202,21 @@ test("F02 server-priced order creation persists once then produces using stored 
  assert.equal(produced.status,200,await produced.text());
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,200);
 });
+test("F02 order creation rejects client prices and missing authoritative price",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","r1",{id:"r1",name:"Batata",items:[{id:"batata",g:100}]});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ const b={universe:UNIVERSE,operationId:OP1,orderId:"new1",
+  recipeId:"r1",qty:2,cashSessionId:"s1",paymentMethod:"pix"};
+ const go=data=>app.fetch(request(data,"/v1/orders/create"),env);
+ assert.equal((await go({...b,price:0.01})).status,400);
+ assert.equal((await go(b)).status,409);
+ put("recipes","r1",{id:"r1",name:"Batata",serverPriceVersion:1,
+  serverSalePriceCents:100,items:[{id:"batata",g:100}]});
+ assert.equal((await go(b)).status,409);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"orders","new1")),undefined);
+});
 test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
