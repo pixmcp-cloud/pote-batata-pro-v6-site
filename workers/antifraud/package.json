@@ -6,7 +6,7 @@
   "description": "Cloudflare Worker para operações de estoque idempotentes do Potê Batata Pro; desativado até homologação",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "check": "node --check src/index.mjs && node --check src/firestore.mjs && node --check src/auth.mjs && node --check src/domain.mjs && node --check src/stock_adjust.mjs && node --check src/receipt.mjs && node --check src/cash_session.mjs",
+    "check": "node --check src/index.mjs && node --check src/firestore.mjs && node --check src/auth.mjs && node --check src/domain.mjs && node --check src/stock_adjust.mjs && node --check src/receipt.mjs && node --check src/cash_session.mjs && node --check src/order_create.mjs",
     "dev": "wrangler dev --local",
     "deploy": "wrangler deploy"
   },
