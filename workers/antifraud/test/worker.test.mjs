@@ -318,7 +318,7 @@ test("F20 finish: one-click Pix receipt without duplicate PDV credit",async()=>{
  const docsBefore=db.docs.size;
  const finish=()=>app.fetch(request(payload(OP2),"/v1/orders/finish"),env);
  const first=await finish();
- assert.equal(first.status,200,await first.text());
+ assert.equal(first.status,200);
  const receipt=await first.json();
  assert.equal(receipt.receiptRecorded,true);
  assert.equal(receipt.bankReconciled,false);
