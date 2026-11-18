@@ -10,6 +10,7 @@ function parseNumber(v){
   if(value.lastIndexOf(",")>value.lastIndexOf("."))value=value.replace(/\./g,"").replace(",",".");
   else value=value.replace(/,/g,"");
  }else if(value.includes(","))value=value.replace(",",".");
+ else if(/^[+-]?\d{1,3}(?:\.\d{3})+$/.test(value))value=value.replace(/\./g,"");
  if(!/^[+-]?\d+(?:\.\d+)?$/.test(value))return NaN;
  const number=Number(value);
  return Number.isFinite(number)?number:NaN;
