@@ -144,7 +144,9 @@ async function run(){
   });
   assert.equal((await worker.fetch(lossRequest,env)).status,200);
   assert.equal((await read(key("ingredients","potato"))).record.item.stock,650);
-  assert.equal((await read(key("losses","cf-loss-"+lossPayload.operationId)).record.item.quantityBase,50);  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
+  assert.equal((await read(key("losses","cf-loss-"+lossPayload.operationId))).record.item.quantityBase,50);
+  assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,6);
+  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
    " effects=produce/retry/cancel/race/loss/stock/guard");
  }finally{
   if(started){
