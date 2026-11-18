@@ -438,3 +438,14 @@ PRÓXIMA AÇÃO: obter chave SOMENTE no próprio cofre da plataforma, sem compar
 
 ### CHECKPOINT: ASAAS RECONCILIATION PREFLIGHT F19 / 18-11-2026
 Branch homologacao somente. Modulo integrations/asaas/reconciliation_preflight.mjs valida evento PAYMENT_RECEIVED contra pagamento confirmado em consulta servidor-servidor, ID do pagamento, cliente, assinatura, Pix, valor em centavos, data e ledger de idempotencia. Falha fechada em ausencia de qualquer vinculo ou em duplicata. Nunca concede PRO: eligibleToGrant=false em TODOS os caminhos. QA novo integrations/asaas/reconciliation_preflight.test.mjs com 13 cenarios isolados. O preflight NAO substitui webhook persistente, consulta real a API Asaas nem transacao atomica Firestore; nenhum deploy ou cobranca real. Proxima acao: implementar persistencia idempotente de eventos em Firebase Emulator e checagem autenticada server-side antes de liberar licencas; manter Pix manual.
+
+
+### CHECKPOINT: ASAAS WEBHOOK INBOX / 2026-11-18
+Branch: feat/f35-completion-audit-20261118. Main: 4cf0622f6f250b4e7422ae88e09a5943fb409935.
+Commits: 5788de1 (inbox Firestore), 596f577 (route behind disabled flags), 49d28de (five directed tests), test fix subsequent.
+F19: POST /v1/asaas/webhook authenticated with independent webhook secret, JSON checks, size limit, event ID SHA256 document key, Firestore transactional create-only precondition, idempotent replay, collision rejection. Does not grant PRO, alter balances or mark bank reconciliation.
+Safety: ENABLE_WRITES, PRODUCTION_CUTOVER_APPROVED, ASAAS_WEBHOOK_ENABLED all true plus ASAAS_MODE=sandbox required. Versioned config has ASAAS_WEBHOOK_ENABLED=false and ASAAS_MODE=off. No secret committed.
+QA: node --test workers/antifraud/test/asaas_webhook.test.mjs: 5/5 PASS. npm.cmd run check --prefix workers/antifraud PASS. npm.cmd test --prefix workers/antifraud: 46/46 PASS. Initial test bug (Response body consumed twice) corrected on GitHub before final run.
+Limitations: mock Firestore only; no real Asaas sandbox or Firebase Emulator verification in this block. No tenant mapping or server-to-server Asaas verification; no automatic license grant. No deployment.
+Main, production, commercial Firebase, real customers, Cloudflare staging, paid services, billing: UNCHANGED.
+NEXT: validate webhook persistence against Firebase Emulator, then implement authenticated Asaas sandbox payment lookup and tenant reconciliation before any PRO entitlement mutation. Evaluate Inter PJ API as potentially cheaper option.
