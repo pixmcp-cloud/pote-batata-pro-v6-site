@@ -80,3 +80,10 @@ Essas evidências são **de homologação local automatizada**, não de Android 
 ### Atualizacao F02 (18/11/2026): duas reservas simultaneas e precos server-only
 Reserva concorrente no Firestore SDK Emulator: exatamente uma aceita, outra 409, sem saldo negativo, replay idempotente. O vendedor autenticado podera aprovar preco via POST /v1/catalog/approve-price somente apos habilitacao controlada do Worker; o servidor valida custos, margem e receita. O pedido exige documento privado users/{uid}/serverPrices/*, com bloqueio Firestore Rules contra leitura/escrita do navegador. Revisao do preco e receita validada no SDK Emulator e nas Rules candidatas.
 QA: Worker 58/58, ponte antiga PASS, Firestore Emulator base PASS e candidata de cutover PASS. STATUS F02 PARCIAL: faltam integracao da UI/bridge, catalogo, complementos/combos, dispositivo fisico e ativacao assistida. Nenhum codigo Worker novo foi publicado comercialmente; main e538e64 permanece ativo.
+
+### RELEASE 18/11: Pedidos e teste de estoque 10% (main 2df5510)
+- Corrigido pagamento em dinheiro com valor exato (campo opcional); valores insuficientes continuam rejeitados. Sangria e suprimento acessiveis via atalho na tela de pedidos.
+- Conflito de sincronizacao continua BLOQUEANDO vendas ate recuperacao com arquivo backup JSON verificado por UID/estado; multiplas abas podem contribuir. Nunca apagar pedidos ou backups automaticamente.
+- Estoque de TESTE: botoes admin-only no Estoque e Compras para aplicar 10% do estoque minimo em insumos, embalagens e bebidas, com backup e restauracao. NAO aplicado diretamente aos dados de nuvem porque conta Android mostrava conflito; requer usuario resolver e tocar botao.
+- QA: Chrome mobile 375/430 PASS para pagamento, atalho PDV/sangria, estoque 8000g->250g->8000g; regressao do acordeao 375/430/1280 PASS. Firebase Hosting deploy main 2df5510 confirmado, Worker desligado.
+- Usuario declarou todos pedidos da conta sao teste, nenhum real. F02 backend ainda em branch separada, nao publicado.
