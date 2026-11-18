@@ -170,6 +170,14 @@ async function run(){
   });
   assert.equal((await worker.fetch(open,env)).status,200);
   assert.equal((await read(root+"/appState/v2CashControl__cashqa")).activeSessionId,"cf-turn-"+cashId);
+  const closeId=randomUUID();
+  const closePayload={universe:"cashqa",operationId:closeId,
+   sessionId:"cf-turn-"+cashId,declaredCashCents:4200};
+  const closeRequest=new Request("https://worker.qa.invalid/v1/cash/close",{
+   method:"POST",headers:baseRequest.headers,body:JSON.stringify(closePayload)
+  });
+  assert.equal((await worker.fetch(closeRequest,env)).status,200);
+  assert.equal((await read(root+"/appState/v2CashControl__cashqa")).activeSessionId,null);
   console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
    " effects=produce/retry/cancel/race/loss/stock/guard");
  }finally{
