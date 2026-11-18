@@ -101,6 +101,24 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  assert.deepEqual(responses.map(r=>r.status).sort(),[200,409]);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,150);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
+});test("F20 operator receipt confirms stored amount once, without duplicate cash movement",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const p=recordPath(UID,UNIVERSE,"orders","o1");
+ const old=db.current(p).record;
+ db.seed(p,{record:{...old,item:{...old.item,status:"entregue",
+  stockDeducted:true,paymentStatus:"pendente",cashSessionId:"s1"}}});
+ db.seed(recordPath(UID,UNIVERSE,"cashSessions","s1"),
+  {record:{universe:UNIVERSE,group:"cashSessions",id:"s1",rank:1,item:{status:"open"}}});
+ const body={universe:UNIVERSE,operationId:OP3,orderId:"o1"};
+ const go=()=>app.fetch(request(body,"/v1/orders/receipt"),env);
+ const first=await go();
+ assert.equal(first.status,200,await first.text());
+ assert.equal((await first.json()).amountCents,7000);
+ assert.equal(db.current(p).record.item.paymentStatus,"pago");
+ assert.equal(db.current(p).record.item.bankReconciled,false);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
+ assert.equal((await(await go()).json()).alreadyApplied,true);
+ assert.equal([...db.docs.keys()].filter(k=>k.includes("cashMovements")).length,0);
 });test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
