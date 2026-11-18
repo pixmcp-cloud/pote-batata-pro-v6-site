@@ -24,3 +24,10 @@ F06 permanece **parcial** para importações financeiras e estoque acima de 290 
 
 ## Custos e reversão
 A nova estratégia não introduz serviços pagos; operações normais de escrita/leitura do Firestore continuam sujeitas às cotas e tarifação do plano existente. Antes de publicar em produção, manter tag de rollback e backup Git, build completo, suíte de testes e Emulator aprovados.
+
+## Implantação verificada
+- Commit `aa98a1a` integrado à `main`, tag `rollback-pre-f06-20261118`.
+- GitHub Actions: publicação `44246369121` e Firestore Emulator `44246368997`, ambas concluídas com sucesso.
+- Site `https://pdv.livresom.com`: HTML, `firebase_integration.js`, `v2_storage.mjs` e `v2_batch_planner.mjs` retornaram HTTP 200 e as marcas da revisão foram confirmadas.
+- `firebase deploy --only hosting` concluído no projeto `potobatata-b71f3`. Nenhuma regra do Firestore foi modificada pela implantação F06.
+- 92/92 testes gerais aprovados, Firebase Emulator de referência e candidata aprovados. Operações financeiras grandes continuam sem batching.

@@ -21,3 +21,8 @@
 6. Configurar `batata.livresom.com` após a validação do fluxo de autenticação.
 
 **Nota de economia:** o Firestore confirmou `freeTier: true`; os recursos pagos não foram ativados. O Firebase limita o uso gratuito conforme as cotas do plano.
+
+## Atualização operacional — 18/11/2026
+O conteúdo acima documenta o bootstrap original e não substitui o estado atual. O domínio oficial é `https://pdv.livresom.com`, com V2 por documentos. A conta ADM não recebe privilégios apenas pelo e-mail: o servidor exige token Google verificado **e a custom claim assinada** `potebatataAdmin: true`, configurada no Firebase Auth e validada por API. A política está nas regras `firestore.rules` e nos módulos administrativos versionados no GitHub.
+
+As regras da F02 (estoque), F20 (rastreabilidade) e F24 (admin) foram publicadas; F06 suporta lotes seguros de cadastros não financeiros. Ver `F02_INVENTORY_HARDENING_20261118.md`, `SECURITY_F20_20261118.md`, `F06_SAFE_BATCHES_20261118.md` e `F24_ADMIN_AUTH_20261118.md` para evidências e rollback. Não foi realizada migração destrutiva nem ativação de recurso pago.
