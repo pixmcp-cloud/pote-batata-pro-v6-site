@@ -121,6 +121,27 @@ function fixture({stock=400,extraOrder=false}={}){
  const send=(operationId,props)=>app.fetch(request(operationId,props),env);
  return {db,env,app,send,request};
 }
+test("F02 REST HTTP: server-approved recipe creates order then produces once",async()=>{
+ const {db,env,app,send,request}=fixture();
+ const put=(group,id,item)=>db.seed(rpath(group,id),{
+  record:{universe:UNIVERSE,group,id,rank:1,item}});
+ put("recipes","r1",{id:"r1",name:"Batata QA",serverPriceVersion:1,
+  serverSalePriceCents:3000,items:[{id:"batata",g:100}]});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ put("ingredients","batata",{id:"batata",name:"Batata",stock:400,
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg"});
+ const baseReq=request(op1);
+ const body={universe:UNIVERSE,operationId:op1,orderId:"fresh",
+  recipeId:"r1",qty:2,cashSessionId:"s1",paymentMethod:"pix"};
+ const go=()=>app.fetch(new Request("https://worker.local/v1/orders/create",{
+  method:"POST",headers:baseReq.headers,body:JSON.stringify(body)}),env);
+ const first=await go();assert.equal(first.status,200,await first.text());
+ assert.equal(db.read(rpath("orders","fresh")).record.item.price,30);
+ assert.equal((await(await go()).json()).alreadyApplied,true);
+ assert.equal(db.read(rpath("ingredients","batata")).record.item.stock,400);
+ assert.equal((await send(op2,{orderId:"fresh"})).status,200);
+ assert.equal(db.read(rpath("ingredients","batata")).record.item.stock,200);
+});
 test("F02 end-to-end REST HTTP adapter: stock, beverage, pulse and retry",async()=>{
  const {db,send}=fixture();
  const first=await send(op1);
