@@ -48,6 +48,21 @@ let env;
  await assertSucceeds(setDoc(doc(premium,'users','pro-uid','records','cash-2'),cash('cash-2')));
  await assertFails(updateDoc(doc(premium,'users','pro-uid','records','cash-2'),{'record.item.amount':200}));
  await assertFails(deleteDoc(doc(premium,'users','pro-uid','records','cash-2')));
+ // F02 server-approved selling prices are not writable or readable by
+ // tenant/Free/Pro/Admin browser SDK, including same-account owner sessions.
+ const pricePath=['users','pro-uid','serverPrices','price-qa'];
+ const approved={version:1,universe:'batataria',recipeId:'r1',
+  salePriceCents:3990,minimumGainPct:100,revision:1,
+  items:[{id:'batata',g:120}]};
+ await assertFails(setDoc(doc(premium,...pricePath),approved));
+ await assertFails(setDoc(doc(admin,...pricePath),approved));
+ await env.withSecurityRulesDisabled(async ctx=>{
+  await setDoc(doc(ctx.firestore(),...pricePath),approved);
+ });
+ await assertFails(getDoc(doc(premium,...pricePath)));
+ await assertFails(updateDoc(doc(premium,...pricePath),{salePriceCents:1}));
+ await assertFails(deleteDoc(doc(admin,...pricePath)));
+ console.log('PASS F02 price approval isolation: only privileged server can write or read.');
  const paidAudit={action:'promover',at:serverTimestamp(),actorUid:'admin-uid',actorEmail:'pixmcp@gmail.com',
   targetUid:'free-uid',targetEmail:'free@example.com',fromTerm:'free',toTerm:'month1',expiresAt:null,
   paymentMethod:'pix_manual',paymentAmountCents:3990,paymentReference:'Pix-Piloto-001',paymentConfirmedAt:serverTimestamp()};

@@ -357,6 +357,12 @@ service cloud.firestore {
           && !serverControlled(resource.data.record) && !isFinancialGroup(resource.data.record.group)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
       }
+      // F02: privileged price approvals are server-owned. Tenant browsers
+      // must never manufacture or modify a "server-approved" selling price.
+      // Firebase Admin / service-account access bypasses these client Rules.
+      match /serverPrices/{priceId} {
+        allow read, write: if false;
+      }
     }
 
     // Only the verified administrator can create immutable license change events.
