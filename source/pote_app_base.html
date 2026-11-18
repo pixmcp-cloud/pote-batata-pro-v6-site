@@ -678,7 +678,17 @@ function produce(id){
   catch(e){console.warn('Snapshot de custo não concluído:',e.message||e)}
  }state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Produção iniciada: estoque descontado.');window.POTE_ORDER?.lowAfterOrder?.(o);
 }
-function finishOrder(id){if(!operationReady())return;const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();
+function finishOrder(id){
+  if(window.POTE_WORKER?.enabled===true){
+    if(!operationReady())return;
+    const order=state.data.orders.find(x=>x.id===id);
+    if(!order||order.status!=="em_producao"||!canOperate(order.recipeId))return;
+    window.POTE_WORKER.finish(id,state.data.businessType||"batataria").then(()=>{
+      state.tab="orders";render();window.POTE_ORDER?.scrollToOrders?.(id);
+      toast("Venda concluída: recebimento declarado no PDV automaticamente.");
+    }).catch(e=>toast("Não foi possível concluir: "+String(e.message||e)));
+    return;
+  }if(!operationReady())return;const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();
   let paidOnCompletion=null;
   try{
     const licensed=!!window.POTE_APP_READY&&!!window.POTE_AUTH?.uid&&

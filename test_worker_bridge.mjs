@@ -59,4 +59,13 @@ const cancel=make({requestFetch:async(url,opts)=>{
 }});
 await cancel.cancel(orderId,universe,"loss");
 assert.equal(storage.size,1,"Other action's pending ID must remain intact");
-console.log("PASS Worker client: disabled default, auth, preflush, durable retries, 423 fail-closed, cancel.");
+const finished=make({requestFetch:async(url,opts)=>{
+ const sent=JSON.parse(opts.body);
+ assert(url.endsWith("/v1/orders/finish"));
+ assert.deepEqual(Object.keys(sent).sort(),["operationId","orderId","universe"]);
+ return new Response(JSON.stringify({ok:true,orderId,operationId:uuid,
+  status:"entregue",receiptRecorded:true,bankReconciled:false}),{status:200});
+}});
+const finishedResult=await finished.finish(orderId,universe);
+assert.equal(finishedResult.receiptRecorded,true);
+console.log("PASS Worker client: disabled default, auth, durable retries, finish, 423 fail-closed.");
