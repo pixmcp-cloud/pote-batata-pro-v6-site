@@ -92,6 +92,15 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  const b={universe:UNIVERSE,operationId:OP3,group:"ingredients",itemId:"batata",delta:-999,reason:"loss"};
  assert.equal((await app.fetch(request(b,"/v1/inventory/adjust"),env)).status,409);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
+});test("F02 concurrent losses cannot make negative stock",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const go=id=>app.fetch(request({universe:UNIVERSE,operationId:id,
+  group:"ingredients",itemId:"batata",delta:-250,reason:"loss"},
+  "/v1/inventory/adjust"),env);
+ const responses=await Promise.all([go(OP1),go(OP2)]);
+ assert.deepEqual(responses.map(r=>r.status).sort(),[200,409]);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,150);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
 });test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
