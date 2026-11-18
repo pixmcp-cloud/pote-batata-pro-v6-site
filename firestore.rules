@@ -150,6 +150,26 @@ service cloud.firestore {
           'checklist', 'losses', 'garimpoOffers', 'cashSessions', 'cashMovements'
         ] && validInventoryStock(record);
     }
+    // Eventos de reembolso/pagamento tardio precisam permitir rastrear o pedido
+    // e o turno de origem. Não valida sozinho se o pagamento ocorreu no banco.
+    function validFinancialEventTrace(item) {
+      return !(item.kind in ['reembolso','late_payment']) || (
+        item.get('orderId', null) is string
+        && item.orderId.size() > 0 && item.orderId.size() <= 220
+        && item.get('originSessionId', null) is string
+        && item.originSessionId.size() > 0 && item.originSessionId.size() <= 220
+        && item.get('at', null) is string && item.at.size() > 0
+        && (item.kind != 'late_payment' || (
+          item.get('paymentMethod', null) in ['cash','pix','card']
+          && item.get('reference', null) is string
+          && item.reference.size() > 0 && item.reference.size() <= 160
+        ))
+        && (item.kind != 'reembolso' || (
+          item.get('reason', null) is string
+          && item.reason.size() > 0 && item.reason.size() <= 220
+        ))
+      );
+    }
     function validFinancialPayload(record) {
       let item = record.item;
       return item is map
@@ -160,6 +180,8 @@ service cloud.firestore {
           && item.amount > 0
           && item.amount <= 100000000
           && item.sessionId is string
+          && item.sessionId.size() > 0 && item.sessionId.size() <= 220
+          && validFinancialEventTrace(item)
         ));
     }
     function canWriteOperationalRecord(userId, recordId, record) {

@@ -29,7 +29,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F17 | Parcial | O login passou em Chrome emulado de 320 a 768 px. Faltam perfil de performance, acessibilidade e teste em Android físico. |
 | F18 | Publicado nas regras; testado no Emulator | Inspeção autenticada das regras de produção mostrou proteção de coleções legadas para Free, idêntica à main em `a7796e4`; ataque SDK falhou no Emulator. Homologação em conta real ainda pendente. |
 | F19 | Regras publicadas; testes de SDK no Emulator | Quotas por chaves canônicas já estão nas regras ativas. Testes Emulator rejeitam segunda receita Free e permitem Pro; validar fluxos reais, catálogo e tentativas alternativas antes de certificação comercial. |
-| F20 | Parcial | Imutabilidade de movimentos financeiros, identidade dos modelos e revisão de inventário têm validação. Falta a trilha completa de eventos e compensações. |
+| F20 | Parcial; candidata testada | Além da imutabilidade existente, foram reproduzidos e bloqueados no Emulator reembolso e pagamento tardio sem pedido/turno de origem, motivo ou comprovante. Faltam validação autoritativa da existência do pedido, valor real, antifraude e eventos compensatórios atômicos. Detalhes em `SECURITY_F20_20261118.md`. |
 | F21 | Pendente | Falta inventariar ativos publicados e decidir a hospedagem do SaaS comercial. |
 | F22 | Implementado | Engenharia de cardápio coberta pelos testes da beta. |
 | F23 | Testado em emulador | Exportação JSON, substituição dos dados e restauração em segunda sessão. Importação é cancelada se a conta ou o estado muda durante a leitura. Faltam backup e restauração de IndexedDB e teste físico. |
