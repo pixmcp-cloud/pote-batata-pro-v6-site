@@ -449,3 +449,79 @@ test("F02 concurrent creates cannot oversell same 400g ingredient",async()=>{
  assert.equal(["order-one","order-two"].filter(x=>db.current(
   recordPath(UID,UNIVERSE,"orders",x))).length,1);
 });
+
+
+test("F02 owner can approve an actual price and immediately create a guarded order",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","catalog-r1",{id:"catalog-r1",name:"Batata",
+  items:[{id:"batata",g:100}],targetGainPct:100});
+ put("ingredients","batata",{id:"batata",name:"Batata",stock:400,
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ const body={universe:UNIVERSE,operationId:OP1,recipeId:"catalog-r1",
+  salePriceCents:3000};
+ const action=()=>app.fetch(request(body,"/v1/catalog/approve-price"),env);
+ const approved=await action();assert.equal(approved.status,200,await approved.text());
+ const approval=db.current(serverPricePath(UID,UNIVERSE,"catalog-r1"));
+ assert.equal(approval.salePriceCents,3000);
+ assert.equal(approval.revision,1);
+ assert.equal(approval.minimumGainPct,100);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"recipes","catalog-r1"))
+  .record.item.serverSalePriceCents,3000);
+ assert.equal((await (await action()).json()).alreadyApplied,true);
+ assert.equal((await app.fetch(request({...body,salePriceCents:1},
+  "/v1/catalog/approve-price"),env)).status,409);
+ const sale={universe:UNIVERSE,operationId:OP2,orderId:"catalog-sale-1",
+  recipeId:"catalog-r1",qty:1,cashSessionId:"s1",paymentMethod:"pix"};
+ const placed=await app.fetch(request(sale,"/v1/orders/create"),env);
+ assert.equal(placed.status,200,await placed.text());
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"orders","catalog-sale-1"))
+  .record.item.price,30);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata"))
+  .record.item.stock,300);
+});
+test("F02 backend refuses approval below cost and unpriced recipes",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","catalog-r2",{id:"catalog-r2",name:"Insumos",
+  items:[{id:"batata",g:100}],targetGainPct:100});
+ put("ingredients","batata",{id:"batata",name:"Batata",stock:400,
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ const body={universe:UNIVERSE,operationId:OP1,recipeId:"catalog-r2",
+  salePriceCents:100};
+ assert.equal((await app.fetch(request(body,"/v1/catalog/approve-price"),env)).status,409);
+ assert.equal(db.current(serverPricePath(UID,UNIVERSE,"catalog-r2")),undefined);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+ put("recipes","catalog-r2",{id:"catalog-r2",name:"Preço estimado",
+  costEstimateMode:"estimated",items:[{id:"batata",g:100}]});
+ assert.equal((await app.fetch(request({...body,salePriceCents:3000},
+  "/v1/catalog/approve-price"),env)).status,409);
+});
+test("F02 price reapproval revisions invalidate old quantities",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ const old={id:"catalog-r3",name:"Batata",items:[{id:"batata",g:100}],
+  targetGainPct:100};
+ put("recipes","catalog-r3",old);
+ put("ingredients","batata",{id:"batata",name:"Batata",stock:400,
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ const go=(operationId,salePriceCents)=>app.fetch(request({
+  universe:UNIVERSE,operationId,recipeId:"catalog-r3",salePriceCents
+ },"/v1/catalog/approve-price"),env);
+ assert.equal((await go(OP1,3000)).status,200);
+ const prior=db.current(recordPath(UID,UNIVERSE,"recipes","catalog-r3")).record.item;
+ put("recipes","catalog-r3",{...prior,items:[{id:"batata",g:120}]});
+ const attempt={universe:UNIVERSE,operationId:OP2,orderId:"new-price-stale",
+  recipeId:"catalog-r3",qty:1,cashSessionId:"s1",paymentMethod:"pix"};
+ assert.equal((await app.fetch(request(attempt,"/v1/orders/create"),env)).status,409,
+  "Stale price approval must reject changed ingredient quantities");
+ assert.equal((await go(OP3,3500)).status,200);
+ const current=db.current(serverPricePath(UID,UNIVERSE,"catalog-r3"));
+ assert.equal(current.revision,2);
+ assert.deepEqual(current.items,[{id:"batata",g:120}]);
+ const sale=await app.fetch(request({...attempt,
+  operationId:"76aaf9b2-ef09-4340-b2b8-289452606372",orderId:"new-price-ok"},
+  "/v1/orders/create"),env);
+ assert.equal(sale.status,200,await sale.text());
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"orders","new-price-ok"))
+  .record.item.serverPriceRevision,2);
+});
