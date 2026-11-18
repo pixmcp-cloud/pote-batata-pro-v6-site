@@ -2,14 +2,17 @@
 // REST OAuth/serialização de produção são validados nos testes mockados Firestore REST.
 // Run with firebase emulators:exec --only firestore --project demo-pote-hardening.
 const assert=require("node:assert/strict");
-const {initializeEmulator,sdk}=require("./qa/firestore/environment.cjs");
+const {initializeEmulator,sdk,assertFails}=require("./qa/firestore/environment.cjs");
 const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs");
 (async()=>{
  const {recordPath}=await import("./workers/antifraud/src/domain.mjs");
  const {serverPricePath}=await import("./workers/antifraud/src/server_price.mjs");
  const {createWorkerApp}=await import("./workers/antifraud/src/index.mjs");
 
- const env=await initializeEmulator({hardened:process.env.POTE_HARDENED_RULES==="1"});
+ const env=await initializeEmulator({
+  hardened:process.env.POTE_HARDENED_RULES==="1",
+  cutover:process.env.POTE_WORKER_CUTOVER_RULES==="1"
+ });
  const uid="worker-rest-owner";
  const universe="batataria";
  const orderId="order-f02";
@@ -221,6 +224,10 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
    assert.deepEqual(snap.data().items,[{id:"potato",g:150}]);
    assert.equal(snap.data().salePriceCents,5000);
   });
+  await assertFails(sdk.updateDoc(sdk.doc(db,
+   ...serverPricePath(uid,universe,"r-f02").split("/")),
+   {salePriceCents:1}));
+  console.log("PASS F02 RULES: even licensed owner cannot forge server-approved price");
   const updatedOrder={...createBody,orderId:"approved-revision2",
    operationId:"f02-emulator-price-approved-order2"};
   const placeReq=()=>new Request("http://worker.local/v1/orders/create",{
