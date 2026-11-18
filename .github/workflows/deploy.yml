@@ -147,6 +147,8 @@ jobs:
           cp company_pdv_polish.css public/company_pdv_polish.css
           cp premium_motion.css public/premium_motion.css
           cp premium_motion.js public/premium_motion.js
+          node --test qa/test_release_asset_inventory.mjs
+          node qa/release_asset_inventory.mjs public --out asset-inventory.json
           node --check public/premium_motion.js
           node test_premium_motion.js
           node test_pdv_brand.cjs
