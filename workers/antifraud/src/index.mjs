@@ -5,6 +5,7 @@
 import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
 import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
+import {adjustInventory} from "./stock_adjust.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -42,7 +43,8 @@ export function createWorkerApp({
  async function perform(req,env,headers){
   const route=new URL(req.url).pathname;
   const action=route==="/v1/orders/produce"?"produce":
-   route==="/v1/orders/cancel"?"cancel":null;
+   route==="/v1/orders/cancel"?"cancel":
+   route==="/v1/inventory/adjust"?"adjust":null;
   if(!action)return json({error:"not_found"},404,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
@@ -65,6 +67,10 @@ export function createWorkerApp({
    if(text.length>4096)throw Error("oversize");
    body=JSON.parse(text);
   }catch{return json({error:"invalid_json"},400,headers)}
+  if(action==="adjust"){
+   const adjusted=await adjustInventory(body,{user,env,repository,clock,hasAccess});
+   return json(adjusted,200,headers);
+  }
   if(!body||typeof body!=="object"||Array.isArray(body)||
     !valueOk(body.universe,/^[a-z0-9_-]{1,64}$/)||
     !valueOk(body.orderId,/^[a-zA-Z0-9_.:-]{1,180}$/)||
