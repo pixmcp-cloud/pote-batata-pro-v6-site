@@ -151,7 +151,18 @@ async function run(){
   assert.equal((await read(key("ingredients","potato"))).record.item.stock,650);
   assert.equal((await read(key("losses","cf-loss-"+lossPayload.operationId))).record.item.quantityBase,50);
   assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,6);
-  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
+  const receiptId=randomUUID();
+  const receiptReq=()=>new Request("https://worker.qa.invalid/v1/orders/receipt",{
+   method:"POST",headers:{Origin:ORIGIN,Authorization:"Bearer synthetic-qa-token",
+    "Content-Type":"application/json"},
+   body:JSON.stringify({operationId:receiptId,universe,orderId:"o4"})
+  });
+  const receipt=await worker.fetch(receiptReq(),env);
+  assert.equal(receipt.status,200);
+  assert.equal((await receipt.json()).amountCents,6000);
+  assert.equal((await read(key("orders","o4"))).record.item.bankReconciled,false);
+  assert.equal((await(await worker.fetch(receiptReq(),env)).json()).alreadyApplied,true);
+  assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,7);  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
    " effects=produce/retry/cancel/race/loss/stock/guard");
  }finally{
   if(started){
