@@ -288,3 +288,13 @@ Ambiente: clone isolado em TEMP; código alterado exclusivamente no GitHub.
 Produção, Rules, chaves, custos e dados reais: INALTERADOS.
 Pendências críticas: Firestore REST real não emulado, identidade segura de serviço, fechamento coerente da escrita direta SDK e conciliação F20.
 PRÓXIMA AÇÃO EXATA: intensificar validação de transações REST HTTP para F02/F05 no laboratório isolado, sem tocar credenciais reais.
+### CHECKPOINT: F02/F05 - integração HTTP do adaptador REST / 18-11-2026
+GitHub branch: feat/f35-completion-audit-20261118
+HEAD do código após o serviço: 2f6f8cbec735da059e8c58972280edf79fa1483a
+Novo arquivo: workers/antifraud/test/rest_integration.test.mjs
+Implementação: suíte E2E sintética usando o Worker real + createFirestoreRepository REST + simulação in-memory HTTP do protocolo Firestore; sem credenciais ou contas reais.
+Comportamentos validados: serialização do adaptador HTTP, transações com pré-condições de versão, baixa de batata e bebida, atualização do pulso V2 e guard, idempotência de operação, cancelamento com devolução, cancelamento com perda sem reentrada de estoque, disputa de dois pedidos sobre o mesmo estoque, negação por falta de estoque e por licença.
+Teste: npm.cmd test --prefix workers/antifraud, 25 testes APROVADOS, falhas 0, código de saída 0.
+Limite: a simulação HTTP NÃO É um Firestore REST real nem prova OAuth GCP; o Emulator tem incompatibilidade conhecida com transação REST BYTE_STRING. SDK Emulator foi testado em sessões anteriores. Continua faltando projeto não emulado e isolado para homologação final do REST.
+Produção, Worker público, Firestore Rules, credenciais, dados reais e custos: INALTERADOS.
+PRÓXIMA AÇÃO EXATA: testar integração com Cloud Firestore REST real em ambiente de homologação autenticado, sem desativar a dupla trava de produção; validar depois escrita exclusiva do backend e concorrência.
