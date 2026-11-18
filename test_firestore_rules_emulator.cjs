@@ -48,6 +48,15 @@ let env;
  await assertSucceeds(setDoc(doc(premium,'users','pro-uid','records','cash-2'),cash('cash-2')));
  await assertFails(updateDoc(doc(premium,'users','pro-uid','records','cash-2'),{'record.item.amount':200}));
  await assertFails(deleteDoc(doc(premium,'users','pro-uid','records','cash-2')));
+ const paidAudit={action:'promover',at:serverTimestamp(),actorUid:'admin-uid',actorEmail:'pixmcp@gmail.com',
+  targetUid:'free-uid',targetEmail:'free@example.com',fromTerm:'free',toTerm:'month1',expiresAt:null,
+  paymentMethod:'pix_manual',paymentAmountCents:3990,paymentReference:'Pix-Piloto-001',paymentConfirmedAt:serverTimestamp()};
+ await assertSucceeds(setDoc(doc(admin,'licenseAudit','pilot-pix-ok'),paidAudit));
+ await assertFails(setDoc(doc(free,'licenseAudit','pilot-evil'),paidAudit));
+ await assertFails(setDoc(doc(admin,'licenseAudit','pilot-amount-wrong'),{...paidAudit,paymentAmountCents:-50}));
+ await assertFails(setDoc(doc(admin,'licenseAudit','pilot-fake-method'),{...paidAudit,paymentMethod:'bank_auto'}));
+ await assertSucceeds(setDoc(doc(admin,'licenseAudit','pilot-courtesy'),{...paidAudit,
+  paymentMethod:'courtesy',paymentAmountCents:0,paymentReference:'Cliente piloto'}));
  await assertSucceeds(getDoc(doc(admin,'users','free-uid')));
  await assertFails(getDoc(doc(claimedEmailOnly,'users','free-uid')));
  await assertFails(getDoc(doc(claimedWrongEmail,'users','free-uid')));

@@ -357,12 +357,27 @@ service cloud.firestore {
       allow create: if isAdmin()
         && request.resource.data.keys().hasOnly([
           'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
-          'targetEmail', 'fromTerm', 'toTerm', 'expiresAt'
+          'targetEmail', 'fromTerm', 'toTerm', 'expiresAt',
+          'paymentMethod', 'paymentAmountCents', 'paymentReference', 'paymentConfirmedAt'
         ])
         && request.resource.data.actorUid == request.auth.uid
         && request.resource.data.actorEmail == request.auth.token.email
         && request.resource.data.action in ['promover', 'renovar', 'revogar']
-        && request.resource.data.at == request.time;
+        && request.resource.data.at == request.time
+        && (!request.resource.data.keys().hasAny(['paymentMethod','paymentAmountCents','paymentReference','paymentConfirmedAt']) || (
+          request.resource.data.action in ['promover','renovar']
+          && request.resource.data.keys().hasAll(['paymentMethod','paymentAmountCents','paymentReference','paymentConfirmedAt'])
+          && request.resource.data.paymentMethod in ['pix_manual','courtesy']
+          && request.resource.data.paymentAmountCents is int
+          && request.resource.data.paymentAmountCents >= 0
+          && request.resource.data.paymentAmountCents <= 9999999
+          && ((request.resource.data.paymentMethod == 'pix_manual' && request.resource.data.paymentAmountCents > 0)
+              || (request.resource.data.paymentMethod == 'courtesy' && request.resource.data.paymentAmountCents == 0))
+          && request.resource.data.paymentReference is string
+          && request.resource.data.paymentReference.size() >= 6
+          && request.resource.data.paymentReference.size() <= 120
+          && request.resource.data.paymentConfirmedAt == request.time
+        ));
       allow update, delete: if false;
     }
 
