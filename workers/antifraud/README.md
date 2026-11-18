@@ -45,3 +45,9 @@ Comando aplicado: `wrangler deploy --config wrangler.private.toml`.
 Resultado confirmado pelo Wrangler: Worker `pote-batata-guard-staging` carregado na Cloudflare, versão `beed9a8a-1858-4a74-bdde-cb73a0416c6c`, com `No targets deployed`. `wrangler deployments list --config wrangler.private.toml` confirmou a versão. **Não existe URL pública, não há fluxo do aplicativo apontando para esse Worker, não há segredos de conta de serviço Google configurados, e nenhuma transação real foi executada.**
 
 Depois que o proprietário criar o subdomínio gratuitamente no painel, será possível testar o deploy com o `wrangler.toml` padrão (mantendo `ENABLE_WRITES=false`), acessar `/health`, configurar credenciais apenas por secrets e homologar em Firebase de testes antes de qualquer ativação transacional. Não ativar `ENABLE_WRITES=true` sem integração e bloqueio das regras de cliente concluídos.
+
+## Endereço `workers.dev` publicado em homologação
+
+Em 18/11/2026, a API oficial Cloudflare confirmou que esta conta **já possuía** o subdomínio global `pixmcp.workers.dev`; portanto não se alterou o subdomínio de outros aplicativos. Foi publicado `pote-batata-guard-staging.pixmcp.workers.dev` via Wrangler, versão `3acc47f3-b676-4e3b-81a8-990e16223bb6`, com `ENABLE_WRITES=false` e `preview_urls=false`.
+
+Validação externa na URL: `GET /health` retornou **HTTP 200** com `writesEnabled:false` e `POST /v1/orders/produce` retornou **HTTP 423** sem executar gravação. O aplicativo PDV oficial continua sem integração com este endpoint. Nenhuma credencial Google Service Account foi instalada e nenhuma regra do Firestore de produção foi alterada nesta etapa. Criar o subdomínio `livresom` não foi necessário nem desejável, pois mudar o subdomínio global poderia afetar outros Workers existentes na conta.
