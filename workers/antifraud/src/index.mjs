@@ -187,7 +187,7 @@ export function createWorkerApp({
    const route=new URL(req.url).pathname;
    if(req.method==="GET"&&route==="/health")
     return json({status:"ok",project:"pote-batata-pro",
-     writesEnabled:env.ENABLE_WRITES==="true"&&((/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||""))||env.PRODUCTION_CUTOVER_APPROVED==="true")},200,headers);
+     writesEnabled:env.ENABLE_WRITES==="true"&&(/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||""))||env.PRODUCTION_CUTOVER_APPROVED==="true")},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
    try{return await perform(req,env,headers)}
    catch(e){
