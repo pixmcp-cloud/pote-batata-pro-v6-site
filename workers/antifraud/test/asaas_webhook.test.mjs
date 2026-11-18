@@ -33,7 +33,7 @@ const app=db=>createWorkerApp({repository:()=>db,clock:()=>new Date("2026-11-18T
 test("Asaas inbox persists once; replay is idempotent and does not grant PRO",async()=>{
  const db=new DB(),worker=app(db);
  const first=await worker.fetch(request(),env);
- assert.equal(first.status,200,await first.text());
+ assert.equal(first.status,200);
  assert.equal((await first.json()).alreadyReceived,false);
  const again=await worker.fetch(request(),env);
  assert.equal(again.status,200);
