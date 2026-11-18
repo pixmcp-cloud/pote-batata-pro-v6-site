@@ -163,7 +163,14 @@ async function run(){
   assert.equal((await receipt.json()).amountCents,6000);
   assert.equal((await read(key("orders","o4"))).record.item.bankReconciled,false);
   assert.equal((await(await worker.fetch(receiptReq(),env)).json()).alreadyApplied,true);
-  assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,7);  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
+  assert.equal((await read(root+"/appState/v2InventoryGuard")).revision,7);  const cashId=randomUUID(),baseRequest=req(cashId);
+  const open=new Request("https://worker.qa.invalid/v1/cash/open",{
+   method:"POST",headers:baseRequest.headers,
+   body:JSON.stringify({universe:"cashqa",operationId:cashId,openingCashCents:0})
+  });
+  assert.equal((await worker.fetch(open,env)).status,200);
+  assert.equal((await read(root+"/appState/v2CashControl__cashqa")).activeSessionId,"cf-turn-"+cashId);
+  console.log("QA_LIVE_REST_WORKER_PASS project="+PROJECT+
    " effects=produce/retry/cancel/race/loss/stock/guard");
  }finally{
   if(started){
