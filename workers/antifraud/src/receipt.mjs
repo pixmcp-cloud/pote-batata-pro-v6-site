@@ -61,6 +61,19 @@ export async function confirmOperatorReceipt(body,{user,env,repository,clock,has
   const amountCents=Math.round(qty*price*100)+Math.round(fee*100);
   if(!Number.isSafeInteger(amountCents)||amountCents<=0||amountCents>1e10)
    fail("invalid_amount","Valor total fora dos limites");
-  // F20_RECEIPT_SESSION_AND_COMMIT
+    if(!validId(order.cashSessionId))
+   fail("cash_session_required","Abra o caixa antes de receber");
+  const sessionPath=recordPath(uid,universe,"cashSessions",order.cashSessionId);
+  const session=await tx.get(sessionPath);
+  if(session?.data?.record?.group!=="cashSessions"||
+     session.data.record.universe!==universe||
+     session.data.record.item?.status!=="open")
+   fail("cash_session_closed","Turno de caixa inexistente ou fechado");
+  const at=clock().toISOString();
+  const next={...order,paymentStatus:method==="cash"?"Pago em dinheiro":"pago",
+   paymentConfirmedAt:at,
+   paymentConfirmationReference:reference||"Recebimento declarado pelo operador",
+   paymentDeclarationSource:"operator",bankReconciled:false};
+  // F20_RECEIPT_FINAL_COMMIT
  }finally{await tx.rollback()}
 }
