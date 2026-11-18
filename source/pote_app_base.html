@@ -661,7 +661,20 @@ function produce(id){
   catch(e){console.warn('Snapshot de custo não concluído:',e.message||e)}
  }state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Produção iniciada: estoque descontado.');window.POTE_ORDER?.lowAfterOrder?.(o);
 }
-function finishOrder(id){if(!operationReady())return;const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Pedido finalizado. Você permanece na seção Pedidos.')}
+function finishOrder(id){if(!operationReady())return;const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();
+  let paidOnCompletion=null;
+  try{
+    const licensed=!!window.POTE_APP_READY&&!!window.POTE_AUTH?.uid&&
+      (window.POTE_AUTH.role==='admin'||window.POTE_AUTH.proActive===true||window.POTE_AUTH.franchiseActive===true);
+    if(licensed&&typeof window.POTE_PDV?.completeSalePayment!=='function')
+      throw Error('Caixa PDV ainda carregando. Toque em Concluir novamente após carregar a página.');
+    paidOnCompletion=window.POTE_PDV?.completeSalePayment?.(o,state.data);
+  }catch(error){o.status='em_producao';delete o.finishedAt;toast('Não foi possível registrar a venda no caixa: '+String(error.message||error));return}
+  state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);
+  toast(paidOnCompletion?.recorded?'Venda concluída: recebimento lançado automaticamente no caixa PDV.':
+    (paidOnCompletion?.reason==='Forma de recebimento não definida'?
+      'Pedido concluído. Pagamento na entrega ou sem forma definida continua pendente.':
+      'Pedido finalizado. Você permanece na seção Pedidos.'))}
 function cancelOrder(id){
  if(!operationReady())return false;
  // Um único fluxo de cancelamento, incluindo estoque, perda e idempotência.

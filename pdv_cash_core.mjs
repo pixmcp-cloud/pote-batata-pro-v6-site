@@ -111,6 +111,59 @@ export function settleDeliveryPayment(data,{orderId,method,reference,at}){
   (ref||"Pagamento em espécie");
  return order;
 }
+/* Completing an operator-handled sale is their declaration that payment was received.
+ * Only Cash/Pix/Card can be auto-booked; "Na entrega"/"Outro" remain pending.
+ * If no session exists, the first completed sale starts a zero-float shift to
+ * avoid losing its payment from PDV reports. Closed shifts are never rewritten. */
+export function confirmPaymentOnSaleCompletion(data,{orderId,operator,id,at}={}){
+ validateCashData(data);
+ const order=data.orders.find(o=>o.id===orderId);
+ if(!order||order.status!=="entregue")fail("Somente uma venda concluída pode registrar recebimento automático");
+ const kind=paymentKind(order.paymentMethod);
+ if(!["cash","pix","card"].includes(kind))
+  return {recorded:false,reason:"Forma de recebimento não definida"};
+ const previous=(data.cashSessions||[]).find(s=>s.id===order.cashSessionId);
+ const already=paymentConfirmed(order);
+ if(already&&previous)return {recorded:false,reason:"Recebimento já contabilizado",sessionId:previous.id};
+ const when=asDate(at);
+ const note="Recebimento declarado na conclusão da venda pelo operador";
+ let current=activeSession(data);
+ if(!current){
+  const turnId="auto-turn-"+String(order.id);
+  if((data.cashSessions||[]).some(s=>s.id===turnId))fail("Turno automático duplicado");
+  current=openCash(data,{id:turnId,openingCash:0,operator:operator||"Operador",at:when});
+  current.autoStarted=true;
+ }
+ if(previous?.status==="closed"){
+  const movementId="sale-completion-"+String(order.id);
+  if((data.cashMovements||[]).some(m=>m.kind==="late_payment"&&m.orderId===order.id))
+   return {recorded:false,reason:"Recebimento tardio já contabilizado",sessionId:current.id};
+  // Append to the current shift; the closed report is frozen.
+  settlePreviousPayment(data,{id:movementId,orderId:order.id,method:order.paymentMethod,reference:note,at:when});
+  order.paymentStatus=kind==="cash"?"Pago em dinheiro":"pago";
+  order.paymentConfirmedAt=when;
+  order.paymentConfirmationReference=note;
+  order.paymentConfirmationSource="conclusao-venda";
+  return {recorded:true,late:true,sessionId:current.id};
+ }
+ if(previous&&previous.id!==current.id)
+  fail("O pedido pertence a outro caixa aberto; concilie os turnos antes de concluir");
+ if(!previous)order.cashSessionId=current.id;
+ if(already){
+  if(!previous){
+   order.paymentConfirmedAt ||=when;
+   order.paymentConfirmationReference ||=note;
+   order.paymentConfirmationSource ||= "conclusao-venda";
+   return {recorded:true,reason:"Recebimento vinculado ao caixa",sessionId:current.id};
+  }
+  return {recorded:false,reason:"Recebimento já confirmado",sessionId:current.id};
+ }
+ order.paymentStatus=kind==="cash"?"Pago em dinheiro":"pago";
+ order.paymentConfirmedAt=when;
+ order.paymentConfirmationReference=note;
+ order.paymentConfirmationSource="conclusao-venda";
+ return {recorded:true,late:false,sessionId:current.id};
+}
 export function listOutstandingPrevious(data){
  validateCashData(data);
  const current=activeSession(data);

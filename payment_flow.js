@@ -44,7 +44,7 @@ function sync(){
  if(!Number.isFinite(total)){preview.textContent="Informe um preço e uma quantidade válidos.";return}
  if(!cash){preview.innerHTML="<strong>Total previsto: "+money(total)+"</strong><span>Pagamento: "+
    ({pix:"Pix",cartao:"Cartão",entrega:"Na entrega",outro:"Outro"}[method]||method)+
-   ". O recibo registrará a forma escolhida.</span>";return}
+   ". Ao concluir a venda, o recebimento entra automaticamente no Caixa PDV, sem uma segunda confirmação.</span>";return}
  const calc=calculate(String(total.toFixed(2)),$("orderCashReceived")?.value||"");
  preview.innerHTML="<strong>Valor total: "+money(total)+"</strong><span>"+
  (Number.isFinite(calc.received)?"Dinheiro recebido: "+money(calc.received)+" · ":"")+

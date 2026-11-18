@@ -1,7 +1,7 @@
 /* Frente de caixa do Potê Batata Pro.
    Movimentações financeiras por turno, recibo NÃO fiscal e comanda. */
 import {activeSession,openCash,calculateCash,closeCash,registerCashMovement,
- confirmRecordedPayment,settleDeliveryPayment,settlePreviousPayment,listOutstandingPrevious,paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs?v=v3-wave1-20261116";
+ confirmRecordedPayment,settleDeliveryPayment,settlePreviousPayment,confirmPaymentOnSaleCompletion,listOutstandingPrevious,paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs?v=sale-done-auto-20261118";
 import {summarizePdvReceipts,countCashDifference} from "./pdv_cash_summary.mjs";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const brl=x=>Number(x||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -38,6 +38,13 @@ function ensure(){
  });
  modal.addEventListener("submit",event=>{event.preventDefault();submit(event.target)});
  modal.addEventListener("input",event=>{if(event.target?.name==="countedCash")updateCountPreview(event.target.value)});
+}
+function completeSalePayment(order,data){
+ if(!access()||!order||!data)return null;
+ if(window.POTE_SYNC_GUARD?.blocked)throw Error("Sincronização bloqueada: não registre uma venda antes de resolver o conflito.");
+ return confirmPaymentOnSaleCompletion(data,{
+  orderId:order.id,operator:window.POTE_AUTH?.email||"Operador",at:new Date().toISOString()
+ });
 }
 function currentSession(){return activeSession(snapshot()?.data)}
 function getSessionId(){return access()?currentSession()?.id||null:null}
@@ -131,6 +138,7 @@ function renderPage(){
  return '<section class="pote-pdv-page" id="potePdvPage" aria-label="Relatório do Caixa PDV">'+
   '<div class="pote-pdv-page-heading"><small>CONTROLE DE VENDAS</small><h2>Caixa PDV</h2>'+
   '<p>Veja quanto entrou em dinheiro, Pix e cartão, e quanto deve haver na gaveta ao fechar.</p>'+
+  (active?.autoStarted?'<p class="pote-pdv-note">Este caixa foi iniciado automaticamente com <strong>R$ 0,00</strong> de troco. Se já havia dinheiro na gaveta, registre um suprimento para que o fechamento fique correto.</p>':'')+
   '<div class="pote-pdv-page-status '+(active?'running':'stopped')+'">'+
   '<strong>'+(active?'● ABERTO':'● FECHADO')+'</strong><span>'+label+(dateLabel?' · '+dateLabel:'')+'</span></div></div>'+
   '<div class="pote-pdv-page-summary"><small>Total de recebimentos confirmados</small>'+
@@ -263,7 +271,7 @@ function render(){
   '</section>'+
   '<section class="pote-pdv-box pote-pdv-pending"><div class="pote-pdv-box-header"><span class="pote-pdv-step">PASSO 3</span>'+
   '<h3>Confirme os pagamentos <span class="pote-pdv-count">'+count+'</span></h3>'+
-  '<p>Vendeu no Pix ou cartão? O valor já está registrado na lista abaixo, mas <strong>não conta como recebido</strong> até você conferir o extrato ou a maquininha e tocar em <strong>Confirmar recebimento</strong>.</p></div>'+
+  '<p>Ao tocar em <strong>Concluir</strong> no pedido, o pagamento em dinheiro, Pix ou cartão entra automaticamente no relatório, sem mais nenhuma ação. Os itens abaixo são pedidos ainda não concluídos ou pendências antigas.</p></div>'+
   pendingList+
   (overdue.length?'<details class="pote-pdv-details" data-pdv-detail="old-receivables"><summary>Ver '+overdue.length+
      ' recebimento(s) de turnos antigos</summary><p class="pote-pdv-note">Após conferir, eles entram no total de hoje sem mudar o fechamento anterior.</p>'+pastList+'</details>':'')+
@@ -485,5 +493,5 @@ if(pageRoot)new MutationObserver(()=>{
  if(heading&&trigger.parentElement!==heading)refresh();
  else if(!heading&&(!trigger.hidden||!trigger.isConnected))refresh();
 }).observe(pageRoot,{childList:true,subtree:false});
-window.POTE_PDV={open,close,refresh,renderPage,getSessionId,currentSession,printOrder,ticketHtml};
+window.POTE_PDV={open,close,refresh,renderPage,completeSalePayment,getSessionId,currentSession,printOrder,ticketHtml};
 if(window.POTE_ROUTE_BRIDGE?.current?.().tab==="pdv")window.requestAnimationFrame(()=>window.render?.());
