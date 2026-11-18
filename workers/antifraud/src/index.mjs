@@ -10,6 +10,7 @@ import {confirmOperatorReceipt} from "./receipt.mjs";
 import {openCashSession,closeCashSession} from "./cash_session.mjs";
 import {createSimpleOrder} from "./order_create.mjs";
 import {finishSale} from "./finish_sale.mjs";
+import {ingestAsaasWebhook} from "./asaas_webhook.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -224,7 +225,13 @@ export function createWorkerApp({
     return json({status:"ok",project:"pote-batata-pro",
      writesEnabled:env.ENABLE_WRITES==="true"&&(/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||""))||env.PRODUCTION_CUTOVER_APPROVED==="true")},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
-   try{return await perform(req,env,headers)}
+   try{
+    if(route==="/v1/asaas/webhook"){
+     const result=await ingestAsaasWebhook(req,{env,repository,clock});
+     return json(result,200,headers);
+    }
+    return await perform(req,env,headers);
+   }
    catch(e){
     if(e instanceof OperationalError)
      return json({error:e.code,message:e.message},e.status,headers);
