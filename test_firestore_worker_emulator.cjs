@@ -196,6 +196,50 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
   assert.equal(cancelWinner.status,200,await cancelWinner.text());
   assert.equal((await get("ingredients","potato")).stock,200,
    "Reservation cancellation must refund stock exactly once");
+  // F02: reapprove a modified recipe through the actual authenticated
+  // Worker endpoint and real Firestore SDK transaction, then order with
+  // the new server-owned approval. No production data or credentials.
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const doc=sdk.doc(ctx.firestore(),"users",uid,"records",
+    recordPath(uid,universe,"recipes","r-f02").split("/").at(-1));
+   await sdk.updateDoc(doc,{"record.item.items":[{id:"potato",g:150}]});
+  });
+  const approveInput={universe,recipeId:"r-f02",salePriceCents:5000,
+   operationId:"f02-emulator-price-approval-revision2"};
+  const approveReq=()=>new Request("http://worker.local/v1/catalog/approve-price",{
+   method:"POST",headers:{"Authorization":"Bearer emulator-owner",
+    "Origin":"https://pdv.livresom.com","Content-Type":"application/json"},
+   body:JSON.stringify(approveInput)
+  });
+  const approvedResponse=await fetchAsService(approveReq(),options);
+  assert.equal(approvedResponse.status,200,await approvedResponse.text());
+  assert.equal((await(await fetchAsService(approveReq(),options)).json()).alreadyApplied,true);
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const snap=await sdk.getDoc(sdk.doc(ctx.firestore(),
+    ...serverPricePath(uid,universe,"r-f02").split("/")));
+   assert.equal(snap.data().revision,2);
+   assert.deepEqual(snap.data().items,[{id:"potato",g:150}]);
+   assert.equal(snap.data().salePriceCents,5000);
+  });
+  const updatedOrder={...createBody,orderId:"approved-revision2",
+   operationId:"f02-emulator-price-approved-order2"};
+  const placeReq=()=>new Request("http://worker.local/v1/orders/create",{
+   method:"POST",headers:{"Authorization":"Bearer emulator-owner",
+    "Origin":"https://pdv.livresom.com","Content-Type":"application/json"},
+   body:JSON.stringify(updatedOrder)
+  });
+  const placed=await fetchAsService(placeReq(),options);
+  assert.equal(placed.status,200,await placed.text());
+  assert.equal((await get("orders","approved-revision2")).serverPriceRevision,2);
+  assert.equal((await get("orders","approved-revision2")).price,50);
+  assert.equal((await get("ingredients","potato")).stock,50);
+  const cancelledApproved=await fetchAsService(newReq(
+   "f02-emulator-approved-revision2-cancel",
+   "http://worker.local/v1/orders/cancel","return","approved-revision2"),options);
+  assert.equal(cancelledApproved.status,200,await cancelledApproved.text());
+  assert.equal((await get("ingredients","potato")).stock,200);
+  console.log("PASS F02 APPROVAL SDK EMULATOR: new price revision, audit idempotency and reserved order.");
+
   console.log("PASS F02 SDK EMULATOR CONCURRENCY: 2 orders, one reservation, retry safe, no negative stock.");
 
   console.log("PASS F02 SDK EMULATOR: atomic reservation, replay, production without double deduction, cancel once.");
