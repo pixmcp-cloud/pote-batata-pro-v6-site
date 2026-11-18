@@ -306,7 +306,7 @@ service cloud.firestore {
       }
       match /appState/{id} {
         allow read: if canAccess(userId);
-        allow create, update, delete: if id != 'v2InventoryGuard'
+        allow create, update, delete: if id != 'v2InventoryGuard' && !id.matches('v2CashControl__.*')
           && (canWriteLegacy(userId) || (isOwner(userId) && id in ['v2','v2Pulse']));
         allow create: if id == 'v2InventoryGuard' && canAccess(userId)
           && validInventoryRevision(request.resource.data)
