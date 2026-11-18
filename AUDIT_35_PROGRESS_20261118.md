@@ -21,7 +21,7 @@
 - Firestore Emulator: **10/10 referência** e **10/10 regras candidatas**, todos aprovados, incluindo dados isolados e concorrência.
 - Worker: **20/20 testes unitários**, mais testes de produção, cancelamento, idempotência e concorrência usando adaptador SDK real do Emulator nas duas configurações de regras.
 - F08: exportações PNG em 9:16, 1:1, 4:5 e 16:9 testadas, com valores exatos e sem overflow.
-- Inventário após simplificação F08: **216 arquivos**, **7.740.025 bytes**, **0 referências locais ausentes**, **0 arquivos sinalizados como secretos**.
+- Inventário após simplificação F08: **216 arquivos**, **7.741.149 bytes**, **0 referências locais ausentes**, **0 arquivos sinalizados como secretos**.
 
 Essas evidências são **de homologação local automatizada**, não de Android OS/APK nativo, Firebase REST real ou venda bancária confirmada.
 
