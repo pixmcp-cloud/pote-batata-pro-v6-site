@@ -82,6 +82,9 @@ test("real projects require second release approval even when writes are enabled
  assert.equal(response.status,423);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+ const health=await app.fetch(new Request("https://x/health"),
+  {...env,ENABLE_WRITES:"true",PRODUCTION_CUTOVER_APPROVED:"false"});
+ assert.equal((await health.json()).writesEnabled,false);
 });
 test("reject forged identity, cross-tenant body and unknown origin",async()=>{
  const {db}=makeStore(),app=appFor(db);
@@ -145,4 +148,7 @@ test("stock shortage does not write order, movements, pulse or journal",async()=
  assert.equal(response.status,409);
  assert.equal(db.docs.size,size);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+ const health=await app.fetch(new Request("https://x/health"),
+  {...env,ENABLE_WRITES:"true",PRODUCTION_CUTOVER_APPROVED:"false"});
+ assert.equal((await health.json()).writesEnabled,false);
 });
