@@ -90,6 +90,8 @@ function selectionReady(){
  window.POTE_ADMIN_PERMISSIONS?.renderAccount?.(user);
 }
 function resetPaymentForm(){
+ $("poteAdmPaymentMode").value="pix_manual";
+ $("poteAdmPaymentAmount").disabled=false;
  $("poteAdmPaymentAmount").value="";$("poteAdmPaymentRef").value="";
  $("poteAdmPaymentVerified").checked=false;
 }
