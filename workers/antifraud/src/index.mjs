@@ -72,6 +72,10 @@ export function createWorkerApp({
    if(text.length>4096)throw Error("oversize");
    body=JSON.parse(text);
   }catch{return json({error:"invalid_json"},400,headers)}
+  if(action==="cash_close"){
+   const result=await closeCashSession(body,{user,env,repository,clock,hasAccess});
+   return json(result,200,headers);
+  }
   if(action==="cash_open"){
    const result=await openCashSession(body,{user,env,repository,clock,hasAccess});
    return json(result,200,headers);
