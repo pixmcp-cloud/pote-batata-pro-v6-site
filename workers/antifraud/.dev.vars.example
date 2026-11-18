@@ -1,0 +1,3 @@
+# Exemplo SEM CREDENCIAIS. Nunca versionar .dev.vars real.
+# GCP_CLIENT_EMAIL=service-name@potobatata-b71f3.iam.gserviceaccount.com
+# GCP_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----...-----END PRIVATE KEY-----

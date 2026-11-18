@@ -61,3 +61,10 @@ Relatório financeiro das franquias: botão Relatório somente em conta de franq
 ## Laboratório contínuo de QA mobile — 18/11/2026
 Regressão de navegadores e Firebase Emulator automatizada para cada novo push no GitHub, com bloqueio antes da publicação GitHub Pages caso os testes mobile falhem. Resultado local: oito perfis Chrome com touch, cinco vendas automáticas e oito cenários do painel de franquia; 10/10 testes de referência e 10/10 de regras candidatas.
 Correções financeiras adicionais: calendário de Brasília nos gráficos diários e proteção contra contagem dupla de recebimento tardio. Detalhes em MOBILE_QA_20261118.md. Esta emulação não substitui Android OS nem backend antifraude.
+## Cloudflare Workers — prova de conceito operacional, sem ativação (18/11/2026)
+
+Foi preparado em workers/antifraud um Worker para validar login Firebase e calcular baixa de estoque no servidor, executando produção/cancelamento com transações Firestore idempotentes (estoque, pedido, movimentos, guarda/pulso, auditoria). A versão não muda a interface do sistema oficial nem as regras Firestore vigentes. O interruptor ENABLE_WRITES permanece FALSE.
+
+Validação local: código compilado por Wrangler, endpoint /health HTTP 200 e operações de escrita bloqueadas HTTP 423; 19 testes Node de JWT com assinaturas RSA, concorrência entre clientes, falta de estoque, cancelamento, idempotência e Firestore REST passaram. Fluxo de produção real e conta Cloudflare não foram ativados porque o Wrangler ainda não está autenticado nesta máquina e a conta de serviço do Google não foi configurada como Secret.
+
+O Worker também permanece limitado para o caso de planos Free e exige contas Pro/franquia legítimas; o fluxo de clientes Free não foi afetado. Ainda é necessário vincular a conta Cloudflare Free, homologar contra Firestore real em ambiente de teste, integrar chamadas do aplicativo e então bloquear escrita direta do cliente em regras Firestore, com rollback. Não há custo mensal adicional ativado.

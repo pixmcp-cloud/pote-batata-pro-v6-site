@@ -1,0 +1,41 @@
+name: Validar Worker Cloudflare (sem deploy)
+on:
+  push:
+    paths:
+      - 'workers/antifraud/**'
+      - '.github/workflows/cloudflare-worker-qa.yml'
+  pull_request:
+    paths:
+      - 'workers/antifraud/**'
+      - '.github/workflows/cloudflare-worker-qa.yml'
+permissions:
+  contents: read
+jobs:
+  worker-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: workers/antifraud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: workers/antifraud/package-lock.json
+      - name: Instalar dependências (sem execução de scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Validar sintaxe
+        run: npm run check
+      - name: Testar autenticação, idempotência, estoque e concorrência
+        run: npm test
+      - name: Compilar para runtime Cloudflare SEM PUBLICAR
+        run: npx wrangler deploy --dry-run --outdir .wrangler/build-qa
+      - name: Garantir que a API de escrita permanece DESATIVADA
+        run: |
+          grep -q 'ENABLE_WRITES = "false"' wrangler.toml
+          if grep -R -E 'BEGIN PRIVATE KEY|CLOUDFLARE_API_TOKEN=' src/ wrangler.toml; then
+            echo 'Credencial encontrada no código versionado!'
+            exit 1
+          fi
