@@ -74,6 +74,18 @@ export async function confirmOperatorReceipt(body,{user,env,repository,clock,has
    paymentConfirmedAt:at,
    paymentConfirmationReference:reference||"Recebimento declarado pelo operador",
    paymentDeclarationSource:"operator",bankReconciled:false};
-  // F20_RECEIPT_FINAL_COMMIT
+    const writes=[
+   change(orderPath,{record:{...rec,item:next}},ordered),
+   change(guardPath,{revision:guard.data.revision+1},guard),
+   change(pulsePath,{eventId:"cf-"+operationId,
+    previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
+    affected:1,changedKeys:[orderPath.split("/").at(-1)],
+    metaChanged:false,sensitive:true},pulse),
+   change(eventPath,{action:"receipt",universe,orderId,operationId,
+    reference,method,amountCents,actorUid:uid,bankReconciled:false},null)
+  ];
+  await tx.commit(writes);
+  return {ok:true,alreadyApplied:false,orderId,operationId,amountCents,
+   method,bankReconciled:false};
  }finally{await tx.rollback()}
 }
