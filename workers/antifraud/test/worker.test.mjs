@@ -193,14 +193,16 @@ test("F02 server-priced order creation persists once then produces using stored 
  const created=await go();assert.equal(created.status,200,await created.text());
  const saved=db.current(recordPath(UID,UNIVERSE,"orders","new1")).record.item;
  assert.equal(saved.price,30);assert.equal(saved.paymentStatus,"pendente");
- assert.equal(saved.stockReservationStatus,"not_reserved");
- assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
+ assert.equal(saved.stockReservationStatus,"reserved");
+ assert.equal(saved.stockDeducted,true);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,200);
  assert.equal((await(await go()).json()).alreadyApplied,true);
  assert.equal((await app.fetch(request({...body,qty:3},"/v1/orders/create"),env)).status,409);
  const produced=await app.fetch(request({operationId:OP2,universe:UNIVERSE,
   orderId:"new1"}),env);
  assert.equal(produced.status,200,await produced.text());
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,200);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"orders","new1")).record.item.stockReservationStatus,"consumed");
 });
 test("F02 order creation rejects client prices and missing authoritative price",async()=>{
  const {db,put}=makeStore(),app=appFor(db);
@@ -352,3 +354,82 @@ test("F20 finish: closed shift cannot silently confirm sale",async()=>{
  assert.equal(db.current(path).record.item.paymentStatus,"pendente");
 });
 
+
+test("F02 reservation once: stock deducted when ordering, not again when producing",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","r2",{id:"r2",name:"Batata Reserva",serverPriceVersion:1,
+  serverSalePriceCents:4000,items:[{id:"batata",g:100}]});
+ put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ const b={universe:UNIVERSE,operationId:OP1,orderId:"reserved1",
+  recipeId:"r2",qty:2,cashSessionId:"s1",paymentMethod:"pix"};
+ assert.equal((await app.fetch(request(b,"/v1/orders/create"),env)).status,200);
+ const doc=recordPath(UID,UNIVERSE,"ingredients","batata");
+ const order=recordPath(UID,UNIVERSE,"orders","reserved1");
+ assert.equal(db.current(doc).record.item.stock,200);
+ const size=db.docs.size;
+ assert.equal((await (await app.fetch(request(b,"/v1/orders/create"),env)).json()).alreadyApplied,true);
+ assert.equal(db.docs.size,size);
+ assert.equal((await app.fetch(request({universe:UNIVERSE,orderId:"reserved1",
+  operationId:OP2},"/v1/orders/produce"),env)).status,200);
+ assert.equal(db.current(doc).record.item.stock,200,"Production must not double-deduct reservation");
+ assert.equal(db.current(order).record.item.stockReservationStatus,"consumed");
+ assert.equal([...db.docs.keys()].filter(x=>x.includes("/workerEvents/")).length,2);
+});
+test("F02 reservation cancellation restores ingredients exactly once",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","r2",{id:"r2",name:"Reserva",serverPriceVersion:1,
+  serverSalePriceCents:4000,items:[{id:"batata",g:100}]});
+ put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ const b={universe:UNIVERSE,operationId:OP1,orderId:"reserve-cancel",
+  recipeId:"r2",qty:2,cashSessionId:"s1",paymentMethod:"cash"};
+ assert.equal((await app.fetch(request(b,"/v1/orders/create"),env)).status,200);
+ const stockPath=recordPath(UID,UNIVERSE,"ingredients","batata");
+ assert.equal(db.current(stockPath).record.item.stock,200);
+ const cancel={universe:UNIVERSE,orderId:"reserve-cancel",
+  operationId:OP2,decision:"return"};
+ assert.equal((await app.fetch(request(cancel,"/v1/orders/cancel"),env)).status,200);
+ assert.equal(db.current(stockPath).record.item.stock,400);
+ assert.equal((await (await app.fetch(request(cancel,"/v1/orders/cancel"),env)).json()).alreadyApplied,true);
+ assert.equal(db.current(stockPath).record.item.stock,400);
+});
+test("F02 duplicate ingredient entries are summed before stock reservation",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","r2",{id:"r2",name:"Reserva",serverPriceVersion:1,
+  serverSalePriceCents:4000,items:[{id:"batata",g:75},{id:"batata",g:75}]});
+ put("ingredients","batata",{id:"batata",stock:250,name:"Batata",
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ const b={universe:UNIVERSE,operationId:OP1,orderId:"duplicate-fail",
+  recipeId:"r2",qty:2,cashSessionId:"s1",paymentMethod:"pix"};
+ assert.equal((await app.fetch(request(b,"/v1/orders/create"),env)).status,409,
+  "300g total is more than 250g on hand");
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,250);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"orders","duplicate-fail")),undefined);
+ put("ingredients","batata",{id:"batata",stock:350,name:"Batata",
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ assert.equal((await app.fetch(request({...b,operationId:OP2,
+  orderId:"duplicate-ok"},"/v1/orders/create"),env)).status,200);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,50);
+});
+test("F02 concurrent creates cannot oversell same 400g ingredient",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","r2",{id:"r2",name:"Batata Reserva",serverPriceVersion:1,
+  serverSalePriceCents:4000,items:[{id:"batata",g:125}]});
+ put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ put("cashSessions","s1",{id:"s1",status:"open"});
+ const data=(operationId,orderId)=>({universe:UNIVERSE,operationId,
+  orderId,recipeId:"r2",qty:2,cashSessionId:"s1",paymentMethod:"pix"});
+ const result=await Promise.all([
+  app.fetch(request(data(OP1,"order-one"),"/v1/orders/create"),env),
+  app.fetch(request(data(OP2,"order-two"),"/v1/orders/create"),env)
+ ]);
+ assert.deepEqual(result.map(x=>x.status).sort(),[200,409]);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,150);
+ assert.equal(["order-one","order-two"].filter(x=>db.current(
+  recordPath(UID,UNIVERSE,"orders",x))).length,1);
+});
