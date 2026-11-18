@@ -98,6 +98,63 @@ function cashEquation(summary){
   items.map(([label,val,sign])=>'<div><span>'+label+'</span><strong>'+sign+' '+brl(val)+'</strong></div>').join("")+
   '<div class="pote-pdv-equation-total"><b>DINHEIRO QUE DEVE ESTAR NA GAVETA</b><strong>'+brl(summary.expectedCash)+'</strong></div></div>';
 }
+function lastClosedSession(data){
+ return [...(data.cashSessions||[])].filter(x=>x.status==="closed").sort((a,b)=>
+  Date.parse(b.closedAt||b.openedAt||0)-Date.parse(a.closedAt||a.openedAt||0))[0]||null;
+}
+function reportForDisplay(data,session){
+ if(!session)return {
+  openingCash:0,expectedCash:0,expectedCashCents:0,pending:0,pendingCount:0,
+  confirmedByMethod:{cash:0,pix:0,card:0},previousByMethod:{cash:0,pix:0,card:0}
+ };
+ return calculateCash(data,session.id);
+}
+function renderPage(){
+ const data=snapshot()?.data||{orders:[],cashSessions:[],cashMovements:[]};
+ const active=activeSession(data);
+ const last=active?null:lastClosedSession(data);
+ if(!access())return '<section class="pote-pdv-page" id="potePdvPage">'+
+  '<div class="pote-pdv-page-heading"><small>CAIXA PDV</small><h2>Seu caixa, sem complicação</h2>'+
+  '<p>Para abrir e conferir caixa, entre com uma conta com acesso Pro ou administrativo.</p></div></section>';
+ const reference=active||last;
+ const summary=reportForDisplay(data,reference);
+ const receipts=summarizePdvReceipts(summary);
+ const label=active?"Turno em andamento":last?"Último caixa fechado":"Nenhum caixa registrado";
+ const dateLabel=reference?esc(date(active?reference.openedAt:reference.closedAt||reference.openedAt)):"";
+ const extra=active?
+  '<div class="pote-pdv-page-foot"><span>Dinheiro que deverá estar na gaveta</span><strong>'+brl(summary.expectedCash)+'</strong></div>'+
+  '<div class="pote-pdv-page-foot"><span>Pagamentos ainda pendentes</span><strong>'+brl(receipts.pending)+'</strong></div>':
+  last?'<div class="pote-pdv-page-foot"><span>Dinheiro esperado no fechamento</span><strong>'+brl(last.expectedCash)+'</strong></div>'+
+    '<div class="pote-pdv-page-foot"><span>Dinheiro contado no fechamento</span><strong>'+brl(last.countedCash)+'</strong></div>'+
+    '<div class="pote-pdv-page-foot"><span>Diferença registrada</span><strong>'+brl(last.difference)+'</strong></div>':
+    '<p class="pote-pdv-note">Os valores ainda estão zerados porque nenhum turno foi aberto. Abra o caixa e registre suas vendas para preencher o gráfico.</p>';
+ return '<section class="pote-pdv-page" id="potePdvPage" aria-label="Relatório do Caixa PDV">'+
+  '<div class="pote-pdv-page-heading"><small>CONTROLE DE VENDAS</small><h2>Caixa PDV</h2>'+
+  '<p>Veja quanto entrou em dinheiro, Pix e cartão, e quanto deve haver na gaveta ao fechar.</p>'+
+  '<div class="pote-pdv-page-status '+(active?'running':'stopped')+'">'+
+  '<strong>'+(active?'● ABERTO':'● FECHADO')+'</strong><span>'+label+(dateLabel?' · '+dateLabel:'')+'</span></div></div>'+
+  '<div class="pote-pdv-page-summary"><small>Total de recebimentos confirmados</small>'+
+  '<strong>'+brl(receipts.gross)+'</strong>'+
+  '<p>Somatório do dinheiro recebido, Pix confirmado e cartão confirmado. Não inclui pagamentos pendentes.</p></div>'+
+  '<div class="pote-pdv-page-chart"><h3>Entradas por forma de pagamento</h3>'+
+  receiptChart(receipts)+'</div>'+
+  '<div class="pote-pdv-page-equation">'+extra+'</div>'+
+  '<div class="pote-pdv-page-controls"><button type="button" class="pote-pdv-page-action" onclick="window.POTE_PDV?.open?.()">'+
+  (active?'Conferir recebimentos e fechar caixa':last?'Abrir novo caixa ou consultar histórico':'Abrir meu primeiro caixa')+
+  '</button><button type="button" class="pote-pdv-page-secondary" onclick="goOrdersSection(\'new\')">Registrar novo pedido</button></div>'+
+  '<p class="pote-pdv-page-help">Como funciona: 1. Abra o caixa com o dinheiro para troco. 2. Registre vendas. '+
+  '3. Confira Pix/cartão e marque o recebimento. 4. Conte notas e moedas para fechar o turno.</p></section>';
+}
+function refreshPage(){
+ const el=document.getElementById("potePdvPage");
+ if(!el)return;
+ if(el.contains(document.activeElement)&&document.activeElement?.matches?.("input,textarea,select,[contenteditable=true]"))return;
+ const wrapper=document.createElement("div");
+ wrapper.innerHTML=renderPage();
+ const next=wrapper.firstElementChild;
+ if(!next||el.innerHTML===next.innerHTML)return;
+ el.replaceWith(next);
+}
 function render(){
  ensure();
  const heading=document.querySelector(".ops-heading");
@@ -114,7 +171,7 @@ function render(){
  const data=snapshot()?.data||{orders:[]};
  const body=modal.querySelector("#potePdvBody");
  if(!s){
-  const latest=(data.cashSessions||[]).find(x=>x.status==="closed");
+  const latest=lastClosedSession(data);
   const last=latest?'<div class="pote-pdv-last"><strong>Último fechamento</strong>'+
    '<span>Esperado: '+brl(latest.expectedCash)+' · Contado: '+brl(latest.countedCash)+'</span>'+
    '<span>Diferença: '+brl(latest.difference)+'</span></div>':"";
@@ -128,7 +185,12 @@ function render(){
    '<p class="pote-pdv-note">Se a gaveta estiver vazia, digite 0,00.</p>'+
    '<button type="submit" class="pote-pdv-primary">Abrir caixa e começar</button></form></section>'+
    last+'<details class="pote-pdv-details"><summary>Consultar fechamentos anteriores</summary>'+
-   sessionHistory(data)+'</details>';
+   sessionHistory(data)+'</details>'+
+   '<section class="pote-pdv-box"><div class="pote-pdv-box-header"><span class="pote-pdv-step">RELATÓRIO DO PDV</span>'+
+   '<h3>Recebimentos do '+(latest?'último caixa':'primeiro caixa')+'</h3>'+
+   '<p>'+(latest?'Valores do último turno fechado, separados por forma de pagamento.':
+   'O gráfico começa em zero e será preenchido quando houver vendas confirmadas.')+'</p></div>'+
+   receiptChart(summarizePdvReceipts(reportForDisplay(data,latest)))+'</section>';
   return;
  }
  const summary=calculateCash(data,s.id);
@@ -381,6 +443,7 @@ function refresh(){
  if(visible&&access()&&modal?.contains?.(active)&&
     active?.matches?.("input,textarea,select,[contenteditable=true]"))return;
  render();
+ refreshPage();
 }
 for(const event of ["pote:user-ready","pote:changed","pote:license-updated","pote:user-logout"])
  window.addEventListener(event,()=>{
@@ -395,4 +458,5 @@ if(pageRoot)new MutationObserver(()=>{
  if(heading&&trigger.parentElement!==heading)refresh();
  else if(!heading&&(!trigger.hidden||!trigger.isConnected))refresh();
 }).observe(pageRoot,{childList:true,subtree:false});
-window.POTE_PDV={open,close,refresh,getSessionId,currentSession,printOrder,ticketHtml};
+window.POTE_PDV={open,close,refresh,renderPage,getSessionId,currentSession,printOrder,ticketHtml};
+if(window.POTE_ROUTE_BRIDGE?.current?.().tab==="pdv")window.requestAnimationFrame(()=>window.render?.());

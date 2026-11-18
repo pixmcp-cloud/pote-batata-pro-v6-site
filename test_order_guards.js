@@ -126,7 +126,8 @@ assert(confirmCount>=1);
 confirmValue=true;assert.equal(E.confirmLogout(),true);
 el("poteExitLeave").addEventListener=()=>{};
 const src=read("source/pote_app_base.html");
-assert(src.includes("[[\'new-order\',\'novo-pedido\',\'Novo Pedido\'],[\'production\',\'producao\',\'Produção\']"),"Os atalhos de Novo Pedido e Produção devem ser distintos");
+assert(src.includes("['pdv','financeiro','Caixa PDV']"),"Card PDV disponível na home");
+assert(src.includes("['new-order','novo-pedido','Novo Pedido']") && src.includes("['production','producao','Produção']"),"Atalhos de Novo Pedido e Produção devem ser distintos");
 assert(src.includes("goOrdersSection(\'new\')")&&src.includes("goOrdersSection(\'production\')"),"Atalhos devem navegar para seções diferentes");
 for(const term of ["checkBeforeRegister","checkBeforeProduce","ordersHistoryTitle","scrollToOrders","POTE_ORDER?.lowAfterOrder"]){
  assert(src.includes(term),"Integração do pedido ausente: "+term);

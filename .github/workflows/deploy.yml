@@ -180,6 +180,7 @@ jobs:
           node test_v3_universe_financial_isolation.js
           node test_pdv_cash_ui.mjs
           node test_pdv_cash_summary.mjs
+          node test_pdv_visible_contract.cjs
           node test_numeric_keyboard.js
           node --check public/numeric_keyboard.js
           node test_pdv_v2_storage.mjs

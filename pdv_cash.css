@@ -152,3 +152,33 @@
 .pote-pdv-disclaimer-details p{color:#dfd0af;line-height:1.7;font-size:12px}
 .pote-pdv-disclaimer-details a{color:#a8d5ff}
 .pote-pdv-kpi.receipts{display:grid!important;visibility:visible!important;position:relative;opacity:1!important}
+
+/* V5 dedicated Caixa PDV page: visible chart even before/after closing a turn. */
+.pote-pdv-page{display:grid;gap:16px;width:min(100%,960px);margin:0 auto 24px;color:#ecf6ed;font:inherit}
+.pote-pdv-page-heading{background:linear-gradient(132deg,#182b23,#0f211a);border:1px solid #436951;border-radius:20px;padding:20px 23px;display:grid;gap:8px}
+.pote-pdv-page-heading>small{font-weight:850;color:#a1d6b0;letter-spacing:.11em;font-size:11px}
+.pote-pdv-page-heading h2{font-size:clamp(24px,5vw,32px);margin:0;color:#eaffed}
+.pote-pdv-page-heading p{line-height:1.6;color:#c5dac9;margin:0;font-size:13px}
+.pote-pdv-page-status{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:9px;border-top:1px solid #355140;padding-top:13px;font-size:12px;color:#b7d0bc}
+.pote-pdv-page-status strong{padding:6px 10px;border:1px solid;border-radius:8px;letter-spacing:.04em}
+.pote-pdv-page-status.running strong{background:#204c33;color:#abf3bd;border-color:#4b986b}
+.pote-pdv-page-status.stopped strong{background:#4a2a29;color:#ffc8b9;border-color:#92504a}
+.pote-pdv-page-summary{display:grid;gap:5px;background:linear-gradient(120deg,#24533a,#0f3b28);border:1px solid #60aa77;border-radius:18px;padding:23px}
+.pote-pdv-page-summary small{color:#c8f6d4;font-size:12px;font-weight:700}
+.pote-pdv-page-summary strong{font-size:clamp(30px,7vw,46px);line-height:1.2;font-variant-numeric:tabular-nums;color:#f1fff6;letter-spacing:-.04em}
+.pote-pdv-page-summary p{font-size:12px;color:#c8e9d1;margin:0;line-height:1.5}
+.pote-pdv-page-chart{border-radius:18px;background:linear-gradient(135deg,#1d2c22,#141f1a);border:1px solid #445e4b;padding:20px;display:grid;gap:16px}
+.pote-pdv-page-chart h3{font-size:clamp(18px,4vw,23px);font-weight:750;margin:0;color:#eaffed}
+.pote-pdv-page .pote-pdv-chart-caption b{font-size:15px}
+.pote-pdv-page .pote-pdv-chart-track{height:22px}
+.pote-pdv-page-equation{background:#1a271f;border:1px solid #3d624a;border-radius:15px;padding:15px 19px;display:grid;gap:8px}
+.pote-pdv-page-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #34503b;padding:10px 0}
+.pote-pdv-page-foot:last-child{border-bottom:none}
+.pote-pdv-page-foot span{color:#c6e3cc;font-size:13px}
+.pote-pdv-page-foot strong{color:#eaffec;font-size:21px;font-variant-numeric:tabular-nums}
+.pote-pdv-page-controls{display:grid;grid-template-columns:1.5fr 1fr;gap:11px}
+.pote-pdv-page-action,.pote-pdv-page-secondary{border-radius:13px;border:1px solid #8bbf99;min-height:52px;padding:12px 15px;font-size:13px;font-weight:800;cursor:pointer}
+.pote-pdv-page-action{background:linear-gradient(110deg,#b7f3c5,#73cf93);color:#0a3220}
+.pote-pdv-page-secondary{background:#203a2b;color:#d1f7dc}
+.pote-pdv-page-help{border:1px solid #405846;border-radius:13px;padding:14px;background:#18261e;color:#c4d7c8;font-size:12px;line-height:1.75;margin:0}
+@media(max-width:590px){.pote-pdv-page{gap:12px;padding:0 2px}.pote-pdv-page-heading,.pote-pdv-page-summary,.pote-pdv-page-chart{padding:16px}.pote-pdv-page-controls{grid-template-columns:1fr}.pote-pdv-page-foot strong{font-size:18px}}
