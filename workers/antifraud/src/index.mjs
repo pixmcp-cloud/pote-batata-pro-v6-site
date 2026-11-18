@@ -1,4 +1,4 @@
-/* Potê Batata authoritative inventory MVP — OFF by default.
+/* Pot?? Batata authoritative inventory MVP ??? OFF by default.
  * Production is unchanged until authenticated Cloudflare deployment,
  * real emulator validation and explicit Firestore-rule cutover.
  */
@@ -51,7 +51,7 @@ export function createWorkerApp({
    route==="/v1/orders/receipt"?"receipt":
    route==="/v1/cash/open"?"cash_open":
    route==="/v1/cash/close"?"cash_close":
-   route==="/v1/orders/create"?"order_create":null;
+   route==="/v1/orders/create"?"order_create":
   if(!action)return json({error:"not_found"},404,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
@@ -59,7 +59,7 @@ export function createWorkerApp({
   // Firebase project until a separate, auditable cutover is approved.
   const demoProject=/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||""));
   if(env.ENABLE_WRITES!=="true"||(!demoProject&&env.PRODUCTION_CUTOVER_APPROVED!=="true"))
-   return json({error:"not_activated",message:"Cloudflare Worker em homologação"},423,headers);
+   return json({error:"not_activated",message:"Cloudflare Worker em homologa????o"},423,headers);
   const authorization=req.headers.get("Authorization")||"";
   if(!/^Bearer [^\s]+$/.test(authorization))
    return json({error:"authentication_required"},401,headers);
@@ -74,7 +74,7 @@ export function createWorkerApp({
    if(text.length>4096)throw Error("oversize");
    body=JSON.parse(text);
   }catch{return json({error:"invalid_json"},400,headers)}
-  if(action==="order_create"){
+  if(action==="finish_sale"){
    const result=await createSimpleOrder(body,{user,env,repository,clock,hasAccess});
    return json(result,200,headers);
   }
@@ -116,23 +116,23 @@ export function createWorkerApp({
     const prev=event.data;
     if(prev?.action!==action||prev?.universe!==universe||
        prev?.orderId!==orderId||prev?.decision!==(decision||null))
-     throw new OperationalError("Identificador usado por outra operação",409,"idempotency_conflict");
+     throw new OperationalError("Identificador usado por outra opera????o",409,"idempotency_conflict");
     return json({ok:true,alreadyApplied:true,orderId,operationId,
      status:prev.resultStatus},200,headers);
    }
    const profile=await tx.get(profilePath);
    if(!profile||!hasAccess(profile.data,user,universe))
-    throw new OperationalError("Operação não autorizada para esta unidade",403,"not_allowed");
+    throw new OperationalError("Opera????o n??o autorizada para esta unidade",403,"not_allowed");
    const [meta,guard,pulse,ordered]=await Promise.all([
     tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),tx.get(orderPath)
    ]);
    if(!meta||meta.data?.schemaVersion!==2||
       meta.data?.migration?.status==="copying"||!guard||!pulse||
       !Number.isInteger(guard.data?.revision)||!pulse.data?.eventId)
-    throw new OperationalError("Sincronização V2 não está pronta",409,"not_ready");
+    throw new OperationalError("Sincroniza????o V2 n??o est?? pronta",409,"not_ready");
    if(!ordered||ordered.data?.record?.group!=="orders"||
       ordered.data.record.id!==orderId||ordered.data.record.universe!==universe)
-    throw new OperationalError("Pedido não encontrado nesta unidade",404,"order_missing");
+    throw new OperationalError("Pedido n??o encontrado nesta unidade",404,"order_missing");
    const original=ordered.data.record;
    const counts=action==="cancel"&&original.item.stockDeducted!==true?
     new Map():quantities(original.item);
@@ -225,7 +225,7 @@ export function createWorkerApp({
     if(e instanceof FirestoreError){
      if([409,412].includes(e.status))
       return json({error:"transaction_conflict",
-       message:"Outra sessão alterou o pedido; recarregue os dados."},409,headers);
+       message:"Outra sess??o alterou o pedido; recarregue os dados."},409,headers);
      return json({error:"database_unavailable"},503,headers);
     }
     // Do not disclose Google OAuth details, Firestore paths, or credentials.
