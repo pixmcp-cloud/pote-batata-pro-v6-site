@@ -38,4 +38,21 @@ const m=computeFranchiseFinances(data,30,now);
 assert.equal(m.labels.length,30);
 assert.equal(m.totals.sales,70);
 assert.throws(()=>computeFranchiseFinances(data,365,now),/Período inválido/);
-console.log("PASS franchise finance: weekly/monthly, paid vs pending, cash/Pix/card, refunds, estimated cost and result.");
+const boundary=computeFranchiseFinances({
+ orders:[{id:"midnight",qty:1,price:55,createdAt:"2026-11-17T23:45:00-03:00",
+  paymentConfirmedAt:"2026-11-18T01:15:00-03:00",paymentStatus:"pago",
+  paymentMethod:"Pix",unitVariableCost:12}],
+ cashMovements:[{id:"paid-midnight",kind:"late_payment",orderId:"midnight",
+  amount:55,at:"2026-11-18T01:15:00-03:00",paymentMethod:"pix"}],
+ expenses:[{id:"day-expense",date:"2026-11-18",amount:10}]
+},7,new Date("2026-11-18T10:00:00-03:00"));
+assert.equal(boundary.series.find(x=>x.day==="2026-11-17").sales,55,
+ "Venda às 23:45 de Brasília pertence ao dia 17, não 18 UTC");
+assert.equal(boundary.series.find(x=>x.day==="2026-11-18").received,55);
+assert.equal(boundary.series.find(x=>x.day==="2026-11-18").expenses,10,
+ "Data civil YYYY-MM-DD não deve mudar de dia por causa do UTC");
+assert.equal(boundary.totals.received,55,"Evento de pagamento tardio não duplica venda já recebida");
+assert.equal(boundary.totals.payments.pix,55);
+assert.equal(computeFranchiseFinances({orders:[]},7,
+ new Date("2026-11-18T01:00:00Z")).labels.at(-1),"2026-11-17");
+console.log("PASS franchise finance: weekly/monthly, Brazil local dates, late payment not doubled, Pix/card/cash, refunds.");

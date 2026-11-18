@@ -1,6 +1,12 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {pathToFileURL}=require('node:url');
-const puppeteer=require('C:/Users/LIVRESOM/AppData/Local/npm-cache/_npx/4b4c857f6efdfb61/node_modules/puppeteer');
+let puppeteer;
+for(const n of ['./qa/mobile/node_modules/puppeteer-core',process.env.POTE_QA_PUPPETEER,'C:/Users/LIVRESOM/AppData/Local/npm-cache/_npx/4b4c857f6efdfb61/node_modules/puppeteer'].filter(Boolean)){
+ try{puppeteer=require(n);break}catch{}
+}
+if(!puppeteer)throw Error('Instale puppeteer-core em qa/mobile com npm ci');
+const chrome=[process.env.CHROME_BIN,process.env.POTE_QA_CHROME,'C:/Program Files/Google/Chrome/Application/chrome.exe','/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(x=>x&&fs.existsSync(x));
+if(!chrome)throw Error('Chrome/Chromium não encontrado');
 const root=__dirname;
 const expected={data:{recipes:[{id:'r1',name:'Frango'}],ingredients:[{id:'i1'}],orders:[],clients:[],suppliers:[],expenses:[]}};
 const src=fs.readFileSync(path.join(root,'firebase_integration.js'),'utf8');
@@ -10,7 +16,8 @@ const verifier=src.slice(from,to);
 const syncSrc=fs.readFileSync(path.join(root,'sync_guard.mjs'),'utf8');
 const mark=syncSrc.indexOf('export function validateBackup(');
 assert(mark>0);
-const validator=syncSrc.slice(mark).replace(/^export function validateBackup/,'function validateBackup');
+const validatorEnd=syncSrc.indexOf('\nexport ',mark+1);
+const validator=syncSrc.slice(mark,validatorEnd<0?undefined:validatorEnd).replace(/^export function validateBackup/,'function validateBackup');
 const stableSrc="const stableJson=v=>JSON.stringify((function sort(x){if(Array.isArray(x))return x.map(sort);if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>[k,sort(v)]));return x})(v));";
 const mock="const auth={currentUser:{uid:'acct-mobile'}};"+stableSrc+validator+"\n"+verifier+"\nwindow.verifyBackupFile=verifyBackupFile; window.expected="+JSON.stringify(expected)+";";
 (async()=>{
@@ -18,20 +25,27 @@ const mock="const auth={currentUser:{uid:'acct-mobile'}};"+stableSrc+validator+"
  const good=path.join(tmp,'backup-acct-mobile.json'),bad=path.join(tmp,'backup-other.json');
  fs.writeFileSync(good,JSON.stringify({backupVersion:1,uid:'acct-mobile',state:expected}));
  fs.writeFileSync(bad,JSON.stringify({backupVersion:1,uid:'wrong-account',state:expected}));
- const browser=await puppeteer.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',args:['--no-sandbox','--disable-web-security','--allow-file-access-from-files']});
+ const browser=await puppeteer.launch({headless:true,executablePath:chrome,args:['--no-sandbox','--disable-web-security','--allow-file-access-from-files','--disable-dev-shm-usage']});
  try{
  const page=await browser.newPage();
  await page.setViewport({width:375,height:812,deviceScaleFactor:2,isMobile:true,hasTouch:true});
  await page.setContent('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"/></head><body><button id="verify">Verificar backup salvo</button><div id="status"></div></body></html>');
  await page.addScriptTag({content:mock});
+ // OS file pickers are unreliable in headless Chromium. Keep the real input
+ // open for Puppeteer's uploadFile(), then test the original change handler.
+ await page.evaluate(()=>{const original=HTMLInputElement.prototype.click;
+  HTMLInputElement.prototype.click=function(){if(this.type==='file')return;return original.call(this)};
+ });
  await page.evaluate(()=>document.querySelector('#verify').addEventListener('click',()=>{
    window.verifyBackupFile('acct-mobile',window.expected).then(r=>{window.lastResult=r;document.querySelector('#status').textContent=r.ok?'VERIFICADO':'BLOQUEADO';});
  }));
  for(const [filename,shouldAccept] of [[good,true],[bad,false]]){
   await page.evaluate(()=>{window.lastResult=null});
-  const promise=page.waitForFileChooser({timeout:8000});
   await page.click('#verify');
-  const chooser=await promise;await chooser.accept([filename]);
+  // Chromium headless does not always emit an OS FileChooser for hidden inputs.
+  // Upload through the real dynamically created input; this dispatches change.
+  const picker=await page.waitForSelector('input[type=file]',{timeout:8000});
+  await picker.uploadFile(filename);
   await page.waitForFunction(()=>window.lastResult!==null,{timeout:8000});
   const result=await page.evaluate(()=>({result:window.lastResult, status:document.querySelector('#status').textContent,files:document.querySelectorAll('input[type=file]').length,scroll:document.documentElement.scrollWidth,width:innerWidth}));
   assert.equal(result.result.ok,shouldAccept,JSON.stringify(result));

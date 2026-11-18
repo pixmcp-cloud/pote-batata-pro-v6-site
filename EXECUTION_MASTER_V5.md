@@ -26,25 +26,25 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F14 | Implementado | A suíte cobre renderizações sem emissão de mudança quando os dados ficam iguais. |
 | F15 | Pendente | Falta versionar e limitar as dependências entre módulos globais. |
 | F16 | Testado | A inserção em uma lacuna saturada com 311 receitas faz duas escritas. A lista inteira volta na ordem esperada e mudanças acima do limite são recusadas. |
-| F17 | Parcial | O login passou em Chrome emulado de 320 a 768 px. Faltam perfil de performance, acessibilidade e teste em Android físico. |
+| F17 | Parcial — 8 perfis Chrome Android emulados | 320, 360, 375, 390, 430 px, paisagem, tablet e desktop aprovados; 5 vendas PDV simuladas, zero vazamento pré-login ou overflow. Android OS nativo não homologado (AVD ausente e virtualização desabilitada). |
 | F18 | Publicado nas regras; testado no Emulator | Inspeção autenticada das regras de produção mostrou proteção de coleções legadas para Free, idêntica à main em `a7796e4`; ataque SDK falhou no Emulator. Homologação em conta real ainda pendente. |
 | F19 | Regras publicadas; testes de SDK no Emulator | Quotas por chaves canônicas já estão nas regras ativas. Testes Emulator rejeitam segunda receita Free e permitem Pro; validar fluxos reais, catálogo e tentativas alternativas antes de certificação comercial. |
 | F20 | Rastreabilidade reforçada, conciliação real pendente | Confere valor integral, pedido/turno de origem, cancelamento, pagamento confirmado em dinheiro para estorno, referência de pagamento tardio e evita duplicação. Regras Firestore permanecem. Falta verificação autoritativa de comprovantes. |
 | F21 | Pendente | Falta inventariar ativos publicados e decidir a hospedagem do SaaS comercial. |
 | F22 | Implementado | Engenharia de cardápio coberta pelos testes da beta. |
-| F23 | Testado em emulador | Exportação JSON, substituição dos dados e restauração em segunda sessão. Importação é cancelada se a conta ou o estado muda durante a leitura. Faltam backup e restauração de IndexedDB e teste físico. |
+| F23 | Emulação de arquivo comprovada, físico pendente | Arquivo de backup JSON da conta correta aceito e arquivo de UID diferente recusado em Chrome headless com input de arquivo real. Backup/restauração de IndexedDB e dispositivo Android físico ainda pendentes. |
 | F24 | Implementado com claim; homologação de dispositivo pendente | Conta ADM Google verificada recebeu `potebatataAdmin:true` no Firebase Auth; servidor e módulos de administração agora exigem claim assinada junto ao e-mail e provedor Google. Emulator rejeita mesmo e-mail sem claim ou claim em outra identidade. Backup e rollback preparados. Falta smoke test da central ADM no Android físico. Ver `F24_ADMIN_AUTH_20261118.md`. |
 | F25 | Implementado | A suíte cobre apresentação de integrações e estados indisponíveis. |
 | F26 | Implementado | Política local de galeria por 42 horas coberta pela suíte. |
-| F27 | Parcial | Ajustes para abas ocultas presentes na base. Falta medir CPU e leituras. |
+| F27 | Parcial — latência/3G e offline emulados | Chrome DevTools simulou rede móvel lenta e perda de conexão, com layout preservado. Falta perfil de CPU/memória e medições de leituras reais no Firestore. |
 | F28 | Testado localmente | Antes do login, pedidos e caixa começam zerados. O teste Chrome confere o estado real renderizado. O painel de simulação usa dados próprios. |
 | F29 | Publicado/verificado, parcial | Workflow de regras `44224427191` aprovado no GitHub Actions; leitura autenticada do ruleset de produção e hash realizados. Nova proteção de saldo físico publicada em produção com release verificada por API e snapshot de rollback. |
 | F30 | Implementado | Casos de isolamento e limpeza do Delivery cobertos pela suíte. |
 | F31 | Parcial | Contrato do MaisDelivery tem testes locais. Falta homologar a integração com credenciais sandbox. |
 | F32 | Adiado | Galeria continua local. |
-| F33 | Parcial | Concorrência básica testada no Firebase Emulator. Falta validar dois dispositivos e estoque compartilhado entre ramos. |
+| F33 | Parcial — concorrência/isolamento emulados | Duas sessões no Firebase Emulator concorrem por estoque; apenas uma gravação confirma. 8 perfis de Chrome touch testados. Falta homologar aparelhos reais e sincronização entre ramos. |
 | F34 | Testado localmente | Fornecedores e Radar usam cache temporário, limite por aba, timeout e alternativas manuais. GPS exige ação explícita. Os testes usam respostas simuladas do Photon. |
-| F35 | Parcial | Dependências e versões do ambiente de QA estão fixadas. Falta testar contingência do CDN e autenticação em homologação. |
+| F35 | Parcial — fallback navegador testado | 8 perfis abriram com acessos externos bloqueados, sem erros JS reportados no fluxo simulado; Puppeteer Core versionado no CI. Login Google real e contingência completa de CDN ainda pendentes. |
 
 ## Aceite para implantação
 
@@ -57,3 +57,7 @@ Para evidências de auditoria F18/F19/F02/F20/F29, hashes efetivos, bateria de t
 
 ## Atualização complementar — 18/11/2026
 Relatório financeiro das franquias: botão Relatório somente em conta de franquia Potê Batata ativa na Central ADM; gráficos de vendas/recebimentos/despesas semanais e mensais, métodos de pagamento, estornos, despesas e resultado estimado. Dados consultados por unidade, sem compartilhamento entre franquias. Documento técnico: F02_F05_F10_F20_FRANCHISE_20261118.md.
+
+## Laboratório contínuo de QA mobile — 18/11/2026
+Regressão de navegadores e Firebase Emulator automatizada para cada novo push no GitHub, com bloqueio antes da publicação GitHub Pages caso os testes mobile falhem. Resultado local: oito perfis Chrome com touch, cinco vendas automáticas e oito cenários do painel de franquia; 10/10 testes de referência e 10/10 de regras candidatas.
+Correções financeiras adicionais: calendário de Brasília nos gráficos diários e proteção contra contagem dupla de recebimento tardio. Detalhes em MOBILE_QA_20261118.md. Esta emulação não substitui Android OS nem backend antifraude.

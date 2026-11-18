@@ -1,0 +1,12 @@
+{
+  "name": "pote-batata-mobile-qa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Emulação local de celulares em Chrome e testes de UI sem escrever no Firebase real",
+  "scripts": {
+    "test": "node test_mobile_matrix.cjs && node test_franchise_mobile.cjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "24.30.0"
+  }
+}

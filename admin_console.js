@@ -2,7 +2,7 @@ import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js"
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit,where,startAfter} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115-years";
-import {computeFranchiseFinances} from "./franchise_financial_report.mjs";
+import {computeFranchiseFinances} from "./franchise_financial_report.mjs?v=finance-brazil-20261118";
 
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const btn=document.getElementById("poteAdminOpen");

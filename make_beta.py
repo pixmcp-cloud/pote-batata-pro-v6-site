@@ -326,7 +326,7 @@ BODY_ASSETS = (
     '<script src="./floating_menu.js?v=delivery-hub-20261116"></script>'
     '<script src="./release_news.js?v=pdv-20261116"></script>'
     '<script type="module" src="./firebase_integration.js?v=f10-closed-shifts-20261118"></script>'
-    '<script type="module" src="./admin_console.js?v=franchise-report-20261118"></script>'
+    '<script type="module" src="./admin_console.js?v=franchise-report-brazil-20261118"></script>'
     '<script type="module" src="./admin_permissions.js?v=f24-admin-claim-20261118"></script>'
     '<script type="module" src="./gallery.js?v=galeria-42h"></script>'
     '<script src="./universe_templates.js?v=universes-20261115"></script>'

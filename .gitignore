@@ -3,3 +3,8 @@ public/
 __pycache__/
 app-check.js
 .firebase/
+
+# Arquivos locais gerados pelos testes de celular e Firebase
+/_qa_*.png
+/test_*.png
+/firestore-debug.log

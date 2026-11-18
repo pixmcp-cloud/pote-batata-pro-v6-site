@@ -336,6 +336,21 @@ jobs:
           grep -q "poteAuthGate" public/index.html
           test -f public/assets/pote-logo-original.jpg
           grep -q "firebase_integration.js" public/beta.html
+      # Reutiliza o mesmo runner do deploy: sem segundo servidor, serviço pago
+      # ou espera manual. Falhas na emulação impedem publicação.
+      - name: Emular 8 telas Android Chrome, PDV, backup e franquias
+        run: |
+          set -e
+          npm ci --prefix qa/mobile --ignore-scripts --no-audit --no-fund
+          export CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          if [ -z "$CHROME_BIN" ]; then echo "Chrome não disponível no runner"; exit 1; fi
+          export POTE_QA_PUPPETEER="$PWD/qa/mobile/node_modules/puppeteer-core"
+          export POTE_QA_CHROME="$CHROME_BIN"
+          node qa/mobile/test_mobile_matrix.cjs
+          node qa/mobile/test_franchise_mobile.cjs
+          node test_hardening_mobile_browser.cjs
+          node test_calc_shopping_browser.cjs
+          node test_pdv_auto_sale_browser.cjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: public}

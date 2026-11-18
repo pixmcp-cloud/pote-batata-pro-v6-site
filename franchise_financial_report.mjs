@@ -4,12 +4,20 @@ const cents=v=>Math.round(Number(v||0)*100);
 const money=n=>Math.round(n)/100;
 const amount=o=>Number.isFinite(Number(o?.total))&&Number(o.total)>0?Number(o.total):
  Math.max(0,Number(o?.qty||0)*Number(o?.price||0)+Number(o?.deliveryFee||0));
-const day=v=>{
+// Todas as unidades atuais estão no Brasil. Datas próximas à meia-noite
+// pertencem ao dia civil local, não ao dia UTC do servidor/navegador.
+const timeZoneFormatters=new Map();
+const day=(v,timeZone)=>{
+ if(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v))return v;
  const t=v?.toDate?.()||new Date(v||0);
- return Number.isFinite(t?.getTime?.())?t.toISOString().slice(0,10):null;
+ if(!Number.isFinite(t?.getTime?.()))return null;
+ if(!timeZoneFormatters.has(timeZone))timeZoneFormatters.set(timeZone,
+  new Intl.DateTimeFormat('en-US',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'}));
+ const parts=Object.fromEntries(timeZoneFormatters.get(timeZone).formatToParts(t).map(x=>[x.type,x.value]));
+ return parts.year+'-'+parts.month+'-'+parts.day;
 };
-const when=(o,...fields)=>{
- for(const key of fields){if(o?.[key]){const d=day(o[key]);if(d)return d}}
+const when=(o,timeZone,...fields)=>{
+ for(const key of fields){if(o?.[key]){const d=day(o[key],timeZone);if(d)return d}}
  return null;
 };
 const method=v=>{const k=String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -18,15 +26,18 @@ const method=v=>{const k=String(v||"").normalize("NFD").replace(/[\u0300-\u036f]
 const isPaid=o=>o?.paymentStatus!=="nao_pago"&&(
  Boolean(o?.paymentConfirmedAt)||["pago","confirmado","pago em dinheiro"].includes(
  String(o?.paymentStatus||"").toLowerCase()));
-export function computeFranchiseFinances({orders=[],expenses=[],cashMovements=[]},days=7,now=new Date()){
+export function computeFranchiseFinances({orders=[],expenses=[],cashMovements=[]},days=7,now=new Date(),timeZone='America/Sao_Paulo'){
  if(![7,30].includes(days))throw Error("Período inválido");
- const end=new Date(now),utc=new Date(Date.UTC(end.getUTCFullYear(),end.getUTCMonth(),end.getUTCDate()));
- const labels=Array.from({length:days},(_,i)=>new Date(utc.getTime()-(days-1-i)*86400000).toISOString().slice(0,10));
+ const today=day(now,timeZone);
+ if(!today)throw Error('Data de referência inválida');
+ const noonUtc=Date.parse(today+'T12:00:00.000Z');
+ const labels=Array.from({length:days},(_,i)=>new Date(noonUtc-(days-1-i)*86400000).toISOString().slice(0,10));
  const entries=new Map(labels.map(k=>[k,{day:k,sales:0,received:0,expenses:0,cost:0,refunds:0}]));
  const tender={cash:0,pix:0,card:0,other:0};
+ const countedPayments=new Set(),countedLateOrders=new Set(),countedRefundOrders=new Set();
  let ordersCount=0,canceledCount=0,estimatedCount=0,pending=0,expenseCount=0;
  for(const o of orders){
-  const saleDay=when(o,"createdAt","date","at");
+  const saleDay=when(o,timeZone,"createdAt","date","at");
   const isCancelled=o?.status==="cancelado";
   if(entries.has(saleDay)){
    if(isCancelled)canceledCount++;
@@ -42,26 +53,35 @@ export function computeFranchiseFinances({orders=[],expenses=[],cashMovements=[]
    }
   }
   if(isPaid(o)){
-   const paymentDay=when(o,"paymentConfirmedAt","createdAt","date");
+   const paymentDay=when(o,timeZone,"paymentConfirmedAt","createdAt","date");
    if(entries.has(paymentDay)){
     const value=cents(amount(o)),k=method(o.paymentMethod);
     entries.get(paymentDay).received+=value;tender[k]+=value;
+    if(o.id!=null)countedPayments.add(String(o.id));
    }
   }
  }
  // Late payments are separate immutable events; they must not rewrite old orders.
  for(const m of cashMovements){
-  const md=when(m,"at","createdAt","date");if(!entries.has(md))continue;
+  const md=when(m,timeZone,"at","createdAt","date");if(!entries.has(md))continue;
   const amountCents=cents(m.amount);
   if(!(amountCents>0))continue;
   if(m.kind==="late_payment"){
+   const orderId=String(m.orderId||'');
+   // O mesmo recebimento pode estar refletido tanto no pedido pago quanto
+   // no evento tardio. Contar duas vezes inflaria o caixa e o lucro aparente.
+   if(orderId&&(countedPayments.has(orderId)||countedLateOrders.has(orderId)))continue;
    entries.get(md).received+=amountCents;tender[method(m.paymentMethod)]+=amountCents;
+   if(orderId)countedLateOrders.add(orderId);
   }else if(m.kind==="reembolso"){
+   const orderId=String(m.orderId||'');
+   if(orderId&&countedRefundOrders.has(orderId))continue;
    entries.get(md).refunds+=amountCents;
+   if(orderId)countedRefundOrders.add(orderId);
   }
  }
  for(const x of expenses){
-  const date=when(x,"at","date","createdAt","paidAt");
+  const date=when(x,timeZone,"at","date","createdAt","paidAt");
   if(!entries.has(date))continue;
   const value=Number(x.amount??x.value??x.total??x.cost);
   if(Number.isFinite(value)&&value>0){entries.get(date).expenses+=cents(value);expenseCount++}
@@ -83,6 +103,7 @@ export function computeFranchiseFinances({orders=[],expenses=[],cashMovements=[]
  notes:["Valores estimados, não são extrato bancário nem lucro contábil definitivo.",
   "Despesas sem data ou valor reconhecível não entram no cálculo.",
   "Custos variáveis ausentes não são inventados; revise as fichas técnicas.",
-  "Pagamentos informados pelo operador precisam ser conciliados com Pix/cartão."]
+  "Pagamentos informados pelo operador precisam ser conciliados com Pix/cartão.",
+  "Período contabilizado pelo calendário local da unidade ("+timeZone+")."]
  };
 }
