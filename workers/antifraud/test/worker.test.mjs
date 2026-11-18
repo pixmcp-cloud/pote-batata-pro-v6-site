@@ -180,6 +180,28 @@ test("F20 close cash shift once and release control for next opening",async()=>{
  assert.equal((await app.fetch(request({...opening,operationId:OP3},"/v1/cash/open"),env)).status,200);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,3);
 });
+test("F02 server-priced order creation persists once then produces using stored recipe",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","r1",{id:"r1",name:"Batata teste",serverPriceVersion:1,
+  serverSalePriceCents:3000,items:[{id:"batata",g:100}]});
+ put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ put("cashSessions","s1",{id:"s1",status:"open",openingCash:0});
+ const body={universe:UNIVERSE,operationId:OP1,orderId:"new1",
+  recipeId:"r1",qty:2,cashSessionId:"s1",paymentMethod:"pix"};
+ const go=()=>app.fetch(request(body,"/v1/orders/create"),env);
+ const created=await go();assert.equal(created.status,200,await created.text());
+ const saved=db.current(recordPath(UID,UNIVERSE,"orders","new1")).record.item;
+ assert.equal(saved.price,30);assert.equal(saved.paymentStatus,"pendente");
+ assert.equal(saved.stockReservationStatus,"not_reserved");
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
+ assert.equal((await(await go()).json()).alreadyApplied,true);
+ assert.equal((await app.fetch(request({...body,qty:3},"/v1/orders/create"),env)).status,409);
+ const produced=await app.fetch(request({operationId:OP2,universe:UNIVERSE,
+  orderId:"new1"}),env);
+ assert.equal(produced.status,200,await produced.text());
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,200);
+});
 test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
