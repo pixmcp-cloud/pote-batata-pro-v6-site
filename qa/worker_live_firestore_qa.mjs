@@ -38,6 +38,7 @@ async function seed(){
   [root,{license:{status:"active",kind:"lifetime",term:"lifetime"}}],
   [root+"/appState/v2",{schemaVersion:2,migration:{status:"complete"}}],
   [root+"/appState/v2InventoryGuard",{revision:0}],
+  [root+"/appState/v2CashControl__cashqa",{version:1,activeSessionId:null}],
   [root+"/appState/v2Pulse",{eventId:"seed",sensitive:false,changedKeys:[]}],
   [key("orders","o1"),row("orders","o1",order("o1"))],
   [key("orders","o2"),row("orders","o2",order("o2",400,false))],
