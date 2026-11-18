@@ -42,6 +42,11 @@ async function seed(){
   [key("orders","o1"),row("orders","o1",order("o1"))],
   [key("orders","o2"),row("orders","o2",order("o2",400,false))],
   [key("orders","o3"),row("orders","o3",order("o3",400,false))],
+  [key("orders","o4"),row("orders","o4",{
+   ...order("o4"),status:"entregue",stockDeducted:true,
+   cashSessionId:"s1",paymentStatus:"pendente"})],
+  [key("cashSessions","s1"),row("cashSessions","s1",{
+   id:"s1",status:"open",openingCash:0})],
   [key("ingredients","potato"),row("ingredients","potato",{id:"potato",name:"Batata",stock:1000})],
   [key("beverages","water"),row("beverages","water",{id:"water",name:"Água",stock:10})]
  ];
