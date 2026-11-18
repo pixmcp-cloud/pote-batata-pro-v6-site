@@ -107,9 +107,10 @@ function refreshCountdown(){
 function fmtDate(input){return input?dateBR(input):"—"}
 function render(){
  const now=today();
- const stats={total:entries.length,free:0,trial:0,pro:0,lifetime:0,expired:0,franchise:0};
+ const stats={total:entries.length,businesses:0,free:0,trial:0,pro:0,lifetime:0,expired:0,franchise:0};
  for(const u of entries){
   if(String(u.email||"").toLowerCase()==="pixmcp@gmail.com")continue;
+  stats.businesses++;
   const l=resolveLicense(u.license,now);
   if(u.franchise?.status==="active"&&u.franchise.brandId==="potebatata")stats.franchise++;
   if(l.reason==="expired")stats.expired++;
@@ -117,7 +118,7 @@ function render(){
   if(l.active)stats[l.kind]++;else stats.free++;
  }
  $("poteAdmStats").innerHTML=[
-  ["Cadastros",stats.total],["FREE",stats.free],["Teste ativo",stats.trial],["PRO ativo",stats.pro],["Vitalício",stats.lifetime],["Franquias",stats.franchise],["Vencidos",stats.expired]
+  ["Negócios no piloto",stats.businesses+"/10"],["Cadastros",stats.total],["FREE",stats.free],["Teste ativo",stats.trial],["PRO ativo",stats.pro],["Vitalício",stats.lifetime],["Franquias",stats.franchise],["Vencidos",stats.expired]
  ].map(([label,n])=>`<div><small>${label}</small><strong>${n}</strong></div>`).join("");
  const filter=$("poteAdmFilter").value,q=$("poteAdmSearch").value.trim().toLowerCase();
  const matched=entries.filter(u=>{
@@ -180,7 +181,7 @@ async function changeLicense(revoke=false){
  const end=revoke||term==="lifetime"?null:expiryForTerm(term,new Date(start));
  const title=revoke?"REVOGAR o acesso PRO":"CONCEDER / RENOVAR "+option.label;
  const expiryText=end?" até "+expires(end):" sem vencimento";
- if(!confirm(title+" para "+(u.email||u.uid)+"?"+(revoke?" A conta continuará FREE.":expiryText)))return;
+ if(!confirm((!revoke&&option.kind==="pro"?"ATENÇÃO: confira o pagamento no banco antes de liberar PRO. O aplicativo não confirma Pix.\n":"")+title+" para "+(u.email||u.uid)+"?"+(revoke?" A conta continuará FREE.":expiryText)))return;
  setBusy(true);status("Gravando alteração com autenticação administrativa...");
  try{
   const actor=await assertAdmin();
