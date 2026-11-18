@@ -338,3 +338,17 @@ Cloudflare staging /health: HTTP 200 com writesEnabled=false; nenhum cutover pú
 Firestore QA: pote-batata-qa-20261118, plano gratuito isolado; projeto comercial não alterado.
 PENDENTE: identidade de serviço Google de menor privilégio para Worker, bloqueio da escrita direta via SDK sem interromper o PDV, homologação das regras candidatas, reconciliação financeira.
 PRÓXIMA AÇÃO EXATA: elaborar/revisar a política de Rules candidata para impedir bypass do navegador, validar no Emulator e preservar compatibilidade antes de qualquer publicação.
+### CHECKPOINT: F02/F20 - Rules candidatas testadas / 18-11-2026
+GitHub branch: feat/f35-completion-audit-20261118
+Commits do serviço:
+  820346b548f1790271d37b0e70732bc472c32b23 — firestore.worker_cutover.candidate.rules
+  c9b0e36fd6407fc9215260ef2788cdb68cc5f09d — firebase.worker_cutover.qa.json
+  76a9f529acc6765e906e93a9ad199186401585b7 — modo cutover no harness Emulator
+  d58f56bc077e5650adc2ce744caf405dca894af7 — teste test_worker_cutover_rules_emulator.cjs
+Objetivo: política candidata futura em que o navegador não grava diretamente pedidos, ingredientes, bebidas, movimentos, perdas, compras, lotes e eventos de caixa; revisão de guarda somente via servidor. Receitas comuns continuam editáveis, dados do proprietário legíveis e dados de outras contas bloqueados.
+Teste de Rules candidata: Firebase Emulator local demo-pote-hardening, PASS. Validados bloqueio de escrita do cliente, leitura e edição de receita, isolamento e escrita privilegiada de servidor. As mensagens PERMISSION_DENIED da suíte são esperadas.
+Regressão: firestore.rules original PASS; firestore.hardened.rules PASS; Worker 25/25 PASS. Exit 0.
+ALERTA CRÍTICO: estas Rules NÃO podem ser publicadas ainda: o Worker atual oferece somente produce/cancel; faltam endpoints de criação de pedido, suprimento/compra de estoque, caixa/recebimentos e outras operações que o navegador ainda realiza. Publicá-las antes disso interromperia o aplicativo.
+Produção GitHub main, Firebase comercial, Cloudflare Worker público, serviços pagos e dados reais: INALTERADOS.
+Staging público GET /health: HTTP 200, writesEnabled=false.
+PRÓXIMA AÇÃO EXATA: ampliar Worker com operações de servidor que faltam, aplicar testes REST reais e liberar corte conjunto somente após homologação e autorização específica.
