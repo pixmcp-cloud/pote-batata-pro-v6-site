@@ -30,6 +30,10 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
    dispatchEvent(){}},
   Event:class {constructor(type){this.type=type}},
   CustomEvent:class {constructor(type,options){this.type=type;this.detail=options?.detail}},
+  createWorkerBridge:opts=>{
+   assert.equal(opts.enabled,false,"Cloudflare Worker must remain disabled before cutover");
+   return {enabled:false};
+  },
   initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class {setCustomParameters(){}},
   getIdTokenResult:async()=>({claims:{email_verified:true,firebase:{sign_in_provider:"google.com"}}}),
   resolveLicense:()=>({active:false,kind:"free",label:"FREE",expiresAt:null}),
