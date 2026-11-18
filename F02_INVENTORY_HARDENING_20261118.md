@@ -40,3 +40,17 @@ Um navegador adulterado e autenticado pode fabricar uma transação que atualize
 - Publicar primeiro o cliente compatível pelo Firebase Hosting, depois `firebase deploy --only firestore:rules` para o mesmo projeto.
 - Reler regras por API para confirmar hash; verificar ativos reais no domínio oficial via HTTPS, sem gerar vendas de teste em contas reais.
 - Caso detectado bloqueio indevido, restaurar regras anteriores usando arquivo de backup autenticado, e cliente anterior pela release/tag; não excluir documentos.
+
+## Implantação comprovada em produção
+- Commit do código e dos testes: `f6f7643` (branch `main`), rollback `rollback-pre-f02-20261118`.
+- CI geral aprovado: https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/actions/runs/44242638871
+- CI de regras aprovado: https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/actions/runs/44242638870
+- Regressão local: 90/90 comandos de testes Node; 7/7 testes Emulator de referência; 11/11 testes Emulator candidato.
+- Deploy oficial: `firebase.cmd deploy --only hosting --project potobatata-b71f3` e depois `firebase.cmd deploy --only firestore:rules --project potobatata-b71f3`; ambos relataram `Deploy complete`.
+- Verificação HTTPS no domínio `https://pdv.livresom.com`: HTTP 200 nos arquivos `index.html`, `firebase_integration.js`, `v2_storage.mjs` e `inventory_integrity.mjs`, com conteúdo compatível com a nova versão.
+- Ruleset ativo consultado via API autenticada após a implantação: `projects/potobatata-b71f3/rulesets/13a5307f-907f-4efa-9d3a-5562fde39f61`.
+- SHA-256 das regras ativas igual ao `firestore.rules` validado: `710e497aadcc7e365b106fc929964bfcfbd2b6e1f0659f523f4f39eaff6e97f0`.
+- Backup de regras imediatamente anterior: `C:\Users\LIVRESOM\Documents\GitHub\_POTE_BACKUPS\firestore-live-pre-f02-20261118.rules` SHA-256 `691cfb3f41e93ab358a23de4eaff51e1a207b0247adf8835b195161a6e331e32`.
+- Backup das novas regras: `C:\Users\LIVRESOM\Documents\GitHub\_POTE_BACKUPS\firestore-live-post-f02-20261118.rules`.
+- Nenhuma operação de escrita nos pedidos ou saldos reais ocorreu durante a auditoria; testes executados apenas em projeto demo do Emulator.
+- **F02 permanece PARCIAL contra fraude de cliente adulterado e aguardando backend confiável**; não foi iniciado serviço pago. Monitorar leituras de regras do Firestore e autenticação real no Android.
