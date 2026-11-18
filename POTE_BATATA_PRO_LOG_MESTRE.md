@@ -352,3 +352,16 @@ ALERTA CRÍTICO: estas Rules NÃO podem ser publicadas ainda: o Worker atual ofe
 Produção GitHub main, Firebase comercial, Cloudflare Worker público, serviços pagos e dados reais: INALTERADOS.
 Staging público GET /health: HTTP 200, writesEnabled=false.
 PRÓXIMA AÇÃO EXATA: ampliar Worker com operações de servidor que faltam, aplicar testes REST reais e liberar corte conjunto somente após homologação e autorização específica.
+### CHECKPOINT: F02/F05 - ajuste físico de estoque no Worker / 18-11-2026
+Branch: feat/f35-completion-audit-20261118. Produção comercial não publicada.
+Arquivo novo: workers/antifraud/src/stock_adjust.mjs (commit eea7624).
+Rota conectada: POST /v1/inventory/adjust, index.mjs (commit 5b4d509).
+Suporta apenas itens já cadastrados: entrada física por compra, perda, correção; leitura de saldo e perfil autenticado no servidor; idempotência via workerEvents, transação atômica de registro, stockMovements, losses quando perda, revisão de estoque e pulso V2; checa unidade-base, quantidades, licença, limite e saldo negativo.
+Importante: entrada física não confirma pagamento, nota fiscal ou valor de custo novo. Perda utiliza custo médio conhecido do servidor; quando desconhecido não inventa custo.
+Testes adicionados em worker.test.mjs (commits 56497f7, 5f15e1b, 8bc220f, 7e4cbc3): 29/29 APROVADOS, incluindo entradas idempotentes, perda física, bloqueio de saldo insuficiente e corrida concorrente.
+Validação real em Cloud Firestore de homologação pote-batata-qa-20261118: entrada +500, repetição idempotente, perda -50 e lançamento de perda, revisão V2; saída QA_LIVE_REST_WORKER_PASS / código 0. 24 documentos sintéticos apagados após ensaio. Teste com identidade Firebase sintética injetada, mas REST Firestore e OAuth da sessão de QA reais; NÃO valida integração completa de autenticação do usuário final.
+Documentação de API atualizada em workers/antifraud/README.md (commit 02faa1c).
+Sintaxe CI worker atualizada para incluir novo módulo (commit 61935df).
+Nenhuma migração real, implantação comercial, conta paga ou alteração de regras comerciais.
+PENDENTE: criação de pedidos, compras com histórico de custos, movimentações de caixa/recebimentos, integração progressiva com o frontend, service identity de menor privilégio, Rules candidatas e homologação física Android.
+PRÓXIMA AÇÃO EXATA: implementar rotas financeiras e/ou cadastro de pedidos com idempotência, validação de autorização e testes, mantendo a versão pública protegida.
