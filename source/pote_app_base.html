@@ -120,6 +120,8 @@ function operationReady(){
  }
  if(window.POTE_SYNC_GUARD?.blocked){
   toast('Venda NÃO registrada: há dados locais pendentes de sincronização. Exporte o backup e use Resolver conflito na área de sincronização.', 'error');
+  const warning=document.getElementById('poteOrderSyncWarning');
+  if(warning){warning.hidden=false;warning.scrollIntoView?.({behavior:'smooth',block:'nearest'});}
   window.POTE_SYNC_GUARD?.showRecovery?.();
   return false;
  }
