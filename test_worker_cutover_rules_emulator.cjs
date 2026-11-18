@@ -24,6 +24,7 @@ const {initializeEmulator,assertFails,assertSucceeds,sdk}
    await sdk.setDoc(sdk.doc(db,"users",uid,"appState","v2InventoryGuard"),{
     revision:0,updatedAt:sdk.serverTimestamp()
    });
+   await sdk.setDoc(sdk.doc(db,"users",uid,"appState","v2CashControl__batataria"),{version:1,activeSessionId:null});
    await sdk.setDoc(sdk.doc(db,...route("ingredients","potato")),
     record("ingredients","potato",{id:"potato",name:"Batata",stock:300}));
    await sdk.setDoc(sdk.doc(db,...route("orders","o1")),
@@ -53,6 +54,10 @@ const {initializeEmulator,assertFails,assertSucceeds,sdk}
   await assertFails(sdk.updateDoc(order,{
    "record.item.status":"produzindo",updatedAt:sdk.serverTimestamp()
   }));
+  const cashControl=sdk.doc(user,"users",uid,"appState","v2CashControl__batataria");
+  await assertSucceeds(sdk.getDoc(cashControl));
+  await assertFails(sdk.updateDoc(cashControl,{activeSessionId:"forged"}));
+  await assertFails(sdk.deleteDoc(cashControl));
   await assertFails(sdk.updateDoc(guard,{
    revision:1,updatedAt:sdk.serverTimestamp()
   }));
