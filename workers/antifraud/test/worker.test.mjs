@@ -525,3 +525,22 @@ test("F02 price reapproval revisions invalidate old quantities",async()=>{
  assert.equal(db.current(recordPath(UID,UNIVERSE,"orders","new-price-ok"))
   .record.item.serverPriceRevision,2);
 });
+
+
+test("F02 Free tenant and disabled Worker cannot approve catalog prices",async()=>{
+ const {db,put}=makeStore(),app=appFor(db);
+ put("recipes","limited",{id:"limited",name:"Limited",
+  items:[{id:"batata",g:100}],targetGainPct:100});
+ put("ingredients","batata",{id:"batata",name:"Batata",stock:400,
+  purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+ const body={universe:UNIVERSE,operationId:OP1,recipeId:"limited",
+  salePriceCents:3000};
+ const route="/v1/catalog/approve-price";
+ assert.equal((await app.fetch(request(body,route),
+  {...env,ENABLE_WRITES:"false"})).status,423);
+ assert.equal(db.current(serverPricePath(UID,UNIVERSE,"limited")),undefined);
+ db.seed("users/"+UID,{email:"qa@example.com",license:{status:"inactive",kind:"free"}});
+ assert.equal((await app.fetch(request(body,route),env)).status,403);
+ assert.equal(db.current(serverPricePath(UID,UNIVERSE,"limited")),undefined);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+});
