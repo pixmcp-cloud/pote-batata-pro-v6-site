@@ -3,6 +3,7 @@ import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.
 import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit,where,startAfter} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115-years";
 import {computeFranchiseFinances} from "./franchise_financial_report.mjs?v=finance-brazil-20261118";
+import {manualLicensePayment} from "./manual_receipt.mjs?v=pilot-10-20261118";
 
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const btn=document.getElementById("poteAdminOpen");
@@ -20,6 +21,21 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
      <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div><div id="poteAdmCountdown" class="pote-adm-countdown" data-state="free"><small id="poteAdmCountdownLabel">TEMPO PARA VOLTAR AO FREE</small><strong id="poteAdmCountdownTime" role="timer">--a --d --h --m --s</strong><span id="poteAdmCountdownHint">Selecione uma conta com licença ativa.</span></div>
       <label class="pote-adm-label">Licença e duração<select id="poteAdmTerm" aria-label="Modalidade da licença">${LICENSE_TERMS.map(x=>`<option value="${x.id}">${esc(x.label)}</option>`).join("")}</select></label>
       <p id="poteAdmPreview" class="pote-adm-preview"></p>
+      <section id="poteAdmPaymentPanel" class="pote-adm-payment" hidden>
+       <strong>Recebimento da assinatura</strong>
+       <p>Confira o Pix no banco. A plataforma não consulta o extrato automaticamente.</p>
+       <label class="pote-adm-label">Modalidade<select id="poteAdmPaymentMode">
+        <option value="pix_manual">Pix conferido no extrato</option>
+        <option value="courtesy">Cortesia sem receita</option>
+       </select></label>
+       <label class="pote-adm-label">Valor recebido em R$ (somente Pix)
+        <input id="poteAdmPaymentAmount" type="text" inputmode="decimal" maxlength="12" placeholder="Ex.: 39,90">
+       </label>
+       <label class="pote-adm-label">Referência Pix ou motivo da cortesia
+        <input id="poteAdmPaymentRef" type="text" maxlength="120" placeholder="Código Pix ou justificativa">
+       </label>
+       <label class="pote-adm-payment-confirm"><input type="checkbox" id="poteAdmPaymentVerified"> Conferi o Pix no banco ou autorizei esta cortesia.</label>
+      </section>
       <div class="pote-adm-controls"><button id="poteAdmGrant" type="button" disabled>Promover / renovar</button><button id="poteAdmRevoke" type="button" disabled>Revogar → FREE</button></div>
       <section class="pote-adm-franchise">
         <div class="pote-adm-franchise-head"><strong>Franquia Potê Batata</strong><span id="poteAdmFranchiseStatus">Selecione uma conta</span></div>
@@ -73,7 +89,15 @@ function selectionReady(){
  refreshCountdown();
  window.POTE_ADMIN_PERMISSIONS?.renderAccount?.(user);
 }
+function resetPaymentForm(){
+ $("poteAdmPaymentMode").value="pix_manual";
+ $("poteAdmPaymentAmount").disabled=false;
+ $("poteAdmPaymentAmount").value="";$("poteAdmPaymentRef").value="";
+ $("poteAdmPaymentVerified").checked=false;
+}
 function preview(){
+ const selectedTerm=LICENSE_TERMS.find(x=>x.id===$("poteAdmTerm").value);
+ $("poteAdmPaymentPanel").hidden=!current()||!["pro","lifetime"].includes(selectedTerm?.kind);
  const term=$("poteAdmTerm").value,u=current(),now=new Date();
  const start=u?.license?.status==="active"&&resolveLicense(u.license,now.getTime()).active?epochMillis(u.license.expiresAt):null;
  const anchor=term==="lifetime"?now:new Date(Math.max(now.getTime(),start||0));
@@ -166,7 +190,11 @@ async function loadAudit(){
   await assertAdmin();
   const records=await getDocs(query(collection(db,"licenseAudit"),orderBy("at","desc"),limit(30)));
   $("poteAdmAudit").innerHTML=records.empty?'<p class="pote-adm-empty">Nenhuma licença concedida nesta central.</p>':
-   records.docs.map(d=>{const a=d.data();return `<div class="pote-adm-event"><span>${esc(fmtDate(a.at))}</span><strong>${esc(a.targetEmail||a.targetUid)}</strong><span>${esc(a.fromTerm||"free")} → ${esc(a.toTerm||"free")}</span><small>${esc(a.action||"alteração")}</small></div>`}).join("");
+   records.docs.map(d=>{const a=d.data();const receipt=a.paymentMethod==="pix_manual"?
+   " · Pix recebido R$ "+(Number(a.paymentAmountCents)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+
+   " · Ref.: "+String(a.paymentReference||""):
+   a.paymentMethod==="courtesy"?" · Cortesia (R$ 0,00) · "+String(a.paymentReference||""):
+   " · Pagamento não informado no histórico anterior";return `<div class="pote-adm-event"><span>${esc(fmtDate(a.at))}</span><strong>${esc(a.targetEmail||a.targetUid)}</strong><span>${esc(a.fromTerm||"free")} → ${esc(a.toTerm||"free")}</span><small>${esc(a.action||"alteração")}${esc(receipt)}</small></div>`}).join("");
  }catch(e){$("poteAdmAudit").textContent="Histórico indisponível: "+(e.code||e.message)}
 }
 async function changeLicense(revoke=false){
@@ -175,6 +203,14 @@ async function changeLicense(revoke=false){
  const term=revoke?"free":$("poteAdmTerm").value;
  const option=LICENSE_TERMS.find(x=>x.id===term);
  if(!revoke&&!option){status("Escolha um prazo válido.",true);return}
+ let payment=null;
+ if(!revoke&&["pro","lifetime"].includes(option?.kind)){
+  try{payment=manualLicensePayment({mode:$("poteAdmPaymentMode").value,
+   amount:$("poteAdmPaymentAmount").value,
+   reference:$("poteAdmPaymentRef").value,
+   confirmed:$("poteAdmPaymentVerified").checked});}
+  catch(e){status(String(e.message||e),true);return}
+ }
  const previous=resolveLicense(u.license,today());
  const now=new Date();
  const start=previous.active?Math.max(now.getTime(),epochMillis(u.license?.expiresAt)||0):now.getTime();
@@ -198,8 +234,10 @@ async function changeLicense(revoke=false){
   const event=doc(collection(db,"licenseAudit"));
   batch.set(event,{action:revoke?"revogar":realPrevious.active?"renovar":"promover",at:serverTimestamp(),
     actorUid:actor.uid,actorEmail:actor.email,targetUid:u.uid,targetEmail:u.email||"",
-    fromTerm:latest.data().license?.term||"free",toTerm:term,expiresAt:finalEnd?Timestamp.fromDate(finalEnd):null});
+    fromTerm:latest.data().license?.term||"free",toTerm:term,expiresAt:finalEnd?Timestamp.fromDate(finalEnd):null,
+    ...(payment?{...payment,paymentConfirmedAt:serverTimestamp()}: {})});
   await batch.commit();
+  resetPaymentForm();
   status("Licença atualizada e registrada no histórico.");
   await Promise.all([loadUsers(),loadAudit()]);
  }catch(e){status("Alteração não foi concluída: "+(e.code||e.message),true)}
@@ -376,12 +414,16 @@ $("poteAdmAuditReload").addEventListener("click",loadAudit);
 $("poteAdmFranchiseActivate").addEventListener("click",()=>changeFranchise(true));
 $("poteAdmFranchiseRevoke").addEventListener("click",()=>changeFranchise(false));
 $("poteAdmUsers").addEventListener("click",e=>{
- const target=e.target.closest("[data-uid]");if(!target)return;selection=target.dataset.uid;closeFranchiseFinance();render();
+ const target=e.target.closest("[data-uid]");if(!target)return;selection=target.dataset.uid;resetPaymentForm();closeFranchiseFinance();render();
 });
 $("poteAdmSearch").addEventListener("input",render);
 $("poteAdmFilter").addEventListener("change",render);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!overlay.hidden)refreshCountdown()});
-$("poteAdmTerm").addEventListener("change",preview);
+$("poteAdmTerm").addEventListener("change",()=>{resetPaymentForm();preview()});
+$("poteAdmPaymentMode").addEventListener("change",()=>{
+ $("poteAdmPaymentVerified").checked=false;
+ $("poteAdmPaymentAmount").disabled=$("poteAdmPaymentMode").value==="courtesy";
+});
 $("poteAdmGrant").addEventListener("click",()=>changeLicense(false));
 $("poteAdmRevoke").addEventListener("click",()=>changeLicense(true));
 window.POTE_ADMIN={open};

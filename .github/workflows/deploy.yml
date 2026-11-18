@@ -64,6 +64,7 @@ jobs:
           cp image_responsive.css public/image_responsive.css
           cp admin_console.css public/admin_console.css
           cp admin_console.js public/admin_console.js
+          cp manual_receipt.mjs public/manual_receipt.mjs
           cp gallery.js public/gallery.js
           cp gallery.css public/gallery.css
           cp gallery_policy.mjs public/gallery_policy.mjs
@@ -325,6 +326,7 @@ jobs:
           node --check public/license_terms.mjs
           node --input-type=module --check < public/admin_console.js
           node test_admin_licenses.mjs
+          node test_manual_receipt.mjs
           node test_admin_claim_contract.mjs
           grep -q 'supplier_integration.js' public/index.html
           grep -q 'simulation_panel.js' public/index.html
