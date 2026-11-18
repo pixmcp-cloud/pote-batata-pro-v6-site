@@ -129,7 +129,7 @@ async function assertAdmin(){
  const user=auth.currentUser;
  if(!user||user.email?.trim().toLowerCase()!=="pixmcp@gmail.com")throw Error("Acesso restrito à conta mestre");
  const token=await getIdTokenResult(user,true);
- if(token.claims.email_verified!==true||token.signInProvider!=="google.com")throw Error("Conta Google não verificada");
+ if(token.claims.email_verified!==true||token.signInProvider!=="google.com"||token.claims.potebatataAdmin!==true)throw Error("Conta Google ou autorização administrativa não verificada");
  return user;
 }
 function setBusy(v){busy=v;selectionReady();$("poteAdmReload").disabled=v;$("poteAdmAuditReload").disabled=v;$("poteAdmFranchiseAuditReload").disabled=v;}

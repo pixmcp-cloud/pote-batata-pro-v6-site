@@ -33,7 +33,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F21 | Pendente | Falta inventariar ativos publicados e decidir a hospedagem do SaaS comercial. |
 | F22 | Implementado | Engenharia de cardápio coberta pelos testes da beta. |
 | F23 | Testado em emulador | Exportação JSON, substituição dos dados e restauração em segunda sessão. Importação é cancelada se a conta ou o estado muda durante a leitura. Faltam backup e restauração de IndexedDB e teste físico. |
-| F24 | Pendente | O acesso de administração ainda depende do contrato atual de autenticação. Falta migrar para UID ou claims com recuperação testada. |
+| F24 | Implementado com claim; homologação de dispositivo pendente | Conta ADM Google verificada recebeu `potebatataAdmin:true` no Firebase Auth; servidor e módulos de administração agora exigem claim assinada junto ao e-mail e provedor Google. Emulator rejeita mesmo e-mail sem claim ou claim em outra identidade. Backup e rollback preparados. Falta smoke test da central ADM no Android físico. Ver `F24_ADMIN_AUTH_20261118.md`. |
 | F25 | Implementado | A suíte cobre apresentação de integrações e estados indisponíveis. |
 | F26 | Implementado | Política local de galeria por 42 horas coberta pela suíte. |
 | F27 | Parcial | Ajustes para abas ocultas presentes na base. Falta medir CPU e leituras. |

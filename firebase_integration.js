@@ -408,6 +408,7 @@ async function loadUser(user, index) {
   clearTimeout(timer);
   const claims = await withDeadline(getIdTokenResult(user, true), 15000, "verificação do Google");
   const admin = user.email?.toLowerCase() === "pixmcp@gmail.com" &&
+    claims.claims.potebatataAdmin === true &&
     claims.claims.email_verified === true &&
     claims.claims.firebase?.sign_in_provider === "google.com";
   window.POTE_AUTH = { uid: user.uid, email: user.email, role: admin ? "admin" : "free", proActive: admin, plan: admin ? "admin" : "free" };

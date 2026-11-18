@@ -313,6 +313,7 @@ jobs:
           node --check public/license_terms.mjs
           node --input-type=module --check < public/admin_console.js
           node test_admin_licenses.mjs
+          node test_admin_claim_contract.mjs
           grep -q 'supplier_integration.js' public/index.html
           grep -q 'simulation_panel.js' public/index.html
           grep -q 'simulation_panel.css' public/index.html

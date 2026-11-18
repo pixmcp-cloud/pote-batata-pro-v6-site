@@ -8,7 +8,8 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
     function isAdmin() {
-      return googleVerified() && request.auth.token.email == 'pixmcp@gmail.com';
+      return googleVerified() && request.auth.token.potebatataAdmin == true
+        && request.auth.token.email == 'pixmcp@gmail.com';
     }
     function isOwner(userId) {
       return googleVerified() && request.auth.uid == userId;

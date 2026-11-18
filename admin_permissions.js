@@ -62,7 +62,7 @@ async function toggle(kind,key){
   const actor=auth.currentUser;
   if(!actor||actor.email?.trim().toLowerCase()!=="pixmcp@gmail.com")throw Error("Somente o ADM pode alterar permissões");
   const verified=await getIdTokenResult(actor,true);
-  if(!verified.claims.email_verified||verified.signInProvider!=="google.com")throw Error("Conta Google não verificada");
+  if(!verified.claims.email_verified||verified.signInProvider!=="google.com"||verified.claims.potebatataAdmin!==true)throw Error("Conta Google ou permissão administrativa não verificada");
   const ref=doc(db,"users",user.uid),snapshot=await getDoc(ref);
   if(!snapshot.exists())throw Error("Conta não encontrada");
   if(snapshot.data().email?.toLowerCase()==="pixmcp@gmail.com")throw Error("ADM não pode ser bloqueado");

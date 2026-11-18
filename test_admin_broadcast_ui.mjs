@@ -14,9 +14,9 @@ function element(id){
 const overlay=element("poteAdmOverlay");
 overlay.hidden=false;overlay.querySelector=()=>({appendChild(panel){assert(panel.innerHTML.includes("Central de Comunicados"))}});
 const auth={currentUser:{uid:"admin-1",email:"pixmcp@gmail.com"}},window={POTE_AUTH:{uid:"admin-1",role:"admin"}};
-const write=[],updates=[];
+const write=[],updates=[];let adminClaim=true;
 const context={document:{getElementById:element,createElement:()=>element("admin-panel")},window,
- getApp:()=>({}),getAuth:()=>auth,getIdTokenResult:async()=>({claims:{email_verified:true,firebase:{sign_in_provider:"google.com"}}}),
+ getApp:()=>({}),getAuth:()=>auth,getIdTokenResult:async()=>({claims:{email_verified:true,potebatataAdmin:adminClaim,firebase:{sign_in_provider:"google.com"}}}),
  getFirestore:()=>({}),collection:()=>({}),doc:()=>({id:"boardcast-abcdef123456"}),
  query:()=>({}),orderBy:()=>({}),limit:()=>({}),
  getDocs:async()=>({empty:true,docs:[]}),setDoc:async(ref,obj)=>{write.push(obj)},
@@ -47,7 +47,11 @@ await window.POTE_ADMIN_BROADCAST.send();
 assert.equal(write.length,1,"Conta FREE não pode gravar broadcast");
 auth.currentUser={uid:"admin-1",email:"pixmcp@gmail.com"};
 window.POTE_AUTH={uid:"admin-1",role:"admin"};
-await window.POTE_ADMIN_BROADCAST.deactivate("boardcast-abcdef123456");
+adminClaim=false;
+ await window.POTE_ADMIN_BROADCAST.send();
+ assert.equal(write.length,1,"Same email without custom admin claim cannot publish");
+ adminClaim=true;
+ await window.POTE_ADMIN_BROADCAST.deactivate("boardcast-abcdef123456");
 assert.equal(updates.length,1);
 assert.equal(updates[0].active,false);
 console.log("PASS: broadcast via ADM autenticado, promoções, links HTTPS, rejeição FREE e desativação.");

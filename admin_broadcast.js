@@ -31,7 +31,7 @@ async function verify(){
  if(!me||me.uid!==window.POTE_AUTH?.uid||me.email?.toLowerCase()!=="pixmcp@gmail.com"||window.POTE_AUTH.role!=="admin")
   throw Error("Acesso exclusivo da conta ADM.");
  const token=await getIdTokenResult(me,true);
- if(token.claims.email_verified!==true||token.claims.firebase?.sign_in_provider!=="google.com")
+ if(token.claims.email_verified!==true||token.claims.firebase?.sign_in_provider!=="google.com"||token.claims.potebatataAdmin!==true)
   throw Error("Login Google não verificado.");
  return me;
 }

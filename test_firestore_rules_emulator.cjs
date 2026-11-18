@@ -7,14 +7,16 @@ const hardened=true;
 let env;
 (async()=>{
  env=await initializeEmulator({ hardened: selectCandidate });
- const owner=(id,email,verified=true)=>env.authenticatedContext(id,{
-   email,email_verified:verified,firebase:{sign_in_provider:'google.com'}
+ const owner=(id,email,verified=true,claims={})=>env.authenticatedContext(id,{
+   email,email_verified:verified,firebase:{sign_in_provider:'google.com'},...claims
  }).firestore();
  const free=owner('free-uid','free@example.com');
  const premium=owner('pro-uid','pro@example.com');
  const other=owner('other-uid','other@example.com');
  const unverified=owner('free-uid','free@example.com',false);
- const admin=owner('admin-uid','pixmcp@gmail.com');
+ const admin=owner('admin-uid','pixmcp@gmail.com',true,{potebatataAdmin:true});
+ const claimedEmailOnly=owner('admin-fake-email','pixmcp@gmail.com');
+ const claimedWrongEmail=owner('admin-wrong-email','other-admin@example.com',true,{potebatataAdmin:true});
  await env.withSecurityRulesDisabled(async ctx=>{
   const db=ctx.firestore();
   await setDoc(doc(db,'users','free-uid'),{email:'free@example.com',displayName:'Free',createdAt:Timestamp.now()});
@@ -47,5 +49,7 @@ let env;
  await assertFails(updateDoc(doc(premium,'users','pro-uid','records','cash-2'),{'record.item.amount':200}));
  await assertFails(deleteDoc(doc(premium,'users','pro-uid','records','cash-2')));
  await assertSucceeds(getDoc(doc(admin,'users','free-uid')));
+ await assertFails(getDoc(doc(claimedEmailOnly,'users','free-uid')));
+ await assertFails(getDoc(doc(claimedWrongEmail,'users','free-uid')));
  console.log('PASS Firebase Emulator: Google verification, tenant isolation, license protection and financial immutability.');
 })().catch(e=>{console.error('EMULATOR TEST FAILED',e.stack||String(e));process.exitCode=1}).finally(async()=>{if(env)await env.cleanup()});
