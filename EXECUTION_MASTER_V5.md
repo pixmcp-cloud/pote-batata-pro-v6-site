@@ -15,7 +15,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F03 | Parcial | Compras e ajustes preservam saldos pt-BR. O PDV rejeita valores inválidos sem gravar. Faltam os demais formulários. |
 | F04 | Implementado | A suíte preserva markup personalizado e cobre cálculo para receitas novas. |
 | F05 | Parcial; proteção adicional testada | O cancelamento agora confere também o histórico de movimentos positivos de estorno para impedir devolver estoque duas vezes quando `stockRestored` estiver ausente/incoerente; o teste cobre movimento já registrado e movimento que surge depois de abrir a janela. Falta enforcement autoritativo server-side, multiusuário e reembolso sob falha. |
-| F06 | Pendente | O limite de transação mantém a operação íntegra. Falta protocolo para importações acima de 290 alterações. |
+| F06 | Parcial — importações não financeiras grandes implementadas | Gravação progressiva segura de receitas, clientes e fornecedores em lotes de até 150 documentos/1,5 MB. Testes com 650 cadastros, falha após 150 e retomada idempotente; 360 cadastros em 3 transações no Firestore Emulator. Pedidos, estoque, financeiro, exclusões e mudanças de configuração acima de 290 seguem bloqueados para preservar atomicidade. Ver `F06_SAFE_BATCHES_20261118.md`. |
 | F07 | Implementado | A suíte verifica a disponibilidade dos módulos essenciais. |
 | F08 | Pendente | O gerador legado ainda serve de fallback. A remoção depende de validar a página-base e a galeria no fluxo normal. |
 | F09 | Parcial | O PDV usa o parser financeiro compartilhado. Restam cálculos e conversões duplicados em outros módulos. |

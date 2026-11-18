@@ -32,6 +32,7 @@ jobs:
           cp v2_store_core.mjs public/v2_store_core.mjs
           cp v2_storage.mjs public/v2_storage.mjs
           cp inventory_integrity.mjs public/inventory_integrity.mjs
+          cp v2_batch_planner.mjs public/v2_batch_planner.mjs
           cp free_limits.mjs public/free_limits.mjs
           cp free_id_policy.mjs public/free_id_policy.mjs
           cp finance_core.js public/finance_core.js
@@ -166,7 +167,10 @@ jobs:
           node test_sync_guard.mjs
           node test_sync_integration.js
           node test_inventory_integrity.mjs
+          node test_v2_batch_planner.mjs
+          node test_v2_large_batch.mjs
           node --check public/inventory_integrity.mjs
+          node --check public/v2_batch_planner.mjs
           node test_v2_store.mjs
           node test_hardening_v2_rank.mjs
           node test_v2_active_archive_regression.mjs

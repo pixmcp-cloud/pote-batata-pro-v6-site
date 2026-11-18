@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {createV2Store} from "./v2_storage.mjs?v=f02-atomic-20261118";
+import {createV2Store} from "./v2_storage.mjs?v=f06-safe-batch-20261118";
 import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState} from "./sync_guard.mjs?v=v4-backup-20261117";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
@@ -260,7 +260,8 @@ async function syncV2(){
     if(epoch!==currentEpoch||auth.currentUser?.uid!==currentUid)return false;
     if(!result.ok){
       if(result.code==="sync/conflict"||result.code==="sync/invalid-state")syncBlocked=true;
-      setStatus(result.code==="sync/conflict"?"CONFLITO DE ESTOQUE/PEDIDOS — exporte backup.":
+      setStatus(result.partial?"Importação parcialmente salva ("+result.savedChanges+" cadastros). Backup preservado; retome a sincronização.":
+       result.code==="sync/conflict"?"CONFLITO DE ESTOQUE/PEDIDOS — exporte backup.":
        "Alterações ainda não sincronizadas: "+String(result.error||"sem conexão").slice(0,90));
       savePending(serialized,result.code||result.error||"erro V2");
       return false;

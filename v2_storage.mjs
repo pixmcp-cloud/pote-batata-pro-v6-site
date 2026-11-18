@@ -5,6 +5,7 @@ import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
 import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
 import {validateInventoryJournalDiff} from "./inventory_integrity.mjs";
+import {planV2Batches} from "./v2_batch_planner.mjs";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
 const fail=(code,message)=>{const error=new Error(message);error.code=code;throw error};
@@ -81,7 +82,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   if(saving)return {ok:false,queued:true};
   const current=stateJson();
   if(current===lastSavedJson)return {ok:true,unchanged:true};
-  let next,delta;
+  let next,delta,batches;
   try{
    const client=typeof window!=="undefined"?window.POTE_AUTH:null;
    const free=Boolean(client?.uid===uid&&!client.proActive);
@@ -93,22 +94,26 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
     if(!quota.ok)return {ok:false,code:"free/limit",error:quota.error};
    }
    delta=diffState(baseline,next);
-   validateChangeSet(delta);
+   batches=planV2Batches(delta);
+   for(const batch of batches)validateChangeSet({changes:batch});
    validateInventoryJournalDiff(delta);
   }catch(e){return {ok:false,error:e.message,code:e.code==="free/limit"?e.code:"sync/invalid-state"}}
   if(!delta.changes.length){lastSavedJson=current;return {ok:true,unchanged:true}}
   saving=true;
-  const old=baseline,oldGuard=guardRevision;
+  const oldGuard=guardRevision;
+  let committed=0;
   try{
-   await runTransaction(db,async tx=>{
+   for(const changeBatch of batches){
+    const part={changes:changeBatch,sensitive:delta.sensitive};
+    await runTransaction(db,async tx=>{
     // All reads happen before any write, as Firestore transaction API requires.
     const queries=[];
-    for(const ch of delta.changes){
+    for(const ch of part.changes){
      queries.push({ch,ref:ch.kind==="meta"?root:recordRef(ch.key)});
     }
     const observed=[];
     for(const q of queries)observed.push(await tx.get(q.ref));
-    const guard=delta.sensitive?await tx.get(guardRef):null;
+    const guard=part.sensitive?await tx.get(guardRef):null;
     const previousPulse=await tx.get(pulseRef);
     for(let i=0;i<queries.length;i++){
      const q=queries[i],remote=q.ch.kind==="meta"?
@@ -116,7 +121,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
      if(!same(remote,q.ch.before))
       fail("sync/conflict","Registro alterado em outro dispositivo: "+(q.ch.key||"configurações"));
     }
-    if(delta.sensitive && Number(guard.data()?.revision||0)!==oldGuard)
+    if(part.sensitive && Number(guard.data()?.revision||0)!==oldGuard)
      fail("sync/conflict","Pedidos ou estoque alterados em outra sessão");
     for(const q of queries){
      const change=q.ch;
@@ -126,25 +131,38 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
      },{merge:true});
      else tx.set(q.ref,{record:change.after,updatedAt:serverTimestamp()});
     }
-    if(delta.sensitive)tx.set(guardRef,{
+    if(part.sensitive)tx.set(guardRef,{
       revision:nextRevision(oldGuard),updatedAt:serverTimestamp()
     },{merge:true});
     tx.set(pulseRef,{
       eventId:token(),previousEventId:String(previousPulse.data()?.eventId||""),
       origin:session,updatedAt:serverTimestamp(),
-      affected:delta.changes.length,
-      changedKeys:delta.changes.filter(c=>c.kind==="record").map(c=>c.key),
-      metaChanged:delta.changes.some(c=>c.kind==="meta"),
-      sensitive:delta.sensitive
+      affected:part.changes.length,
+      changedKeys:part.changes.filter(c=>c.kind==="record").map(c=>c.key),
+      metaChanged:part.changes.some(c=>c.kind==="meta"),
+      sensitive:part.sensitive
     });
-   });
+    });
+    committed+=changeBatch.length;
+    if(batches.length>1){
+     // Commit cursor: successful chunks are already in Firestore. If a later
+     // chunk fails, a retry sends only still-pending items (no duplicates).
+     const records=new Map(baseline.records);
+     for(const change of changeBatch)records.set(change.key,change.after);
+     baseline={meta:baseline.meta,records};
+     status("Importação em lotes: "+committed+"/"+delta.changes.length+
+       " registros confirmados na nuvem");
+    }
+   }
    baseline=next;
    if(delta.sensitive)guardRevision=nextRevision(oldGuard);
    lastSavedJson=current;
    status("Dados V2 salvos com segurança");
-   return {ok:true,changed:delta.changes.length};
+   return {ok:true,changed:delta.changes.length,batches:batches.length};
   }catch(e){
-   return {ok:false,code:e.code||"sync/error",error:e.message};
+   return {ok:false,code:e.code||"sync/error",error:e.message,
+    partial:committed>0,savedChanges:committed,
+    ...(committed>0?{recovery:"Parte dos cadastros foi salva. Preserve o backup local e tente novamente sem recarregar a página."}:{})};
   }finally{saving=false}
  }
  async function refresh(hint=null,previousEventId=null){
