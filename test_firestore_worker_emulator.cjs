@@ -112,6 +112,42 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
    "Only one concurrent order may consume an 800g share of 1000g stock");
   assert(codes.every(c=>c===200||c===409),"Unexpected network/permission failure: "+codes);
   assert.equal((await get("ingredients","potato")).stock,200);
+  // F02 new reservation path against real SDK Emulator, not just mocked REST.
+  await env.withSecurityRulesDisabled(async ctx=>{
+   await sdk.setDoc(sdk.doc(ctx.firestore(),"users",uid,"records",
+    recordPath(uid,universe,"recipes","r-f02").split("/").at(-1)),
+    record("recipes","r-f02",{id:"r-f02",name:"Reserva QA",
+     serverPriceVersion:1,serverSalePriceCents:4000,items:[{id:"potato",g:125}]}));
+  });
+  const createBody={universe,orderId:"reserved-f02",recipeId:"r-f02",
+   qty:1,cashSessionId:"s1",paymentMethod:"pix",
+   operationId:"f02-reservation-emulator-20261118-01"};
+  await env.withSecurityRulesDisabled(async ctx=>{
+   await sdk.setDoc(sdk.doc(ctx.firestore(),"users",uid,"records",
+    recordPath(uid,universe,"cashSessions","s1").split("/").at(-1)),
+    record("cashSessions","s1",{id:"s1",status:"open"}));
+  });
+  const createReq=()=>new Request("http://worker.local/v1/orders/create",{
+   method:"POST",headers:{"Authorization":"Bearer emulator-owner",
+    "Origin":"https://pdv.livresom.com","Content-Type":"application/json"},
+   body:JSON.stringify(createBody)});
+  const createResponse=await fetchAsService(createReq(),options);
+  assert.equal(createResponse.status,200,await createResponse.text());
+  assert.equal((await get("ingredients","potato")).stock,75);
+  assert.equal((await get("orders","reserved-f02")).stockReservationStatus,"reserved");
+  const replayResponse=await fetchAsService(createReq(),options);
+  assert.equal(replayResponse.status,200);
+  assert.equal((await replayResponse.json()).alreadyApplied,true);
+  const reservedProduce=await fetchAsService(newReq(
+   "f02-reservation-emulator-20261118-02",url,undefined,"reserved-f02"),options);
+  assert.equal(reservedProduce.status,200,await reservedProduce.text());
+  assert.equal((await get("ingredients","potato")).stock,75);
+  const reservedCancel=await fetchAsService(newReq(
+   "f02-reservation-emulator-20261118-03",
+   "http://worker.local/v1/orders/cancel","return","reserved-f02"),options);
+  assert.equal(reservedCancel.status,200,await reservedCancel.text());
+  assert.equal((await get("ingredients","potato")).stock,200);
+  console.log("PASS F02 SDK EMULATOR: atomic reservation, replay, production without double deduction, cancel once.");
   console.log("PASS WORKER SDK EMULATOR: transactions, 2-stock units, idempotency, cancellation, 2 devices with only one successful stock deduction.");
  }finally{await env.cleanup()}
 })().catch(e=>{console.error("WORKER REST EMULATOR FAIL",e.stack||e);process.exitCode=1});
