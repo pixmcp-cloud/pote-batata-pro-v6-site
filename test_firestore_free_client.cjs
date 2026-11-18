@@ -79,6 +79,8 @@ function installStarterModels(state){
    s.data.ingredients.find(row=>row.id==='batata').stock-=2000;
    s.data.beverages.find(row=>row.id==='preset-guarana-lata').stock-=2;
    s.data.orders.push({id:'starter-order',qty:2,status:'em_producao'});
+   s.data.stockMovements.push({id:'m-starter-potato',ingredientId:'batata',quantity:-2000,previousStock:10000,afterStock:8000,reason:'Produção',referenceId:'starter-order'});
+   s.data.stockMovements.push({id:'m-starter-cola',ingredientId:'bev:preset-guarana-lata',quantity:-2,previousStock:5,afterStock:3,reason:'Bebida vendida',referenceId:'starter-order'});
   });
   assert((await starter.store.save()).ok,'Pedido e baixas podem ser gravados numa transação V2');
   const reopenedStarter=actor('free-with-models',true);

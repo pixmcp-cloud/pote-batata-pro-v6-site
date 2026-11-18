@@ -48,10 +48,14 @@ service cloud.firestore {
     // Free account as an unrestricted alternative to V2 quota-controlled flows.
     // Compatible with V2: appState/v2, v2InventoryGuard and v2Pulse remain writable.
     function canWriteLegacy(userId) {
+      // Contas ainda exclusivamente V1 preservam seus dados e fluxo.
+      // Assim que V2 existe, o mesmo usuário não pode escrever por um
+      // caminho antigo sem o controle transacional de estoque/pedidos.
       return isAdmin()
         || (isOwner(userId)
           && exists(/databases/$(database)/documents/users/$(userId))
-          && premiumProfile(userId));
+          && premiumProfile(userId)
+          && !exists(/databases/$(database)/documents/users/$(userId)/appState/v2));
     }
     function freeScope(record) {
       return record.universe in ['batataria','default','kitchen'] ? 'base' : 'extra';
@@ -133,6 +137,46 @@ service cloud.firestore {
           )
         )
       );
+    }
+    // F02: cambios físicos e passagem de pedido à produção exigem que o
+    // documento guarda avance NA MESMA operação atômica. Um write isolado
+    // via SDK não pode contornar o bloqueio de concorrência do aplicativo.
+    function validAtomicInventoryGuard(userId, recordId) {
+      let guardPath = /databases/$(database)/documents/users/$(userId)/appState/v2InventoryGuard;
+      let pulsePath = /databases/$(database)/documents/users/$(userId)/appState/v2Pulse;
+      let before = get(guardPath).data;
+      let after = getAfter(guardPath).data;
+      let priorPulse = get(pulsePath).data;
+      let pulse = getAfter(pulsePath).data;
+      return before.get('revision', null) is int
+        && after.get('revision', null) is int
+        && after.revision == before.revision + 1
+        && after.get('updatedAt', null) == request.time
+        && pulse.get('eventId', null) is string
+        && pulse.eventId != priorPulse.get('eventId', null)
+        && pulse.get('previousEventId', null) == priorPulse.get('eventId', null)
+        && pulse.get('updatedAt', null) == request.time
+        && pulse.get('sensitive', null) == true
+        && pulse.get('changedKeys', []) is list
+        && pulse.changedKeys.hasAny([recordId]);
+    }
+    function requiresInventoryGuard(before, after) {
+      return (
+        before.group in ['stockMovements','purchases','losses','prepBatches']
+      ) || (
+        before.group in ['ingredients', 'beverages']
+        && before.item is map && after.item is map
+        && before.item.get('stock', null) != after.item.get('stock', null)
+      ) || (
+        before.group == 'orders' && before.item is map && after.item is map
+        && (before.item.get('status', null) != after.item.get('status', null)
+          || before.item.get('stockDeducted', false) != after.item.get('stockDeducted', false)
+          || before.item.get('stockRestored', false) != after.item.get('stockRestored', false))
+      );
+    }
+    function isInventoryRecord(record) {
+      return record.group in ['ingredients', 'beverages', 'orders', 'stockMovements',
+        'purchases', 'losses', 'prepBatches'];
     }
     function validRecordDocument(document, record) {
       return document.keys().hasOnly(['record', 'updatedAt'])
@@ -278,7 +322,11 @@ service cloud.firestore {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
             && canWriteOperationalRecord(userId, recordId, record)
-            && (record.group != 'cashSessions' || record.item.status == 'open');
+            && (record.group != 'cashSessions' || record.item.status == 'open')
+            // Pedidos, movimentos, compras e perdas não podem ser criados fora
+            // da transação de inventário: evita gravações soltas pelo SDK.
+            && (!(record.group in ['orders','stockMovements','purchases','losses','prepBatches'])
+              || validAtomicInventoryGuard(userId, recordId));
         }
         function validUpdate(document, oldDocument) {
           let record = document.get('record', null);
@@ -286,8 +334,10 @@ service cloud.firestore {
           return validRecordDocument(document, record)
             && canWriteOperationalRecord(userId, recordId, record)
             && preservesRecordIdentity(userId, recordId, record, oldRecord)
+            && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
             // Movimentos são imutáveis. Turnos abertos só podem ser fechados.
             && (record.group == 'cashMovements' ? record == oldRecord
+              : record.group == 'stockMovements' ? record.item == oldRecord.item
               : record.group != 'cashSessions' || validSessionClose(record, oldRecord));
         }
         allow get, list: if canAccess(userId);
@@ -295,7 +345,8 @@ service cloud.firestore {
         allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
           && canEditOperationalRecord(userId,resource.data.record)
-          && !isFinancialGroup(resource.data.record.group);
+          && !isFinancialGroup(resource.data.record.group)
+          && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
       }
     }
 

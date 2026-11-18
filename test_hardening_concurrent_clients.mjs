@@ -50,8 +50,8 @@ first.mutate(s=>s.data.ingredients.push({id:'batata',stock:10,measureUnit:'g'}))
 assert((await first.store.save()).ok);
 const a=actor('shop-1'),b=actor('shop-1');
 await Promise.all([a.store.load(),b.store.load()]);
-a.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-a',qty:8,status:'confirmado',stockDeducted:true})});
-b.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-b',qty:8,status:'confirmado',stockDeducted:true})});
+a.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-a',qty:8,status:'confirmado',stockDeducted:true});s.data.stockMovements.push({id:'m-a',ingredientId:'batata',quantity:-8,previousStock:10,afterStock:2,reason:'Produção',referenceId:'order-a'})});
+b.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-b',qty:8,status:'confirmado',stockDeducted:true});s.data.stockMovements.push({id:'m-b',ingredientId:'batata',quantity:-8,previousStock:10,afterStock:2,reason:'Produção',referenceId:'order-b'})});
 const results=await Promise.all([a.store.save(),b.store.save()]);
 const successful=results.filter(x=>x.ok).length;
 assert.equal(successful,1,'only one stale-stock checkout can commit');

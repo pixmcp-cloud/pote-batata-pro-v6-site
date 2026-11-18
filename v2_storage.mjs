@@ -4,6 +4,7 @@
 import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2_store_core.mjs?v=v4-free-ids-20261117";
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
 import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
+import {validateInventoryJournalDiff} from "./inventory_integrity.mjs";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
 const fail=(code,message)=>{const error=new Error(message);error.code=code;throw error};
@@ -93,6 +94,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    }
    delta=diffState(baseline,next);
    validateChangeSet(delta);
+   validateInventoryJournalDiff(delta);
   }catch(e){return {ok:false,error:e.message,code:e.code==="free/limit"?e.code:"sync/invalid-state"}}
   if(!delta.changes.length){lastSavedJson=current;return {ok:true,unchanged:true}}
   saving=true;

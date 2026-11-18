@@ -24,8 +24,8 @@ const clone=x=>JSON.parse(JSON.stringify(x));
   seed.mutate(s=>s.data.ingredients.push({id:'batata',stock:10,measureUnit:'g'}));
   let r=await seed.store.save();assert(r.ok,JSON.stringify(r));
   const a=actor(),b=actor();await Promise.all([a.store.load(),b.store.load()]);
-  a.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-1',qty:8,status:'em_producao',stockDeducted:true})});
-  b.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-2',qty:8,status:'em_producao',stockDeducted:true})});
+  a.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-1',qty:8,status:'em_producao',stockDeducted:true});s.data.stockMovements.push({id:'m-1',ingredientId:'batata',quantity:-8,previousStock:10,afterStock:2,reason:'Produção',referenceId:'order-1'})});
+  b.mutate(s=>{s.data.ingredients[0].stock=2;s.data.orders.push({id:'order-2',qty:8,status:'em_producao',stockDeducted:true});s.data.stockMovements.push({id:'m-2',ingredientId:'batata',quantity:-8,previousStock:10,afterStock:2,reason:'Produção',referenceId:'order-2'})});
   const [ra,rb]=await Promise.all([a.store.save(),b.store.save()]);
   assert.equal(Number(ra.ok)+Number(rb.ok),1,'only one order may commit: '+JSON.stringify([ra,rb]));
   assert(['sync/conflict','permission-denied'].includes((ra.ok ? rb : ra).code),
