@@ -522,3 +522,8 @@ A ficha de receita passa a exibir "Homologar preço no servidor" SOMENTE quando 
 QA dirigido: node test_f02_price_ui.cjs PASS para Worker desativado, 2990 centavos, licenca PRO, resposta 423 sem sucesso falso; node test_worker_bridge.mjs PASS (idempotencia, retries e autenticacao). A primeira tentativa de build isolado revelou corrupcao de UTF-8 no transporte PowerShell do HTML; corrigido com Git byte-preserving no commit 6777e4c e novo teste/build iniciado. Nao afirmar browser fisico ou Cloudflare deploy.
 Restricoes: main, Firebase Hosting publico, Firestore Rules comerciais, dados reais, Asaas, Cloudflare Worker e custos permanecem intocados. Proxima etapa: confirmar build e browser Chrome mobile isolado, validar homologacao do catalogo com custos e receitas complexas no Firebase Emulator antes de habilitar qualquer cutover. Nenhum servico pago autorizado.
 
+
+
+### COMPLEMENTO QA F02 UI / 18-11-2026
+O build isolado python build_hosting.py finalizou com FIREBASE_HOSTING_BUILD_OK copies=129 files=223. Confirmado no HTML gerado approveRecipeServerPrice=True e poteApproveServerPrice=True; firebase_integration.js gerado contem CLOUD_WORKER_ACTIVE=false. O primeiro verificador erroneamente procurou a flag dentro do HTML, embora ela pertença ao modulo firebase_integration.js; portanto falha de assercao do QA, nao falha do build. Teste dirigido test_f02_price_ui.cjs PASS e regressao test_worker_bridge.mjs PASS. Nenhum deploy. Browser Chrome fisico ou mobile end-to-end ainda nao executado neste bloco.
+
