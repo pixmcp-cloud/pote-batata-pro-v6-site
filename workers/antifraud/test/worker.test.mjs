@@ -66,7 +66,18 @@ const request=(body,route="/v1/orders/produce",origin="https://pdv.livresom.com"
   "Content-Type":"application/json"},body:JSON.stringify(body)
 });
 const payload=(operationId,extra={})=>({operationId,universe:UNIVERSE,orderId:"o1",...extra});
-test("staging mode fails closed, health exposes no customer data",async()=>{
+test("F02 purchase adjustment is atomic and idempotent",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const data={universe:UNIVERSE,operationId:OP1,group:"ingredients",
+  itemId:"batata",delta:75,reason:"purchase"};
+ const go=()=>app.fetch(request(data,"/v1/inventory/adjust"),env);
+ const first=await go();
+ assert.equal(first.status,200,await first.text());
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,475);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
+ assert.equal((await(await go()).json()).alreadyApplied,true);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,475);
+});test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
  assert.equal(health.status,200);
