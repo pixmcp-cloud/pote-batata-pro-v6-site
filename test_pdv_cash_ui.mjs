@@ -42,7 +42,7 @@ api.refresh();
 assert.equal(button.hidden,false,"PRO should see PDV button");
 api.open();
 assert.equal(panel.hidden,false);
-assert(panel.querySelector("#potePdvBody").innerHTML.includes("Abrir turno"));
+assert(panel.querySelector("#potePdvBody").innerHTML.includes("Abrir o caixa"));
 assert(panel.querySelector("#potePdvBody").innerHTML.includes('name="openingCash" placeholder="Ex.: 100,00" inputmode="decimal"'),
  "O fundo de troco deve chamar o teclado decimal");
 const openingBody=panel.querySelector("#potePdvBody");
@@ -92,7 +92,12 @@ const html=panel.querySelector("#potePdvBody").innerHTML;
 assert(html.includes("R$")&&html.includes("Marcar")===false);
 assert(html.includes("29,90"));
 assert(html.includes("Cozinha")&&html.includes("Recibo"));
-assert(html.includes("Fechar caixa"));
+assert(html.includes("Conferir e fechar caixa"));
+assert(html.includes("Recebimentos confirmados")&&html.includes("Dinheiro esperado na gaveta"));
+assert(html.includes("Gráfico de recebimentos")&&html.includes("Pix")&&html.includes("Cartão"));
+assert(html.includes("Confirme os pagamentos")&&html.includes("Aguardando recebimento")===false);
+assert(html.includes("PASSO 4")&&html.includes("Quanto você contou em notas e moedas?"));
+
 assert(html.includes('name="countedCash" placeholder="Ex.: 150,00" inputmode="decimal"'),
  "A contagem final deve abrir o teclado decimal");
 assert(html.includes('name="amount" placeholder="Ex.: 50,00" inputmode="decimal"'),

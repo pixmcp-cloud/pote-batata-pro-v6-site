@@ -53,3 +53,102 @@
  #potePdvDialog{padding:7px}
 }
 @media print{#potePdvTrigger,#potePdvDialog{display:none!important}}
+
+/* PDV guided cashier: a clear, mobile-first reconciliation experience. */
+.pote-pdv-container{width:min(795px,100%);scrollbar-gutter:stable}
+.pote-pdv-container>header{background:linear-gradient(115deg,#182c23,#294e37);padding:18px 21px}
+.pote-pdv-container header h2{font-size:clamp(20px,3.8vw,26px);letter-spacing:-.03em}
+.pote-pdv-container .pote-pdv-disclaimer{font-size:11px;color:#e0d0aa}
+#potePdvBody{gap:14px;padding:0 18px 22px}
+.pote-pdv-intro{background:linear-gradient(126deg,#26342b,#192620);border:1px solid #405f4a;border-radius:14px;padding:17px 19px}
+.pote-pdv-intro h3{margin:9px 0 5px;font-size:20px;color:#f0ffed}
+.pote-pdv-intro p{margin:0;line-height:1.65;font-size:13px;color:#d1e2d6}
+.pote-pdv-step{display:inline-flex;border:1px solid #699c76;border-radius:100px;padding:4px 10px;font-size:10px;color:#b9f3c5;font-weight:800;letter-spacing:.08em;background:#244632}
+.pote-pdv-box{padding:17px 19px;border-radius:15px;border-color:#516656;background:#262d28}
+.pote-pdv-box-header{display:grid;gap:6px;margin-bottom:14px}
+.pote-pdv-box-header h3{font-size:18px;margin:0;color:#f3fff2;letter-spacing:-.02em}
+.pote-pdv-box-header p{color:#c3d0c6;font-size:13px;line-height:1.6;margin:0}
+.pote-pdv-box-header strong{color:#f7fff5}
+.pote-pdv-primary{background:linear-gradient(145deg,#bff0c6,#80cf97)!important;color:#11341c!important;font-size:15px!important;min-height:46px;width:100%;box-shadow:0 5px 22px #0003}
+.pote-pdv-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.pote-pdv-kpi{border:1px solid #496251;border-radius:14px;padding:15px 17px;display:grid;gap:5px;background:linear-gradient(160deg,#213d2c,#1b2b22)}
+.pote-pdv-kpi small{font-size:11px;font-weight:750;color:#c2e7cd}
+.pote-pdv-kpi strong{font-size:clamp(24px,4vw,35px);font-variant-numeric:tabular-nums;letter-spacing:-.04em;color:#f0fff5;line-height:1.15}
+.pote-pdv-kpi span{font-size:11px;color:#bfdbc9;line-height:1.55}
+.pote-pdv-kpi.receipts{grid-column:1 / -1;background:linear-gradient(120deg,#235036,#17412e);border-color:#5da875}
+.pote-pdv-kpi.receipts strong{font-size:clamp(32px,6vw,43px)}
+.pote-pdv-kpi.drawer{background:linear-gradient(145deg,#2b4334,#1c3626)}
+.pote-pdv-kpi.pending{background:linear-gradient(145deg,#46371f,#29251d);border-color:#95733e}
+.pote-pdv-kpi.pending strong{color:#ffe0a3}
+.pote-pdv-chart{display:grid;gap:20px}
+.pote-pdv-chart-row{display:grid;gap:7px}
+.pote-pdv-chart-caption{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.pote-pdv-chart-caption>span{display:flex;align-items:center;gap:9px}
+.pote-pdv-chart-caption b{font-size:14px;color:#f8f9f7}
+.pote-pdv-chart-caption small{font-size:11px;color:#c1cabe}
+.pote-pdv-chart-caption strong{font-size:17px;color:#f8f9f7;letter-spacing:-.02em}
+.pote-pdv-chart-caption i{width:11px;height:11px;border-radius:4px;background:#6ecf8c;display:inline-block}
+.pote-pdv-chart-row.pix .pote-pdv-chart-caption i{background:#40c9c1}
+.pote-pdv-chart-row.card .pote-pdv-chart-caption i{background:#bca2ff}
+.pote-pdv-chart-track{height:19px;background:#131c17;border:1px solid #3d4f43;border-radius:50px;overflow:hidden}
+.pote-pdv-chart-fill{height:100%;background:linear-gradient(90deg,#287c52,#75e39e);border-radius:50px;min-width:0;transition:width .45s ease}
+.pote-pdv-chart-row.pix .pote-pdv-chart-fill{background:linear-gradient(90deg,#18837c,#64e8d9)}
+.pote-pdv-chart-row.card .pote-pdv-chart-fill{background:linear-gradient(90deg,#7056b9,#c0a5fc)}
+.pote-pdv-chart>.pote-pdv-note{border-top:1px solid #405a49;padding-top:12px;line-height:1.65;margin:0}
+.pote-pdv-count{display:inline-flex;min-width:26px;height:26px;justify-content:center;align-items:center;background:#755b31;border-radius:50%;font-size:13px;color:#fff1d0;vertical-align:middle}
+.pote-pdv-order{padding:13px 0;border-color:#3b5845}
+.pote-pdv-order strong{font-size:14px}
+.pote-pdv-order small{font-size:12px;line-height:1.6;margin-top:3px}
+.pote-pdv-order button{background:#a9e7ba;padding:10px 13px;font-size:12px;white-space:normal}
+.pote-pdv-pending-status{display:inline-block;margin-top:6px;color:#f1d19a;font-size:11px;background:#4d3f28;padding:4px 8px;border-radius:7px}
+.pote-pdv-ok{color:#acedd0;font-size:13px;background:#1b3a2c;border-radius:10px;padding:12px}
+.pote-pdv-check-number{background:linear-gradient(125deg,#173e27,#1d4f32);border:1px solid #73b787;border-radius:14px;padding:17px 19px;display:grid;gap:5px;margin:15px 0}
+.pote-pdv-check-number small{font-weight:800;font-size:11px;color:#c4eccc;letter-spacing:.06em}
+.pote-pdv-check-number strong{font-size:clamp(30px,5.5vw,42px);font-variant-numeric:tabular-nums;color:#e4ffeb;letter-spacing:-.035em}
+.pote-pdv-details{border:1px solid #455b4d;background:#202921;border-radius:13px;padding:10px 13px}
+.pote-pdv-details>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;color:#dcf1dd;font-weight:750;font-size:13px;line-height:1.4;min-height:35px}
+.pote-pdv-details>summary::-webkit-details-marker{display:none}
+.pote-pdv-details>summary::after{content:"+";font-size:22px;line-height:1;color:#9edbb4}
+.pote-pdv-details[open]>summary::after{content:"−"}
+.pote-pdv-details[open]>summary{border-bottom:1px solid #405547;margin-bottom:12px;padding-bottom:8px}
+.pote-pdv-details .pote-pdv-history+.pote-pdv-history{margin-top:8px}
+.pote-pdv-equation{display:grid;gap:6px}
+.pote-pdv-equation>div{display:flex;justify-content:space-between;gap:10px;color:#d3ddd3;font-size:12px;padding:8px 0;border-bottom:1px solid #36493c}
+.pote-pdv-equation>div strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+.pote-pdv-equation>.pote-pdv-equation-total{color:#eaffea;font-size:14px;align-items:center;border:0;padding:12px 0 4px}
+.pote-pdv-equation-total strong{font-size:18px}
+.pote-pdv-difference{display:grid;gap:5px;border:1px solid #566b55;background:#1a291d;border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.55;color:#d9e8da}
+.pote-pdv-difference strong{font-size:15px;color:#eaf8ef}
+.pote-pdv-difference[data-result="certo"]{background:#17412a;border-color:#61b37f}
+.pote-pdv-difference[data-result="falta"]{background:#4d2927;border-color:#bf6b5e}
+.pote-pdv-difference[data-result="sobra"]{background:#51401e;border-color:#c59d4c}
+.pote-pdv-history{display:grid;gap:7px;margin-top:8px;line-height:1.55}
+.pote-pdv-history-methods{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid #4f6253;padding-top:8px;color:#d7f1d7;font-size:11px}
+.pote-pdv-history-methods>span,.pote-pdv-history-methods>strong{background:#173421;padding:4px 7px;border-radius:7px}
+.pote-pdv-last{border:1px solid #445d47;border-radius:13px;padding:13px 16px;color:#daf2df;display:grid;gap:6px;font-size:12px}
+.pote-pdv-last strong{font-size:15px}
+@media(max-width:650px){
+ .pote-pdv-container{border-radius:15px;max-height:96dvh}
+ #potePdvBody{padding:0 11px 16px;gap:10px}
+ .pote-pdv-box{padding:15px 13px}
+ .pote-pdv-intro{padding:15px}
+ .pote-pdv-kpis{grid-template-columns:1fr}
+ .pote-pdv-kpi.receipts{grid-column:auto}
+ .pote-pdv-kpi{padding:14px}
+ .pote-pdv-chart-caption small{display:none}
+ .pote-pdv-order{align-items:stretch}
+ .pote-pdv-order button{min-height:43px}
+ .pote-pdv-chart-caption strong{font-size:16px}
+ .pote-pdv-check-number strong{font-size:34px}
+ .pote-pdv-equation>.pote-pdv-equation-total{align-items:flex-start;flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){.pote-pdv-chart-fill{transition:none}}
+
+.pote-pdv-chart-share{font-size:11px;font-style:normal;font-weight:650;color:#c0d8c7;white-space:nowrap}
+
+#potePdvMessage:empty{display:none}
+.pote-pdv-disclaimer-details{margin:5px 18px 20px;border-top:1px solid #405b45;padding:12px 2px 0}
+.pote-pdv-disclaimer-details>summary{color:#a6c7ad;font-size:11px;cursor:pointer}
+.pote-pdv-disclaimer-details p{color:#dfd0af;line-height:1.7;font-size:12px}
+.pote-pdv-disclaimer-details a{color:#a8d5ff}
+.pote-pdv-kpi.receipts{display:grid!important;visibility:visible!important;position:relative;opacity:1!important}

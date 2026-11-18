@@ -38,6 +38,7 @@ jobs:
           cp module_health.js public/module_health.js
           cp pdv_cash_core.mjs public/pdv_cash_core.mjs
           cp pdv_cash_ui.mjs public/pdv_cash_ui.mjs
+          cp pdv_cash_summary.mjs public/pdv_cash_summary.mjs
           cp pdv_cash.css public/pdv_cash.css
           cp numeric_keyboard.js public/numeric_keyboard.js
           cp supplier_integration.js public/supplier_integration.js
@@ -178,6 +179,7 @@ jobs:
           node test_v3_rank_persistence.mjs
           node test_v3_universe_financial_isolation.js
           node test_pdv_cash_ui.mjs
+          node test_pdv_cash_summary.mjs
           node test_numeric_keyboard.js
           node --check public/numeric_keyboard.js
           node test_pdv_v2_storage.mjs

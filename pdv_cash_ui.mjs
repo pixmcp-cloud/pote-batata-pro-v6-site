@@ -2,6 +2,7 @@
    Movimentações financeiras por turno, recibo NÃO fiscal e comanda. */
 import {activeSession,openCash,calculateCash,closeCash,registerCashMovement,
  confirmRecordedPayment,settleDeliveryPayment,settlePreviousPayment,listOutstandingPrevious,paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs?v=v3-wave1-20261116";
+import {summarizePdvReceipts,countCashDifference} from "./pdv_cash_summary.mjs";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const brl=x=>Number(x||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const date=x=>{try{return new Date(x).toLocaleString("pt-BR")}catch{return String(x||"")}};
@@ -23,11 +24,12 @@ function ensure(){
  modal=document.createElement("div");
  modal.id="potePdvDialog";modal.hidden=true;
  modal.innerHTML='<section class="pote-pdv-container" role="dialog" aria-modal="true" aria-labelledby="potePdvTitle">'+
- '<header><div><small>GESTÃO + PDV</small><h2 id="potePdvTitle">Caixa e comandas</h2></div>'+
+ '<header><div><small>CONTROLE DE VENDAS</small><h2 id="potePdvTitle">Meu caixa PDV</h2></div>'+
  '<button type="button" data-pdv-action="hide" aria-label="Fechar painel de caixa">✕</button></header>'+
- '<p class="pote-pdv-disclaimer">Registros operacionais. Não confirma Pix/cartão automaticamente e não emite NFC-e. '+
- '<a href="https://www.sef.sc.gov.br/orientacoes/nff-nota-fiscal-facil-mei-microempreendedor-individual" target="_blank" rel="noopener noreferrer">MEI/SC: emissão gratuita pelo aplicativo oficial Nota Fiscal Fácil (quando habilitado)</a>.</p>'+
- '<p id="potePdvMessage" aria-live="polite"></p><div id="potePdvBody"></div></section>';
+ '<p id="potePdvMessage" aria-live="polite"></p><div id="potePdvBody"></div>'+
+ '<details class="pote-pdv-disclaimer-details"><summary>Sobre comprovantes e documentos fiscais</summary>'+
+ '<p>Este PDV é um registro operacional, não verifica Pix/cartão automaticamente e não emite NFC-e. '+
+ '<a href="https://www.sef.sc.gov.br/orientacoes/nff-nota-fiscal-facil-mei-microempreendedor-individual" target="_blank" rel="noopener noreferrer">MEI/SC: veja a emissão gratuita pelo Nota Fiscal Fácil, quando habilitado</a>.</p></details></section>';
  document.body.appendChild(modal);
  modal.addEventListener("click",event=>{
   if(event.target===modal)close();
@@ -35,6 +37,7 @@ function ensure(){
   event.preventDefault();action(button.dataset.pdvAction,button.dataset.orderId);
  });
  modal.addEventListener("submit",event=>{event.preventDefault();submit(event.target)});
+ modal.addEventListener("input",event=>{if(event.target?.name==="countedCash")updateCountPreview(event.target.value)});
 }
 function currentSession(){return activeSession(snapshot()?.data)}
 function getSessionId(){return access()?currentSession()?.id||null:null}
@@ -60,6 +63,41 @@ function textField(label,name,placeholder="",type="text"){
   (isAmount?' inputmode="decimal" enterkeyhint="done" autocomplete="off" data-numeric="decimal"':'')+
   ' required></label>';
 }
+function receiptChart(receipts){
+ const methods=[
+  {key:"cash",label:"Dinheiro",hint:"Recebido em espécie",className:"cash"},
+  {key:"pix",label:"Pix",hint:"Comprovantes confirmados",className:"pix"},
+  {key:"card",label:"Cartão",hint:"Transações confirmadas",className:"card"}
+ ];
+ const max=Math.max(1,Number(receipts.gross)||0);
+ return '<div class="pote-pdv-chart" aria-label="Gráfico de recebimentos confirmados por forma de pagamento">'+
+  methods.map(m=>{
+   const value=Number(receipts[m.key]||0);
+   const width=Math.max(0,Math.min(100,value/max*100));
+   const share=receipts.gross>0?(100*value/receipts.gross).toFixed(1).replace(".",","):"0,0";
+   return '<div class="pote-pdv-chart-row '+m.className+'"><div class="pote-pdv-chart-caption">'+
+     '<span><i aria-hidden="true"></i><b>'+m.label+'</b><small>'+m.hint+'</small></span>'+
+     '<strong>'+brl(value)+' <em class="pote-pdv-chart-share">('+share+'%)</em></strong></div>'+
+     '<div class="pote-pdv-chart-track" role="progressbar" aria-label="'+m.label+
+     '" aria-valuemin="0" aria-valuemax="'+Math.max(1,receipts.gross)+'" aria-valuenow="'+value+
+     '"><div class="pote-pdv-chart-fill" style="width:'+width.toFixed(2)+'%"></div></div></div>';
+  }).join("")+
+  '<p class="pote-pdv-note">O gráfico usa apenas recebimentos <strong>confirmados</strong> neste turno, incluindo pagamentos antigos recebidos hoje. Comprovantes Pix e cartão não são dinheiro da gaveta.</p></div>';
+}
+function cashEquation(summary){
+ const prev=summary.previousByMethod||{};
+ const items=[
+  ["Troco inicial",summary.openingCash,"+"],
+  ["Vendas em dinheiro",summary.confirmedByMethod?.cash||0,"+"],
+  ["Dinheiro recebido de outros turnos",prev.cash||0,"+"],
+  ["Entradas extras (suprimento)",summary.supply,"+"],
+  ["Retiradas (sangria)",summary.withdraw,"−"],
+  ["Dinheiro devolvido ao cliente",summary.refunds,"−"]
+ ];
+ return '<div class="pote-pdv-equation" aria-label="Cálculo do dinheiro esperado">'+
+  items.map(([label,val,sign])=>'<div><span>'+label+'</span><strong>'+sign+' '+brl(val)+'</strong></div>').join("")+
+  '<div class="pote-pdv-equation-total"><b>DINHEIRO QUE DEVE ESTAR NA GAVETA</b><strong>'+brl(summary.expectedCash)+'</strong></div></div>';
+}
 function render(){
  ensure();
  const heading=document.querySelector(".ops-heading");
@@ -70,64 +108,104 @@ function render(){
  trigger.querySelector("#potePdvTurn").textContent=s?"Aberto":"Fechado";
  trigger.classList.toggle("open",!!s);
  trigger.setAttribute("aria-label","Caixa PDV "+(s?"aberto":"fechado")+". Abrir frente de caixa");
- trigger.title="Caixa PDV "+(s?"aberto":"fechado")+" · Ver turno e pagamentos";
+ trigger.title="Caixa PDV "+(s?"aberto":"fechado")+" — Ver turno e pagamentos";
  if(!access()){close();return}
  if(!visible)return;
  const data=snapshot()?.data||{orders:[]};
  const body=modal.querySelector("#potePdvBody");
  if(!s){
-  body.innerHTML='<div class="pote-pdv-box"><h3>Abrir turno</h3>'+
-   '<form id="potePdvOpen" data-pdv-form="open">'+textField("Fundo inicial de troco (R$)","openingCash","Ex.: 100,00")+
-   '<button type="submit">Abrir caixa</button></form></div>'+
-   '<h3>Últimos turnos</h3>'+sessionHistory(data);
+  const latest=(data.cashSessions||[]).find(x=>x.status==="closed");
+  const last=latest?'<div class="pote-pdv-last"><strong>Último fechamento</strong>'+
+   '<span>Esperado: '+brl(latest.expectedCash)+' · Contado: '+brl(latest.countedCash)+'</span>'+
+   '<span>Diferença: '+brl(latest.difference)+'</span></div>':"";
+  body.innerHTML=
+   '<section class="pote-pdv-intro"><span class="pote-pdv-step">PASSO 1 DE 4</span>'+
+   '<h3>Vamos começar o dia?</h3><p>Primeiro, conte o dinheiro que já está na gaveta para dar troco. '+
+   'Não inclua Pix, cartão ou o dinheiro que está no banco.</p></section>'+
+   '<section class="pote-pdv-box"><h3>1. Abrir o caixa</h3>'+
+   '<form id="potePdvOpen" data-pdv-form="open">'+
+   textField("Dinheiro inicial para troco (R$)","openingCash","Ex.: 100,00")+
+   '<p class="pote-pdv-note">Se a gaveta estiver vazia, digite 0,00.</p>'+
+   '<button type="submit" class="pote-pdv-primary">Abrir caixa e começar</button></form></section>'+
+   last+'<details class="pote-pdv-details"><summary>Consultar fechamentos anteriores</summary>'+
+   sessionHistory(data)+'</details>';
   return;
  }
  const summary=calculateCash(data,s.id);
- const methodNames={cash:"Dinheiro",pix:"Pix",card:"Cartão",delivery:"Na entrega",other:"Outros"};
- const methodRows=Object.entries(summary.confirmedByMethod).map(([key,total])=>
-  '<div class="pote-pdv-stat"><span>'+methodNames[key]+'</span><b>'+brl(total)+'</b></div>').join("");
- const recent=(data.orders||[]).filter(o=>o.cashSessionId===s.id).slice(0,40);
- const pending=recent.filter(o=>o.status!=="cancelado"&&!paymentConfirmed(o));
+ const receipts=summarizePdvReceipts(summary);
+ const all=(data.orders||[]).filter(o=>o.cashSessionId===s.id);
+ const recent=all.slice(0,40);
+ const pending=all.filter(o=>o.status!=="cancelado"&&!paymentConfirmed(o));
  const overdue=listOutstandingPrevious(data).slice(0,40);
- body.innerHTML='<div class="pote-pdv-box">'+
-  '<p class="pote-pdv-session">Turno aberto em '+esc(date(s.openedAt))+' · '+esc(s.operator)+'</p>'+
-  '<div class="pote-pdv-figures"><div><small>Dinheiro esperado no caixa</small><strong>'+brl(summary.expectedCash)+'</strong></div>'+
-  '<div><small>A receber / sem confirmação</small><strong>'+brl(summary.pending)+'</strong></div></div>'+
-  '<div class="pote-pdv-stat"><span>Troco de abertura</span><b>'+brl(summary.openingCash)+'</b></div>'+
-  methodRows+
-  '<div class="pote-pdv-stat"><span>Recebido de turnos anteriores (ajustes)</span><b>'+brl(summary.receivedFromPrevious||0)+'</b></div>'+
-  '<div class="pote-pdv-stat"><span>Suprimentos / Sangrias / Reembolsos</span><b>'+
-    brl(summary.supply)+' / '+brl(summary.withdraw)+' / '+brl(summary.refunds)+'</b></div>'+
+ const count=Number(pending.length+overdue.length);
+ const pendingList=pending.length?pending.map(o=>{
+  const kind=paymentKind(o.paymentMethod);
+  const label=kind==="pix"?"Pix":kind==="card"?"Cartão":kind==="cash"?"Dinheiro":kind==="delivery"?"Na entrega":"Outro";
+  const button=kind==="pix"||kind==="card"?
+   '<button type="button" data-pdv-action="confirm" data-order-id="'+esc(o.id)+'">Confirmar recebimento</button>':
+   kind==="delivery"||kind==="other"?
+   '<button type="button" data-pdv-action="delivery" data-order-id="'+esc(o.id)+'">Confirmar recebimento</button>':
+   '<span class="pote-pdv-warn">Verificar dinheiro recebido</span>';
+  return '<div class="pote-pdv-order"><div><strong>'+esc(o.name)+'</strong>'+
+    '<small>Pedido #'+esc(String(o.id).slice(-8))+' · '+label+' · '+brl(orderAmountCents(o)/100)+'</small>'+
+    '<span class="pote-pdv-pending-status">Aguardando recebimento</span></div>'+button+'</div>';
+ }).join(""):'<p class="pote-pdv-ok">Nenhum pagamento pendente deste turno.</p>';
+ const pastList=overdue.length?overdue.map(o=>
+  '<div class="pote-pdv-order"><div><strong>'+esc(o.name)+'</strong>'+
+  '<small>Pedido anterior #'+esc(String(o.id).slice(-8))+' · '+brl(orderAmountCents(o)/100)+'</small></div>'+
+  '<button type="button" data-pdv-action="late" data-order-id="'+esc(o.id)+'">Confirmar recebimento</button></div>'
+ ).join(""):'<p class="pote-pdv-ok">Sem pagamentos antigos pendentes.</p>';
+ const figures='<div class="pote-pdv-kpis">'+
+  '<div class="pote-pdv-kpi receipts"><small>Recebimentos confirmados</small><strong>'+brl(receipts.gross)+
+  '</strong><span>Dinheiro + Pix + cartão, incluindo pagamentos antigos recebidos neste turno. Valor bruto registrado.</span></div>'+
+  '<div class="pote-pdv-kpi drawer"><small>Dinheiro esperado na gaveta</small><strong>'+brl(summary.expectedCash)+
+  '</strong><span>É este valor que você deverá contar ao fechar.</span></div>'+
+  '<div class="pote-pdv-kpi pending"><small>Ainda falta confirmar</small><strong>'+brl(receipts.pending)+
+  '</strong><span>'+summary.pendingCount+' pagamento'+(summary.pendingCount===1?'':'s')+' do turno aguardando conferência.</span></div></div>';
+ body.innerHTML=
+  '<div class="pote-pdv-intro"><span class="pote-pdv-step">CAIXA ABERTO · PASSOS 2, 3 E 4</span>'+
+  '<h3>Seu caixa está funcionando</h3><p>Você abriu o turno em '+esc(date(s.openedAt))+'. '+
+  'As vendas entram no relatório automaticamente. Confira os pagamentos e depois conte a gaveta para fechar.</p></div>'+
+  figures+
+  '<section class="pote-pdv-box"><div class="pote-pdv-box-header"><span class="pote-pdv-step">PASSO 2</span>'+
+  '<h3>Veja quanto entrou em cada meio</h3><p>O gráfico soma somente pagamentos registrados como recebidos.</p></div>'+
+  receiptChart(receipts)+
+  (receipts.refunds>0?'<p class="pote-pdv-note">Reembolsos em dinheiro: '+brl(receipts.refunds)+'. Total líquido registrado após esses reembolsos: <strong>'+brl(receipts.netRecorded)+'</strong>.</p>':'')+
+  (receipts.unclassified>0?'<p class="pote-pdv-warn">Existem '+brl(receipts.unclassified)+' de pagamentos classificados como outros. Confira a forma de pagamento.</p>':'')+
+  '</section>'+
+  '<section class="pote-pdv-box pote-pdv-pending"><div class="pote-pdv-box-header"><span class="pote-pdv-step">PASSO 3</span>'+
+  '<h3>Confirme os pagamentos <span class="pote-pdv-count">'+count+'</span></h3>'+
+  '<p>Vendeu no Pix ou cartão? O valor já está registrado na lista abaixo, mas <strong>não conta como recebido</strong> até você conferir o extrato ou a maquininha e tocar em <strong>Confirmar recebimento</strong>.</p></div>'+
+  pendingList+
+  (overdue.length?'<details class="pote-pdv-details"><summary>Ver '+overdue.length+
+     ' recebimento(s) de turnos antigos</summary><p class="pote-pdv-note">Após conferir, eles entram no total de hoje sem mudar o fechamento anterior.</p>'+pastList+'</details>':'')+
+  '</section>'+
+  '<section class="pote-pdv-box pote-pdv-closing"><div class="pote-pdv-box-header"><span class="pote-pdv-step">PASSO 4</span>'+
+  '<h3>Conferir e fechar o caixa</h3>'+
+  '<p>Conte somente <strong>notas e moedas</strong>. Pix e cartão aparecem no relatório acima, mas não ficam na gaveta.</p></div>'+
+  '<div class="pote-pdv-check-number"><small>DINHEIRO QUE DEVE TER NA GAVETA</small>'+
+  '<strong>'+brl(summary.expectedCash)+'</strong></div>'+
+  '<details class="pote-pdv-details"><summary>Entenda de onde veio esse valor</summary>'+
+  cashEquation(summary)+'</details>'+
   (summary.cancelledCashAwaitingRefund>0?
-   '<p class="pote-pdv-warn">Pedidos cancelados com dinheiro ainda não reembolsado: '+
-   brl(summary.cancelledCashAwaitingRefund)+'. Registre a devolução para baixar o caixa.</p>':'')+
-  '<p class="pote-pdv-note">Pix e cartão só entram como confirmados depois de conferência manual; não alteram o dinheiro físico do caixa.</p></div>'+
-  '<div class="pote-pdv-box"><h3>Movimentar dinheiro</h3><form data-pdv-form="movement">'+
-  '<label>Tipo<select name="kind"><option value="sangria">Sangria (retirada)</option><option value="suprimento">Suprimento (entrada)</option></select></label>'+
-  textField("Valor (R$)","amount","Ex.: 50,00")+
-  textField("Justificativa","reason","Ex.: retirada para banco")+
-  '<button type="submit">Registrar movimentação</button></form></div>'+
-  '<div class="pote-pdv-box"><h3>Conferência e fechamento</h3>'+
-  '<form data-pdv-form="close">'+textField("Dinheiro contado fisicamente (R$)","countedCash","Ex.: 150,00")+
-  '<button type="submit">Fechar caixa e conferir diferença</button></form></div>'+
-  '<div class="pote-pdv-box"><h3>Pagamentos aguardando conferência ('+pending.length+')</h3>'+
-  (pending.length?pending.map(o=>
-    '<div class="pote-pdv-order"><div><strong>#'+esc(String(o.id).slice(-8))+'</strong> · '+esc(o.name)+
-    '<small>'+esc(o.paymentMethod)+' · '+brl(orderAmountCents(o)/100)+'</small></div>'+
-    (["pix","card"].includes(paymentKind(o.paymentMethod))?
-      '<button type="button" data-pdv-action="confirm" data-order-id="'+esc(o.id)+'">Marcar conferido</button>':
-      (["delivery","other"].includes(paymentKind(o.paymentMethod))?
-       '<button type="button" data-pdv-action="delivery" data-order-id="'+esc(o.id)+'">Registrar recebimento</button>':
-       '<span class="pote-pdv-warn">Conferir forma de pagamento</span>'))+'</div>'
-  ).join(""):'<p>Sem pagamentos pendentes neste turno.</p>')+'</div>'+
-  '<div class="pote-pdv-box"><h3>A receber de turnos encerrados ('+overdue.length+')</h3>'+
-  '<p class="pote-pdv-note">O recebimento tardio é registrado no turno atual sem reabrir o caixa antigo. Confira o comprovante antes de confirmar.</p>'+
-  (overdue.length?overdue.map(o=>
-   '<div class="pote-pdv-order"><div><b>'+esc(o.name)+'</b>'+
-   '<small>'+brl(orderAmountCents(o)/100)+' · pedido #'+esc(String(o.id).slice(-8))+'</small></div>'+
-   '<button type="button" data-pdv-action="late" data-order-id="'+esc(o.id)+'">Registrar recebimento</button></div>'
-  ).join(""):'<p>Sem recebimentos antigos pendentes.</p>')+'</div>'+
-  '<div class="pote-pdv-box"><h3>Comandas e recibos não fiscais</h3>'+
+   '<p class="pote-pdv-warn">Atenção: '+brl(summary.cancelledCashAwaitingRefund)+
+   ' de pedidos cancelados e pagos em dinheiro ainda aguardam reembolso registrado.</p>':'')+
+  '<form data-pdv-form="close">'+textField("Quanto você contou em notas e moedas? (R$)","countedCash","Ex.: 150,00")+
+  '<div class="pote-pdv-difference" id="potePdvCountPreview" role="status" aria-live="polite">'+
+  'Digite o dinheiro contado acima para ver se há sobra ou falta antes de fechar.</div>'+
+  '<button type="submit" class="pote-pdv-primary">Conferir e fechar caixa</button></form>'+
+  '<p class="pote-pdv-note">A diferença ficará no histórico. Fechar o turno não confirma nem cobra pagamentos pendentes.</p></section>'+
+  '<details class="pote-pdv-details"><summary>Mais opções · entradas, retiradas e reembolsos</summary>'+
+  '<p class="pote-pdv-note"><strong>Entrada extra (suprimento):</strong> dinheiro colocado na gaveta para troco. '+
+  '<strong>Retirada (sangria):</strong> dinheiro removido da gaveta, por exemplo para depositar no banco.</p>'+
+  '<form data-pdv-form="movement"><label>O que aconteceu?<select name="kind">'+
+  '<option value="sangria">Retirei dinheiro do caixa (sangria)</option>'+
+  '<option value="suprimento">Coloquei dinheiro no caixa (suprimento)</option></select></label>'+
+  textField("Valor movimentado (R$)","amount","Ex.: 50,00")+
+  textField("Motivo da movimentação","reason","Ex.: Retirada para depósito")+
+  '<button type="submit">Salvar movimentação</button></form></details>'+
+  '<details class="pote-pdv-details"><summary>Comandas e recibos não fiscais · '+recent.length+
+  ' pedido(s) mostrado(s)</summary>'+
   (recent.length?recent.map(o=>
    '<div class="pote-pdv-order"><div><b>'+esc(o.name)+'</b><small>'+esc(o.status)+' · '+
     brl(orderAmountCents(o)/100)+'</small></div><div class="pote-pdv-actions">'+
@@ -136,15 +214,43 @@ function render(){
    (o.status==="cancelado"&&paymentKind(o.paymentMethod)==="cash"&&paymentConfirmed(o)&&
     !(data.cashMovements||[]).some(m=>m.kind==="reembolso"&&m.orderId===o.id)?
     '<button type="button" data-pdv-action="refund" data-order-id="'+esc(o.id)+'">Devolver dinheiro</button>':"")+
-   '</div></div>').join(""):'<p>Nenhum pedido vinculado a este turno.</p>')+'</div>'+
-  '<h3>Histórico</h3>'+sessionHistory(data);
+   '</div></div>').join(""):'<p>Nenhum pedido vinculado ao turno.</p>')+'</details>'+
+  '<details class="pote-pdv-details"><summary>Histórico de caixas já fechados</summary>'+
+  sessionHistory(data)+'</details>';
 }
 function sessionHistory(data){
  const past=(data.cashSessions||[]).filter(s=>s.status==="closed").slice(0,8);
- return past.length?past.map(s=>
-  '<div class="pote-pdv-history"><strong>'+esc(date(s.openedAt))+'</strong>'+
-  ' · esperado '+brl(s.expectedCash)+' · contado '+brl(s.countedCash)+
-  ' · diferença <b>'+brl(s.difference)+'</b></div>').join(""):'<p>Sem turnos encerrados.</p>';
+ return past.length?past.map(s=>{
+  const details=s.closedSummary?summarizePdvReceipts(s.closedSummary):null;
+  const methods=details?
+   '<div class="pote-pdv-history-methods"><span>Dinheiro recebido '+brl(details.cash)+'</span>'+
+   '<span>Pix confirmado '+brl(details.pix)+'</span><span>Cartão confirmado '+brl(details.card)+'</span>'+
+   '<strong>Total recebido '+brl(details.gross)+'</strong></div>':
+   '<p class="pote-pdv-note">Turno antigo sem detalhamento de pagamentos.</p>';
+  const difference=Number(s.difference||0);
+  return '<div class="pote-pdv-history"><strong>'+esc(date(s.openedAt))+'</strong>'+
+   '<div>Dinheiro esperado: '+brl(s.expectedCash)+' · Contado: '+brl(s.countedCash)+'</div>'+
+   '<div>Diferença: <b>'+brl(difference)+'</b> · '+(difference===0?'Caixa certo':difference>0?'Sobrou dinheiro':'Faltou dinheiro')+'</div>'+
+   methods+'</div>';
+ }).join(""):'<p>Sem turnos encerrados.</p>';
+}
+function updateCountPreview(raw){
+ const el=document.getElementById("potePdvCountPreview");
+ if(!el)return;
+ const session=currentSession();
+ if(!session)return;
+ if(!String(raw??"").trim()){
+  el.textContent="Digite quanto você contou em notas e moedas para conferir a diferença.";
+  el.dataset.result="waiting";return;
+ }
+ try{
+  const counted=parseMoney(raw);
+  const report=calculateCash(snapshot()?.data,session.id);
+  const difference=countCashDifference(report,counted);
+  el.dataset.result=difference.status;
+  el.innerHTML='<span>Esperado: <b>'+brl(difference.expected)+'</b> · Você contou: <b>'+brl(difference.counted)+
+  '</b></span><strong>'+difference.label+(difference.status!=="certo"?': '+brl(Math.abs(difference.difference)):'')+'</strong>';
+ }catch(error){el.dataset.result="invalid";el.textContent="Confira o valor digitado. Exemplo: 150,00."}
 }
 function submit(form){
  try{
@@ -153,7 +259,7 @@ function submit(form){
   if(type==="open"){
    const operator=window.POTE_AUTH?.email||"Operador";
    mutate(data=>openCash(data,{id:id(),operator,openingCash:parseMoney(payload.openingCash)}));
-   status("Caixa aberto. Valores são registros operacionais, não comprovantes bancários.");
+   status("Caixa aberto! Registre as vendas, confirme Pix/cartão e conte o dinheiro ao encerrar.");
   }else if(type==="movement"){
    const movement=mutate(data=>registerCashMovement(data,{
     id:id(),kind:payload.kind,amount:parseMoney(payload.amount),reason:payload.reason}));
@@ -166,7 +272,7 @@ function submit(form){
    if(!window.confirm("Fechar o caixa? Dinheiro esperado: "+brl(report.expectedCash)+
     ". Conferido: "+brl(counted)+". A diferença ficará registrada no histórico."))return;
    const result=mutate(d=>closeCash(d,{countedCash:counted,operator:window.POTE_AUTH?.email}));
-   status("Turno encerrado. Diferença: "+brl(result.difference));
+   status("Caixa fechado. Dinheiro esperado: "+brl(result.expectedCash)+". Contado: "+brl(result.countedCash)+". Diferença: "+brl(result.difference)+". Consulte o histórico para ver também Pix e cartão.");
   }
  }catch(error){status(error.message)}
 }
@@ -211,14 +317,14 @@ function action(name,orderId){
      window.prompt("Informe a referência do comprovante confirmado:");
    if(reference===null)return;
    mutate(d=>settleDeliveryPayment(d,{orderId,method:selected,reference}));
-   status("Pagamento na entrega registrado após conferência manual.");
+   status("Recebimento confirmado após conferência manual. O valor já aparece no relatório do PDV.");
   }else if(name==="confirm"){
-   if(!window.confirm("Você conferiu esse "+esc(paymentKind(order.paymentMethod))+
+   if(!window.confirm("Confirmar recebimento: você conferiu esse "+esc(paymentKind(order.paymentMethod))+
     " no comprovante do banco ou da operadora? O aplicativo NÃO verificou o pagamento automaticamente."))return;
    const reference=window.prompt("Informe uma referência da conferência (código da transação, quatro últimos dígitos ou observação):");
    if(reference===null)return;
    mutate(d=>confirmRecordedPayment(d,{orderId,reference}));
-   status("Pagamento registrado como conferido MANUALMENTE.");
+   status("Recebimento confirmado! O valor já aparece na barra de "+(paymentKind(order.paymentMethod)==="pix"?"Pix":"Cartão")+" e no total do turno.");
   }else if(name==="refund"){
    if(!window.confirm("Você realmente DEVOLVEU "+brl(orderAmountCents(order)/100)+
     " em dinheiro ao cliente? Esta ação não transfere dinheiro."))return;
