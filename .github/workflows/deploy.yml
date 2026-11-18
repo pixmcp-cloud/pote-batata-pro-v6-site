@@ -189,6 +189,7 @@ jobs:
           node test_hardening_concurrent_clients.mjs
           node test_auth_v2_integration.js
           node test_finance_core.js
+          node test_numeric_parser_consistency.cjs
           node test_hardening_wave1.cjs
           node test_hardening_render_events.cjs
           node test_cost_history.js
