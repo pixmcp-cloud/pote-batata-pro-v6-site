@@ -50,7 +50,7 @@ function makeStore(){
  put("beverages","suco",{id:"suco",stock:4,name:"Suco"});
  return {db,put};
 }
-const env={ENABLE_WRITES:"true",FIREBASE_PROJECT_ID:"potobatata-b71f3",
+const env={ENABLE_WRITES:"true",PRODUCTION_CUTOVER_APPROVED:"true",FIREBASE_PROJECT_ID:"potobatata-b71f3",
  ALLOWED_ORIGINS:"https://pdv.livresom.com"};
 const appFor=db=>createWorkerApp({
  verify:async token=>{
