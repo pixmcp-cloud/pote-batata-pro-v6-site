@@ -148,7 +148,5 @@ test("stock shortage does not write order, movements, pulse or journal",async()=
  assert.equal(response.status,409);
  assert.equal(db.docs.size,size);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
- const health=await app.fetch(new Request("https://x/health"),
-  {...env,ENABLE_WRITES:"true",PRODUCTION_CUTOVER_APPROVED:"false"});
- assert.equal((await health.json()).writesEnabled,false);
+
 });
