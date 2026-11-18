@@ -11,15 +11,15 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | ID | Estado | Evidência ou pendência de aceite |
 | --- | --- | --- |
 | F01 | Implementado | Cálculos e reconciliação de pagamentos cobertos pela suíte Node da beta. |
-| F02 | Parcial — proteção F02 implantada, falta backend confiável | Regras de produção verificadas por API exigem revisão e pulso atômicos e encerram escrita V1 após V2; cliente recusa baixas sem movimentação equivalente; 20 ingredientes + 4 bebidas testados com dois operadores. Publicação e CI aprovados no commit `f6f7643`, hash das regras `710e497a…`. Ainda não há validação autoritativa contra navegador adulterado. Ver `F02_INVENTORY_HARDENING_20261118.md`. |
+| F02 | Reforçada, backend confiável ainda pendente | Cada pedido que entra em produção exige baixa equivalente ao consumo de ingredientes/bebidas. Mantidas regras Firestore de revisão/pulso atômicos e bloqueio de estoque negativo. Testes Node e Emulator aprovados. Falta proteção autoritativa contra clientes modificados. |
 | F03 | Parcial | Compras e ajustes preservam saldos pt-BR. O PDV rejeita valores inválidos sem gravar. Faltam os demais formulários. |
 | F04 | Implementado | A suíte preserva markup personalizado e cobre cálculo para receitas novas. |
-| F05 | Parcial; proteção adicional testada | O cancelamento agora confere também o histórico de movimentos positivos de estorno para impedir devolver estoque duas vezes quando `stockRestored` estiver ausente/incoerente; o teste cobre movimento já registrado e movimento que surge depois de abrir a janela. Falta enforcement autoritativo server-side, multiusuário e reembolso sob falha. |
+| F05 | Estorno auditado, dispositivo físico pendente | Conferência de cada ingrediente/bebida devolvido, quantidade e saldo recomposto; cancelamento por perda exige evento de prejuízo. Testes unitários aprovados. Falta teste real entre aparelhos e execução autoritativa. |
 | F06 | Parcial — importações não financeiras grandes implementadas | Gravação progressiva segura de receitas, clientes e fornecedores em lotes de até 150 documentos/1,5 MB. Testes com 650 cadastros, falha após 150 e retomada idempotente; 360 cadastros em 3 transações no Firestore Emulator. Pedidos, estoque, financeiro, exclusões e mudanças de configuração acima de 290 seguem bloqueados para preservar atomicidade. Ver `F06_SAFE_BATCHES_20261118.md`. |
 | F07 | Implementado | A suíte verifica a disponibilidade dos módulos essenciais. |
 | F08 | Pendente | O gerador legado ainda serve de fallback. A remoção depende de validar a página-base e a galeria no fluxo normal. |
 | F09 | Parcial | O PDV usa o parser financeiro compartilhado. Restam cálculos e conversões duplicados em outros módulos. |
-| F10 | Parcial | Uma conta com `appState/main` e sem V2 deixa de abrir uma conta vazia. Faltam inventário, exportação e migração das contas exclusivamente V1. |
+| F10 | Migração segura implementada, aplicação em contas reais pendente | Backup V1 baixado/reaberto e conferido, todos os 19 grupos preservados inclusive FREE legado, cópia em lotes retomáveis, V2 parcial bloqueado e ativação só após conferência. Falha/retomada testada no Emulator; original V1 nunca apagado. |
 | F11 | Parcial | A substituição de um cadastro sujeito a cota verifica o ramo de origem e o de destino. Falta consolidar o contrato de autorização para todos os serviços. |
 | F12 | Parcial | Ativos têm pontos únicos de inserção e a inicialização offline está demarcada. Antes das mudanças funcionais, o HTML gerado ficou idêntico byte a byte. Outras substituições do monólito continuam no build. |
 | F13 | Implementado | A sincronização incremental reconhece as novas chaves e a suíte verifica o retorno à leitura integral quando se perde um pulso. |
@@ -29,7 +29,7 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 | F17 | Parcial | O login passou em Chrome emulado de 320 a 768 px. Faltam perfil de performance, acessibilidade e teste em Android físico. |
 | F18 | Publicado nas regras; testado no Emulator | Inspeção autenticada das regras de produção mostrou proteção de coleções legadas para Free, idêntica à main em `a7796e4`; ataque SDK falhou no Emulator. Homologação em conta real ainda pendente. |
 | F19 | Regras publicadas; testes de SDK no Emulator | Quotas por chaves canônicas já estão nas regras ativas. Testes Emulator rejeitam segunda receita Free e permitem Pro; validar fluxos reais, catálogo e tentativas alternativas antes de certificação comercial. |
-| F20 | Parcial; proteção estrutural publicada | Além da imutabilidade existente, regras novas publicadas exigem pedido/turno de origem e conferência adequada em reembolso e pagamento tardio; verificação pós-deploy por API e SHA-256. Faltam validação server-side da existência do pedido, valor efetivo, antifraude e eventos atômicos. Detalhes em `SECURITY_F20_20261118.md`. |
+| F20 | Rastreabilidade reforçada, conciliação real pendente | Confere valor integral, pedido/turno de origem, cancelamento, pagamento confirmado em dinheiro para estorno, referência de pagamento tardio e evita duplicação. Regras Firestore permanecem. Falta verificação autoritativa de comprovantes. |
 | F21 | Pendente | Falta inventariar ativos publicados e decidir a hospedagem do SaaS comercial. |
 | F22 | Implementado | Engenharia de cardápio coberta pelos testes da beta. |
 | F23 | Testado em emulador | Exportação JSON, substituição dos dados e restauração em segunda sessão. Importação é cancelada se a conta ou o estado muda durante a leitura. Faltam backup e restauração de IndexedDB e teste físico. |
@@ -54,3 +54,6 @@ Na rodada final, a suíte local da beta passou 81/81. O Firestore Emulator regis
 4. Guardar a versão do site, o conteúdo das regras em produção e o ponto de recuperação dos dados. Após homologar, verificar o deploy e repetir os testes essenciais no ambiente publicado.
 
 Para evidências de auditoria F18/F19/F02/F20/F29, hashes efetivos, bateria de testes e rollback, consulte `SECURITY_AUDIT_20261118.md` (atualizado após o deploy de regras).
+
+## Atualização complementar — 18/11/2026
+Relatório financeiro das franquias: botão Relatório somente em conta de franquia Potê Batata ativa na Central ADM; gráficos de vendas/recebimentos/despesas semanais e mensais, métodos de pagamento, estornos, despesas e resultado estimado. Dados consultados por unidade, sem compartilhamento entre franquias. Documento técnico: F02_F05_F10_F20_FRANCHISE_20261118.md.

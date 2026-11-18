@@ -1,7 +1,8 @@
 import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit,where,startAfter} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115-years";
+import {computeFranchiseFinances} from "./franchise_financial_report.mjs";
 
 const auth=getAuth(getApp()),db=getFirestore(getApp());
 const btn=document.getElementById("poteAdminOpen");
@@ -26,7 +27,19 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
         <div class="pote-adm-controls">
           <button type="button" id="poteAdmFranchiseActivate" disabled>Transformar em franquia</button>
           <button type="button" id="poteAdmFranchiseRevoke" disabled>Revogar franquia</button>
+          <button type="button" id="poteAdmFranchiseReport" disabled>Relatório</button>
         </div>
+      </section>
+      <section id="poteAdmFinancialPanel" class="pote-adm-financial-panel" hidden aria-live="polite">
+        <div class="pote-adm-financial-header"><h3>Desempenho da franquia</h3>
+        <button type="button" id="poteAdmFinancialClose">Fechar</button></div>
+        <p id="poteAdmFinancialName" class="pote-adm-financial-muted"></p>
+        <div class="pote-adm-financial-tabs"><button type="button" data-financial-days="7" aria-pressed="true">Semanal</button><button type="button" data-financial-days="30" aria-pressed="false">Mensal</button></div>
+        <p id="poteAdmFinancialStatus" role="status">Selecione uma franquia.</p>
+        <div id="poteAdmFinancialMetrics"></div>
+        <div id="poteAdmFinancialChart"></div>
+        <div id="poteAdmFinancialTender"></div>
+        <p class="pote-adm-financial-muted">Resultados estimados, não representam conciliação bancária. Custos simulados não são despesas reais. Confira recebimentos e comprovantes.</p>
       </section>
       <p class="pote-adm-footnote">FREE não vence. O teste de 24 horas começa na concessão; o PRO tem opções de 1, 6 ou 12 meses; a vitalícia não vence. Licenças vencidas retornam a FREE na verificação de acesso.</p>
       <div id="poteAdmFeedback" role="status" aria-live="polite"></div>
@@ -41,6 +54,7 @@ document.body.insertAdjacentHTML("beforeend",markup);
 const overlay=$("poteAdmOverlay");
 const today=()=>Date.now();
 let entries=[],selection=null,busy=false,loading=false,clockTimer=null,previousClockState=null;
+let financialDays=7,financialUid=null,financialVersion=0,financialRecords=null;
 const current=()=>entries.find(x=>x.uid===selection);
 const expires=v=>{if(!v)return "Sem vencimento";return dateBR(v)};
 function selectionReady(){
@@ -50,6 +64,7 @@ function selectionReady(){
  const isFranchise=user?.franchise?.status==="active"&&user.franchise.brandId==="potebatata";
  $("poteAdmFranchiseActivate").disabled=!allowed||busy||isFranchise;
  $("poteAdmFranchiseRevoke").disabled=!allowed||busy||!isFranchise;
+ $("poteAdmFranchiseReport").disabled=!allowed||busy||!isFranchise;
  $("poteAdmFranchiseStatus").textContent=isFranchise?"Franquia ativa":"Não é franquia";
  $("poteAdmSelected").innerHTML=user?
   `<strong>${esc(user.displayName||user.email||"Sem nome")}</strong><small>${esc(user.email||user.uid)}</small><span>${esc(isFranchise?"FRANQUIA POTÊ BATATA":resolveLicense(user.license,today()).label)} · ${esc(user.license?.term||"free")}</span>`:
@@ -237,12 +252,97 @@ async function changeFranchise(enable){
   await batch.commit();
   status(enable?"Franquia ativada. A conta receberá automaticamente a marca e o catálogo ao sincronizar.":
     "Franquia revogada. Os registros comerciais próprios foram preservados.");
+  closeFranchiseFinance();
   window.POTE_FRANCHISE?.refresh?.();
   await Promise.all([loadUsers(),loadFranchiseAudit()]);
  }catch(e){status("Não foi possível alterar a franquia: "+(e.code||e.message),true)}
  finally{setBusy(false)}
 }
+
+const financeBRL=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+async function readFranchiseGroup(uid,group){
+ const rows=[],collectionRef=collection(db,"users",uid,"records");
+ let cursor=null,hasMore=false;
+ for(let page=0;page<8;page++){
+  const conditions=[where("record.group","==",group),limit(250)];
+  if(cursor)conditions.push(startAfter(cursor));
+  const snap=await getDocs(query(collectionRef,...conditions));
+  for(const item of snap.docs){
+   const entry=item.data()?.record;
+   if(entry?.group===group&&entry?.universe==="batataria"&&entry.item)
+    rows.push(entry.item);
+  }
+  if(snap.docs.length<250){hasMore=false;break}
+  hasMore=true;cursor=snap.docs.at(-1);
+ }
+ return {rows,more:hasMore};
+}
+function renderFranchiseFinance(){
+ if(!financialRecords||$("poteAdmFinancialPanel").hidden)return;
+ const result=computeFranchiseFinances(financialRecords,financialDays);
+ const t=result.totals;
+ const box=(label,value)=>'<div><small>'+esc(label)+'</small><strong>'+esc(financeBRL(value))+'</strong></div>';
+ $("poteAdmFinancialMetrics").innerHTML='<div class="pote-adm-financial-metrics">'+
+  box("Vendas não canceladas",t.sales)+box("Recebimentos registrados",t.received)+
+  box("Reembolsos",t.refunds)+box("Recebido líquido registrado",t.netReceived)+
+  box("Custos variáveis calculados",t.variableCost)+box("Despesas registradas",t.expenses)+
+  box("Resultado estimado",t.estimatedResult)+box("Vendas pendentes",t.pending)+'</div>'+
+  '<small>'+t.ordersCount+' pedidos no período · '+t.canceledCount+' cancelados · '+t.expenseCount+' despesas identificadas'+
+   (t.estimatedCount?' · '+t.estimatedCount+' com custo simulado':'')+'</small>';
+ const maximum=Math.max(1,...result.series.flatMap(x=>[x.sales,x.received,x.expenses]));
+ $("poteAdmFinancialChart").innerHTML='<h4>Vendas, recebimentos e despesas por dia</h4>'+
+  '<div class="pote-adm-financial-bars">'+result.series.map(x=>
+  '<div class="pote-adm-financial-bar" title="'+esc(x.day+' • vendas '+financeBRL(x.sales)+' • recebidos '+financeBRL(x.received)+' • despesas '+financeBRL(x.expenses))+'">'+
+   '<div class="pote-adm-financial-columns">'+
+    '<span class="sales" style="height:'+Math.round(100*x.sales/maximum)+'%"></span>'+
+    '<span class="received" style="height:'+Math.round(100*x.received/maximum)+'%"></span>'+
+    '<span class="expenses" style="height:'+Math.round(100*x.expenses/maximum)+'%"></span>'+
+   '</div><small>'+esc(x.day.slice(8))+'</small></div>').join("")+'</div>'+
+  '<p class="pote-adm-financial-legend">■ Vendas &nbsp; ■ Recebimentos &nbsp; ■ Despesas</p>';
+ $("poteAdmFinancialTender").innerHTML='<h4>Recebimentos por meio de pagamento</h4>'+
+  '<div class="pote-adm-financial-metrics">'+box("Dinheiro",t.payments.cash)+
+   box("Pix",t.payments.pix)+box("Cartão",t.payments.card)+box("Outros",t.payments.other)+'</div>';
+ document.querySelectorAll("[data-financial-days]").forEach(b=>b.setAttribute("aria-pressed",String(Number(b.dataset.financialDays)===financialDays)));
+}
+async function openFranchiseFinance(){
+ const selected=current();
+ if(!selected||selected.uid===auth.currentUser?.uid||
+   selected.franchise?.status!=="active"||selected.franchise?.brandId!=="potebatata")return;
+ const version=++financialVersion;
+ const uid=selected.uid;
+ financialUid=uid;financialRecords=null;financialDays=7;
+ const pane=$("poteAdmFinancialPanel");pane.hidden=false;
+ $("poteAdmFinancialName").textContent=selected.displayName||selected.email||"Franquia";
+ $("poteAdmFinancialStatus").textContent="Consultando vendas, despesas e recebimentos da unidade...";
+ $("poteAdmFinancialMetrics").replaceChildren();$("poteAdmFinancialChart").replaceChildren();
+ $("poteAdmFinancialTender").replaceChildren();
+ try{
+  await assertAdmin();
+  const profile=await getDoc(doc(db,"users",uid));
+  if(!profile.exists()||profile.data()?.franchise?.status!=="active"||
+     profile.data()?.franchise?.brandId!=="potebatata")
+   throw Error("Esta unidade não possui franquia Potê Batata ativa");
+  const [orders,expenses,cashMovements]=await Promise.all([
+   readFranchiseGroup(uid,"orders"),readFranchiseGroup(uid,"expenses"),readFranchiseGroup(uid,"cashMovements")
+  ]);
+  if(version!==financialVersion||$("poteAdmFinancialPanel").hidden||financialUid!==uid)return;
+  financialRecords={orders:orders.rows,expenses:expenses.rows,cashMovements:cashMovements.rows};
+  const capped=[orders,expenses,cashMovements].some(x=>x.more);
+  $("poteAdmFinancialStatus").textContent=capped?
+   "Dados parciais: limite de consulta atingido. Exporte o histórico da unidade para conciliação completa.":
+   "Leitura concluída. Consultados apenas os registros desta franquia.";
+  renderFranchiseFinance();
+ }catch(e){
+  if(version===financialVersion)$("poteAdmFinancialStatus").textContent="Relatório indisponível: "+(e.code||e.message);
+ }
+}
+function closeFranchiseFinance(){
+ ++financialVersion;financialUid=null;financialRecords=null;
+ $("poteAdmFinancialPanel").hidden=true;
+}
+
 async function open(){
+ closeFranchiseFinance();
  try{await assertAdmin()}catch(e){alert(e.message);return}
  overlay.hidden=false;
  document.documentElement.classList.add("pote-admin-open");
@@ -254,6 +354,7 @@ async function open(){
  refreshCountdown();
 }
 function close(){
+ closeFranchiseFinance();
  overlay.hidden=true;
  document.documentElement.classList.remove("pote-admin-open");
  if(clockTimer!==null){clearInterval(clockTimer);clockTimer=null;}
@@ -265,11 +366,16 @@ overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!overlay.hidden)close()});
 $("poteAdmReload").addEventListener("click",loadUsers);
 $("poteAdmAuditReload").addEventListener("click",loadAudit);
-$("poteAdmFranchiseAuditReload").addEventListener("click",loadFranchiseAudit);
+ $("poteAdmFranchiseAuditReload").addEventListener("click",loadFranchiseAudit);
+ $("poteAdmFranchiseReport").addEventListener("click",openFranchiseFinance);
+ $("poteAdmFinancialClose").addEventListener("click",closeFranchiseFinance);
+ document.querySelectorAll("[data-financial-days]").forEach(button=>button.addEventListener("click",()=>{
+  financialDays=Number(button.dataset.financialDays);renderFranchiseFinance();
+ }));
 $("poteAdmFranchiseActivate").addEventListener("click",()=>changeFranchise(true));
 $("poteAdmFranchiseRevoke").addEventListener("click",()=>changeFranchise(false));
 $("poteAdmUsers").addEventListener("click",e=>{
- const target=e.target.closest("[data-uid]");if(!target)return;selection=target.dataset.uid;render();
+ const target=e.target.closest("[data-uid]");if(!target)return;selection=target.dataset.uid;closeFranchiseFinance();render();
 });
 $("poteAdmSearch").addEventListener("input",render);
 $("poteAdmFilter").addEventListener("change",render);

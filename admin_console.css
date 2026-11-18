@@ -154,3 +154,27 @@ html.pote-admin-open{overflow:hidden}
 @media(max-width:540px){.pote-adm-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
  .pote-adm-franchise{padding:13px 11px}
  .pote-adm-franchise-head strong{font-size:14px}}
+/* Franchise-only finance panel: responsive, no libraries or paid charts. */
+.pote-adm-financial-panel{margin:18px 0;padding:16px;border:1px solid #8daccd86;
+ border-radius:15px;background:#132638;color:#edf4ff}
+.pote-adm-financial-panel[hidden]{display:none}
+.pote-adm-financial-header,.pote-adm-financial-tabs{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px}
+.pote-adm-financial-header h3{margin:0;color:#f5d6a8}
+.pote-adm-financial-tabs{justify-content:flex-start;margin:12px 0}
+.pote-adm-financial-panel button{background:#284868;color:#fff;border:1px solid #aac4e0;border-radius:10px;min-height:38px;padding:8px 14px}
+.pote-adm-financial-panel button[aria-pressed="true"]{background:#efc88f;color:#182537}
+.pote-adm-financial-muted{color:#b9cee3;font-size:11px;line-height:1.5}
+.pote-adm-financial-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px}
+.pote-adm-financial-metrics>div{background:#1b3449;border:1px solid #617d97;border-radius:10px;padding:10px;min-width:0}
+.pote-adm-financial-metrics small{display:block;color:#aac0d6;font-size:10px}
+.pote-adm-financial-metrics strong{display:block;color:#f9d698;font-size:16px;overflow-wrap:anywhere;margin-top:5px}
+.pote-adm-financial-bars{display:flex;height:180px;overflow-x:auto;gap:3px;align-items:end;padding:12px 0}
+.pote-adm-financial-bar{flex:1 0 min(35px,4%);min-width:10px;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:end;gap:5px}
+.pote-adm-financial-bar small{font-size:8px;color:#bfd0e0}
+.pote-adm-financial-columns{height:138px;display:flex;align-items:end;justify-content:center;gap:1px;width:100%}
+.pote-adm-financial-columns span{flex:1 1 auto;border-radius:3px 3px 0 0;min-height:0}
+.pote-adm-financial-columns .sales{background:#eac589}
+.pote-adm-financial-columns .received{background:#4dc9a6}
+.pote-adm-financial-columns .expenses{background:#ed7f89}
+.pote-adm-financial-legend{font-size:11px;color:#adc5dc}
+@media(max-width:650px){.pote-adm-financial-panel{padding:10px}.pote-adm-financial-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}

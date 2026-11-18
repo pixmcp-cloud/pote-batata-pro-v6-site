@@ -12,7 +12,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  const elements=new Map(),listeners={},subscriptions=new Map(),timers=new Map();
  let login=null,transactCount=0;
  const el={hidden:true,disabled:false,textContent:"",parentElement:{appendChild(child){elements.set(child.id,child)}},
-  style:{},classList:{toggle(){}},addEventListener(){}};
+  style:{},classList:{toggle(){}},addEventListener(){},append(){},appendChild(child){elements.set(child.id,child)}};
  for(const name of ["poteAuthGate","poteGoogleLogin","poteExit","poteSyncStatus",
  "poteLoginMessage","poteBrowserHint","poteLoggedAs","poteAdminOpen","potePlanBadge","potePlanCountdown"])
   elements.set(name,{...el,classList:{toggle(){}},style:{}});
@@ -50,7 +50,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
     isPristineDemo:()=>false},POTE_BUSINESS:{refresh(){}},addEventListener:(n,fn)=>{listeners[n]=fn},dispatchEvent(){}
   },
   localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},
-  document:{getElementById:key=>elements.get(key)||null,createElement:()=>({style:{},addEventListener(){},click(){},remove(){}}),
+  document:{getElementById:key=>elements.get(key)||null,createElement:()=>({style:{},hidden:false,setAttribute(){},append(){},addEventListener(){},click(){},remove(){}}),
    body:{classList:{toggle(){}},appendChild(){}}},
   initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{setCustomParameters(){}},
   getIdTokenResult:async()=>({claims:{email_verified:true,firebase:{sign_in_provider:"google.com"}}}),

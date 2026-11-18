@@ -1,10 +1,8 @@
 /* Read-only migration preview from legacy monolithic appState.
    Never connects to Firebase and never mutates the supplied state. */
 import {jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs";
-export const OPERATIONAL_COLLECTIONS=[
- "recipes","ingredients","orders","clients","suppliers","expenses",
- "purchases","stockMovements","losses","beverages","addons","combos","prepBatches","garimpoOffers"
-];
+import {RECORD_GROUPS} from "./v2_store_core.mjs";
+export const OPERATIONAL_COLLECTIONS=[...RECORD_GROUPS];
 const safeSegment=s=>encodeURIComponent(String(s)).replaceAll("%2F","%252F");
 function branchData(data){
  const branches=new Map();

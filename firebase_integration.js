@@ -1,7 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {createV2Store} from "./v2_storage.mjs?v=f06-safe-batch-20261118";
+import {createV2Store} from "./v2_storage.mjs?v=f10-verified-migration-20261118";
+import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs";
 import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState} from "./sync_guard.mjs?v=v4-backup-20261117";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
@@ -194,6 +195,70 @@ function showRecovery(){
  if(target){target.scrollIntoView?.({behavior:"smooth",block:"center"});target.focus?.({preventScroll:true})}
 }
 window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
+async function offerLegacyMigration(user){
+ if(!user?.uid||auth.currentUser?.uid!==user.uid)return;
+ let container=document.getElementById("poteLegacyMigration");
+ if(!container){
+  container=document.createElement("div");container.id="poteLegacyMigration";
+  container.style.cssText="margin:14px auto;padding:16px;border:1px solid #e0b97a;border-radius:12px;background:#152d46;color:#f3e6d0;max-width:520px";
+  const head=document.createElement("strong");head.textContent="Recuperação segura da conta antiga (V1 → V2)";
+  const info=document.createElement("p");info.textContent="O histórico V1 será mantido. Primeiro exporte o backup; depois selecione o arquivo salvo para verificar e migrar. Não feche a página enquanto houver transferência.";
+  const exportBtn=document.createElement("button");exportBtn.type="button";exportBtn.textContent="1. Baixar backup V1";
+  const importBtn=document.createElement("button");importBtn.type="button";importBtn.textContent="2. Verificar arquivo e migrar";
+  exportBtn.style.margin="6px";importBtn.style.margin="6px";
+  const state=document.createElement("p");state.setAttribute?.("role","status");
+  container.append(head,info,exportBtn,importBtn,state);
+  (gate||document.body).appendChild(container);
+  const getPlan=async()=>{
+   const source=await getDoc(doc(db,"users",auth.currentUser.uid,"appState","main"));
+   if(!source.exists()||!source.data()?.state)throw Error("Histórico V1 não encontrado.");
+   const planned=await prepareLegacyMigration(source.data().state,{free:false});
+   // O histórico V1 deve migrar integralmente, inclusive cadastros anteriores
+   // aos limites FREE. A política de edição FREE continua aplicada após a cópia.
+   return planned;
+  };
+  exportBtn.onclick=async()=>{
+   try{
+    state.textContent="Conferindo a integridade do histórico...";
+    const planned=await getPlan();
+    const file=new Blob([JSON.stringify({backupVersion:1,uid:auth.currentUser.uid,
+     exportedAt:new Date().toISOString(),state:planned.state},null,2)],{type:"application/json"});
+    const href=URL.createObjectURL(file),a=document.createElement("a");
+    a.href=href;a.download="pote-v1-backup-"+new Date().toISOString().slice(0,10)+".json";
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);
+    state.textContent="Backup solicitado: "+planned.recordCount+" registros. Confira o arquivo antes de migrar.";
+   }catch(e){state.textContent="Backup não disponibilizado: "+(e.code||e.message)}
+  };
+  importBtn.onclick=()=>{
+   const picker=document.createElement("input");picker.type="file";picker.accept=".json,application/json";
+   picker.hidden=true;document.body.appendChild(picker);
+   picker.onchange=async()=>{
+    const file=picker.files?.[0];picker.remove();if(!file)return;
+    if(!auth.currentUser?.uid||file.size>30*1024*1024){state.textContent="Arquivo inválido ou maior que 30 MB";return}
+    importBtn.disabled=true;exportBtn.disabled=true;
+    try{
+     state.textContent="Validando o backup selecionado...";
+     const uid=auth.currentUser.uid,backup=JSON.parse(await file.text()),planned=await getPlan();
+     if(!inspectLegacyBackup(backup,uid,planned.state))
+      throw Error("Backup diferente do histórico atual, inválido ou de outra conta.");
+     if(!window.confirm("Backup conferido ("+planned.recordCount+" registros). Iniciar cópia V1 → V2, preservando o histórico original?"))
+      throw Error("Migração cancelada; nenhum dado foi copiado.");
+     const outcome=await migrateLegacyV2({uid,db,
+      sdk:{doc,getDoc,getDocs,collection,runTransaction,serverTimestamp},planned,
+      onProgress:p=>state.textContent="Migrando: "+p.processed+" de "+p.total+" registros verificados..."});
+     state.textContent="Migração verificada: "+outcome.records+" registros. Carregando seus dados...";
+     window.location.reload();
+    }catch(error){
+     state.textContent="Migração suspensa, sem apagar V1: "+(error.code||error.message)+
+       ". Utilize o mesmo backup para retomar.";
+     importBtn.disabled=false;exportBtn.disabled=false;
+    }
+   };
+   picker.click();
+  };
+ }
+ container.hidden=false;
+}
 window.addEventListener("online",()=>{if(ready&&!syncBlocked)queueSave()});
 function refreshEntitlements() {
   if (!window.POTE_AUTH) return;
@@ -584,18 +649,23 @@ onAuthStateChanged(auth, async user => {
     window.POTE_APP?.reset();
     loginBtn.disabled = false;
     setStatus("Não conectado");
+    const oldMigration=document.getElementById("poteLegacyMigration");
+    if(oldMigration)oldMigration.hidden=true;
     setMessage("Entre com sua conta Google para acessar seu espaço.");
     setGate(true);
     return;
   }
   try {
+    const oldMigration=document.getElementById("poteLegacyMigration");
+    if(oldMigration)oldMigration.hidden=true;
     await loadUser(user, myEpoch);
   } catch (e) {
+    if(e.code==="migration/required")void offerLegacyMigration(user);
     ready = false;
     setGate(true);
     loginBtn.disabled = false;
     showBrowserHint();
-    setMessage("Falha ao carregar sua conta: " + (e.code || e.message) + ". Nenhum dado foi liberado.");
+    setMessage("Falha ao carregar sua conta: " + (e.code==="migration/required"?e.message:(e.code||e.message)) + ". Nenhum dado foi liberado.");
     setStatus("Acesso bloqueado até resolver a conexão");
   }
 }, error => {

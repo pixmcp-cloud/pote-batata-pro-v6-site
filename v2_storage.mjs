@@ -5,6 +5,7 @@ import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v2
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
 import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
 import {validateInventoryJournalDiff} from "./inventory_integrity.mjs";
+import {validateProductionJournalDiff,validateCancellationJournalDiff,validateCashJournalDiff} from "./operation_integrity.mjs";
 import {planV2Batches} from "./v2_batch_planner.mjs";
 
 const same=(a,b)=>stableJson(a??null)===stableJson(b??null);
@@ -50,7 +51,7 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
      if(current.exists())fail("sync/conflict","Conta foi inicializada em outra sessão");
      const legacy=await tx.get(legacyRef);
      if(legacy.exists()&&legacy.data()?.state!=null)
-      throw Error("A conta tem dados no formato anterior. A migração precisa preservar o histórico antes de iniciar o V2.");
+      fail("migration/required","A conta tem dados no formato anterior. Faça backup verificável e migre sem apagar o histórico.");
      tx.set(root,{schemaVersion:2,state:clean.meta,updatedAt:serverTimestamp()});
      tx.set(guardRef,{revision:0,updatedAt:serverTimestamp()});
      tx.set(pulseRef,{eventId:token(),origin:session,updatedAt:serverTimestamp()});
@@ -63,6 +64,8 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   }
   if(!metaSnap.exists()||metaSnap.data().schemaVersion!==2)
    throw Error("Versão da conta incompatível com o armazenamento V2");
+  if(metaSnap.data()?.migration?.status==="copying")
+   fail("migration/required","Migração V1 incompleta. O histórico original permanece preservado. Retome com o backup da mesma conta.");
   const [recordMap,guardSnap,pulseSnap]=await Promise.all([
    loadDocuments(),getDoc(guardRef),getDoc(pulseRef)
   ]);
@@ -97,6 +100,9 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    batches=planV2Batches(delta);
    for(const batch of batches)validateChangeSet({changes:batch});
    validateInventoryJournalDiff(delta);
+   validateProductionJournalDiff(delta);
+   validateCancellationJournalDiff(delta);
+   validateCashJournalDiff(baseline,next,delta);
   }catch(e){return {ok:false,error:e.message,code:e.code==="free/limit"?e.code:"sync/invalid-state"}}
   if(!delta.changes.length){lastSavedJson=current;return {ok:true,unchanged:true}}
   saving=true;
