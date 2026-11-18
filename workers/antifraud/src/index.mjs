@@ -46,7 +46,10 @@ export function createWorkerApp({
   if(!action)return json({error:"not_found"},404,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
-  if(env.ENABLE_WRITES!=="true")
+  // Two independent release gates: enabling writes does not authorize a real
+  // Firebase project until a separate, auditable cutover is approved.
+  const demoProject=/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||""));
+  if(env.ENABLE_WRITES!=="true"||(!demoProject&&env.PRODUCTION_CUTOVER_APPROVED!=="true"))
    return json({error:"not_activated",message:"Cloudflare Worker em homologação"},423,headers);
   const authorization=req.headers.get("Authorization")||"";
   if(!/^Bearer [^\s]+$/.test(authorization))
