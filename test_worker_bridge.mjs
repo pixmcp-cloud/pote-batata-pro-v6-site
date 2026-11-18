@@ -69,3 +69,26 @@ const finished=make({requestFetch:async(url,opts)=>{
 const finishedResult=await finished.finish(orderId,universe);
 assert.equal(finishedResult.receiptRecorded,true);
 console.log("PASS Worker client: disabled default, auth, durable retries, finish, 423 fail-closed.");
+
+const priceStorage=new Map();
+const ps={getItem:k=>priceStorage.get(k)||null,setItem:(k,v)=>priceStorage.set(k,v),removeItem:k=>priceStorage.delete(k)};
+let priceAttempts=0;
+const priceBridge=make({storage:ps,requestFetch:async(url,opts)=>{
+ priceAttempts++;
+ assert(url.endsWith("/v1/catalog/approve-price"));
+ const payload=JSON.parse(opts.body);
+ assert.deepEqual(Object.keys(payload).sort(),["operationId","recipeId","salePriceCents","universe"]);
+ assert.equal(payload.recipeId,"recipe-test");assert.equal(payload.salePriceCents,2990);
+ if(priceAttempts===1)throw Error("offline");
+ return new Response(JSON.stringify({ok:true,recipeId:payload.recipeId,operationId:payload.operationId,salePriceCents:payload.salePriceCents,revision:1}),{status:200});
+}});
+await assert.rejects(()=>priceBridge.approvePrice("recipe-test",universe,2990),/indisponível/);
+assert.equal(priceStorage.size,1);
+const approved=await priceBridge.approvePrice("recipe-test",universe,2990);
+assert.equal(approved.salePriceCents,2990);assert.equal(priceStorage.size,0);assert.equal(priceAttempts,2);
+await assert.rejects(()=>priceBridge.approvePrice("recipe-test",universe,NaN),e=>e.code==="worker/invalid");
+await assert.rejects(()=>priceBridge.approvePrice("recipe-test",universe,0),e=>e.code==="worker/invalid");
+await assert.rejects(()=>make({enabled:false}).approvePrice("recipe-test",universe,2990),e=>e.code==="worker/disabled");
+const wrongPrice=make({requestFetch:async(url,opts)=>{const p=JSON.parse(opts.body);return new Response(JSON.stringify({ok:true,recipeId:p.recipeId,operationId:p.operationId,salePriceCents:100,revision:1}),{status:200})}});
+await assert.rejects(()=>wrongPrice.approvePrice("recipe-test",universe,2990),e=>e.code==="worker/invalid-response");
+console.log("PASS Worker price approval: disabled default, retry and response validation");

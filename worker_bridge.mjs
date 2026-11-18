@@ -2,7 +2,7 @@
  * IMPORTANT: Do not enable until service-account auth, Firestore rules and
  * production shadow tests are approved. No browser-triggered fallback.
  * The only source of truth after an accepted call is the V2 Firestore reload. */
-const allowedAction=new Set(["produce","cancel","finish"]);
+const allowedAction=new Set(["produce","cancel","finish","approve-price"]);
 const uuidPattern=/^[a-zA-Z0-9_-]{20,80}$/;
 const idPattern=/^[a-zA-Z0-9_.:-]{1,180}$/;
 const universePattern=/^[a-z0-9_-]{1,64}$/;
@@ -20,9 +20,11 @@ export function createWorkerBridge({
  const busy=new Set();
  const readKey=(uid,universe,action,orderId)=>"pote:worker:v1:"+
   encodeURIComponent(uid)+":"+encodeURIComponent(universe)+":"+action+":"+encodeURIComponent(orderId);
- async function transition(action,{orderId,universe,decision}={}){
+ async function transition(action,{orderId,universe,decision,salePriceCents}={}){
   if(!enabled)throw error("Worker desativado. Nenhum dado foi alterado.","worker/disabled");
   if(!allowedAction.has(action)||!idPattern.test(orderId)||!universePattern.test(universe)||
+    (action==="approve-price"&&(!Number.isSafeInteger(salePriceCents)||salePriceCents<1||salePriceCents>10000000))||
+    (action!=="approve-price"&&salePriceCents!==undefined)||
     (action==="cancel"&&!["return","loss"].includes(decision))||
     (action!=="cancel"&&decision!==undefined))
    throw error("Parâmetros de operação inválidos","worker/invalid");
@@ -43,7 +45,7 @@ export function createWorkerBridge({
    const token=await current.user.getIdToken();
    if(typeof token!=="string"||token.length<32)
     throw error("Token Google indisponível","worker/auth");
-   const key=readKey(before.uid,universe,action,orderId);
+   const key=readKey(before.uid,universe,action,orderId)+(action==="approve-price"?":"+salePriceCents:"");
    let operationId=storage?.getItem(key);
    if(!operationId||!uuidPattern.test(operationId)){
     operationId=uuid();
@@ -54,10 +56,10 @@ export function createWorkerBridge({
    const timeout=setTimeout(()=>controller.abort(),timeoutMs);
    let response;
    try{
-    response=await requestFetch(root+"/v1/orders/"+action,{
+    response=await requestFetch(root+(action==="approve-price"?"/v1/catalog/approve-price":"/v1/orders/"+action),{
      method:"POST",mode:"cors",cache:"no-store",
      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-     body:JSON.stringify({universe,orderId,operationId,
+     body:JSON.stringify({universe,...(action==="approve-price"?{recipeId:orderId,salePriceCents}:{orderId}),operationId,
       ...(action==="cancel"?{decision}:{})}),
      signal:controller.signal
     });
@@ -74,8 +76,9 @@ export function createWorkerBridge({
      response.status===409?"Dados alterados por outra sessão. Atualize o pedido.":
      "O servidor não autorizou a operação."),result.error||"worker/http-"+response.status);
    }
-   if(result.ok!==true||result.orderId!==orderId||
-      result.operationId!==operationId)
+   if(result.ok!==true||(action==="approve-price"?result.recipeId!==orderId:result.orderId!==orderId)||
+      result.operationId!==operationId||
+      (action==="approve-price"&&result.salePriceCents!==salePriceCents))
     throw error("Resposta incompleta. Nenhuma alteração local será presumida.","worker/invalid-response");
    const post=getSession?.();
    if(post?.uid!==before.uid||post?.user!==before.user||post?.ready!==true)
@@ -95,6 +98,7 @@ export function createWorkerBridge({
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   finish:(orderId,universe)=>transition("finish",{orderId,universe}),
   cancel:(orderId,universe,decision)=>transition("cancel",{orderId,universe,decision}),
+  approvePrice:(recipeId,universe,salePriceCents)=>transition("approve-price",{orderId:recipeId,universe,salePriceCents}),
   // Kept strictly private; no client-side switch to enable writes.
  });
 }
