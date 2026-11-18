@@ -20,7 +20,7 @@ function openCalc(){
  if(!isAuthenticated()){window.alert('Entre com a sua conta Google para abrir a calculadora.');return false;}
  createOverlay();
  if(open)return true;
- if(!frame.getAttribute('src'))frame.src='./pote_calc_quantum_99_fullscreen.html';
+ if(!frame.getAttribute('src'))frame.src='./pote_calc_quantum_99_fullscreen.html?v=live-result-20261118';
  const drawer=document.getElementById('poteFloatDrawer');
  if(drawer?.classList.contains('is-open'))document.getElementById('poteFloatClose')?.click();
  previousFocus=document.activeElement;

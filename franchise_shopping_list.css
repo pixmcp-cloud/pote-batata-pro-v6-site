@@ -45,3 +45,28 @@
  body:has(#poteShoppingListButton:not([hidden])) .content{padding-bottom:76px}
 }
 @media print{#poteShoppingListButton,#poteShoppingListDialog{display:none!important}}
+
+/* shopping-safe-close-20261118: a fixed top bar must never cover the X. */
+#poteShoppingListDialog.pote-shopping-cover {
+ z-index:10070!important;isolation:isolate;overscroll-behavior:contain;
+}
+#poteShoppingListDialog .pote-shopping-dialog {
+ max-height:calc(100dvh - 24px);min-height:0;
+}
+#poteShoppingListDialog .pote-shopping-dialog header {
+ flex:0 0 auto;position:relative;z-index:2;background:#211712;gap:12px;
+}
+#poteShoppingClose {
+ flex:0 0 46px;width:46px;min-height:46px;
+ display:grid;place-items:center;position:relative;z-index:3;
+ touch-action:manipulation;
+}
+body.pote-shopping-open{overflow:hidden!important}
+@media(max-width:650px) {
+ #poteShoppingListDialog.pote-shopping-cover{
+  padding:max(9px, env(safe-area-inset-top, 0px)) 9px max(9px, env(safe-area-inset-bottom, 0px));
+ }
+ #poteShoppingListDialog .pote-shopping-dialog{max-height:calc(100dvh - 18px)}
+ #poteShoppingListDialog .pote-shopping-dialog header{padding:12px 14px}
+ #poteShoppingListDialog .pote-shopping-dialog h2{font-size:21px}
+}

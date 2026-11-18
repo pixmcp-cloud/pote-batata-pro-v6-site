@@ -9,7 +9,7 @@ const RELEASE={
  items:[
   ["Nova base para contas de teste","A operação passou a utilizar registros V2 separados por conta e negócio. Os pedidos e cadastros antigos de teste não são importados automaticamente. O código anterior continua preservado."],
   ["Estoque e pedidos mais protegidos","Gravações de estoque e pedidos utilizam transações com detecção de conflitos entre dispositivos. Caso haja divergência, exporte o backup e entre novamente."],
-  ["Caixa PDV operacional","Contas licenciadas podem abrir turnos, registrar sangrias e suprimentos, conferir Pix/cartão, registrar pagamentos na entrega, imprimir comandas, emitir recibo NÃO fiscal e fechar caixa com diferença apurada. A NFC-e continua dependendo de emissão autorizada."],
+  ["Caixa PDV operacional","Contas licenciadas podem abrir turnos, registrar retiradas (sangrias) e suprimentos, conferir Pix/cartão, registrar pagamentos na entrega, imprimir comandas, emitir recibo NÃO fiscal e fechar caixa com diferença apurada. A NFC-e continua dependendo de emissão autorizada."],
   ["Radar de Preço nacional","Os mercados são buscados conforme GPS, com cache temporário e fontes regionais. Ofertas de clube têm comparação separada."],
   ["Backups e auditoria","Importação exige confirmação, cópia prévia e validação. Uma falha de módulo essencial bloqueia operações críticas."],
   ["Galeria e imagens","A galeria ainda mantém imagens locais no dispositivo. A sincronização em nuvem não foi ativada para evitar custos adicionais."]

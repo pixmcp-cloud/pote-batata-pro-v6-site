@@ -42,7 +42,7 @@ button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch
 .digit-count{margin-top:5px;text-align:right;font:850 10px/1.4 system-ui,sans-serif;letter-spacing:.04em;opacity:.8}
 .test99{display:block;width:100%;margin:9px 0 0;padding:9px;border:1px solid #9dedff;border-radius:9px;background:linear-gradient(155deg,#26587c,#27345d);color:#b9ffff;font-weight:850;font-size:11px;cursor:pointer}
 #calcDevice.off .lcd{background:linear-gradient(#536c56,#3c5444)}
-#calcDevice.off .screen-head,#calcDevice.off .expression,#calcDevice.off .display{opacity:.08}
+#calcDevice.off .screen-head,#calcDevice.off .expression,#calcDevice.off .display,#calcDevice.off .calc-live-result{opacity:.08}
 #calcDevice.off .lcd:after{content:"DESLIGADA";display:block;text-align:center;margin-top:-55px;font:900 16px monospace;color:#273d31}
 #calcDevice.off .keypad,#calcDevice.off .advanced{filter:brightness(.5);pointer-events:none}
 #calcDevice.off .rocket{opacity:.5;pointer-events:none}
@@ -185,7 +185,13 @@ body.pote-calc-faux-fullscreen .unitCats{grid-template-columns:repeat(3,minmax(0
 @media(prefers-reduced-motion:reduce){#calcPlayground:fullscreen *,body.pote-calc-faux-fullscreen *{animation:none!important}}
 
 
-/* Basic digits remain directly below LCD in either mode. */
+/* Live result appears below the active numeric operand, without pressing =. */
+.lcd{height:auto;min-height:162px}
+.calc-live-result{min-height:19px;margin:1px 0 0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ color:#244d23;font:850 15px/1.35 ui-monospace,Consolas,monospace;letter-spacing:0}
+.calc-live-result[hidden]{display:block!important;visibility:hidden}
+.turbo .calc-live-result{color:#174d77;font-size:16px;white-space:normal;overflow-wrap:anywhere}
+ /* Basic digits remain directly below LCD in either mode. */
 .keypad{margin-bottom:19px}
 .advanced{margin-top:5px;margin-bottom:14px}
 </style></head><body><div id="calcPlayground">
@@ -203,6 +209,7 @@ body.pote-calc-faux-fullscreen .unitCats{grid-template-columns:repeat(3,minmax(0
       <div class="screen-head"><span id="memBadge"></span><span id="modeBadge" class="modeTag">LCD · 12</span></div>
       <div class="expression" id="expression"></div>
       <div class="readout" id="scrollDisplay"><div class="display" id="display" role="status" aria-live="off">0</div></div>
+      <div class="calc-live-result" id="calcLiveResult" role="status" aria-live="polite" hidden></div>
       <div class="digit-count" id="digitCount">1 / 12 dígitos</div>
     </div></div>
     <div id="keypad" class="keypad">
@@ -400,8 +407,8 @@ if(typeof module!=='undefined'&&module.exports)module.exports=api;
 'use strict';
 const root=document.getElementById('calcPlayground');if(!root||root.dataset.ready)return;root.dataset.ready='1';
 const E=window.PoteCalcMath, q=s=>root.querySelector(s), QA=s=>[...root.querySelectorAll(s)],dev=q('#calcDevice');
-let turbo=false,on=true,entry='0',stored=null,operator=null,waiting=false,expr='',hist=[],memo=E.dec(0),memoOn=false,tab='scientific',angle='DEG',sound=true,vibrate=true,audio=null,drag=null,activeCategory='mass',statCache=null,justCompleted=false;
-const limit=()=>turbo?99:12;
+let turbo=false,on=true,entry='0',stored=null,operator=null,waiting=false,expr='',hist=[],memo=E.dec(0),memoOn=false,tab='scientific',angle='DEG',sound=true,vibrate=true,audio=null,drag=null,activeCategory='mass',statCache=null,justCompleted=false,repeatOperation=null,showPercentPreview=false;
+ const limit=()=>turbo?99:12;
 const signs={'+':'+','-':'−','*':'×','/':'÷','^':'^','root':'ⁿ√','nCr':'nCr','nPr':'nPr'};
 const parseText=text=>{let s=String(text||'').trim();if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(',','.');return E.dec(s)};
 function amountText(obj){return E.stringify(obj,{digits:limit()})}
@@ -409,15 +416,63 @@ function external(op,a,b){const m=window.math;if(!m||!m.bignumber)return null;tr
 function binary(a,b,op){if(op==='nCr')return E.combination(a,b);if(op==='nPr')return E.permutation(a,b);if(op==='root')return E.nthroot(a,b);const value=external(op,a,b);if(value)return value;if(op==='+')return E.plus(a,b);if(op==='-')return E.sub(a,b);if(op==='*')return E.times(a,b);if(op==='/')return E.divide(a,b);if(op==='^')return E.power(a,b);throw Error('Operação desconhecida')}
 function unary(fn,value){let v=['sqrt','ln','log'].includes(fn)?external(fn,value):null;return v||E.unary(fn,value,angle)}
 function fmt(s){if(['Erro','Limite'].includes(s))return s;const match=/^(-?)(\d+)(?:\.(\d*))?(e([+-]?\d+))?$/i.exec(String(s));if(!match)return s;let ip=match[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.');return(match[1]?'−':'')+ip+(match[3]!==undefined?','+match[3]:'')+(match[4]||'')}
-function render(){let digits=(entry.match(/\d/g)||[]).length,qv=q('#display');qv.textContent=turbo&&digits>18?entry.replace('.',','):fmt(entry);qv.classList.toggle('long-number',digits>18);q('#digitCount').textContent=`${Math.min(99,digits)} / ${limit()} dígitos`;q('#expression').textContent=expr;q('#memBadge').textContent=memoOn?'M':'';q('#scrollDisplay').scrollLeft=turbo?0:q('#scrollDisplay').scrollWidth;q('#modeText').textContent=turbo?'TURBO QUANTUM · 99 DÍGITOS':'HUMILDE · 12 DÍGITOS';q('#modeBadge').textContent=`LCD · ${limit()}`;q('#rocketBtn').setAttribute('aria-pressed',String(turbo));if(turbo)updateProgPreview();updateHeight()}
+function updateLivePreview(){
+ const line=q('#calcLiveResult');
+ if(!line)return;
+ if(stored!==null&&operator&&!waiting){
+  try{line.textContent='= '+fmt(amountText(binary(stored,parseText(entry),operator)));line.hidden=false}
+  catch(error){line.textContent=error.message||'Operação inválida';line.hidden=false}
+ }else if(showPercentPreview){
+  line.textContent='= '+fmt(entry);line.hidden=false;
+ }else{line.textContent='';line.hidden=true}
+}
+function render(){updateLivePreview();let digits=(entry.match(/\d/g)||[]).length,qv=q('#display');qv.textContent=turbo&&digits>18?entry.replace('.',','):fmt(entry);qv.classList.toggle('long-number',digits>18);q('#digitCount').textContent=`${Math.min(99,digits)} / ${limit()} dígitos`;q('#expression').textContent=stored!==null&&operator?fmt(amountText(stored))+' '+signs[operator]+(!waiting?' '+fmt(entry):''):expr;q('#memBadge').textContent=memoOn?'M':'';q('#scrollDisplay').scrollLeft=turbo?0:q('#scrollDisplay').scrollWidth;q('#modeText').textContent=turbo?'TURBO QUANTUM · 99 DÍGITOS':'HUMILDE · 12 DÍGITOS';q('#modeBadge').textContent=`LCD · ${limit()}`;q('#rocketBtn').setAttribute('aria-pressed',String(turbo));if(turbo)updateProgPreview();updateHeight()}
 function updateHeight(){if(fullscreenActive()){root.style.height="100dvh";return}requestAnimationFrame(()=>{root.style.height=dev.hidden?'88px':Math.max(550,dev.offsetTop+dev.offsetHeight+30)+'px'})}
-function reset(){entry='0';stored=null;operator=null;waiting=false;expr='';justCompleted=false}
-function result(v,title,{save=false}={}){let value=amountText(v);entry=value;expr=title;stored=null;operator=null;waiting=true;justCompleted=true;if(save){hist.unshift({title,value,at:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});hist=hist.slice(0,35);if(tab==='history')renderHistory()}render()}
+function reset(){entry='0';stored=null;operator=null;waiting=false;expr='';justCompleted=false;repeatOperation=null;showPercentPreview=false}
+function result(v,title,{save=false}={}){let value=amountText(v);entry=value;expr=title;stored=null;operator=null;waiting=true;justCompleted=true;repeatOperation=null;showPercentPreview=false;if(save){hist.unshift({title,value,at:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})});hist=hist.slice(0,35);if(tab==='history')renderHistory()}render()}
 function digits(k){if(['Erro','Limite'].includes(entry))reset();if(waiting){entry=k==='.'?'0.':k;waiting=false;justCompleted=false;return}if(k==='.'){if(!entry.includes('.')&&!/e[+-]?\d+$/i.test(entry))entry+='.';return}if((entry.replace(/e[+-]?\d+$/i,'').match(/\d/g)||[]).length>=limit())return;entry=entry==='0'?k:entry==='-0'?'-'+k:entry+k}
-function onKey(key){if(!on)return;try{if(/^\d$/.test(key)||key==='.')digits(key);else if(key==='C')reset();else if(key==='back'){entry=waiting?'0':entry.length<2?'0':entry.slice(0,-1);waiting=false;justCompleted=false}else if(key==='sign'){if(entry!=='0'&&!['Erro','Limite'].includes(entry))entry=entry.startsWith('-')?entry.slice(1):'-'+entry}else if(key==='%'){
- if(stored&&operator&&['+','-'].includes(operator))entry=amountText(E.divide(E.times(stored,parseText(entry)),E.dec(100)));else entry=amountText(E.divide(parseText(entry),E.dec(100)));waiting=false;justCompleted=false;
-}else if(signs[key]){if(stored!==null&&operator&&!waiting)entry=amountText(binary(stored,parseText(entry),operator));stored=parseText(entry);operator=key;waiting=true;justCompleted=false;expr=fmt(entry)+' '+signs[key]}
-else if(key==='='){if(operator&&stored!==null){let left=E.stringify(stored,{digits:limit()}),right=entry,k=operator;result(binary(stored,parseText(entry),operator),`${fmt(left)} ${signs[k]} ${fmt(right)} =`,{save:true})}}}catch(e){entry='Erro';expr=e.message||'Erro matemático';stored=null;operator=null;waiting=true}render()}
+function onKey(key){
+ if(!on)return;
+ try{
+  if(/^\d$/.test(key)||key==='.'){
+   if(justCompleted)repeatOperation=null;
+   showPercentPreview=false;digits(key);
+  }else if(key==='C')reset();
+  else if(key==='back'){
+   entry=waiting?'0':entry.length<2?'0':entry.slice(0,-1);
+   waiting=false;justCompleted=false;repeatOperation=null;showPercentPreview=false;
+  }else if(key==='sign'){
+   if(entry!=='0'&&!['Erro','Limite'].includes(entry))entry=entry.startsWith('-')?entry.slice(1):'-'+entry;
+   repeatOperation=null;showPercentPreview=false;
+  }else if(key==='%'){
+   if(stored!==null&&operator&&['+','-'].includes(operator))
+    entry=amountText(E.divide(E.times(stored,parseText(entry)),E.dec(100)));
+   else entry=amountText(E.divide(parseText(entry),E.dec(100)));
+   waiting=false;justCompleted=false;repeatOperation=null;showPercentPreview=true;
+  }else if(signs[key]){
+   if(stored!==null&&operator&&!waiting)
+    entry=amountText(binary(stored,parseText(entry),operator));
+   stored=parseText(entry);operator=key;waiting=true;justCompleted=false;
+   repeatOperation=null;showPercentPreview=false;expr=fmt(entry)+' '+signs[key];
+  }else if(key==='='){
+   if(operator&&stored!==null){
+    const left=E.stringify(stored,{digits:limit()}),right=entry,op=operator;
+    const value=binary(stored,parseText(right),op);
+    result(value,fmt(left)+' '+signs[op]+' '+fmt(right)+' =',{save:true});
+    repeatOperation={op,operand:right};
+   }else if(justCompleted&&repeatOperation){
+    const left=entry,op=repeatOperation.op,right=repeatOperation.operand;
+    const value=binary(parseText(left),parseText(right),op);
+    result(value,fmt(left)+' '+signs[op]+' '+fmt(right)+' =',{save:true});
+    repeatOperation={op,operand:right};
+   }
+  }
+ }catch(e){
+  entry='Erro';expr=e.message||'Erro matemático';
+  stored=null;operator=null;waiting=true;repeatOperation=null;showPercentPreview=false;
+ }
+ render();
+}
 function doUnary(action){if(!on||!turbo)return;try{if(['pi','e'].includes(action))return result(unary(action,E.dec(0)),action==='pi'?'π · 99 dígitos':'e · 99 dígitos');if(action==='ans')return result(E.dec(hist[0]?.value||entry),'Último resultado');if(action==='copy')return copy(entry);
  if(['^','root','nCr','nPr'].includes(action)){onKey(action);return}
  const v=unary(action,parseText(entry));result(v,({square:'x²',cube:'x³',sqrt:'√x',cbrt:'∛x',inverse:'1/x',factorial:'n!',exp:'eˣ',exp10:'10ˣ',sign:'sign(x)'}[action]||action)+(angle==='DEG'&&['sin','cos','tan','asin','acos','atan'].includes(action)?' · DEG':''),{save:true});

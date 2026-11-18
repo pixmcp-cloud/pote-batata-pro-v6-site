@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebas
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {createV2Store} from "./v2_storage.mjs?v=v4-free-ids-20261117";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup} from "./sync_guard.mjs?v=v4-backup-20261117";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState} from "./sync_guard.mjs?v=v4-backup-20261117";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 
 const firebaseConfig = {
@@ -187,7 +187,13 @@ function verifyBackupFile(expectedUid,expectedState){
   try{picker.click()}catch(error){finish({ok:false,error:"Navegador bloqueou a seleção do arquivo."})}
  });
 }
-window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
+function showRecovery(){
+ if(!syncBlocked)return;
+ showBackupButton();
+ const target=document.getElementById("poteSyncResolve")||document.getElementById("potePendingSyncBackup")||syncEl;
+ if(target){target.scrollIntoView?.({behavior:"smooth",block:"center"});target.focus?.({preventScroll:true})}
+}
+window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
 window.addEventListener("online",()=>{if(ready&&!syncBlocked)queueSave()});
 function refreshEntitlements() {
   if (!window.POTE_AUTH) return;
@@ -470,10 +476,18 @@ async function loadUser(user, index) {
   refreshEntitlements();
   loginBtn.disabled = false;
   setMessage("");
+  const pendingOnLoad=existingPending(user.uid);
+  if(pendingMatchesLoadedState(pendingOnLoad,user.uid,safeState())){
+    // A local pending record may survive a successful previous sync.
+    // Remove it only if every field matches the now-loaded cloud state.
+    try{localStorage.removeItem(pendingKey(user.uid))}catch(error){
+      console.warn("Backup local idêntico não pôde ser liberado:",error.message||error);
+    }
+  }
   if(existingPending(user.uid)){
     syncBlocked=true;
-    setStatus("Backup local não sincronizado detectado. Exporte antes de continuar.");
-  }else setStatus("Dados salvos na nuvem");
+    setStatus("Conflito de sincronização: faça backup das alterações locais antes de resolver.");
+  }else setStatus(pendingOnLoad?"Backup antigo conferido com a nuvem; vendas liberadas.":"Dados salvos na nuvem");
   setGate(false);
   showBackupButton();
   if(useV2){

@@ -8,6 +8,9 @@
 .bcg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}.bcg-card{background:#1b120d;border:1px solid #674529;border-radius:13px;padding:14px}.bcg-star{border-color:#e5ab51}.bcg-plow{border-color:#83d5a5}.bcg-puzzle{border-color:#78b4ff}.bcg-dog{border-color:#ff9e8e}
 .vitrine-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:#1d130d;border:1px solid #82552d;padding:14px;border-radius:14px;margin-bottom:14px}
 .cart-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #503a27}
+/* Erros devem ser vermelhos, legíveis e visíveis acima do botão de compras. */
+#toast.toast-error{background:#552028!important;border-color:#e69785!important;color:#fff5ed!important;z-index:10030!important;line-height:1.5;font-weight:750}
+@media(max-width:650px){#toast{bottom:calc(83px + env(safe-area-inset-bottom,0px));z-index:10030;max-width:calc(100vw - 24px)}}
 </style>
 <style>
 .unavailable-card .photo img,.unavailable-card .photo .emoji{filter:grayscale(.8) brightness(.53)}
@@ -94,7 +97,7 @@ function validateImportData(v){
  return {ok:true};
 }
 function uid(){return 'local-'+Math.random().toString(36).slice(2,11)}
-function toast(m){const el=document.getElementById('toast');el.textContent=m;el.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>el.style.display='none',3600)}
+function toast(m,kind='info'){const el=document.getElementById('toast');el.textContent=m;el.classList.toggle('toast-error',kind==='error');el.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>el.style.display='none',kind==='error'?8500:3600)}
 function pro(){return state.mode!=='free'}
 function master(){return state.mode==='adm'}
 function allowed(r){return !!r&&!r.franchiseLocked&&!(window.POTE_AUTH?.franchiseActive&&r.templateOrigin==='batataria')&&(pro()||r?.id===state.unlocked||(!SEED.recipes.some(x=>x.id===r?.id)&&freeCustom()[0]?.id===r?.id))}
@@ -111,8 +114,13 @@ function operationReady(){
   return false;
   }
  }
- if(window.POTE_SYNC_GUARD?.blocked||navigator.onLine===false){
-  toast('Operação suspensa: há conflito de sincronização ou falta de conexão. Exporte seu backup e confira a nuvem.');
+ if(window.POTE_SYNC_GUARD?.blocked){
+  toast('Venda NÃO registrada: há dados locais pendentes de sincronização. Exporte o backup e use Resolver conflito na área de sincronização.', 'error');
+  window.POTE_SYNC_GUARD?.showRecovery?.();
+  return false;
+ }
+ if(navigator.onLine===false){
+  toast('Venda NÃO registrada: dispositivo sem internet. Reconecte e tente novamente.', 'error');
   return false;
  }
  return true;

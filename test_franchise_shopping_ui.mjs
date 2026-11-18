@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 class Stub{
- constructor(){this.listeners={};this.children=new Map();this.dataset={};this.classList={toggle:()=>{}};this.hidden=false;this.style={};this.attributes={};this.textContent="";this.innerHTML="";}
+ constructor(){this.listeners={};this.children=new Map();this.dataset={};this.classList={toggle:()=>{},add:()=>{},remove:()=>{}};this.hidden=false;this.style={};this.attributes={};this.textContent="";this.innerHTML="";}
  addEventListener(event,fn){this.listeners[event]=fn}
  setAttribute(k,v){this.attributes[k]=v}
  focus(){}

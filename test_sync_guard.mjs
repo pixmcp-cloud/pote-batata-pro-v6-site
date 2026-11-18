@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,validateBackup,makePending} from "./sync_guard.mjs";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,validateBackup,makePending,pendingMatchesLoadedState} from "./sync_guard.mjs";
 const data={state:{data:{orders:[{id:"o1",price:29}],ingredients:[]},mode:"free"},syncRevision:2};
 const same={state:{mode:"free",data:{ingredients:[],orders:[{price:29,id:"o1"}]}}};
 assert.equal(stableJson(data.state),stableJson(same.state),"Order of Firestore map keys must not trigger a conflict");
@@ -20,4 +20,7 @@ assert.equal(validateBackup(base).ok,true);
 assert.equal(validateBackup({data:{...base.data,orders:[{id:"o1"},{id:"o1"}]}}).ok,false);
 assert.equal(validateBackup({data:{...base.data,orders:null}}).ok,false);
 assert.equal(makePending("abc",base,"conflict").reason,"conflict");
+assert.equal(pendingMatchesLoadedState(makePending("abc",base), "abc", structuredClone(base)),true,"Backup idêntico ao estado remoto não deve bloquear operações");
+assert.equal(pendingMatchesLoadedState(makePending("abc",base), "outro", base),false,"Outra conta não pode liberar o backup");
+assert.equal(pendingMatchesLoadedState(makePending("abc",base), "abc", {...base,data:{...base.data,orders:[{id:"outro"}]}}),false,"Backup diferente deve permanecer bloqueado");
 console.log("PASS: fingerprints estáveis, conflitos, revisões, limite de documento, backups e filas por conta.");

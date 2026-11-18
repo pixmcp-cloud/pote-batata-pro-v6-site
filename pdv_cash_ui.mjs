@@ -98,7 +98,7 @@ function cashEquation(summary){
   ["Vendas em dinheiro",summary.confirmedByMethod?.cash||0,"+"],
   ["Dinheiro recebido de outros turnos",prev.cash||0,"+"],
   ["Entradas extras (suprimento)",summary.supply,"+"],
-  ["Retiradas (sangria)",summary.withdraw,"−"],
+  ["Retirada (sangria)",summary.withdraw,"−"],
   ["Dinheiro devolvido ao cliente",summary.refunds,"−"]
  ];
  return '<div class="pote-pdv-equation" aria-label="Cálculo do dinheiro esperado">'+
@@ -295,7 +295,7 @@ function render(){
   '<p class="pote-pdv-note"><strong>Entrada extra (suprimento):</strong> dinheiro colocado na gaveta para troco. '+
   '<strong>Retirada (sangria):</strong> dinheiro removido da gaveta, por exemplo para depositar no banco.</p>'+
   '<form data-pdv-form="movement"><label>O que aconteceu?<select name="kind">'+
-  '<option value="sangria">Retirei dinheiro do caixa (sangria)</option>'+
+  '<option value="sangria">Retirada (sangria)</option>'+
   '<option value="suprimento">Coloquei dinheiro no caixa (suprimento)</option></select></label>'+
   textField("Valor movimentado (R$)","amount","Ex.: 50,00")+
   textField("Motivo da movimentação","reason","Ex.: Retirada para depósito")+
@@ -360,7 +360,7 @@ function submit(form){
   }else if(type==="movement"){
    const movement=mutate(data=>registerCashMovement(data,{
     id:id(),kind:payload.kind,amount:parseMoney(payload.amount),reason:payload.reason}));
-   status("Movimentação "+movement.kind+" registrada: "+brl(movement.amount));
+   status(({sangria:"Retirada (sangria)",suprimento:"Entrada (suprimento)",reembolso:"Reembolso"}[movement.kind]||"Movimentação")+" registrada: "+brl(movement.amount));
   }else if(type==="close"){
    const data=snapshot()?.data;
    const s=activeSession(data);

@@ -41,3 +41,9 @@ export function validateBackup(value){
  }
  return {ok:true,counts:groups};
 }
+
+/* No deletion unless the pending backup exactly matches the authenticated
+   account's just-loaded remote state. Real conflicts remain blocked. */
+export const pendingMatchesLoadedState=(pending,uid,cloudState)=>
+ Boolean(pending&&pending.version===1&&pending.uid===String(uid)&&
+ pending.state&&cloudState&&stableJson(pending.state)===stableJson(cloudState));

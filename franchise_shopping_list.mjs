@@ -72,13 +72,14 @@ function render(needs=current()){
 }
 function show(){
  if(!franchise())return;
- ensure();open=true;panel.hidden=false;
+ ensure();open=true;panel.hidden=false;document.body.classList.add("pote-shopping-open");
  trigger.setAttribute("aria-expanded","true");
  render();
  panel.querySelector("#poteShoppingClose")?.focus();
 }
 function close(){
  open=false;
+ document.body.classList.remove("pote-shopping-open");
  if(panel)panel.hidden=true;
  if(trigger)trigger.setAttribute("aria-expanded","false");
 }

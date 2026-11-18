@@ -8,6 +8,6 @@ for(const key of ["cash-equation","movements","receipts","closed-history","old-r
  assert(pdv.includes('data-pdv-detail="'+key+'"'),"Missing stable details key: "+key);
 assert(pdv.includes("restoreCashDetails(body,openedDetails,scrollY)"),"Expanded details must be restored when cash summary changes");
 assert(pdv.includes("lastModalFingerprint=null;visible=true"),"Intentional reopen requires fresh render");
-assert(build.includes("pdv_cash_ui.mjs?v=sale-done-auto-20261118"),"Cache-busted module required");
-assert(output.includes("pdv_cash_ui.mjs?v=sale-done-auto-20261118"),"Built site should use new module");
+assert(build.includes("pdv_cash_ui.mjs?v=withdrawal-label-20261118"),"Cache-busted module required");
+assert(output.includes("pdv_cash_ui.mjs?v=withdrawal-label-20261118"),"Built site should use new module");
 console.log("PASS: PDV accordion stays open on autosave and data updates with stable keys.");
