@@ -1,6 +1,6 @@
 const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("node:fs");
 (async()=>{
- const {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending}=await import("./sync_guard.mjs");
+ const {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,pendingMatchesLoadedState}=await import("./sync_guard.mjs");
  const source=fs.readFileSync("firebase_integration.js","utf8").split("\n").filter(s=>!/^import /.test(s)).join("\n");
  const copy=x=>JSON.parse(JSON.stringify(x));
  const mk=()=>({data:{orders:[],ingredients:[],recipes:[],clients:[],suppliers:[],expenses:[],losses:[]}});
@@ -21,7 +21,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  let transactions=0,writes=0;
  const context={
   console:{...console,warn(){}},JSON,Number,String,Date,Array,Object,Math,Promise,Map,Set,Intl,Error,Blob,URL,
-  stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,
+  stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,pendingMatchesLoadedState,
   localStorage:storage,navigator:{userAgent:""},
   document:{getElementById:id=>elements.get(id)||null,createElement:()=>({style:{},addEventListener(){},click(){},remove(){}}),body:{classList:{toggle(){}},appendChild(){}}},
   window:{POTE_USE_V2:false,confirm:()=>true,location:{reload(){reloads++}},
