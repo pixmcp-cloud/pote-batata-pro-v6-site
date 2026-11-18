@@ -7,7 +7,7 @@ import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
 import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
 import {adjustInventory} from "./stock_adjust.mjs";
 import {confirmOperatorReceipt} from "./receipt.mjs";
-import {openCashSession} from "./cash_session.mjs";
+import {openCashSession,closeCashSession} from "./cash_session.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
