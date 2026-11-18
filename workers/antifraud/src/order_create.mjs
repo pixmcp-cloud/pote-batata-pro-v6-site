@@ -3,6 +3,7 @@
  * Stock is reserved atomically with order creation; no double consumption in production.
  */
 import {OperationalError,recordPath} from "./domain.mjs";
+import {serverPricePath,verifyServerPrice} from "./server_price.mjs";
 const bad=(code,message,status=409)=>{throw new OperationalError(message,status,code)};
 const put=(path,data,prior)=>({path,data,precondition:prior?
  {updateTime:prior.updateTime}:{exists:false}});
@@ -43,14 +44,15 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
  const uid=user.uid,root="users/"+uid;
  const orderPath=recordPath(uid,universe,"orders",orderId);
  const recipePath=recordPath(uid,universe,"recipes",recipeId);
+ const approvalPath=serverPricePath(uid,universe,recipeId);
  const cashPath=recordPath(uid,universe,"cashSessions",cashSessionId);
  const guardPath=root+"/appState/v2InventoryGuard",pulsePath=root+"/appState/v2Pulse";
  const eventPath=root+"/workerEvents/"+operationId;
  const tx=await repository(env).transaction();
  try{
-  const [profile,meta,guard,pulse,recipe,session,existing,event]=await Promise.all([
+  const [profile,meta,guard,pulse,recipe,approval,session,existing,event]=await Promise.all([
    tx.get(root),tx.get(root+"/appState/v2"),tx.get(guardPath),
-   tx.get(pulsePath),tx.get(recipePath),tx.get(cashPath),
+   tx.get(pulsePath),tx.get(recipePath),tx.get(approvalPath),tx.get(cashPath),
    tx.get(orderPath),tx.get(eventPath)
   ]);
   if(!profile||!hasAccess(profile.data,user,universe))
@@ -80,6 +82,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   if(r.serverPriceVersion!==1||!Number.isSafeInteger(r.serverSalePriceCents)||
      r.serverSalePriceCents<1||r.serverSalePriceCents>10000000)
    bad("price_review_required","Preço do servidor não homologado");
+  const priceApproval=verifyServerPrice(approval,r,universe,recipeId);
   if(!Array.isArray(r.items)||r.items.length<1||r.items.length>32||
     r.packagingIngredientIds?.length||r.costEstimateMode==="estimated")
    bad("recipe_review_required","Receita exige conferência do catálogo");
@@ -126,12 +129,10 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   }
   if(!Number.isFinite(materialCost)||materialCost<=0)
    bad("cost_review_required","Custo da receita não está disponível");
-  const minimum=Number(r.serverMinimumGainPct??100);
-  if(!Number.isFinite(minimum)||minimum<0||minimum>500)
-   bad("price_review_required","Margem do servidor não validada");
-  if(r.serverSalePriceCents+0.00001<materialCost*(1+minimum/100)*100)
+  const minimum=priceApproval.minimumGainPct;
+  if(priceApproval.salePriceCents+0.00001<materialCost*(1+minimum/100)*100)
    bad("price_below_cost","Preço abaixo da margem mínima aprovada");
-  const at=clock().toISOString(),price=r.serverSalePriceCents/100;
+  const at=clock().toISOString(),price=priceApproval.salePriceCents/100;
   const method={pix:"Pix",cash:"Dinheiro",card:"Cartão",
    delivery:"Na entrega"}[paymentMethod];
   const order={id:orderId,recipeId,name:String(r.name||recipeId).slice(0,180),
@@ -143,7 +144,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    costSnapshot:{version:1,costKnown:true,estimated:false,
     totalMaterialCost:Math.round(materialCost*qty*100)/100,missingCosts:[]},
    priceSource:"server_recipe_snapshot",
-   serverPriceVersion:1,serverPriceRevision:r.serverPriceRevision??1,
+   serverPriceVersion:1,serverPriceRevision:priceApproval.revision,
    stockReservationStatus:"reserved",bankReconciled:false};
   const movements=reservations.map((entry,index)=>{
    const id="cf-reserve-"+operationId+"-"+index;
@@ -166,7 +167,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
     affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
    put(eventPath,{action:"order_create",universe,orderId,recipeId,
     qty,cashSessionId,paymentMethod,operationId,
-    priceCents:r.serverSalePriceCents,actorUid:uid,
+    priceCents:priceApproval.salePriceCents,actorUid:uid,
     stockReservationStatus:"reserved"},null)
   ];
   for(const entry of reservations){
@@ -181,7 +182,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   if(writes.length>100)bad("too_many_items","Pedido excede limite da transação");
   await tx.commit(writes);
   return {ok:true,alreadyApplied:false,orderId,operationId,
-   priceCents:r.serverSalePriceCents,status:"recebido",
+   priceCents:priceApproval.salePriceCents,status:"recebido",
    reservationStatus:"reserved"};
  }finally{await tx.rollback()}
 }
