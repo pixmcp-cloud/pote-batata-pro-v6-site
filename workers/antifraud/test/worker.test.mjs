@@ -161,6 +161,25 @@ test("F20 two concurrent cash openings have one winner",async()=>{
  assert(active==="cf-turn-"+OP1||active==="cf-turn-"+OP2);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
 });
+test("F20 close cash shift once and release control for next opening",async()=>{
+ const {db}=makeStore(),app=appFor(db),control="users/"+UID+"/appState/v2CashControl__"+UNIVERSE;
+ db.seed(control,{version:1,activeSessionId:null});
+ const opening={universe:UNIVERSE,operationId:OP1,openingCashCents:5000};
+ assert.equal((await app.fetch(request(opening,"/v1/cash/open"),env)).status,200);
+ const sessionId="cf-turn-"+OP1;
+ const close={universe:UNIVERSE,operationId:OP2,sessionId,declaredCashCents:7200};
+ const go=()=>app.fetch(request(close,"/v1/cash/close"),env);
+ assert.equal((await go()).status,200);
+ const session=db.current(recordPath(UID,UNIVERSE,"cashSessions",sessionId)).record.item;
+ assert.equal(session.declaredClosingCash,72);
+ assert.equal(session.reconciliationStatus,"pending");
+ assert.equal(session.bankReconciled,false);
+ assert.equal(db.current(control).activeSessionId,null);
+ assert.equal((await(await go()).json()).alreadyApplied,true);
+ assert.equal((await app.fetch(request({...close,operationId:OP3},"/v1/cash/close"),env)).status,409);
+ assert.equal((await app.fetch(request({...opening,operationId:OP3},"/v1/cash/open"),env)).status,200);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,3);
+});
 test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
