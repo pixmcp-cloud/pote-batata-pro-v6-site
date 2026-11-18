@@ -149,6 +149,18 @@ test("F20 cash opening fails closed without migration and validates money",async
  assert.equal((await app.fetch(request({...body,openingCashCents:-1},"/v1/cash/open"),env)).status,400);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
 });
+test("F20 two concurrent cash openings have one winner",async()=>{
+ const {db}=makeStore(),app=appFor(db),marker="users/"+UID+"/appState/v2CashControl__"+UNIVERSE;
+ db.seed(marker,{version:1,activeSessionId:null});
+ const attempt=operationId=>app.fetch(request({
+  universe:UNIVERSE,operationId,openingCashCents:0
+ },"/v1/cash/open"),env);
+ const result=await Promise.all([attempt(OP1),attempt(OP2)]);
+ assert.deepEqual(result.map(r=>r.status).sort(),[200,409]);
+ const active=db.current(marker).activeSessionId;
+ assert(active==="cf-turn-"+OP1||active==="cf-turn-"+OP2);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
+});
 test("staging mode fails closed, health exposes no customer data",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const health=await app.fetch(new Request("https://x/health"),{...env,ENABLE_WRITES:"false"});
