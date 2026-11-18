@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {createWorkerApp} from "../src/index.mjs";
 import {createFirestoreRepository,encodeFields,decodeFields} from "../src/firestore.mjs";
 import {recordPath} from "../src/domain.mjs";
+import {serverPricePath} from "../src/server_price.mjs";
 
 /* F02/F05: complete Worker -> Firestore REST-adapter integration with an
  * in-memory HTTP Firestore protocol double. No Google keys or customer data.
@@ -127,6 +128,11 @@ test("F02 REST HTTP: server-approved recipe creates order then produces once",as
   record:{universe:UNIVERSE,group,id,rank:1,item}});
  put("recipes","r1",{id:"r1",name:"Batata QA",serverPriceVersion:1,
   serverSalePriceCents:3000,items:[{id:"batata",g:100}]});
+ db.seed(serverPricePath(UID,UNIVERSE,"r1"),{
+  version:1,universe:UNIVERSE,recipeId:"r1",
+  salePriceCents:3000,minimumGainPct:100,revision:1,
+  items:[{id:"batata",g:100}]
+ });
  put("cashSessions","s1",{id:"s1",status:"open"});
  put("ingredients","batata",{id:"batata",name:"Batata",stock:400,
   purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg"});

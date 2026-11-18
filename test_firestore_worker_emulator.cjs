@@ -6,6 +6,7 @@ const {initializeEmulator,sdk}=require("./qa/firestore/environment.cjs");
 const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs");
 (async()=>{
  const {recordPath}=await import("./workers/antifraud/src/domain.mjs");
+ const {serverPricePath}=await import("./workers/antifraud/src/server_price.mjs");
  const {createWorkerApp}=await import("./workers/antifraud/src/index.mjs");
 
  const env=await initializeEmulator({hardened:process.env.POTE_HARDENED_RULES==="1"});
@@ -118,6 +119,9 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
     recordPath(uid,universe,"recipes","r-f02").split("/").at(-1)),
     record("recipes","r-f02",{id:"r-f02",name:"Reserva QA",
      serverPriceVersion:1,serverSalePriceCents:4000,items:[{id:"potato",g:125}]}));
+   await sdk.setDoc(sdk.doc(ctx.firestore(),...serverPricePath(uid,universe,"r-f02").split("/")),
+    {version:1,universe,recipeId:"r-f02",salePriceCents:4000,
+     minimumGainPct:100,revision:1,items:[{id:"potato",g:125}]});
   });
   const createBody={universe,orderId:"reserved-f02",recipeId:"r-f02",
    qty:1,cashSessionId:"s1",paymentMethod:"pix",

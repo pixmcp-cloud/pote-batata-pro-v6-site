@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createWorkerApp} from "../src/index.mjs";
 import {recordPath} from "../src/domain.mjs";
+import {serverPricePath} from "../src/server_price.mjs";
 import {FirestoreError} from "../src/firestore.mjs";
 const UID="owner-qa-01",UNIVERSE="batataria";
 const OP1="cb1b159a-7019-4cd0-9f33-a2bb87575b1d";
@@ -48,7 +49,17 @@ function makeStore(){
  put("orders","o1",order);
  put("ingredients","batata",{id:"batata",stock:400,name:"Batata"});
  put("beverages","suco",{id:"suco",stock:4,name:"Suco"});
- return {db,put};
+ const approve=id=>{
+  const recipe=db.current(recordPath(UID,UNIVERSE,"recipes",id)).record.item;
+  db.seed(serverPricePath(UID,UNIVERSE,id),{
+   version:1,universe:UNIVERSE,recipeId:id,
+   salePriceCents:recipe.serverSalePriceCents,
+   minimumGainPct:recipe.serverMinimumGainPct??100,
+   revision:recipe.serverPriceRevision??1,
+   items:recipe.items.map(item=>({id:item.id,g:item.g}))
+  });
+ };
+ return {db,put,approve};
 }
 const env={ENABLE_WRITES:"true",PRODUCTION_CUTOVER_APPROVED:"true",FIREBASE_PROJECT_ID:"potobatata-b71f3",
  ALLOWED_ORIGINS:"https://pdv.livresom.com"};
@@ -181,9 +192,10 @@ test("F20 close cash shift once and release control for next opening",async()=>{
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,3);
 });
 test("F02 server-priced order creation persists once then produces using stored recipe",async()=>{
- const {db,put}=makeStore(),app=appFor(db);
+ const {db,put,approve}=makeStore(),app=appFor(db);
  put("recipes","r1",{id:"r1",name:"Batata teste",serverPriceVersion:1,
   serverSalePriceCents:3000,items:[{id:"batata",g:100}]});
+ approve("r1");
  put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
   purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
  put("cashSessions","s1",{id:"s1",status:"open",openingCash:0});
@@ -356,9 +368,10 @@ test("F20 finish: closed shift cannot silently confirm sale",async()=>{
 
 
 test("F02 reservation once: stock deducted when ordering, not again when producing",async()=>{
- const {db,put}=makeStore(),app=appFor(db);
+ const {db,put,approve}=makeStore(),app=appFor(db);
  put("recipes","r2",{id:"r2",name:"Batata Reserva",serverPriceVersion:1,
   serverSalePriceCents:4000,items:[{id:"batata",g:100}]});
+ approve("r2");
  put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
   purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
  put("cashSessions","s1",{id:"s1",status:"open"});
@@ -378,9 +391,10 @@ test("F02 reservation once: stock deducted when ordering, not again when produci
  assert.equal([...db.docs.keys()].filter(x=>x.includes("/workerEvents/")).length,2);
 });
 test("F02 reservation cancellation restores ingredients exactly once",async()=>{
- const {db,put}=makeStore(),app=appFor(db);
+ const {db,put,approve}=makeStore(),app=appFor(db);
  put("recipes","r2",{id:"r2",name:"Reserva",serverPriceVersion:1,
   serverSalePriceCents:4000,items:[{id:"batata",g:100}]});
+ approve("r2");
  put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
   purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
  put("cashSessions","s1",{id:"s1",status:"open"});
@@ -397,9 +411,10 @@ test("F02 reservation cancellation restores ingredients exactly once",async()=>{
  assert.equal(db.current(stockPath).record.item.stock,400);
 });
 test("F02 duplicate ingredient entries are summed before stock reservation",async()=>{
- const {db,put}=makeStore(),app=appFor(db);
+ const {db,put,approve}=makeStore(),app=appFor(db);
  put("recipes","r2",{id:"r2",name:"Reserva",serverPriceVersion:1,
   serverSalePriceCents:4000,items:[{id:"batata",g:75},{id:"batata",g:75}]});
+ approve("r2");
  put("ingredients","batata",{id:"batata",stock:250,name:"Batata",
   purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
  put("cashSessions","s1",{id:"s1",status:"open"});
@@ -416,9 +431,10 @@ test("F02 duplicate ingredient entries are summed before stock reservation",asyn
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,50);
 });
 test("F02 concurrent creates cannot oversell same 400g ingredient",async()=>{
- const {db,put}=makeStore(),app=appFor(db);
+ const {db,put,approve}=makeStore(),app=appFor(db);
  put("recipes","r2",{id:"r2",name:"Batata Reserva",serverPriceVersion:1,
   serverSalePriceCents:4000,items:[{id:"batata",g:125}]});
+ approve("r2");
  put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
   purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
  put("cashSessions","s1",{id:"s1",status:"open"});
