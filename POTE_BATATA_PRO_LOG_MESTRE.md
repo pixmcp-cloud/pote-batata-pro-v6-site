@@ -298,3 +298,16 @@ Teste: npm.cmd test --prefix workers/antifraud, 25 testes APROVADOS, falhas 0, c
 Limite: a simulação HTTP NÃO É um Firestore REST real nem prova OAuth GCP; o Emulator tem incompatibilidade conhecida com transação REST BYTE_STRING. SDK Emulator foi testado em sessões anteriores. Continua faltando projeto não emulado e isolado para homologação final do REST.
 Produção, Worker público, Firestore Rules, credenciais, dados reais e custos: INALTERADOS.
 PRÓXIMA AÇÃO EXATA: testar integração com Cloud Firestore REST real em ambiente de homologação autenticado, sem desativar a dupla trava de produção; validar depois escrita exclusiva do backend e concorrência.
+### CHECKPOINT: projeto Firebase QA real criado / 18-11-2026
+Novo ambiente criado exclusivamente para homologação, sem dados comerciais:
+Firebase Project ID: pote-batata-qa-20261118
+Firebase Display Name: Pote Batata QA Free
+Google Cloud Billing API consultada via sessão Firebase autorizada: billingEnabled=false.
+Serviço firestore.googleapis.com habilitado somente neste projeto.
+Firestore default (default) criado, edição STANDARD, local southamerica-east1 (São Paulo).
+Confirmação Firestore: freeTier=true, pointInTimeRecoveryEnablement=DISABLED.
+Teste de acesso REST de leitura com OAuth autenticado via Firebase CLI: HTTP 200.
+Projeto comercial potobatata-b71f3: NÃO ALTERADO.
+Serviços pagos, ligação com faturamento e migração destrutiva: NENHUM.
+Atenção: ambiente de homologação utiliza quota gratuita do Spark; não mudar de plano nem ativar faturamento.
+PRÓXIMA AÇÃO EXATA: executar Worker com adaptador Firestore REST real nesta base QA isolada usando somente dados sintéticos e conta autenticada de teste; não ativar Worker público.
