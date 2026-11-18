@@ -11,6 +11,13 @@
 - Chave de idempotência por operação e histórico privado no Firestore para evitar cobranças/consumos duplicados. Dois clientes concorrentes não devem conseguir consumir o mesmo saldo.
 - A operação produz um pulso V2 e avança revisão de estoque, como o aplicativo existente espera para se sincronizar.
 
+## Dupla trava de ativação (18/11/2026)
+Gravações reais exigem **ambas** as variáveis ENABLE_WRITES=true e
+PRODUCTION_CUTOVER_APPROVED=true. Para projetos demo-* de Emulator, apenas
+ENABLE_WRITES=true e necessário. O wrangler.toml versionado mantém as duas
+chaves FALSE. Isto impede ativar dados reais mudando apenas um interruptor;
+não substitui credenciais seguras, validação das Rules e corte do cliente.
+
 ## Configuração
 A configuração wrangler.toml inicia com ENABLE_WRITES = "false". Portanto, mesmo publicada, a rota de escrita devolve HTTP 423 e não altera dados. As credenciais da conta de serviço Google precisam ficar em Secrets da Cloudflare (GCP_CLIENT_EMAIL, GCP_PRIVATE_KEY), e nunca em arquivos no GitHub ou no JavaScript do site. O arquivo .dev.vars está ignorado pelo Git.
 
