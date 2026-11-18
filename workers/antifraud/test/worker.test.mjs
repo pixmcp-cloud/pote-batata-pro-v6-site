@@ -75,6 +75,14 @@ test("staging mode fails closed, health exposes no customer data",async()=>{
  assert.equal(disabled.status,423);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
 });
+test("real projects require second release approval even when writes are enabled",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const response=await app.fetch(request(payload(OP1)),
+  {...env,ENABLE_WRITES:"true",PRODUCTION_CUTOVER_APPROVED:"false"});
+ assert.equal(response.status,423);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
+ assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+});
 test("reject forged identity, cross-tenant body and unknown origin",async()=>{
  const {db}=makeStore(),app=appFor(db);
  assert.equal((await app.fetch(request(payload(OP1),undefined,undefined,"wrong"),env)).status,401);
