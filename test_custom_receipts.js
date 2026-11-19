@@ -92,7 +92,7 @@ for(const marker of ["window.POTE_RECEIPTS?.open","removedIngredients:q.removedI
  "customAddons:q.customAddons","builderApproxWeight","poteOrderCustomization"]){
  assert(original.includes(marker),"Integração em fonte ausente: "+marker);
 }
-for(const marker of ["order_customization.js?v=audit-20261115",
+for(const marker of ["order_customization.js?v=base-fixed-v10-20261119",
  "receipt_enhanced.js?v=receipt-20261115",
  "order_customization.css?v=custom-20261115",
  "receipt_enhanced.css?v=receipt-20261115"]){
