@@ -245,3 +245,25 @@ Quando possível, ler este log pelo link canônico. Registrar uma seção [WORK/
 
 ### Ação da sessão PC enquanto o código Sites não chega
 Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes; melhorar apenas itens independentes em branch protegida. Não redesenhar nem substituir componentes/agenda D1 da versão Sites com base apenas em relatos. Registrar cada commit e teste no mesmo log.
+
+## 19. Continuidade automatizada e auditor de importação — 19/11/2026
+
+**Solicitação do proprietário:** alinhar a sessão GPT Work/Sites e o trabalho via Desktop Commander no mesmo Log infláveis, continuando de forma autônoma, com prioridade para economia, confiabilidade e não perder funcionalidades de qualquer versão.
+
+**[GITHUB/LOG] Protocolo de coordenação:** seção 18 define este arquivo como referência central e exige entradas com origem, commit, testes e bloqueios. Isso não significa comunicação direta entre sessões. A versão do Work precisa consultar este arquivo ou exportar handoff e código para a pasta de importação.
+
+**[AUTOMAÇÃO] Tarefa criada e habilitada:** Desenvolvimento Brasil Infláveis; recorrência flexível a cada 3 horas, fuso America/Sao_Paulo. Regras: ler log antes, verificar conexão/branches/backup, detectar exportação Sites, avançar somente mudanças locais seguras e independentes se o código Work continuar inacessível, executar testes, registrar resultados; não publicar, migrar D1, pagar serviços ou alterar o Potê Batata sem autorização.
+
+**[PC/COMMANDER] Auditoria segura preparada:**
+- Pasta do PC: C:\Users\LIVRESOM\Projects\inflaveis-pro.
+- Nova branch: tooling/work-sync-audit-20261119.
+- Commit: **571ea54**; árvore Git limpa após commit.
+- Branch de segurança: backup/pre-work-sync-20261119, preservando a HEAD a56dca5 anterior.
+- Script: scripts/auditar-work.ps1. Compara inventários de arquivos de código com SHA256; não copia, executa nem mescla arquivos, não usa credenciais, não abre banco D1.
+- Relatório local: .work-audit/RELATORIO.md, excluído do Git.
+- Manual: docs/SINCRONIZACAO-WORK.md, com o link canônico do log e instruções seguras para a versão Work.
+- Testes do script: executado com fixture sintética de uma exportação e detectou IMPORT_STATUS=FOUND, diferenças e arquivos exclusivos; após remover a fixture, detectou IMPORT_STATUS=ABSENT. Nenhuma cópia foi confundida com a versão Sites real.
+- Execução do PowerShell usa -NoProfile -ExecutionPolicy Bypass apenas no processo, porque a política do Windows bloqueava scripts locais; não foi alterada a política permanente.
+- Estado real verificado: C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import **não existe**. Sem merge real ou comparação do código do Work.
+
+**Pendência bloqueante:** exportar repositório de origem do Sites com histórico para a pasta separada, ou disponibilizar repo privado acessível. Depois rodar script, fazer diff real, preservar agenda D1/migrações e testar login antes de homologar. Não tomar a prévia protegida como fonte de código.
