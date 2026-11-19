@@ -81,6 +81,28 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  assert(cloud.has("users/new-user/appState/v2"));
  assert.deepEqual(cloud.get("users/u/appState/main").state.data.orders,[{id:"old-test-order"}],"Legacy data must be untouched");
  assert.equal(elements.get("poteAuthGate").hidden,true);
+
+ // A browser that merely changed tabs must not trap the account in conflict.
+ const pristine=copy(state);
+ store.set(guard.pendingKey("new-user"),JSON.stringify(guard.makePending("new-user",
+  {...pristine,tab:"orders",mode:"adm",expansion:{panel:true}},"navegador fechado")));
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false,"Navigation-only backup must self-heal");
+ assert.equal(store.has(guard.pendingKey("new-user")),false,"Harmless pending marker must clear");
+ // However a truly unsynced sale must stay isolated; no false confirmation.
+ const unsaved={...copy(state),data:{...copy(state.data),
+  orders:[{id:"must-preserve-offline",status:"recebido",qty:1,price:21.9}]}};
+ store.set(guard.pendingKey("new-user"),JSON.stringify(guard.makePending("new-user",
+  unsaved,"conflito anterior")));
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,true,"Real draft must remain guarded");
+ assert.match(ctx.window.POTE_SYNC_GUARD.diagnosis().cause,/Pedidos/);
+ assert(store.has(guard.pendingKey("new-user")));
+ assert.equal(state.data.orders.length,0,"Never import unverified sale as paid");
+ store.delete(guard.pendingKey("new-user"));
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
+
  state.data.ingredients.push({id:"batata",stock:12000,measureUnit:"g"});
  state.data.orders.push({id:"order1",status:"recebido",stockDeducted:false});
  listeners["pote:changed"]();

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,validateBackup,makePending,pendingMatchesLoadedState} from "./sync_guard.mjs";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,validateBackup,makePending,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs";
 const data={state:{data:{orders:[{id:"o1",price:29}],ingredients:[]},mode:"free"},syncRevision:2};
 const same={state:{mode:"free",data:{ingredients:[],orders:[{price:29,id:"o1"}]}}};
 assert.equal(stableJson(data.state),stableJson(same.state),"Order of Firestore map keys must not trigger a conflict");
@@ -23,4 +23,23 @@ assert.equal(makePending("abc",base,"conflict").reason,"conflict");
 assert.equal(pendingMatchesLoadedState(makePending("abc",base), "abc", structuredClone(base)),true,"Backup idêntico ao estado remoto não deve bloquear operações");
 assert.equal(pendingMatchesLoadedState(makePending("abc",base), "outro", base),false,"Outra conta não pode liberar o backup");
 assert.equal(pendingMatchesLoadedState(makePending("abc",base), "abc", {...base,data:{...base.data,orders:[{id:"outro"}]}}),false,"Backup diferente deve permanecer bloqueado");
+
+const uiOnly={...base,mode:"adm",tab:"orders",expansion:{panel:true}};
+const cloudUi={...base,mode:"free",tab:"pdv",expansion:{}};
+const uiReport=inspectPendingAgainstCloud(makePending("abc",uiOnly,"navegacao"),"abc",cloudUi,{v2:true});
+assert.equal(uiReport.kind,"navigation-only");
+assert.equal(uiReport.safeToRelease,true,"Navigation-only backup should not prevent sales");
+assert.equal(inspectPendingAgainstCloud(makePending("abc",uiOnly),"abc",cloudUi,{v2:false}).safeToRelease,false,
+ "V1 must never ignore navigation fields");
+const unsavedOrder={...uiOnly,data:{...base.data,orders:[{id:"pending-order"}]}};
+const orderReport=inspectPendingAgainstCloud(makePending("abc",unsavedOrder),"abc",cloudUi,{v2:true});
+assert.equal(orderReport.kind,"business-different");
+assert.equal(orderReport.safeToRelease,false);
+assert.match(orderReport.details.join(" " ),/Pedidos/);
+const unsavedStock={...uiOnly,data:{...base.data,ingredients:[{id:"i1",stock:123}]}};
+const stockReport=inspectPendingAgainstCloud(makePending("abc",unsavedStock),"abc",cloudUi,{v2:true});
+assert.equal(stockReport.safeToRelease,false);
+assert.match(stockReport.details.join(" "),/Ingredientes/);
+assert.equal(inspectPendingAgainstCloud(makePending("other",uiOnly),"abc",cloudUi).safeToRelease,false);
+
 console.log("PASS: fingerprints estáveis, conflitos, revisões, limite de documento, backups e filas por conta.");
