@@ -368,3 +368,13 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 - npm run test:live após deploy: HTTP 200, 5 brinquedos, 2 decoradores, 7 imagens carregadas, layouts 320/390/768/1440 e zero erros JS/requisições críticas.
 
 **Limitações:** site ainda em modo demonstração noindex. A versão de código de GPT Work/Sites permanece separada. Favicon cacheado pode demorar a atualizar na aba já aberta; links novos usam v=2.
+
+## 24. [USUARIO/PC] URL oficial sem parametros e incidente Android — 19/11/2026
+
+**Preferencia expressa do proprietario:** em toda mensagem com link para o Brasil Inflaveis, mostrar SOMENTE a URL oficial pura `https://brasilinflaveis.com/`. Nao adicionar `?icone=2`, `?teste=...`, `?resgate=...`, parametros UTM ou sufixos de campanha. A interface do ChatGPT/abertura de links pode adicionar parametros de atribuicao fora do controle do assistente; por isso o endereco deve ser apresentado como texto/codigo facilmente copiavel, em vez de link de redirecionamento do aplicativo.
+
+**Incidente:** o usuario relatou varias vezes que, mesmo depois do hotfix Android, em seu dispositivo a pagina segue inteiramente preta. Os testes remotos de escritorio/Pixel 7 nao reproduziram a falha; manter status como NAO RESOLVIDO NO APARELHO REAL. Nao atribuir causalidade a `utm_source` nem ao React sem evidencias.
+
+**Diagnostico adicional:** Desktop Commander em 19/11/2026 confirmou HTTP 200 e novo bundle no HTTPS oficial, arvore Git local limpa em `feature/icone-b-20261119`, commit `19de490`. Resolvers 1.1.1.1, 8.8.8.8 e 9.9.9.9 retornam diferentes A/AAAA de edges Hostinger; pode ser GeoDNS e nao comprova erro. URL externa pelo web bot nao ficou acessivel. Ainda falta evidencia do navegador/rede/aparelho real.
+
+**Proximo teste recomendado:** usuario copiar a URL P-U-R-A e colar diretamente na barra do Google Chrome (nao no navegador embutido do ChatGPT); se preto persistir, pedir captura e comparar no mesmo dispositivo em Wi-Fi e dados moveis. Se isso nao permitir localizar falha, publicar pagina estatica de diagnostico sem JS/React sob o mesmo dominio para separar falha de edge/rede de falha front-end, sem comprometer site principal.
