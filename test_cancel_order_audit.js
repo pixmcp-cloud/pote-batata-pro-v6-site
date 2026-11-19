@@ -110,5 +110,5 @@ assert.equal(state.data.ingredients.find(x=>x.id==="batata").stock,beforeRace);
 assert(persists>=5&&renders>=5);
 const src=read("source/pote_app_base.html"),pub=read("public/index.html");
 assert(src.includes("POTE_CANCEL?.open"));
-assert(pub.includes("cancel_order_flow.js?v=cf-bridge-staging-20261118"));
+assert(pub.includes("cancel_order_flow.js?v=order-sequence-20261119"));
 console.log("PASS: reserva sem baixa, restituição de batata/bacon/pote/refri, cancelamento de entregue, recuperação legada, perda, sem duplo estorno e sem estorno parcial.");

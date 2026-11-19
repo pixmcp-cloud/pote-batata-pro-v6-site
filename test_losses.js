@@ -124,7 +124,7 @@ assert(saved>0&&rendered>0);
 const moduleUniv=read("universe_core.js");
 assert(/const LISTS=[\s\S]*?"losses"/.test(moduleUniv),"Universos devem isolar as perdas");
 const build=read("public/index.html");
-assert(build.includes("losses.js?v=v3-wave1-20261116"));
+assert(build.includes("losses.js?v=order-sequence-20261119"));
 assert(build.includes("losses.css?v=losses-20261116"));
 assert(build.includes("losses:pageLosses"));
 assert(build.includes("losses:'Perdas'"));
