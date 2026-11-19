@@ -159,8 +159,8 @@ function pendingSalePanel(){
    return '<div class="box" style="padding:10px;margin-top:8px">'+
     '<b>'+escapeHtml(String(f.orderQty||"1"))+'x '+escapeHtml(String(f.orderItem||"Pedido"))+'</b> - R$ '+escapeHtml(String(f.orderPrice||"0"))+
     '<div class="muted">'+escapeHtml(new Date(entry.createdAt).toLocaleString("pt-BR"))+'</div>'+
-    '<div class="actions"><button type="button" class="btn mini" onclick="restorePendingSaleNote(\\''+entry.id+'\\')">Reabrir pedido</button>'+
-    '<button type="button" class="btn mini line" onclick="removePendingSaleNote(\\''+entry.id+'\\')">Excluir apos conferir</button></div></div>';
+    '<div class="actions"><button type="button" class="btn mini" onclick="restorePendingSaleNote(&quot;'+entry.id+'&quot;)">Reabrir pedido</button>'+
+    '<button type="button" class="btn mini line" onclick="removePendingSaleNote(&quot;'+entry.id+'&quot;)">Excluir apos conferir</button></div></div>';
   }).join("")+
   '<div class="actions"><button type="button" class="btn line" onclick="exportPendingSaleNotes()">Baixar anotacoes JSON</button></div></section>';
 }
