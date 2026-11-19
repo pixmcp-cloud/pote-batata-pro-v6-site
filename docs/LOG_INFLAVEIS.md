@@ -121,3 +121,28 @@ Diga: **"Abra o Log infláveis e continue o planejamento do sistema de aluguel d
 **Pendências críticas antes de qualquer operação real:** repositório GitHub próprio, autenticação, tenants, banco PostgreSQL, transações de disponibilidade, contratos, integração de pagamento, equipe e equipamentos compartilhados, definição de preços/frete reais, LGPD e checklists de segurança. Sem autorização de contratação de serviços pagos e sem publicação pública.
 
 **Próxima etapa recomendada:** criar repositório GitHub separado para `inflaveis-pro`, conectar ao projeto local, planejar backend multi-tenant com reservas transacionais, implementar autenticação e catálogo cadastrado por locador; validar em emuladores e Android real. Priorizar retorno financeiro e baixo custo.
+
+
+## 14. Infraestrutura adquirida para Brasil Infláveis — 19/11/2026
+
+**Confirmações comerciais verificadas em comprovantes da Hostinger enviados ao proprietário (não arquivar faturas, e-mail pessoal, identificadores ou dados de pagamento neste repositório público):**
+- Domínio comprado: **brasilinflaveis.com** — período contratado de 19/11/2026 a 19/11/2027.
+- Plano comprado: **Hostinger Unlimited Web Hosting**, período de 19/11/2026 a 19/11/2027.
+- Backup diário incluído no pedido.
+- A renovação é automática salvo desativação na conta; conferir custo de renovação, que não consta na confirmação consultada.
+- Domínio e plano já foram adquiridos. Não pressupor que o site esteja publicado ou com SSL funcional.
+
+**Verificação pública via PC (19/11/2026):**
+- DNS NS de brasilinflaveis.com: nova.dns-parking.com / cosmos.dns-parking.com.
+- Registro A observado: 2.57.91.91. Isso não comprova que uma aplicação esteja implantada no domínio.
+- Requisição HTTPS ao endereço raiz expirou no teste; checar propagação, associação do domínio à hospedagem e SSL antes de divulgar.
+- O acesso direto autenticado ao hPanel não foi verificado por este procedimento; existência de recursos específicos deve ser confirmada na tela Detalhes do plano.
+
+**Limites publicados pela Hostinger para Unlimited Web Hosting (documentação atual, sujeitos a versão e configuração):**
+- Até 5 websites Node.js (contagem de sites web em geral anunciada como ilimitada, observados recursos).
+- 2 núcleos CPU, 3 GB RAM, 50 GB disco, 150 bancos MySQL, 3 GB por banco.
+- Node.js web hospedado não aceita conexões WebSocket de entrada nem workers persistentes; observar limites de execução.
+- Fonte oficial: https://www.hostinger.com/support/6976044-parameters-and-limits-of-hosting-plans-in-hostinger/
+- Fonte Node.js: https://www.hostinger.com/support/hostinger-node-js-limits-for-web-and-cloud-plans/
+
+**Decisão de arquitetura recomendada, ainda não aprovada como implementação:** começar com build Vite/React hospedado no plano já pago e avaliar backend Node.js/MySQL simples e seguro no próprio plano, desde que os limites e isolamento multiempresa sejam adequados. Evitar pagar Cloud/VPS prematuramente. Plataforma ainda em protótipo; não publicar reservas/pagamentos reais sem homologação. Aproveitar o domínio como marca/portal "Brasil Infláveis" e nome do SaaS a validar.
