@@ -267,3 +267,28 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 - Estado real verificado: C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import **não existe**. Sem merge real ou comparação do código do Work.
 
 **Pendência bloqueante:** exportar repositório de origem do Sites com histórico para a pasta separada, ou disponibilizar repo privado acessível. Depois rodar script, fazer diff real, preservar agenda D1/migrações e testar login antes de homologar. Não tomar a prévia protegida como fonte de código.
+
+## 20. [PC/COMMANDER] Simulador de rentabilidade e ajuste mobile — 19/11/2026
+
+**Origem:** desenvolvimento local realizado nesta sessão, após leitura integral do Log infláveis e confirmação de que o Work/Sites ainda não foi exportado para o PC.
+
+**Repositório local:** C:\Users\LIVRESOM\Projects\inflaveis-pro.
+**Branch:** feature/rentabilidade-locadoras-20261119.
+**Commit verificado:** 87d550a (feat: simulador de rentabilidade por locadora e correção do menu mobile).
+**Branch backup anterior:** backup/pre-rentabilidade-20261119, em 571ea54; árvore Git limpa após o commit.
+
+**Funcionalidade adicionada sem backend:**
+- Nova aba Rentabilidade no painel executivo. Cada brinquedo da locadora demonstrativa selecionada tem um cenário editável de preços e custos, gravado SOMENTE no localStorage do navegador em chave composta por locadora/equipamento.
+- Entradas: aluguel, frete cobrado, adicionais cobrados, combustível/entrega, equipe, higienização, provisão de desgaste, taxa de pagamento %, tributos estimados %, custos fixos mensais, volume esperado de locações/mês, meta de resultado.
+- Saídas: receita simulada, custos diretos, taxa de recebimento e tributos estimados, custos variáveis, margem de contribuição, rateio dos custos fixos, resultado líquido ESTIMADO, margem %, ponto de equilíbrio hipotético, preço-base mínimo para meta de resultado.
+- Zero locações mensais ou soma de percentuais de 100% tornam valores dependentes do rateio/preço mínimo indefinidos; contribuição não positiva não produz ponto de equilíbrio atingível.
+- Nenhum valor é classificado como dinheiro recebido ou lucro realizado. Os defaults são fictícios, não tributação oficial; o mesmo navegador pode expor dados a outro usuário do dispositivo. Não inserir dados reais sensíveis.
+- Corrigido cartão do painel que contava reservas confirmadas de todas as locadoras em vez da locadora selecionada.
+- Corrigida a navegação mobile: sidebar oculta quando fechada, com botão de menu e fechamento tocando fora. O teste visual identificou o overlay durante transição de breakpoint; problema corrigido e revalidado.
+- Motor puro em src/rentabilidade.ts, interface src/RentabilidadePanel.tsx, CSS src/rentabilidade.css, especificação docs/RENTABILIDADE.md, testes tests/rentabilidade.mjs.
+
+**Testes executados e aprovados:** npm run build; npm run lint (0 erros e 0 avisos); npm run test:smoke; npm run test:marketplace; npm run test:rentabilidade. Testes do novo módulo cobrem matemática com cenário fechado (R$ 500 de receita, R$ 265 de contribuição, R$ 205 de resultado estimado, 41% de margem, 3 locações para equilíbrio e R$ 265,59 de preço-base mínimo), casos negativos/indefinidos, persistência local, reset, troca de locadora, menu mobile e ausência de rolagem horizontal em 320/390/768/1024/1440 px.
+
+**Status de integração:** o repositório de origem do GPT Work/Sites CONTINUA inacessível nesta sessão; nenhuma exportação de código, merge ou alteração D1 foi realizada. Nenhum deploy foi feito no domínio brasilinflaveis.com. Nenhum serviço pago novo contratado. Não confundir simulador com backend financeiro.
+
+**Próximo passo:** aguardar acesso/extração do código Work, executar scripts/auditar-work.ps1 com a fonte e comparar Git, contratos, esquema de agenda D1, autenticação e funcionalidades antes de qualquer merge/publicação. Na ausência de fonte, continuar QA/a11y/motores independentes em branches protegidas.
