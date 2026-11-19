@@ -3,7 +3,7 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signO
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {createV2Store} from "./v2_storage.mjs?v=f20-late-atomic-20261118";
 import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs?v=f10-closed-shifts-20261118";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState} from "./sync_guard.mjs?v=v4-backup-20261117";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-navigation-20261119";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 import {createWorkerBridge} from "./worker_bridge.mjs?v=cf-bridge-staging-20261118";
 
@@ -82,17 +82,28 @@ function withDeadline(promise, ms, label) {
 }
 if (embeddedBrowser) showBrowserHint();
 
-function setStatus(v) { if (syncEl) syncEl.textContent = v; }
+function setStatus(v) { if (syncEl) syncEl.textContent = v; if(syncBlocked)refreshSyncExplanation(); }
 function syncExplanation(){
  const pending=active?.uid?existingPending(active.uid):null;
- const cause=String(lastSyncCause?.detail||pending?.reason||"Backup local nao confirmado").slice(0,200);
+ const originalReason=String(lastSyncCause?.detail||pending?.reason||"Nenhum erro detalhado foi registrado anteriormente").slice(0,180);
  const code=String(lastSyncCause?.code||pending?.reason||"pending-local");
- let title="Alteracoes locais de uma sessao anterior ainda nao confirmadas";
- if(/conflict|conflito|concorrente|alterado em outro|pedidos ou estoque/i.test(code+" "+cause))
-  title="Outra aba ou dispositivo alterou pedidos ou estoque";
- else if(/invalid-state|schema|inconsist/i.test(code+" "+cause))title="Dados recusados na validacao";
- else if(/unavailable|network|deadline|offline/i.test(code+" "+cause))title="Conexao temporariamente indisponivel";
- return {title,cause,code};
+ const comparison=pending&&active?.uid?
+  inspectPendingAgainstCloud(pending,active.uid,safeState(),{v2:useV2}):null;
+ const differences=comparison?.details||[];
+ let title="Alteracoes locais anteriores nao confirmadas";
+ if(comparison?.kind==="business-different")title="O backup local difere dos dados da nuvem";
+ else if(comparison?.kind==="invalid")title="Backup local invalido ou incompleto";
+ else if(/sync\/conflict|conflito|concorrente|alterado em outro/i.test(code+" "+originalReason))
+  title="Outra aba ou dispositivo alterou os dados";
+ else if(/sync\/invalid-state|schema/i.test(code))title="Inconsistencia nos dados enviados";
+ else if(/network|unavailable|offline|deadline/i.test(code))title="Conexao temporariamente indisponivel";
+ const cause=(comparison?.kind==="business-different"?
+  "Diferencas identificadas: "+differences.join("; ")+". ":"")+
+  "Motivo registrado: "+originalReason;
+ const action=comparison?.kind==="business-different"?
+  "Os registros locais nao coincidem com os dados da nuvem. Baixe e confira o backup antes de liberar o salvamento de pedidos.":
+  "Feche as outras abas do aplicativo, confira o backup e recupere a sincronizacao com seguranca.";
+ return {title,cause,code,action,comparison:comparison?.kind||"none"};
 }
 function refreshSyncExplanation(){
  const box=document.getElementById("poteOrderSyncWarning");
@@ -100,9 +111,12 @@ function refreshSyncExplanation(){
  box.hidden=!syncBlocked;
  if(!syncBlocked)return;
  const d=syncExplanation();
- const label=box.querySelector("strong"),text=box.querySelector("p");
- if(label)label.textContent=d.title;
- if(text)text.textContent="Causa registrada: "+d.cause+". Se houver varias abas, feche as outras. Preserve o backup local antes de recuperar.";
+ const title=box.querySelector("[data-sync-title]")||box.querySelector("strong");
+ const cause=box.querySelector("[data-sync-cause]")||box.querySelector("p");
+ const action=box.querySelector("[data-sync-action]");
+ if(title)title.textContent=d.title;
+ if(cause)cause.textContent=d.cause;
+ if(action)action.textContent=d.action;
 }
 function setMessage(v) { message.textContent = v; }
 function setGate(show) {
@@ -481,7 +495,15 @@ async function sync() {
 function queueSave(){
   if(!ready||!active)return;
   // Renderização e navegação não precisam gerar gravações se o estado não mudou.
-  if(!syncBlocked&&JSON.stringify(safeState())===lastJson)return;
+  const serialized=JSON.stringify(safeState());
+  if(!syncBlocked&&serialized===lastJson)return;
+  if(useV2&&!syncBlocked&&lastJson){
+   try{
+    const comparison=inspectPendingAgainstCloud({version:1,uid:active.uid,state:safeState()},
+     active.uid,JSON.parse(lastJson),{v2:true});
+    if(comparison.safeToRelease){lastJson=serialized;return}
+   }catch(error){}
+  }
   clearTimeout(timer);
   if(syncBlocked){
     // Nunca tentar sobrescrever a nuvem após descobrir conflito.
@@ -495,6 +517,13 @@ window.addEventListener("beforeunload",event=>{
   if(!ready||!active)return;
   const serialized=JSON.stringify(safeState());
   if(serialized===lastJson&&!syncBlocked)return;
+  if(useV2&&!syncBlocked&&lastJson){
+   try{
+    const comparison=inspectPendingAgainstCloud({version:1,uid:active.uid,state:safeState()},
+     active.uid,JSON.parse(lastJson),{v2:true});
+    if(comparison.safeToRelease)return;
+   }catch(error){}
+  }
   savePending(serialized,"navegador fechado com alterações pendentes");
   event.preventDefault();
   event.returnValue="";
@@ -606,7 +635,9 @@ async function loadUser(user, index) {
   loginBtn.disabled = false;
   setMessage("");
   const pendingOnLoad=existingPending(user.uid);
-  if(pendingMatchesLoadedState(pendingOnLoad,user.uid,safeState())){
+   const backupCheck=pendingOnLoad?
+    inspectPendingAgainstCloud(pendingOnLoad,user.uid,safeState(),{v2:useV2}):null;
+  if(pendingMatchesLoadedState(pendingOnLoad,user.uid,safeState())||backupCheck?.safeToRelease){
     // A local pending record may survive a successful previous sync.
     // Remove it only if every field matches the now-loaded cloud state.
     try{localStorage.removeItem(pendingKey(user.uid))}catch(error){
@@ -616,7 +647,7 @@ async function loadUser(user, index) {
   if(existingPending(user.uid)){
     syncBlocked=true;
     setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
-  }else setStatus(pendingOnLoad?"Backup antigo conferido com a nuvem; vendas liberadas.":"Dados salvos na nuvem");
+   }else{syncBlocked=false;lastSyncCause=null;setStatus(pendingOnLoad?"Backup local conferido: dados comerciais iguais aos da nuvem. Vendas liberadas.":"Dados salvos na nuvem");}
   setGate(false);
   showBackupButton();
   if(useV2){
