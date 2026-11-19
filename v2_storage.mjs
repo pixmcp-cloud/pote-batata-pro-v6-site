@@ -90,6 +90,21 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    const client=typeof window!=="undefined"?window.POTE_AUTH:null;
    const free=Boolean(client?.uid===uid&&!client.proActive);
    next=splitState(snapshot(),baseline.records,{free});
+   // Keep lifetime order counters monotonic across backup restores and universe swaps.
+   // A destructive import may remove orders, but it cannot reuse a public number.
+   const previousData=baseline.meta?.data||{};
+   const incomingData=next.meta?.data||{};
+   const prevBranches={...(previousData.businessUniverses||{}),
+    [String(previousData.businessType||'default')]:previousData};
+   const nextBranches={...(incomingData.businessUniverses||{}),
+    [String(incomingData.businessType||'default')]:incomingData};
+   for(const [universe,branch] of Object.entries(prevBranches)){
+    const oldNum=Number(branch?.orderSequenceLast||0);
+    const nextNum=Number(nextBranches[universe]?.orderSequenceLast||0);
+    if(!Number.isSafeInteger(oldNum)||oldNum<0||
+      !Number.isSafeInteger(nextNum)||nextNum<oldNum)
+     throw Error('Numero vitalicio de pedidos nao pode diminuir no negocio '+universe+'. Preserve backup e historico.');
+   }
    // The backend also enforces one canonical record ID for each Free slot.
    if(free){
     const branch=String(snapshot()?.data?.businessType||"");
