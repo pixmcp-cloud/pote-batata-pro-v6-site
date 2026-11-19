@@ -292,3 +292,31 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 **Status de integração:** o repositório de origem do GPT Work/Sites CONTINUA inacessível nesta sessão; nenhuma exportação de código, merge ou alteração D1 foi realizada. Nenhum deploy foi feito no domínio brasilinflaveis.com. Nenhum serviço pago novo contratado. Não confundir simulador com backend financeiro.
 
 **Próximo passo:** aguardar acesso/extração do código Work, executar scripts/auditar-work.ps1 com a fonte e comparar Git, contratos, esquema de agenda D1, autenticação e funcionalidades antes de qualquer merge/publicação. Na ausência de fonte, continuar QA/a11y/motores independentes em branches protegidas.
+
+## 21. [PC/COMMANDER] Publicação no domínio e hospedagem Hostinger — 19/11/2026
+
+**Autorização explícita do proprietário:** publicar uma versão acompanhável no domínio brasilinflaveis.com usando a hospedagem Hostinger Web Ilimitada já paga. Versão publicada é a prévia React LOCAL comprovada, não o código GPT Work/Sites que continua inacessível nesta sessão.
+
+**[PC/COMMANDER] Deploy efetuado pelo hPanel autenticado no computador DESKTOP-9481JM1:**
+- A conta Hostinger existente exibiu plano Hospedagem Web Ilimitada, com término em 2027-11-19. Domínio adquirido brasilinflaveis.com selecionado no assistente PHP/HTML, com servidor regional South America (Brazil).
+- Hospedagem configurada via hPanel > Sites > PHP/HTML > Carregar arquivos do site. ZIP enviado diretamente pelo seletor do Windows, com upload 100%; hPanel confirmou "Seu site está pronto".
+- Pacote gerado da pasta dist do Vite: .previews/brasil-inflaveis-preview-20261119.zip (aprox. 1,05 MB), 9 arquivos: index.html, CSS, JS, quatro imagens ilustrativas, favicon.svg e robots.txt. Os caminhos internos ZIP usam separadores POSIX e não contêm .env, chaves, .git, source ou banco de dados.
+- Site já responde com HTTP 200 em https://brasilinflaveis.com e https://www.brasilinflaveis.com; HTTP redireciona a HTTPS. Painel de hospedagem mostra SSL e CDN ativos. Nenhum serviço pago novo comprado; livresom.com e Potê Batata não alterados.
+- O domínio exigia verificação de e-mail do registrante até 2026-12-03. Foi reenviado e-mail pelo hPanel à conta registrada, acessada no Chrome já autorizado do computador. Após clicar na mensagem RECENTE do remetente oficial, domains.hostinger.com mostrou "Seu e-mail foi verificado". A página do hPanel em seguida passou a mostrar domínio **Ativo** e notificação de verificação concluída. Nenhuma chave/link privado foi arquivado.
+
+**[PC/COMMANDER] Git/local:**
+- Pasta C:\Users\LIVRESOM\Projects\inflaveis-pro.
+- Branch de release: release/hostinger-preview-20261119.
+- Commit: **a4049f0** (chore: publica previa Hostinger com noindex e QA em producao), árvore Git limpa.
+- Backup: backup/pre-hostinger-preview-20261119 no commit 87d550a.
+- Documentação local: docs/DEPLOY-HOSTINGER.md; script de QA online: tests/live-hostinger.mjs; comando npm run test:live.
+- Proteção contra indexação durante a validação: meta robots noindex,nofollow,noarchive e public/robots.txt Disallow: /. Essas diretivas NÃO exigem autenticação; a prévia está publicamente acessível para quem tiver o link.
+
+**Teste real no domínio publicado:**
+- Build e lint sem erros; testes locais smoke, marketplace e rentabilidade aprovados antes do upload.
+- Playwright/Chrome acessou URL HTTPS publicada e confirmou: HTTP 200, título Brasil Infláveis, 5 brinquedos fictícios vinculados a 3 locadoras fictícias, 2 decoradores fictícios, CSS e seis imagens carregadas, painel/Rentabilidade em funcionamento e seleção entre empresas de demonstração, nenhum erro JS ou recurso crítico ausente, sem rolagem horizontal em 320/390/768/1440 px, robots.txt, favicon e imagem HTTP 200, WWW HTTPS HTTP 200.
+- npm run test:live reexecutado após publicação e aprovado; checagem final da raiz HTTP 200 após commit.
+
+**Escopo e riscos:** ambiente de DEMONSTRAÇÃO público; não é SaaS de produção, não tem autenticação verdadeira, autorização multi-tenant, banco D1 integrado, agenda transacional, checkout ou contratos vinculantes. Dados fictícios e persistência apenas localStorage do visitante; nunca usar informações sensíveis nesta versão. O código original GPT Work/Sites permanece sem comparação/merge. Repositório local segue sem remote; não confundir atualizar este log com publicar código-fonte no GitHub.
+
+**Próximas melhorias:** validar visual diretamente pelo celular do proprietário no domínio; preparar método incremental/seguro de atualização na Hostinger com backup e QA após deploy; obter repositório do GPT Work/Sites para integração por diff. Não abrir inscrições, pagamentos reais nem removê-lo do modo noindex antes de autenticação, segurança, LGPD e homologação.
