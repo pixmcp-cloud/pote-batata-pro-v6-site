@@ -9,14 +9,14 @@ const path="users/f02-rest-race-qa/appState/v2InventoryGuard";
 const endpoint=base+"/documents/"+path;
 const requestFetch=fetch;
 const repo=createFirestoreRepository({FIREBASE_PROJECT_ID:project},{
- requestFetch,accessToken:async()=>"emulator-only",apiBaseUrl:base});
+ requestFetch,accessToken:async()=>"owner",apiBaseUrl:base});
 const patch=async(revision)=>{
- const response=await fetch(endpoint,{method:"PATCH",headers:{"Content-Type":"application/json"},
+ const response=await fetch(endpoint,{method:"PATCH",headers:{"Content-Type":"application/json","Authorization":"Bearer owner"},
  body:JSON.stringify({fields:encodeFields({revision})})});
  assert.equal(response.ok,true,await response.text());
 };
 const get=async()=>{
- const response=await fetch(endpoint);
+ const response=await fetch(endpoint,{headers:{"Authorization":"Bearer owner"}});
  assert.equal(response.ok,true,await response.text());
  return response.json();
 };
@@ -43,5 +43,5 @@ try{
  assert.equal(Number(final.fields.revision.integerValue),21);
  console.log("PASS F02 REST EMULATOR COST REVISION RACE: conflict "+conflict.status+", no stale write, fresh retry");
 }finally{
- await fetch(endpoint,{method:"DELETE"}).catch(()=>{});
+ await fetch(endpoint,{method:"DELETE",headers:{"Authorization":"Bearer owner"}}).catch(()=>{});
 }
