@@ -619,3 +619,7 @@ PENDENTE: ainda nao testado fisicamente no Android ou em duas contas reais. Usua
 Branch feat/f35-completion-audit-20261118. Modulo puro workers/antifraud/src/component_cost.mjs introduz calculo de custo para ingrediente, adicional, embalagem e bebida usando fichas resolvidas no servidor e costUnit existente, sem confiar em custo informado pelo navegador. Validacao de unidade, rendimento, quantidade, origem e limite; recusa custo ausente, estimado, invalido ou produto arquivado com cost_review_required. Funcao minimumApprovedPriceCents aplica margem minima a centavos inteiros. Suite workers/antifraud/test/component_cost.test.mjs cobre 5 cenarios: componentes mistos, extra duplicado, desconhecidos/estimados, unidades/rendimento e margem invalida.
 
 IMPORTANTE: modulo ainda NAO esta ligado a approveRecipePrice nem a createSimpleOrder. A recusa de receitas complexas continua ATIVA e nenhuma aprovacao comercial foi liberada. Proxima acao: integrar consulta transacional a registros de custo de adicionais/bebidas/embalagens, validar revisoes e precos no Firebase Emulator e recusar combos sem decomposicao autoritativa. Sem deploy, sem main, sem dados reais, sem servicos pagos.
+
+### F02 COMPLEMENTO: ARREDONDAMENTO EM CENTAVOS / 19-11-2026
+
+Primeira suite detectou 201 centavos em vez de 200 no custo adicional duplicado, causado por erro de ponto flutuante na conversao para centavos (Math.ceil). Ajustado Math.ceil(valor*100-1e-9) nos valores por componente e total, sem arredondar custos intermediarios. Reexecutar teste dirigido e regressao antes de integrar.

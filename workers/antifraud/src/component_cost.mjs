@@ -43,11 +43,11 @@ export function authoritativeComponentCost(lines,resolve){
    reject("Custo calculado inválido");
   total+=cost;
   details.push(Object.freeze({kind:line.kind,id:line.id,quantity,unit,
-   costCents:Math.ceil(cost*100)}));
+   costCents:Math.ceil(cost*100-1e-9)}));
  }
  if(!Number.isFinite(total)||total<=0||total>1e9)
   reject("Custo total inválido");
- return Object.freeze({materialCostCents:Math.ceil(total*100),
+ return Object.freeze({materialCostCents:Math.ceil(total*100-1e-9),
   details:Object.freeze(details)});
 }
 export function minimumApprovedPriceCents(materialCostCents,minimumGainPct){
