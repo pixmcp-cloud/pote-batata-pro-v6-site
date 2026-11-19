@@ -704,7 +704,7 @@ function notifyOrderWhatsApp(id){
  const ig=state.data.brand?.instagram||'';
  const code=publicOrderCode(o);
  const nome=o.clientName||'Cliente';
- const total=money(num(o.qty)*num(o.price)+num(o.deliveryFee||0));
+ const total=money(num(o.qty)*num(o.price)+num(o.deliveryFee||0)).replace(/\u00a0/g,' ');
  let msg='';
  if(o.status==='recebido')msg=`Olá ${nome}! Recebemos o seu pedido N° *${code}*\n\n✅ ${o.qty}x ${o.name}\n\nJá está na fila de preparo 🙌🏻\nO total ficou *${total}*`;
  else if(o.status==='em_producao')msg=`Olá ${nome}! Boas notícias: o seu pedido *${code}* (${o.qty}x ${o.name}) já está *em produção* aqui na cozinha da *${brand}*! 🔥🥔`;
