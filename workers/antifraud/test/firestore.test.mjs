@@ -15,12 +15,12 @@ test("real REST adapter commits Firestore transaction with version guards and se
   if(url.endsWith(":beginTransaction"))
    return new Response(JSON.stringify({transaction:"serialized-transaction"}),{
     status:200,headers:{"content-type":"application/json"}});
-  if(url.includes("/documents/users/uid/records/existing"))
-   return new Response(JSON.stringify({name:"existing",updateTime:"2026-11-18T10:00:00Z",
-    fields:encodeFields({record:{id:"o1",stock:100}})}),{
-    status:200,headers:{"content-type":"application/json"}});
-  if(url.includes("/documents/users/uid/records/missing"))
-   return new Response("Not Found",{status:404});
+  if(url.endsWith(":batchGet")){
+   const {documents}=JSON.parse(options.body);
+   const name=documents[0];
+   if(name.endsWith("/existing"))return new Response(JSON.stringify([{found:{name,updateTime:"2026-11-18T10:00:00Z",fields:encodeFields({record:{id:"o1",stock:100}})}}]),{status:200});
+   return new Response(JSON.stringify([{missing:name}]),{status:200});
+  }
   if(url.endsWith(":commit"))
    return new Response(JSON.stringify({commitTime:"2026-11-18T10:01:00Z"}),{
     status:200,headers:{"content-type":"application/json"}});
