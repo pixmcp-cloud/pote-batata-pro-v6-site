@@ -114,7 +114,7 @@ function pendingSaleKey(){
 function pendingSaleNotes(){
  const key=pendingSaleKey();if(!key)return [];
  try{const value=JSON.parse(localStorage.getItem(key)||"[]");
-  return Array.isArray(value)?value.filter(x=>x&&x.id&&x.fields).slice(0,30):[];
+  return Array.isArray(value)?value.filter(x=>x&&typeof x.id==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x.id)&&x.fields&&typeof x.fields==="object").slice(0,30):[];
  }catch{return []}
 }
 function savePendingSaleNote(){
@@ -131,7 +131,7 @@ function savePendingSaleNote(){
  }
  const summary=window.POTE_ORDER_CUSTOM?.summary?.()||{removed:[],added:[]};
  const notes=pendingSaleNotes();
- const duplicate=notes.find(x=>JSON.stringify(x.fields)===JSON.stringify(fields));
+ const duplicate=notes.find(x=>Date.now()-Date.parse(x.createdAt)<1200&&JSON.stringify(x.fields)===JSON.stringify(fields));
  if(duplicate){
   toast("Este pedido ja esta anotado no aparelho. Revise Pendentes antes de criar outro.","error");
   render();return true;
