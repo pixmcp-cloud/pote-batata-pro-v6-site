@@ -52,4 +52,20 @@ assert.equal(C.adjustQuote(ctx.optionQuote()).recipe.items.length,9);
 state.data.businessType="pizzaria";
 C.reset();
 assert(C.options().ingredients.some(x=>x.id==="leite"),"Other businesses are not forced to use potato-base rules");
+
+state.data.businessType="batataria";
+state.data.ingredients=state.data.ingredients.map(x=>({...x,id:"fr-"+x.id,
+ name:["batata","leite","manteiga","sal"].includes(x.id)?"Base personalizada pela franquia":x.name}));
+recipe.id="fr-r08";recipe.templateOrigin="franchise";
+recipe.items=recipe.items.map(x=>({...x,id:"fr-"+x.id}));
+node("orderItem").value="recipe:fr-r08";
+C.reset();
+for(const id of ["fr-batata","fr-leite","fr-manteiga","fr-sal"]){
+ assert(!Array.from(C.options().ingredients,x=>x.id).includes(id),"Franchise core must not be removable: "+id);
+ assert.equal(C.remove(id,true),false);
+}
+assert(Array.from(C.options().ingredients,x=>x.id).includes("fr-carne"),"Franchise filling remains removable");
+assert.equal(C.remove("fr-carne",true),true);
+assert(C.adjustQuote(ctx.optionQuote()).recipe.items.some(x=>x.id==="fr-batata"));
+
 console.log("PASS: 4 fixed base ingredients hidden and protected; only 5 fillings/removable toppings, price, 2 extras and original recipe remain valid.");

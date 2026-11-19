@@ -18,7 +18,7 @@ function isRemovableItem(item,q){
  if(Array.isArray(recipe?.fixedIngredientIds)&&recipe.fixedIngredientIds.includes(id))return false;
  const potato=state.data.businessType==="batataria"||recipe?.templateOrigin==="batataria";
  if(!potato)return true;
- if(FIXED_POTATO_BASE.has(id))return false;
+ if(FIXED_POTATO_BASE.has(id)||id.startsWith("fr-")&&FIXED_POTATO_BASE.has(id.slice(3)))return false;
  const category=String(ingredient?.category||"").trim().toLocaleLowerCase("pt-BR");
  if(category==="base"||category==="massa"||category==="purê"||category==="pure")return false;
  const name=String(ingredient?.name||"").trim().toLocaleLowerCase("pt-BR");
