@@ -193,29 +193,31 @@ function exportPendingSaleNotes(){
  setTimeout(()=>URL.revokeObjectURL(url),10000);
 }
 
-function operationReady(){
+function operationReady(action="Operação"){
  if(!window.POTE_AUTH?.uid)return true; // laboratório local
  if(window.POTE_APP_READY!==true){
-  toast('Venda NÃO registrada: os dados da sua conta ainda estão carregando.', 'error');
+  toast(action+' não realizada: os dados da sua conta ainda estão carregando.', 'error');
   return false;
  }
  if(window.POTE_APP_READY&&window.POTE_MODULE_HEALTH?.safeToOperate!==true){
   window.POTE_HEALTH?.scan?.();
   if(window.POTE_MODULE_HEALTH?.safeToOperate!==true){
-  toast('Operação bloqueada: módulo essencial não carregou. Atualize o aplicativo e confira a conexão.');
+  toast(action+' não realizada: módulo essencial não carregou. Atualize o aplicativo e confira a conexão.');
   return false;
   }
  }
  if(window.POTE_SYNC_GUARD?.blocked){
   const diagnosis=window.POTE_SYNC_GUARD?.diagnosis?.();
-  toast('Venda nao confirmada: '+String(diagnosis?.title||'ha dados pendentes')+'. O pedido pode ser anotado no aparelho.', 'error');
+  toast(action+' não realizada: '+String(diagnosis?.title||'sincronização pendente')+'. '+
+   (action==='Pedido'?'É possível anotar o pedido neste aparelho, mas ainda não confirmar a venda.':
+    'Nenhum pedido, recebimento ou estoque foi alterado. Confira o backup e a nuvem.'), 'error');
   const warning=document.getElementById('poteOrderSyncWarning');
   if(warning){warning.hidden=false;warning.scrollIntoView?.({behavior:'smooth',block:'nearest'});}
   window.POTE_SYNC_GUARD?.showRecovery?.();
   return false;
  }
  if(navigator.onLine===false){
-  toast('Venda NÃO registrada: dispositivo sem internet. Reconecte e tente novamente.', 'error');
+  toast(action+' não realizada: dispositivo sem internet. Reconecte e tente novamente.', 'error');
   return false;
  }
  return true;
@@ -716,7 +718,7 @@ function updateOrderSuggestedPrice(){
  window.POTE_PAYMENT?.sync?.();
 }
 function newOrder(){
-  if(!operationReady()){savePendingSaleNote();return;}
+  if(!operationReady("Pedido")){savePendingSaleNote();return;}
  if(!pro()&&window.POTE_AUTH?.uid&&!window.POTE_AUTH?.proActive&&state.data.businessType&&state.data.businessType!=="batataria"&&freeExtrasOrders()>=1){toast("🔒 FREE: uma venda de teste por universo. Assine o PRO para uso contínuo.");return;}
  if(window.POTE_ACCESS?.requireService?.("orders")===false)return;
  const item=document.getElementById('orderItem')?.value||'',channel=document.getElementById('orderChannel').value;
@@ -758,7 +760,7 @@ function newOrder(){
  state.data.orders.unshift(order);window.POTE_DELIVERY_HUB?.onRegistered?.(order);state.tab='orders';window.POTE_ORDER_CUSTOM?.reset?.();render();window.POTE_ORDER?.scrollToOrders?.(order.id);toast('Pedido registrado! Confira a seção Pedidos.');window.POTE_ORDER?.lowAfterOrder?.(order);
 }
 function produce(id){
- if(!operationReady())return;
+  if(!operationReady("Produção"))return;
  window.POTE_STOCK?.normalizeInventory?.(state.data);
  const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='recebido'||!canOperate(o.recipeId))return;
   if(!window.POTE_ORDER?.checkBeforeProduce?.(o))return;
@@ -786,7 +788,7 @@ function produce(id){
   catch(e){console.warn('Snapshot de custo não concluído:',e.message||e)}
  }state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Produção iniciada: estoque descontado.');window.POTE_ORDER?.lowAfterOrder?.(o);
 }
-function finishOrder(id){if(!operationReady())return;const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();
+function finishOrder(id){if(!operationReady("Entrega"))return;const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='em_producao'||!canOperate(o.recipeId))return;o.status='entregue';o.finishedAt=new Date().toISOString();
   let paidOnCompletion=null;
   try{
     const licensed=!!window.POTE_APP_READY&&!!window.POTE_AUTH?.uid&&
@@ -801,7 +803,7 @@ function finishOrder(id){if(!operationReady())return;const o=state.data.orders.f
       'Pedido concluído. Pagamento na entrega ou sem forma definida continua pendente.':
       'Pedido finalizado. Você permanece na seção Pedidos.'))}
 function cancelOrder(id){
- if(!operationReady())return false;
+ if(!operationReady("Cancelamento"))return false;
  // Um único fluxo de cancelamento, incluindo estoque, perda e idempotência.
  if(!window.POTE_CANCEL?.open){
   toast('Cancelamento indisponível: o módulo de segurança não foi carregado. Nenhum estoque foi alterado.');
