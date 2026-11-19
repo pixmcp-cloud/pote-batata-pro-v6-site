@@ -8,6 +8,23 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const n=v=>Number(v)||0;
 let key="",excluded=new Set(),extraCounts=new Map(),lastAdded=false;
+// Em batataria, componentes da massa/pure pertencem a receita-base: nao sao opcionais.
+// Recheios e coberturas permanecem personalizaveis sem alterar a ficha original.
+const FIXED_POTATO_BASE=new Set(["batata","batata_doce","leite","manteiga","sal"]);
+function isRemovableItem(item,q){
+ const recipe=q?.recipe;
+ const id=String(item?.id||"");
+ const ingredient=state.data.ingredients.find(i=>String(i.id)===id);
+ if(Array.isArray(recipe?.fixedIngredientIds)&&recipe.fixedIngredientIds.includes(id))return false;
+ const potato=state.data.businessType==="batataria"||recipe?.templateOrigin==="batataria";
+ if(!potato)return true;
+ if(FIXED_POTATO_BASE.has(id))return false;
+ const category=String(ingredient?.category||"").trim().toLocaleLowerCase("pt-BR");
+ if(category==="base"||category==="massa"||category==="purê"||category==="pure")return false;
+ const name=String(ingredient?.name||"").trim().toLocaleLowerCase("pt-BR");
+ if(/^(batata inglesa( \(crua\))?|batata-doce|leite integral|manteiga|sal( e temperos secos)?)$/.test(name))return false;
+ return true;
+}
 function quoteKey(){
  return String($("orderItem")?.value||"")+":"+String($("orderComboRecipe")?.value||"");
 }
@@ -23,7 +40,7 @@ function options(){
  ensure();
  const q=baseQuote();
  if(!q?.recipe)return {q:null,ingredients:[],addons:[]};
- const ingredients=(q.recipe.items||[]).map(item=>({
+ const ingredients=(q.recipe.items||[]).filter(item=>isRemovableItem(item,q)).map(item=>({
   id:item.id,name:state.data.ingredients.find(i=>i.id===item.id)?.name||item.id,
   amount:n(item.g),measure:state.data.ingredients.find(i=>i.id===item.id)?.measureUnit||"g"
  }));
@@ -38,8 +55,11 @@ function render(){
  return '<div class="order-custom">'+
   '<div class="order-custom-title"><div><small>MONTE O PEDIDO DO CLIENTE</small><h3>Personalização por unidade</h3></div>'+
   '<span>Sem alterar a receita original</span></div>'+
-  '<p>Marque ingredientes que o cliente não quer. Ex.: <strong>sem milho</strong>. Escolha também quantos adicionais extras ele deseja. A comanda e o estoque serão ajustados.</p>'+
-  '<div class="order-custom-columns"><section><h4>Retirar ingredientes</h4>'+
+  (state.data.businessType==="batataria"?
+   '<p>Remova somente recheios ou coberturas. <strong>Base fixa protegida:</strong> batata, leite, manteiga e sal. Escolha quantos adicionais quiser; a comanda e o estoque serão ajustados.</p>':
+   '<p>Marque os itens opcionais que o cliente não quer. Escolha também os extras; a comanda e o estoque serão ajustados.</p>')+
+  '<div class="order-custom-columns"><section><h4>'+(state.data.businessType==="batataria"?
+    'Retirar recheios e coberturas':'Retirar ingredientes')+'</h4>'+
   (ingredients.length?ingredients.map(i=>
    '<label class="order-custom-option"><input type="checkbox" data-remove-ingredient="'+esc(i.id)+'" '+
    (excluded.has(i.id)?"checked":"")+' onchange="POTE_ORDER_CUSTOM.remove(this.dataset.removeIngredient,this.checked)">'+
@@ -70,8 +90,14 @@ function update(){
 }
 function remove(id,checked){
  ensure();
- if(checked)excluded.add(String(id));else excluded.delete(String(id));
+ const value=String(id);
+ if(!options().ingredients.some(item=>item.id===value)){
+  excluded.delete(value);
+  return false;
+ }
+ if(checked)excluded.add(value);else excluded.delete(value);
  update();
+ return true;
 }
 function delta(id,by){
  ensure();
@@ -85,8 +111,9 @@ function reset(){key="";excluded=new Set();extraCounts=new Map();lastAdded=false
 function adjustQuote(q){
  if(!q?.recipe)return q;
  ensure();
- const items=(q.recipe.items||[]).filter(item=>!excluded.has(item.id));
- const removed=(q.recipe.items||[]).filter(item=>excluded.has(item.id)).map(item=>{
+ const removableIds=new Set(options().ingredients.map(item=>item.id));
+ const items=(q.recipe.items||[]).filter(item=>!(removableIds.has(item.id)&&excluded.has(item.id)));
+ const removed=(q.recipe.items||[]).filter(item=>removableIds.has(item.id)&&excluded.has(item.id)).map(item=>{
   const ingredient=state.data.ingredients.find(i=>i.id===item.id);
   return {id:item.id,name:ingredient?.name||item.id,quantity:n(item.g),
     unit:ingredient?.measureUnit||"g"};
@@ -136,5 +163,5 @@ function summary(){
  });
  return {removed,added};
 }
-window.POTE_ORDER_CUSTOM={render,mount,remove,delta,reset,adjustQuote,summary,options};
+window.POTE_ORDER_CUSTOM={render,mount,remove,delta,reset,adjustQuote,summary,options,isRemovableItem};
 })();

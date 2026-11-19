@@ -344,7 +344,7 @@ BODY_ASSETS = (
     '<script src="./app_audit.js?v=audit-20261115"></script>'
     '<script src="./stock_ui.js?v=critical-stock10-20261118"></script>'
     '<script src="./pricing_explainer.js?v=v3-wave1-20261116"></script>'
-    '<script src="./order_customization.js?v=audit-20261115"></script>'
+    '<script src="./order_customization.js?v=base-fixed-v10-20261119"></script>'
     '<script src="./receipt_enhanced.js?v=receipt-20261115"></script>'
     '<script src="./stock_ext.js?v=v4-stock-balance-20261117"></script>'
     '<script src="./order_guard.js?v=audit-20261115"></script>'
