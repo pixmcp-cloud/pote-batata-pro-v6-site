@@ -105,6 +105,93 @@ function chosenExpenses(){return state.data.expenses.filter(e=>e.enabled)}
 function freeCustom(){return state.data.recipes.filter(r=>!r.modelRecipe&&!r.templateOrigin&&!SEED.recipes.some(x=>x.id===r.id))}
 function freeExtrasOrders(){const current=state.data.businessType||"batataria",branches={...(state.data.businessUniverses||{}),[current]:state.data};return Object.entries(branches).filter(([u])=>u!=="batataria"&&u!=="default"&&u!=="legacyUnassigned").reduce((n,[,b])=>n+(Array.isArray(b.orders)?b.orders.length:0),0)}
 function ingredientCustom(){return state.data.ingredients.filter(i=>!i.archived&&!i.templateOrigin&&!SEED.ingredients.some(x=>x.id===i.id))}
+
+/* Offline-safe intake only. These notes NEVER enter official orders, stock or PDV. */
+function pendingSaleKey(){
+ const a=window.POTE_AUTH;
+ return a?.uid?"pote-sale-notes-v1:"+a.uid+":"+(state.data.businessType||"batataria"):null;
+}
+function pendingSaleNotes(){
+ const key=pendingSaleKey();if(!key)return [];
+ try{const value=JSON.parse(localStorage.getItem(key)||"[]");
+  return Array.isArray(value)?value.filter(x=>x&&x.id&&x.fields).slice(0,30):[];
+ }catch{return []}
+}
+function savePendingSaleNote(){
+ const key=pendingSaleKey();
+ if(!key||window.POTE_APP_READY!==true){toast("Conta ainda nao carregada. Nao foi possivel guardar o pedido.","error");return false}
+ const ids=["orderItem","orderClient","orderAddress","orderQty","orderPrice",
+  "orderHasDelivery","orderDelivery","orderPayment","orderChannel",
+  "orderExtraBev","orderNote","orderWeight","orderCashReceived"];
+ const fields={};
+ for(const id of ids)fields[id]=String(document.getElementById(id)?.value??"").slice(0,600);
+ const qty=Number(fields.orderQty),price=parseBRNumber(fields.orderPrice);
+ if(!fields.orderItem||!Number.isFinite(qty)||qty<1||!Number.isFinite(price)||price<=0){
+  toast("Preencha produto, quantidade e preco para guardar o pedido pendente.","error");return false;
+ }
+ const summary=window.POTE_ORDER_CUSTOM?.summary?.()||{removed:[],added:[]};
+ const notes=pendingSaleNotes();
+ const duplicate=notes.find(x=>JSON.stringify(x.fields)===JSON.stringify(fields));
+ if(duplicate){
+  toast("Este pedido ja esta anotado no aparelho. Revise Pendentes antes de criar outro.","error");
+  render();return true;
+ }
+ if(notes.length>=30){toast("Limite de 30 anotacoes locais. Exporte e confira antes de continuar.","error");return false}
+ const entry={id:"draft-"+uid(),createdAt:new Date().toISOString(),
+  fields,customSummary:summary,universe:state.data.businessType||"batataria"};
+ notes.unshift(entry);
+ try{
+  const json=JSON.stringify(notes);localStorage.setItem(key,json);
+  if(localStorage.getItem(key)!==json)throw Error("dispositivo nao confirmou gravacao");
+ }catch(error){toast("Falha ao guardar no aparelho: "+String(error.message||error),"error");return false}
+ render();
+ toast("Pedido ANOTADO neste aparelho. Ainda NAO e venda confirmada: sem baixa de estoque ou entrada no caixa.","error");
+ return true;
+}
+function pendingSalePanel(){
+ const drafts=pendingSaleNotes();
+ if(!drafts.length)return "";
+ return '<section class="notice" style="border-color:#c99d63;background:#211809" aria-label="Pedidos anotados no aparelho">'+
+  '<strong>PEDIDOS PENDENTES NESTE APARELHO: '+drafts.length+'</strong>'+
+  '<p>O sistema preservou estas anotacoes durante a falha. NAO sao vendas confirmadas e NAO mexem no caixa nem no estoque. Reabra, confira os dados e registre depois que a nuvem voltar.</p>'+
+  drafts.map(entry=>{
+   const f=entry.fields||{};
+   return '<div class="box" style="padding:10px;margin-top:8px">'+
+    '<b>'+escapeHtml(String(f.orderQty||"1"))+'x '+escapeHtml(String(f.orderItem||"Pedido"))+'</b> - R$ '+escapeHtml(String(f.orderPrice||"0"))+
+    '<div class="muted">'+escapeHtml(new Date(entry.createdAt).toLocaleString("pt-BR"))+'</div>'+
+    '<div class="actions"><button type="button" class="btn mini" onclick="restorePendingSaleNote(\\''+entry.id+'\\')">Reabrir pedido</button>'+
+    '<button type="button" class="btn mini line" onclick="removePendingSaleNote(\\''+entry.id+'\\')">Excluir apos conferir</button></div></div>';
+  }).join("")+
+  '<div class="actions"><button type="button" class="btn line" onclick="exportPendingSaleNotes()">Baixar anotacoes JSON</button></div></section>';
+}
+function restorePendingSaleNote(id){
+ const d=pendingSaleNotes().find(x=>x.id===id);if(!d)return;
+ go("orders");
+ for(const [key,value] of Object.entries(d.fields)){
+  const el=document.getElementById(key);if(el)el.value=value;
+ }
+ window.POTE_ORDER_CUSTOM?.mount?.();
+ window.POTE_PAYMENT?.sync?.();
+ if((d.customSummary?.removed||[]).length||(d.customSummary?.added||[]).length)
+  alert("Este pedido tinha personalizacoes. Confira e selecione novamente os ingredientes e extras antes de confirmar.");
+ toast("Pedido reposto no formulario. Ele continua pendente ate registro e sincronizacao confirmados.");
+}
+function removePendingSaleNote(id){
+ const key=pendingSaleKey();if(!key)return;
+ if(!confirm("Excluir esta anotacao? Confira PRIMEIRO se o pedido ja foi registrado e sincronizado na nuvem."))return;
+ localStorage.setItem(key,JSON.stringify(pendingSaleNotes().filter(x=>x.id!==id)));
+ render();
+}
+function exportPendingSaleNotes(){
+ const entries=pendingSaleNotes();if(!entries.length)return;
+ const file=new Blob([JSON.stringify({version:1,uid:window.POTE_AUTH?.uid,
+  exportedAt:new Date().toISOString(),orders:entries},null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(file),link=document.createElement("a");
+ link.href=url;link.download="pote-pedidos-pendentes-"+new Date().toISOString().slice(0,10)+".json";
+ document.body.appendChild(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+
 function operationReady(){
  if(!window.POTE_AUTH?.uid)return true; // laboratório local
  if(window.POTE_APP_READY!==true){
@@ -119,7 +206,8 @@ function operationReady(){
   }
  }
  if(window.POTE_SYNC_GUARD?.blocked){
-  toast('Venda NÃO registrada: há dados locais pendentes de sincronização. Exporte o backup e use Resolver conflito na área de sincronização.', 'error');
+  const diagnosis=window.POTE_SYNC_GUARD?.diagnosis?.();
+  toast('Venda nao confirmada: '+String(diagnosis?.title||'ha dados pendentes')+'. O pedido pode ser anotado no aparelho.', 'error');
   const warning=document.getElementById('poteOrderSyncWarning');
   if(warning){warning.hidden=false;warning.scrollIntoView?.({behavior:'smooth',block:'nearest'});}
   window.POTE_SYNC_GUARD?.showRecovery?.();
@@ -569,7 +657,7 @@ function pageOrders(){
  return `<div class="box"><h2>Pedidos e produção</h2><div class="notice green">Vendas, produção, baixa automática de insumos/embalagens e mensagens de status via WhatsApp.</div><div class="fields">${select('Receita ou combo','orderItem',opts,first,'onchange="updateOrderSuggestedPrice()"')}${select('Cliente','orderClient',clientOpts,'','onchange="onSelectOrderClient()"')}${field('Endereço de entrega (se houver)','orderAddress','')}${field('Quantidade de unidades / combos','orderQty','1','text','inputmode="numeric" oninput="window.POTE_ORDER?.refresh();window.POTE_PAYMENT?.sync()"')}${field('Preço unitário final (R$)','orderPrice',q?.price.toFixed(2)||'','text','inputmode="decimal" oninput="window.POTE_PAYMENT?.sync()"')}${select('Tele-entrega?','orderHasDelivery',[['nao','Não · retirada no balcão'],['sim','Sim · entregar no endereço']],'nao','onchange="window.POTE_PAYMENT?.sync()"')}
  ${field('Taxa de tele-entrega (R$)','orderDelivery','0','text','inputmode="decimal" oninput="window.POTE_PAYMENT?.sync()"')}${select('Pagamento','orderPayment',[['pix','Pix'],['dinheiro','Dinheiro'],['cartao','Cartão'],['entrega','Na entrega'],['outro','Outro']],'pix','onchange="window.POTE_PAYMENT?.sync()"')}${select('Canal','orderChannel',[['direto','Direto / WhatsApp / Balcão'],['marketplace','Marketplace / App']],'direto','onchange="updateOrderSuggestedPrice()"')}${select('Bebida extra por unidade','orderExtraBev',[['','Nenhuma'],...[...state.data.beverages].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR',{sensitivity:'base'})).map(b=>[b.id,b.name+' +'+money(b.sellPrice)])],'','onchange="updateOrderSuggestedPrice()"')}${field('Observações da cozinha / entrega','orderNote','')}${field('Peso aproximado por unidade (g) - opcional','orderWeight','', 'text','inputmode="numeric" placeholder="Ex.: 250 ou 500; vazio = padrão da receita"')}<div class="pote-payment-cash" id="potePaymentCash" hidden>${field('Dinheiro entregue (R$) — opcional se valor exato','orderCashReceived','','text','inputmode="decimal" placeholder="Vazio = valor exato • Ex.: 100,00" oninput="window.POTE_PAYMENT?.sync()"')}</div></div>
  <div id="potePaymentPreview" class="pote-payment-preview" aria-live="polite">Informe a forma de pagamento para conferir o total e o troco.</div>
- <div id="poteComboChoice"></div><div id="poteOrderCustomization">${window.POTE_ORDER_CUSTOM?.render?.()||''}</div><div id="orderQuote" class="notice">${q?'Valor sugerido: '+money(q.price)+' · Contribuição antes dos custos fixos: '+money(q.contribution):'Cadastre ou desbloqueie uma receita.'}</div><div id="poteOrderAvailability" class="pote-order-availability" aria-live="polite">Conferindo ingredientes e reservas dos pedidos pendentes...</div><section id="poteOrderSyncWarning" class="notice red" role="alert" ${window.POTE_SYNC_GUARD?.blocked?'':'hidden'}><strong>Vendas pausadas: conflito de sincronização.</strong><p>Não registre outro pedido nesta aba. Se estiver com mais de uma aba do Potê aberta, feche as outras. Antes de recuperar, salve e confira o backup das alterações locais.</p><div class="actions"><button type="button" class="btn line" onclick="window.POTE_SYNC_GUARD?.downloadPending?.()">1. Baixar backup</button><button type="button" class="btn line" onclick="window.POTE_SYNC_GUARD?.resolvePendingConflict?.()">2. Resolver conflito com segurança</button></div><small>O aplicativo só volta a registrar vendas depois da recuperação confirmada. Nenhuma alteração será descartada automaticamente.</small></section><div class="actions"><button type="button" class="btn line" id="poteOrderOpenCash" onclick="window.POTE_PDV?.open?.()">💵 Meu caixa PDV · Retirada / Sangria</button></div><button class="btn" ${!opts.length?'disabled':''} id="poteOrderRegister" onclick="newOrder()">+ Registrar pedido</button><div class="actions"><button class="btn line" onclick="go('vitrine')">📱 Abrir Cardápio Cliente</button><button class="btn line" onclick="go('combos')">🥤 Bebidas, adicionais e combos</button></div><h3 id="ordersHistoryTitle" style="margin-top:22px;scroll-margin-top:105px">Pedidos — recebidos, em produção e finalizados</h3>${state.data.orders.length?state.data.orders.map(o=>{const can=allowed(recipe(o.recipeId));return `<div class="box" data-order-id="${escapeHtml(o.id)}" style="background:#1b120d"><div class="bar"><div><b>#${escapeHtml(o.id.slice(-8).toUpperCase())}</b> • ${escapeHtml(o.name)} ${o.clientName?label('👤 '+o.clientName):''}<div class="muted">${num(o.qty)}x ${money(o.price)} ${num(o.deliveryFee)?'+ Entrega '+money(o.deliveryFee):''} • Total: <b>${money(num(o.price)*num(o.qty)+num(o.deliveryFee||0))}</b> • Resultado est.: ${money(num(o.profit)*num(o.qty))} • <b>${escapeHtml(o.status)}</b></div></div><div class="actions"><button class="btn mini line" onclick="notifyOrderWhatsApp('${o.id}')" ${!can?'disabled':''}>💬 Avisar Cliente</button><button class="btn mini line" onclick="showReceipt('${o.id}','kitchen')" ${!can?'disabled':''}>🧾 Cozinha</button><button class="btn mini line" onclick="showReceipt('${o.id}','customer')" ${!can?'disabled':''}>Recibo</button>${o.status==='recebido'?`<button class="btn mini" onclick="produce('${o.id}')" ${!can?'disabled':''}>Produzir</button>`:''}${o.status==='em_producao'?`<button class="btn mini" onclick="finishOrder('${o.id}')" ${!can?'disabled':''}>✅ Concluir</button>`:''}${o.status!=='cancelado'?`<button class="btn mini danger" onclick="cancelOrder('${o.id}')" ${!can?'disabled':''}>Cancelar</button>`:window.POTE_CANCEL?.canRecover?.(o)?`<button class="btn mini" onclick="cancelOrder('${o.id}')" ${!can?'disabled':''}>Devolver estoque</button>`:''}</div></div></div>`}).join(''):'Nenhum pedido.'}</div>`;
+ <div id="poteComboChoice"></div><div id="poteOrderCustomization">${window.POTE_ORDER_CUSTOM?.render?.()||''}</div><div id="orderQuote" class="notice">${q?'Valor sugerido: '+money(q.price)+' · Contribuição antes dos custos fixos: '+money(q.contribution):'Cadastre ou desbloqueie uma receita.'}</div>${pendingSalePanel()}<div id="poteOrderAvailability" class="pote-order-availability" aria-live="polite">Conferindo ingredientes e reservas dos pedidos pendentes...</div><section id="poteOrderSyncWarning" class="notice red" role="alert" ${window.POTE_SYNC_GUARD?.blocked?'':'hidden'}><strong>Vendas pausadas: conflito de sincronização.</strong><p>Não registre outro pedido nesta aba. Se estiver com mais de uma aba do Potê aberta, feche as outras. Antes de recuperar, salve e confira o backup das alterações locais.</p><div class="actions"><button type="button" class="btn line" onclick="window.POTE_SYNC_GUARD?.downloadPending?.()">1. Baixar backup</button><button type="button" class="btn line" onclick="window.POTE_SYNC_GUARD?.resolvePendingConflict?.()">2. Resolver conflito com segurança</button></div><small>O aplicativo só volta a registrar vendas depois da recuperação confirmada. Nenhuma alteração será descartada automaticamente.</small></section><div class="actions"><button type="button" class="btn line" id="poteOrderOpenCash" onclick="window.POTE_PDV?.open?.()">💵 Meu caixa PDV · Retirada / Sangria</button></div><button class="btn" ${!opts.length?'disabled':''} id="poteOrderRegister" onclick="newOrder()">+ Registrar pedido</button><div class="actions"><button class="btn line" onclick="go('vitrine')">📱 Abrir Cardápio Cliente</button><button class="btn line" onclick="go('combos')">🥤 Bebidas, adicionais e combos</button></div><h3 id="ordersHistoryTitle" style="margin-top:22px;scroll-margin-top:105px">Pedidos — recebidos, em produção e finalizados</h3>${state.data.orders.length?state.data.orders.map(o=>{const can=allowed(recipe(o.recipeId));return `<div class="box" data-order-id="${escapeHtml(o.id)}" style="background:#1b120d"><div class="bar"><div><b>#${escapeHtml(o.id.slice(-8).toUpperCase())}</b> • ${escapeHtml(o.name)} ${o.clientName?label('👤 '+o.clientName):''}<div class="muted">${num(o.qty)}x ${money(o.price)} ${num(o.deliveryFee)?'+ Entrega '+money(o.deliveryFee):''} • Total: <b>${money(num(o.price)*num(o.qty)+num(o.deliveryFee||0))}</b> • Resultado est.: ${money(num(o.profit)*num(o.qty))} • <b>${escapeHtml(o.status)}</b></div></div><div class="actions"><button class="btn mini line" onclick="notifyOrderWhatsApp('${o.id}')" ${!can?'disabled':''}>💬 Avisar Cliente</button><button class="btn mini line" onclick="showReceipt('${o.id}','kitchen')" ${!can?'disabled':''}>🧾 Cozinha</button><button class="btn mini line" onclick="showReceipt('${o.id}','customer')" ${!can?'disabled':''}>Recibo</button>${o.status==='recebido'?`<button class="btn mini" onclick="produce('${o.id}')" ${!can?'disabled':''}>Produzir</button>`:''}${o.status==='em_producao'?`<button class="btn mini" onclick="finishOrder('${o.id}')" ${!can?'disabled':''}>✅ Concluir</button>`:''}${o.status!=='cancelado'?`<button class="btn mini danger" onclick="cancelOrder('${o.id}')" ${!can?'disabled':''}>Cancelar</button>`:window.POTE_CANCEL?.canRecover?.(o)?`<button class="btn mini" onclick="cancelOrder('${o.id}')" ${!can?'disabled':''}>Devolver estoque</button>`:''}</div></div></div>`}).join(''):'Nenhum pedido.'}</div>`;
 }
 function onSelectOrderClient(){
  const cl=client(document.getElementById('orderClient')?.value);
@@ -614,7 +702,7 @@ function updateOrderSuggestedPrice(){
  window.POTE_PAYMENT?.sync?.();
 }
 function newOrder(){
- if(!operationReady())return;
+  if(!operationReady()){savePendingSaleNote();return;}
  if(!pro()&&window.POTE_AUTH?.uid&&!window.POTE_AUTH?.proActive&&state.data.businessType&&state.data.businessType!=="batataria"&&freeExtrasOrders()>=1){toast("🔒 FREE: uma venda de teste por universo. Assine o PRO para uso contínuo.");return;}
  if(window.POTE_ACCESS?.requireService?.("orders")===false)return;
  const item=document.getElementById('orderItem')?.value||'',channel=document.getElementById('orderChannel').value;
