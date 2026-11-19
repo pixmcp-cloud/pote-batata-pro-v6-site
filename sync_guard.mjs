@@ -64,6 +64,40 @@ const backupGroupNames={
  combos:"Combos",purchases:"Compras",expenses:"Despesas",losses:"Perdas",
  prepBatches:"Lotes de producao",businessUniverses:"Outros universos"
 };
+
+/* Read receipts are monotonic cosmetic state. They MUST NOT bypass validation
+   of orders, stock, cash, licenses, delivery or any other commercial field. */
+const plainNoticeMap=value=>value&&typeof value==="object"&&!Array.isArray(value);
+export function normalizeNotificationReadCenter(value){
+ if(value===undefined||value===null)return {version:1,read:{}};
+ if(!plainNoticeMap(value))return null;
+ if(Object.keys(value).some(k=>k!=="version"&&k!=="read")||value.version!==1||
+    !plainNoticeMap(value.read))return null;
+ const keys=Object.keys(value.read);
+ if(keys.length>500)return null;
+ for(const id of keys){
+  const stamp=value.read[id];
+  if(!/^(broadcast|order):\S{1,200}$/.test(id)||
+    typeof stamp!=="string"||stamp.length>64||
+    !Number.isFinite(Date.parse(stamp)))return null;
+ }
+ return {version:1,read:{...value.read}};
+}
+export function mergeNotificationReadCenters(local,cloud){
+ const a=normalizeNotificationReadCenter(local),b=normalizeNotificationReadCenter(cloud);
+ if(!a||!b)return null;
+ const entries=Object.entries({...a.read,...b.read});
+ if(entries.length>500)return null; // Do not silently drop earlier acknowledgements.
+ return {version:1,read:Object.fromEntries(entries)};
+}
+const stableWithoutReadReceipts=value=>{
+ if(!value||typeof value!=="object"||!value.data||typeof value.data!=="object")return null;
+ const top={...value,data:{...value.data}};
+ delete top.mode;delete top.tab;delete top.expansion;
+ delete top.data.notificationCenter;
+ return stableJson(top);
+};
+
 export function inspectPendingAgainstCloud(pending,uid,cloud,{v2=true}={}){
  if(!pending||pending.version!==1||pending.uid!==String(uid)||!pending.state)
   return {kind:"invalid",safeToRelease:false,details:["Backup local ausente, invalido ou de outra conta"]};
@@ -75,7 +109,21 @@ export function inspectPendingAgainstCloud(pending,uid,cloud,{v2=true}={}){
  if(v2&&stableCore(local)!==null&&stableCore(local)===stableCore(cloud))
   return {kind:"navigation-only",safeToRelease:true,
    details:["Somente a tela, aba ou expansao mudou. Pedidos, estoque e cadastros coincidem integralmente com a nuvem"]};
- const differences=[];
+  if(v2&&stableWithoutReadReceipts(local)!==null&&
+    stableWithoutReadReceipts(local)===stableWithoutReadReceipts(cloud)){
+   const merged=mergeNotificationReadCenters(local.data.notificationCenter,cloud.data.notificationCenter);
+   if(merged){
+    const remote=normalizeNotificationReadCenter(cloud.data.notificationCenter);
+    const needsMerge=stableJson(merged)!==stableJson(remote);
+    return {kind:"notification-read-only",safeToRelease:!needsMerge,
+     needsNotificationMerge:needsMerge,
+     mergedNotificationCenter:merged,
+     details:[needsMerge?
+      "Somente notificacoes lidas variaram; as marcacoes locais serao preservadas na nuvem antes de liberar vendas":
+      "Somente notificacoes lidas variaram, mas todas as marcacoes locais ja existem na nuvem"]};
+   }
+  }
+  const differences=[];
  const a=local.data,b=cloud.data;
  const keys=new Set([...Object.keys(a),...Object.keys(b)]);
  for(const key of keys){
