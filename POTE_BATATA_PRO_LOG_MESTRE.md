@@ -623,3 +623,7 @@ IMPORTANTE: modulo ainda NAO esta ligado a approveRecipePrice nem a createSimple
 ### F02 COMPLEMENTO: ARREDONDAMENTO EM CENTAVOS / 19-11-2026
 
 Primeira suite detectou 201 centavos em vez de 200 no custo adicional duplicado, causado por erro de ponto flutuante na conversao para centavos (Math.ceil). Ajustado Math.ceil(valor*100-1e-9) nos valores por componente e total, sem arredondar custos intermediarios. Reexecutar teste dirigido e regressao antes de integrar.
+
+### EVIDENCIAS F02 CUSTOS DE COMPONENTES / 19-11-2026
+
+Commit de modelo 91c61d9; correcao de precisao a35ffd9. QA executado em worktree temporario isolado no PC: node --test workers/antifraud/test/component_cost.test.mjs 5/5 PASS; node --test workers/antifraud/test/server_price.test.mjs 5/5 PASS; npm test --prefix workers/antifraud 64/64 PASS. Na primeira passagem houve erro de 201 centavos vs 200 por ponto flutuante; corrigido e repetido com sucesso. Nenhum Firebase Emulator neste bloco, pois o modulo ainda e calculadora pura e nao executa transacoes; testes integrados da proxima etapa permanecem obrigatorios. Worker comercial permanece desligado; sem cutover, sem main, sem deploy, sem pagamento real.
