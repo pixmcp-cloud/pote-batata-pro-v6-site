@@ -6,7 +6,7 @@
  */
 import {OperationalError,recordPath} from "./domain.mjs";
 import {serverPricePath,assertSimpleRecipeScope} from "./server_price.mjs";
-import {costUnit} from "./order_create.mjs";
+import {authoritativeComponentCost,minimumApprovedPriceCents} from "./component_cost.mjs";
 const fail=(code,message,status=409)=>{throw new OperationalError(message,status,code)};
 const put=(path,data,previous)=>({path,data,precondition:previous?
  {updateTime:previous.updateTime}:{exists:false}});
@@ -69,19 +69,24 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
    return {id:item.id,g:item.g,path:recordPath(uid,universe,"ingredients",item.id)};
   });
   const docList=await Promise.all(rows.map(row=>tx.get(row.path)));
-  let materialCost=0;
+  const resolved=new Map();
   for(let i=0;i<rows.length;i++){
-   const item=docList[i]?.data?.record;
-   if(!item||item.group!=="ingredients"||item.universe!==universe||
-     item.id!==rows[i].id||item.item?.archived)
+   const record=docList[i]?.data?.record;
+   if(!record||record.group!=="ingredients"||record.universe!==universe||
+      record.id!==rows[i].id||record.item?.archived)
     fail("cost_review_required","Ingrediente sem ficha de custos");
-   const yieldPct=Number(item.item.yield??100);
-   if(!Number.isFinite(yieldPct)||yieldPct<1||yieldPct>1000)
-    fail("cost_review_required","Rendimento do ingrediente inválido");
-   materialCost+=rows[i].g*costUnit(item.item)/(yieldPct/100);
+   resolved.set(rows[i].id,{id:record.id,kind:"ingredient",
+    item:record.item,archived:record.item?.archived,
+    costEstimateMode:record.item?.costEstimateMode,
+    hasUnknownCosts:record.item?.hasUnknownCosts});
   }
-  if(!Number.isFinite(materialCost)||materialCost<=0||
-    salePriceCents+0.00001<materialCost*(1+minimum/100)*100)
+  // No browser-provided cost is trusted. All component documents were read
+  // within this transaction, so concurrent cost changes invalidate the commit.
+  const cost=authoritativeComponentCost(rows.map(row=>({
+   kind:"ingredient",id:row.id,quantity:row.g,unit:"g"
+  })),(kind,id)=>kind==="ingredient"?resolved.get(id):undefined);
+  const requiredPrice=minimumApprovedPriceCents(cost.materialCostCents,minimum);
+  if(salePriceCents<requiredPrice)
    fail("price_below_cost","Valor abaixo do custo e ganho mínimo");
   if(previous&&(previous.data?.universe!==universe||
     previous.data?.recipeId!==recipeId||
@@ -97,7 +102,7 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
    version:1,universe,recipeId,salePriceCents,
    minimumGainPct:minimum,revision,items:cleanItems,
    approvedByUid:uid,approvedAt:at,
-   materialCostCents:Math.ceil(materialCost*100)
+   materialCostCents:cost.materialCostCents
   };
   const updatedRecipe={...r,serverPriceVersion:1,
    serverSalePriceCents:salePriceCents,
