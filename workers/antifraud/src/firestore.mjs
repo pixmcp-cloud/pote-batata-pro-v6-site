@@ -69,10 +69,15 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
    let done=false;
    return {
     async get(path){
-     const response=await api("/documents/"+path.split("/").map(encodeURIComponent).join("/")+
-      "?transaction="+encodeURIComponent(transaction));
-     if(response.missing)return null;
-     return {data:decodeFields(response.fields),updateTime:response.updateTime};
+     // Firestore REST requires documents:batchGet for transactional reads.
+     // The Emulator can hang on GET /documents/{id}?transaction=...
+     const response=await api("/documents:batchGet",{method:"POST",
+      body:{documents:[fullName(path)],transaction}});
+     const result=Array.isArray(response)?response[0]:response;
+     if(result?.missing)return null;
+     if(!result?.found?.fields||!result.found.updateTime)
+      throw Error("Firestore transactional read returned invalid response");
+     return {data:decodeFields(result.found.fields),updateTime:result.found.updateTime};
     },
     async commit(writes){
      if(done)throw Error("Transaction already finalized");
