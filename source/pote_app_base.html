@@ -690,7 +690,7 @@ function notifyOrderWhatsApp(id){
  const nome=o.clientName||'Cliente';
  const total=money(num(o.qty)*num(o.price)+num(o.deliveryFee||0));
  let msg='';
- if(o.status==='recebido')msg=`Olá ${nome}! Recebemos o seu pedido *${code}* (${o.qty}x ${o.name} • Total ${total}) na *${brand}*. Logo vai para a cozinha! 🥔`;
+ if(o.status==='recebido')msg=`Olá ${nome}! Recebemos o seu pedido N° *${code}*\n\n✅ ${o.qty}x ${o.name}\n\nJá está na fila de preparo 🙌🏻\nO total ficou *${total}*`;
  else if(o.status==='em_producao')msg=`Olá ${nome}! Boas notícias: o seu pedido *${code}* (${o.qty}x ${o.name}) já está *em produção* aqui na cozinha da *${brand}*! 🔥🥔`;
  else if(o.status==='entregue')msg=`Olá ${nome}! Seu pedido *${code}* foi *entregue*! Muito obrigado pela preferência na *${brand}*.${ig?' Se curtir, marca a gente no Instagram '+ig+'!':''} 😍`;
  else msg=`Olá ${nome}, sobre o seu pedido *${code}* na *${brand}*: status atual *${o.status}*.`;
