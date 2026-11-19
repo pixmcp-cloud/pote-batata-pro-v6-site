@@ -103,6 +103,47 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  await login(auth.currentUser);
  assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
 
+
+ // Test actual login recovery of a stale notification-read-only backup.
+ // Both locally acknowledged and remotely acknowledged notices must survive.
+ const noticeBackup={...copy(state),data:{...copy(state.data),
+  notificationCenter:{version:1,read:{
+   "broadcast:local-test":"2026-11-19T00:00:00.000Z",
+   "broadcast:shared":"2026-11-19T00:01:00.000Z"}}}};
+ const beforeNotices=copy(state);
+ beforeNotices.data.notificationCenter={version:1,read:{
+  "broadcast:remote-test":"2026-11-19T00:03:00.000Z",
+  "broadcast:shared":"2026-11-19T00:04:00.000Z"}};
+ // Persist a remote-only mark first through the normal V2 store.
+ state=beforeNotices;
+ listeners["pote:changed"]();
+ const flushNotices=timers.get("sync");timers.delete("sync");await flushNotices();
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
+ store.set(guard.pendingKey("new-user"),JSON.stringify(guard.makePending("new-user",
+  noticeBackup,"sync/conflict")));
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false,"Notification receipts must not block a sale");
+ assert.equal(store.has(guard.pendingKey("new-user")),false,"Remove backup only after merged read receipts commit");
+ assert.equal(Object.keys(state.data.notificationCenter.read).length,3);
+ assert.equal(state.data.notificationCenter.read["broadcast:shared"],"2026-11-19T00:04:00.000Z");
+ const cloudReads=cloud.get("users/new-user/appState/v2").state.data.notificationCenter.read;
+ assert.equal(Object.keys(cloudReads).length,3,"Cloud must have union of receipts");
+ assert.equal(cloudReads["broadcast:local-test"],"2026-11-19T00:00:00.000Z");
+ assert.equal(cloudReads["broadcast:remote-test"],"2026-11-19T00:03:00.000Z");
+ // A simultaneous unsaved order, even alongside only cosmetic differences,
+ // is still a real business conflict and must remain backed up and blocked.
+ const unconfirmed={...copy(state),data:{...copy(state.data),
+  notificationCenter:{version:1,read:{"broadcast:extra":"2026-11-19T00:06:00.000Z"}},
+  orders:[{id:"never-overwrite",status:"recebido",qty:1,price:21.9}]}};
+ store.set(guard.pendingKey("new-user"),JSON.stringify(guard.makePending("new-user",
+  unconfirmed,"sync/conflict")));
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,true,"Real order cannot be cleared by notification exception");
+ assert(store.has(guard.pendingKey("new-user")));
+ store.delete(guard.pendingKey("new-user"));
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
+
  state.data.ingredients.push({id:"batata",stock:12000,measureUnit:"g"});
  state.data.orders.push({id:"order1",status:"recebido",stockDeducted:false});
  listeners["pote:changed"]();

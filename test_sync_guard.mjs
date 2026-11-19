@@ -42,4 +42,45 @@ assert.equal(stockReport.safeToRelease,false);
 assert.match(stockReport.details.join(" "),/Ingredientes/);
 assert.equal(inspectPendingAgainstCloud(makePending("other",uiOnly),"abc",cloudUi).safeToRelease,false);
 
+
+const noticesA={...base,data:{...base.data,notificationCenter:{version:1,read:{
+ "broadcast:local":"2026-11-19T00:00:00.000Z",
+ "broadcast:both":"2026-11-19T00:01:00.000Z"}}}};
+const noticesCloud={...base,data:{...base.data,notificationCenter:{version:1,read:{
+ "broadcast:cloud":"2026-11-19T00:02:00.000Z",
+ "broadcast:both":"2026-11-19T00:03:00.000Z"}}}};
+const noticeReport=inspectPendingAgainstCloud(makePending("abc",noticesA,"sync/conflict"),
+ "abc",noticesCloud,{v2:true});
+assert.equal(noticeReport.kind,"notification-read-only");
+assert.equal(noticeReport.safeToRelease,false,"Pending local receipts need persistence before release");
+assert.equal(noticeReport.needsNotificationMerge,true);
+assert.equal(Object.keys(noticeReport.mergedNotificationCenter.read).length,3);
+assert.equal(noticeReport.mergedNotificationCenter.read["broadcast:both"],
+ "2026-11-19T00:03:00.000Z","Prefer newer cloud mark for the same notification");
+assert.equal(inspectPendingAgainstCloud(makePending("abc",noticesA),"abc",noticesCloud,{v2:false}).safeToRelease,false);
+const noticeAlreadySynced={...noticesCloud,data:{...noticesCloud.data,notificationCenter:{
+ version:1,read:{...noticesCloud.data.notificationCenter.read,...noticesA.data.notificationCenter.read}}}};
+const already=inspectPendingAgainstCloud(makePending("abc",noticesA),
+ "abc",noticeAlreadySynced,{v2:true});
+assert.equal(already.safeToRelease,true,"Superset of local receipts needs no new write");
+assert.equal(already.needsNotificationMerge,false);
+const financeChanged={...noticesA,data:{...noticesA.data,
+ orders:[{id:"order-with-money",price:21.9,qty:1}]}};
+assert.equal(inspectPendingAgainstCloud(makePending("abc",financeChanged),
+ "abc",noticesCloud,{v2:true}).safeToRelease,false,"Order mismatch cannot use notice exemption");
+const stockChanged={...noticesA,data:{...noticesA.data,
+ ingredients:[{id:"i1",stock:999}]}};
+assert.equal(inspectPendingAgainstCloud(makePending("abc",stockChanged),
+ "abc",noticesCloud,{v2:true}).safeToRelease,false,"Stock mismatch cannot use notice exemption");
+const cashChanged={...noticesA,data:{...noticesA.data,
+ cashMovements:[{id:"withdraw-1",amount:30,kind:"sangria"}]}};
+assert.equal(inspectPendingAgainstCloud(makePending("abc",cashChanged),
+ "abc",noticesCloud,{v2:true}).safeToRelease,false,"Cash mismatch cannot use notice exemption");
+const malformedNotices={...noticesA,data:{...noticesA.data,notificationCenter:{
+ version:2,read:{"broadcast:local":"2026-11-19T00:00:00.000Z"}}}};
+assert.equal(inspectPendingAgainstCloud(makePending("abc",malformedNotices),
+ "abc",noticesCloud,{v2:true}).safeToRelease,false,"Unknown schema cannot be ignored");
+assert.equal(inspectPendingAgainstCloud(makePending("wrong-account",noticesA),
+ "abc",noticesCloud,{v2:true}).safeToRelease,false,"UID isolation is mandatory");
+
 console.log("PASS: fingerprints estáveis, conflitos, revisões, limite de documento, backups e filas por conta.");
