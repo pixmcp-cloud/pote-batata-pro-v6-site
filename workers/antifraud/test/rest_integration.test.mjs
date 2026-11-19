@@ -66,6 +66,15 @@ class HttpFirestoreDouble{
    this.commits++;
    return response({commitTime:"2026-11-18T16:00:00Z"});
   }
+  if(path.endsWith("/documents:batchGet")&&method==="POST"){
+   const {documents,transaction}=JSON.parse(options.body);
+   assert.equal(transaction,"c3ludGhldGljLXR4");
+   return response(documents.map(fullName=>{
+    const name=decodeURIComponent(fullName.slice((base+"/documents/").length));
+    const found=this.docs.get(name);
+    return found?{found:{name:fullName,fields:encodeFields(found.data),updateTime:found.updateTime}}:{missing:fullName};
+   }));
+  }
   const docMarker="/documents/";
   const pos=path.indexOf(docMarker);
   if(method==="GET"&&pos>=0){
@@ -164,7 +173,7 @@ test("F02 end-to-end REST HTTP adapter: stock, beverage, pulse and retry",async(
  assert.equal(db.commits,count,"Retry cannot commit a second ledger");
  assert(db.httpCalls.some(x=>x.includes("/documents:beginTransaction")));
  assert(db.httpCalls.some(x=>x.includes("/documents:commit")));
- assert(db.httpCalls.some(x=>x.includes("/documents/users/")));
+ assert(db.httpCalls.some(x=>x.includes("/documents:batchGet")));
 });
 test("F05 end-to-end REST: cancel restores physical stock exactly once",async()=>{
  const {db,send}=fixture();
