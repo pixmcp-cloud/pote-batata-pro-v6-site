@@ -1,0 +1,13 @@
+{
+  "name": "pote-batata-pro-dyad-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Laboratório local e isolado para importar a interface oficial Potê Batata Pro no Dyad; sem escrita Firebase.",
+  "scripts": {
+    "dev": "node dyad/dev-server.mjs",
+    "dev:check": "node --test dyad/dev-server.test.mjs",
+    "build": "python build_hosting.py",
+    "test:dyad": "node --test dyad/dev-server.test.mjs"
+  }
+}
