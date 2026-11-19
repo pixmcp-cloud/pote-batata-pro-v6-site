@@ -96,3 +96,28 @@ A conexão GitHub autenticou como `pixmcp-cloud` e leu `README.md` do repositór
 
 ## 12. Como retomar em outro chat
 Diga: **"Abra o Log infláveis e continue o planejamento do sistema de aluguel de brinquedos infláveis. Confira pendências, opções de mercado, hipóteses versus decisões e atualize o log ao concluir qualquer etapa."**
+
+## 13. Atualização de execução — 19/11/2026 — Primeira versão no PC
+**Novo estado:** o conector GitHub foi corrigido após a instalação da GitHub App; listagem, leitura e escrita agora funcionam. A pendência histórica registrada na seção 11 foi superada.
+
+**Autorização recebida:** o usuário pediu explicitamente iniciar a criação local usando Desktop Commander e ferramentas existentes no PC.
+
+**Dispositivo:** DESKTOP-9481JM1 (Windows), conectado via Remote Desktop Commander.
+
+**Projeto local separado:** `C:\Users\LIVRESOM\Projects\inflaveis-pro` — NÃO é o projeto Potê Batata e não tem banco, deploy ou git remoto compartilhado com ele.
+
+**Stack instalada e testada:** Node.js 24, npm, React 19, TypeScript, Vite 8, Lucide React, Playwright para testes com Chrome instalado. Git inicializado localmente no novo diretório.
+
+**Entregas da v0.1:**
+- Vitrine responsiva pública com identidade visual provisória "Infláveis Pro", quatro fotos ilustrativas locais (Pexels), busca por cidade/data/categoria, filtros e favoritos no navegador.
+- Simulador de orçamento com 4/6/8 horas, frete fictício, monitor adicional, total/sinal e cópia de proposta de teste.
+- Dashboard local para locador: indicadores demonstrativos, agenda/orçamentos, criação de reserva de teste, verificação conservadora de duplicidade por unidade/dia, mudança de status, catálogo, painel financeiro informativo, seção de clientes e configurações.
+- Persistência apenas em localStorage do navegador. Dados e preços fictícios, nenhum pagamento, autenticação ou reserva real.
+- Documentação local `README.md` e `docs/PRD.md`; teste automatizado `tests/smoke.mjs` e capturas desktop/mobile em `.previews/` (ignorado pelo Git).
+- Build de produção e lint passaram, com 0 warnings/erros. Testes E2E passaram para catálogo, filtro, orçamento, painel, agenda, persistência e ausência de rolagem horizontal mobile.
+- Servidor de desenvolvimento local iniciado em `http://127.0.0.1:5174/` (porta dinâmica: verificar se continua em execução).
+- Ponto de restauração inicial: commit **c4e5e7b** na branch `main` do repositório Git LOCAL. **Ainda não foi enviado ao GitHub.**
+
+**Pendências críticas antes de qualquer operação real:** repositório GitHub próprio, autenticação, tenants, banco PostgreSQL, transações de disponibilidade, contratos, integração de pagamento, equipe e equipamentos compartilhados, definição de preços/frete reais, LGPD e checklists de segurança. Sem autorização de contratação de serviços pagos e sem publicação pública.
+
+**Próxima etapa recomendada:** criar repositório GitHub separado para `inflaveis-pro`, conectar ao projeto local, planejar backend multi-tenant com reservas transacionais, implementar autenticação e catálogo cadastrado por locador; validar em emuladores e Android real. Priorizar retorno financeiro e baixo custo.
