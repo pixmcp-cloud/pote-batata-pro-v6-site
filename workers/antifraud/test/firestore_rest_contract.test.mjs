@@ -12,8 +12,8 @@ function harness({conflict=false}={}){
   const body=options.body?JSON.parse(options.body):null;
   calls.push({url,method:options.method,body});
   if(url.endsWith(":beginTransaction"))return response(200,{transaction:"demo-transaction"});
-  if(url.includes("/documents/"+doc+"?transaction="))
-   return response(200,{fields:{revision:{integerValue:"4"}},updateTime:"2026-11-19T20:00:00Z"});
+  if(url.endsWith(":batchGet"))
+   return response(200,[{found:{fields:{revision:{integerValue:"4"}},updateTime:"2026-11-19T20:00:00Z"}}]);
   if(url.endsWith(":commit"))
    return conflict?response(409,{error:{status:"ABORTED"}}):response(200,{writeResults:[{}]});
   if(url.endsWith(":rollback"))return response(200,{});
@@ -29,7 +29,8 @@ test("F02 REST adapter carries read transaction and guarded write precondition",
  assert.equal(snapshot.data.revision,4);
  await tx.commit([{path:doc,data:{revision:5},precondition:{updateTime:snapshot.updateTime}}]);
  assert.equal(calls.length,3);
- assert.equal(calls[1].url.includes("transaction=demo-transaction"),true);
+ assert.equal(calls[1].url.endsWith(":batchGet"),true);
+ assert.equal(calls[1].body.transaction,"demo-transaction");
  assert.equal(calls[2].body.transaction,"demo-transaction");
  assert.equal(calls[2].body.writes[0].currentDocument.updateTime,snapshot.updateTime);
  assert.equal(calls[2].body.writes[0].update.fields.revision.integerValue,"5");
