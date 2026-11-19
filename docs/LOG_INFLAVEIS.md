@@ -342,3 +342,29 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 **Validacao:** npm run build, lint, smoke, marketplace, rentabilidade, mobile-fallback, android-live e test:live aprovados. Teste via URL PUBLICADA com JavaScript ativado: React e 5 cards funcionam no Pixel 7, 0 erros JS, 0 requests falhas. Com JavaScript DESATIVADO: fallback claro e botao de recarregar visiveis. Responsive 320/390/768/1440 px e area Rentabilidade seguem aprovados.
 
 **Pendencia decisiva:** solicitar teste pelo proprietario no mesmo aparelho Android, preferencialmente Chrome externo e link atualizado com querystring para evitar cache. Se ainda ficar preta, pedir captura, navegador/app e rede; nao declarar falha especifica resolvida sem reproduzir. Versao GPT Work/Sites nao foi mesclada; sitio segue demonstracao com noindex e sem autenticacao real.
+
+## 23. [PC/COMMANDER] Icone B castelo oficial e publicacao Hostinger - 19/11/2026
+
+**Origem da identidade:** proprietário enviou uma imagem PNG transparente de uma bolha de vidro envolvendo a letra B azul em formato de castelo com coroa amarela e bandeiras verdes e escreveu 'ícone'. A imagem foi usada como ativo visual para o projeto, sem alterar seu conceito.
+
+**Git local (implementação e histórico):**
+- Pasta: C:\Users\LIVRESOM\Projects\inflaveis-pro.
+- Branch: feature/icone-b-20261119; commit **19de490**; working tree limpa.
+- Backup: backup/pre-icon-b-20261119 no commit 5cf35d8.
+- Ícone otimizado e derivativos PNG transparentes em public/icon-brasil-inflaveis.png e public/icons/brasil-{32,48,192,512}.png. A imagem original de 1634 px pertence ao envio da conversa; cópia local é derivativo otimizado 128 px; não afirmar preservação dos bytes originais no repositório.
+- index.html passou a apontar para favicons PNG com parâmetro v=2, apple-touch-icon e manifest.webmanifest; o manifesto não adiciona suporte offline ou autenticação.
+- Cabeçalho público e logo do painel executivo exibem o B/bolha sem confete; CSS responsivo evita distorção da imagem circular.
+- Teste automatizado tests/site-icon.mjs e comando npm run test:icon, além de documentação docs/ICON-B-20261119.md.
+
+**Publicação Hostinger comprovada:**
+- Pasta do domínio brasilinflaveis.com/public_html: enviados diretório icons com 4 PNG, manifest.webmanifest, novos assets Vite assets/index-CxTb0StZ.js e assets/index-AtQKKGFI.css; index.html enviado por último e substituído explicitamente.
+- Checagem externa HTTP 200 confirmou os quatro ícones, manifesto, CSS e JS; brasilinflaveis.com e www.brasilinflaveis.com entregam novo HTML com links para os assets e favicon.
+- Cache da hospedagem do domínio limpo pelo hPanel, com aviso 'Cache limpo com sucesso'.
+- Outros projetos, banco D1, autenticação e cobranças NÃO alterados; zero gastos novos.
+
+**Testes verificáveis:**
+- Build, lint, smoke, marketplace e rentabilidade: OK.
+- npm run test:icon executado no localhost e no domínio HTTPS, em Chrome desktop e emulação Pixel 7: OK para header, painel, favicon, manifesto e imagens.
+- npm run test:live após deploy: HTTP 200, 5 brinquedos, 2 decoradores, 7 imagens carregadas, layouts 320/390/768/1440 e zero erros JS/requisições críticas.
+
+**Limitações:** site ainda em modo demonstração noindex. A versão de código de GPT Work/Sites permanece separada. Favicon cacheado pode demorar a atualizar na aba já aberta; links novos usam v=2.
