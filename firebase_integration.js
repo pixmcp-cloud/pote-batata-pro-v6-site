@@ -48,6 +48,7 @@ let rawUserFranchise = null;
 let rawUserAccessPolicy = null;
 let cloudFingerprint=stableJson(null);
 let syncBlocked=false;
+let lastSyncCause=null;
 let pendingThisSession=false;
 let v2Store=null;
 // A versão V2 inicia contas de teste limpas em coleções por registro, sem migrar appState/main.
@@ -82,6 +83,27 @@ function withDeadline(promise, ms, label) {
 if (embeddedBrowser) showBrowserHint();
 
 function setStatus(v) { if (syncEl) syncEl.textContent = v; }
+function syncExplanation(){
+ const pending=active?.uid?existingPending(active.uid):null;
+ const cause=String(lastSyncCause?.detail||pending?.reason||"Backup local nao confirmado").slice(0,200);
+ const code=String(lastSyncCause?.code||pending?.reason||"pending-local");
+ let title="Alteracoes locais de uma sessao anterior ainda nao confirmadas";
+ if(/conflict|conflito|concorrente|alterado em outro|pedidos ou estoque/i.test(code+" "+cause))
+  title="Outra aba ou dispositivo alterou pedidos ou estoque";
+ else if(/invalid-state|schema|inconsist/i.test(code+" "+cause))title="Dados recusados na validacao";
+ else if(/unavailable|network|deadline|offline/i.test(code+" "+cause))title="Conexao temporariamente indisponivel";
+ return {title,cause,code};
+}
+function refreshSyncExplanation(){
+ const box=document.getElementById("poteOrderSyncWarning");
+ if(!box)return;
+ box.hidden=!syncBlocked;
+ if(!syncBlocked)return;
+ const d=syncExplanation();
+ const label=box.querySelector("strong"),text=box.querySelector("p");
+ if(label)label.textContent=d.title;
+ if(text)text.textContent="Causa registrada: "+d.cause+". Se houver varias abas, feche as outras. Preserve o backup local antes de recuperar.";
+}
 function setMessage(v) { message.textContent = v; }
 function setGate(show) {
   gate.hidden = !show;
@@ -226,14 +248,14 @@ function verifyBackupFile(expectedUid,expectedState){
 }
 function showRecovery(){
  if(!syncBlocked)return;
- showBackupButton();
+ showBackupButton();refreshSyncExplanation();
  const orderNotice=document.getElementById("poteOrderSyncWarning");
  if(orderNotice){orderNotice.hidden=false;}
  const target=orderNotice||document.getElementById("poteSyncResolve")||
   document.getElementById("potePendingSyncBackup")||syncEl;
  if(target){target.scrollIntoView?.({behavior:"smooth",block:"center"});target.focus?.({preventScroll:true})}
 }
-window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
+window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,diagnosis:syncExplanation,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
 async function offerLegacyMigration(user){
  if(!user?.uid||auth.currentUser?.uid!==user.uid)return;
  let container=document.getElementById("poteLegacyMigration");
@@ -363,11 +385,12 @@ async function syncV2(){
     const result=await v2Store.save();
     if(epoch!==currentEpoch||auth.currentUser?.uid!==currentUid)return false;
     if(!result.ok){
-      if(result.code==="sync/conflict"||result.code==="sync/invalid-state")syncBlocked=true;
+      if(result.code==="sync/conflict"||result.code==="sync/invalid-state"||result.partial)syncBlocked=true;
+      lastSyncCause={code:result.code,detail:result.error};
       setStatus(result.partial?"Importação parcialmente salva ("+result.savedChanges+" cadastros). Backup preservado; retome a sincronização.":
        result.code==="sync/conflict"?"CONFLITO DE ESTOQUE/PEDIDOS — exporte backup.":
        "Alterações ainda não sincronizadas: "+String(result.error||"sem conexão").slice(0,90));
-      savePending(serialized,result.code||result.error||"erro V2");
+      savePending(serialized,result.error||result.code||"erro V2");
       return false;
     }
     lastJson=serialized;
@@ -592,17 +615,31 @@ async function loadUser(user, index) {
   }
   if(existingPending(user.uid)){
     syncBlocked=true;
-    setStatus("Conflito de sincronização: faça backup das alterações locais antes de resolver.");
+    setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
   }else setStatus(pendingOnLoad?"Backup antigo conferido com a nuvem; vendas liberadas.":"Dados salvos na nuvem");
   setGate(false);
   showBackupButton();
   if(useV2){
     v2Store?.subscribe(result=>{
       if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
-      if(result.ok){lastJson=JSON.stringify(safeState());return}
+      if(result.ok){lastJson=JSON.stringify(safeState());lastSyncCause=null;return}
+      if(result.queued)return;
+      const code=String(result.code||"sync/error");
+      lastSyncCause={code,detail:String(result.error||"")};
+      if(["sync/error","unavailable","deadline-exceeded","network-request-failed"].includes(code)){
+       setStatus("Falha temporaria de conexao: "+String(result.error||code).slice(0,90)+". Tentando novamente.");
+       setTimeout(async()=>{
+        if(!ready||syncBlocked||!v2Store||auth.currentUser?.uid!==user.uid)return;
+        if(JSON.stringify(safeState())!==lastJson){queueSave();return;}
+        const res=await v2Store.refresh();
+        if(res.ok){lastJson=JSON.stringify(safeState());lastSyncCause=null;setStatus("Conexao restabelecida.");}
+        else if(res.code==="sync/conflict"){syncBlocked=true;lastSyncCause={code:res.code,detail:res.error};savePending(JSON.stringify(safeState()),res.error||res.code);}
+       },3500);
+       return;
+      }
       syncBlocked=true;
-      savePending(JSON.stringify(safeState()),result.code||result.error||"atualização V2");
-      setStatus("DIVERGÊNCIA ENTRE DISPOSITIVOS. Exporte backup e entre novamente.");
+      savePending(JSON.stringify(safeState()),result.error||code);
+      setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
     });
   }else observeRemote(user, index);
   observeProfile(user, index);
