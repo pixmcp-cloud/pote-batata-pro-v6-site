@@ -214,3 +214,34 @@ Diga: **"Abra o Log infláveis e continue o planejamento do sistema de aluguel d
 - Nenhum serviço pago foi ativado; nenhuma versão publicada; dados, medidas, preços e fotos seguem fictícios.
 
 **Próximo acesso necessário:** pela conversa GPT Work/Sites, salvar fonte COMPLETA com histórico Git na pasta isolada C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import, ou disponibilizar repositório privado próprio da plataforma no GitHub conectado. NÃO sobrescrever inflaveis-pro. Não compartilhar segredos, .env, tokens, cookies ou dados de clientes; usar .env.example sanitizado. Depois comparar código, migrações D1, interface, login, isolamento por locadora e testes antes de integração/produção.
+
+## 18. Protocolo de sincronização entre GPT Work/Sites e PC — 19/11/2026
+
+**Decisão do usuário:** manter a conversa do GPT Work e esta sessão do Desktop Commander alinhadas no mesmo Log infláveis, com desenvolvimento contínuo, preservando o projeto mais avançado do Sites e melhorias locais.
+
+**Log central no GitHub:** https://github.com/pixmcp-cloud/pote-batata-pro-v6-site/blob/main/docs/LOG_INFLAVEIS.md
+
+**Limitação de acesso:** o código-fonte do Sites do GPT Work está em um repositório separado que esta sessão ainda não consegue consultar. O Work relatou manter um log próprio no Sites. Este protocolo NÃO representa comunicação automática com outra sessão nem comprova sincronização com o repositório do Work.
+
+### Protocolo para as duas sessões
+1. Sempre ler a versão completa e mais recente deste log antes de agir. Identificar entradas [WORK/SITES], [PC/COMMANDER], [AUTOMAÇÃO] e [GITHUB/LOG]. Não inventar confirmações.
+2. Registrar data, fonte, repositório/caminho, branch, commit, o que foi alterado, testes executados, falhas, riscos e próximos passos após cada etapa real.
+3. Para atualizar este arquivo, reler o conteúdo e SHA mais recentes, aplicar alteração sem destruir histórico e enviar usando o SHA atual; se houver conflito, reler e conciliar. Não sobrescrever entradas de outra sessão.
+4. Não declarar merge entre Work e PC sem acesso aos dois códigos-fonte e git diff verificável. Preservar Git e os recursos exclusivos de cada versão.
+5. Não transferir tokens, senhas, cookies, chaves ou .env com segredos. Não executar migrações D1, alterar banco de produção, abrir painel administrativo nem publicar em brasilinflaveis.com sem homologação.
+6. Preferir recursos gratuitos e a Hostinger já contratada; não ativar APIs pagas. Priorizar conversão, reservas sem conflito, custos de entrega, margens e lucro real por brinquedo.
+7. O responsável por uma ação marca sua origem, comunica bloqueios e evita executar em paralelo mudanças na mesma branch/arquivo que outra sessão possa editar.
+
+### Ponto de sincronização verificado nesta sessão
+- [PC/COMMANDER] Projeto: C:\Users\LIVRESOM\Projects\inflaveis-pro.
+- [PC/COMMANDER] Branch ativa: feature/pulapula-decoradores-20261119; commit a56dca5; árvore limpa, verificada em 19/11/2026.
+- [PC/COMMANDER] Backups: backup/pre-sites-merge-20261119 e backup/pre-ui-areas-20261119.
+- [PC/COMMANDER] Builds e testes do marketplace e mobile passaram; 5 ofertas e 3 locadoras fictícias, decoradores, categorias, filtros simulados, monitores, minuta HTML e painel demonstrativo.
+- [WORK/SITES, RELATADO PELO USUÁRIO] Capa SUPER FESTA!, busca, orçamentos, minuta, agenda conectada ao Cloudflare D1, decoradores e Pula-pula. Login Google/e-mail ainda aguarda configuração e agenda autenticada carece de testes.
+- [ACESSO PENDENTE] O repositório Sites não aparece no GitHub conectado; a exportação na pasta C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import não existe.
+
+### Handoff solicitado à conversa GPT Work/Sites
+Quando possível, ler este log pelo link canônico. Registrar uma seção [WORK/SITES] com seu commit e status real; exportar o repositório Sites com histórico para C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import pelo Desktop Commander, ou para GitHub privado separado acessível. Não sobrescrever o diretório inflaveis-pro. Enviar .env.example sem segredos em vez de .env. Se não tiver escrita no GitHub, gerar LOG_WORK_HANDOFF.md junto à exportação; a sessão PC concilia no log central.
+
+### Ação da sessão PC enquanto o código Sites não chega
+Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes; melhorar apenas itens independentes em branch protegida. Não redesenhar nem substituir componentes/agenda D1 da versão Sites com base apenas em relatos. Registrar cada commit e teste no mesmo log.
