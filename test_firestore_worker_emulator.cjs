@@ -247,6 +247,64 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
   assert.equal((await get("ingredients","potato")).stock,200);
   console.log("PASS F02 APPROVAL SDK EMULATOR: new price revision, audit idempotency and reserved order.");
 
+
+  // Integration regression: the same server-approved recipe must fail closed
+  // if tenant-editable metadata later adds an unpriced component.
+  // Exercise real Worker HTTP + Firestore SDK transactions, not a mocked store.
+  const recipeRef=()=>sdk.doc(privilegedDb,"users",uid,"records",
+   recordPath(uid,universe,"recipes","r-f02").split("/").at(-1));
+  const complexCases=[
+   ["addonIds",["bacon-extra"]],
+   ["beverageIds",["water"]],
+   ["packagingIngredientIds",["pot-500ml"]],
+   ["comboItems",[{id:"water",qty:1}]],
+   ["hasUnknownCosts",true],
+   ["costEstimateMode","estimated"]
+  ];
+  for(let i=0;i<complexCases.length;i++){
+   const [field,value]=complexCases[i];
+   await env.withSecurityRulesDisabled(async ctx=>{
+    await sdk.updateDoc(sdk.doc(ctx.firestore(),"users",uid,"records",
+     recordPath(uid,universe,"recipes","r-f02").split("/").at(-1)),
+     {"record.item."+field:value});
+   });
+   const blockedOrderId="unpriced-complex-"+i;
+   const body={...createBody,orderId:blockedOrderId,
+    operationId:"f02-complex-order-20261119-"+i};
+   const request=new Request("http://worker.local/v1/orders/create",{
+    method:"POST",headers:{"Authorization":"Bearer emulator-owner",
+     "Origin":"https://pdv.livresom.com","Content-Type":"application/json"},
+    body:JSON.stringify(body)
+   });
+   const response=await fetchAsService(request,options);
+   assert.equal(response.status,409,
+    field+" must reject order with unapproved additional costs");
+   const result=await response.json();
+   assert.equal(result.code,"recipe_review_required",field);
+   assert.equal(await get("orders",blockedOrderId),undefined,
+    field+" must not create a rejected order");
+   assert.equal((await get("ingredients","potato")).stock,200,
+    field+" must not change inventory");
+   const approveRequest=new Request("http://worker.local/v1/catalog/approve-price",{
+    method:"POST",headers:{"Authorization":"Bearer emulator-owner",
+     "Origin":"https://pdv.livresom.com","Content-Type":"application/json"},
+    body:JSON.stringify({universe,recipeId:"r-f02",salePriceCents:5000,
+     operationId:"f02-complex-approval-20261119-"+i})
+   });
+   const rejectedApproval=await fetchAsService(approveRequest,options);
+   assert.equal(rejectedApproval.status,409,
+    field+" must also reject re-approval");
+   const approvalResult=await rejectedApproval.json();
+   assert.equal(approvalResult.code,"recipe_review_required",field);
+   await env.withSecurityRulesDisabled(async ctx=>{
+    await sdk.updateDoc(sdk.doc(ctx.firestore(),"users",uid,"records",
+     recordPath(uid,universe,"recipes","r-f02").split("/").at(-1)),
+     {"record.item."+field:sdk.deleteField()});
+   });
+  }
+  assert.equal((await get("ingredients","potato")).stock,200);
+  console.log("PASS F02 COMPLEX COST SDK EMULATOR: addons, beverages, packaging, combos, unknown and estimated costs fail closed without stock or order mutation.");
+
   console.log("PASS F02 SDK EMULATOR CONCURRENCY: 2 orders, one reservation, retry safe, no negative stock.");
 
   console.log("PASS F02 SDK EMULATOR: atomic reservation, replay, production without double deduction, cancel once.");
