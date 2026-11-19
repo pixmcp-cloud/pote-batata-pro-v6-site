@@ -1,0 +1,59 @@
+/* F02: authoritative component-cost calculation. This module does not grant
+ * price approvals. Catalog and order flows must integrate it transactionally
+ * before complex recipes can be sold through the Worker.
+ */
+import {OperationalError} from "./domain.mjs";
+import {costUnit} from "./order_create.mjs";
+const reject=(message)=>{throw new OperationalError(message,409,"cost_review_required")};
+const kinds=new Set(["ingredient","packaging","addon","beverage"]);
+const positive=(value,label)=>{
+ if(typeof value!=="number"||!Number.isFinite(value)||value<=0||value>1000000)
+  reject(label+" inválido");
+ return value;
+};
+export function authoritativeComponentCost(lines,resolve){
+ if(!Array.isArray(lines)||lines.length===0||lines.length>128||
+  typeof resolve!=="function")reject("Lista de componentes inválida");
+ let total=0;
+ const details=[];
+ for(const line of lines){
+  if(!line||typeof line!=="object"||Array.isArray(line)||
+   !kinds.has(line.kind)||typeof line.id!=="string"||
+   !/^[a-zA-Z0-9_.:-]{1,180}$/.test(line.id))
+   reject("Componente desconhecido");
+  const quantity=positive(line.quantity,"Quantidade");
+  const document=resolve(line.kind,line.id);
+  if(!document||document.id!==line.id||document.kind!==line.kind||
+   document.archived===true||document.costEstimateMode==="estimated"||
+   document.hasUnknownCosts===true)reject("Ficha de custo ausente ou estimada");
+  const item=document.item;
+  if(!item||typeof item!=="object"||Array.isArray(item))
+   reject("Ficha de custo ausente");
+  const expectedUnit=line.kind==="beverage"?"un":line.kind==="packaging"?"un":null;
+  const unit=line.unit;
+  if(!["g","ml","un"].includes(unit)||expectedUnit&&unit!==expectedUnit||
+   item.measureUnit!==unit)reject("Unidade do componente incompatível");
+  const yieldPct=item.yield===undefined?100:positive(item.yield,"Rendimento");
+  if(yieldPct>100)reject("Rendimento acima de 100%");
+  const unitCost=costUnit(item);
+  if(!Number.isFinite(unitCost)||unitCost<=0)
+   reject("Custo unitário desconhecido");
+  const cost=quantity*unitCost/(yieldPct/100);
+  if(!Number.isFinite(cost)||cost<=0||cost>1e9)
+   reject("Custo calculado inválido");
+  total+=cost;
+  details.push(Object.freeze({kind:line.kind,id:line.id,quantity,unit,
+   costCents:Math.ceil(cost*100)}));
+ }
+ if(!Number.isFinite(total)||total<=0||total>1e9)
+  reject("Custo total inválido");
+ return Object.freeze({materialCostCents:Math.ceil(total*100),
+  details:Object.freeze(details)});
+}
+export function minimumApprovedPriceCents(materialCostCents,minimumGainPct){
+ if(!Number.isSafeInteger(materialCostCents)||materialCostCents<1||
+  materialCostCents>1e11||typeof minimumGainPct!=="number"||
+  !Number.isFinite(minimumGainPct)||minimumGainPct<0||minimumGainPct>500)
+  reject("Custo ou ganho mínimo inválido");
+ return Math.ceil(materialCostCents*(1+minimumGainPct/100)-1e-9);
+}
