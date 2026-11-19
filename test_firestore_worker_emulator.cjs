@@ -299,7 +299,7 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
    await env.withSecurityRulesDisabled(async ctx=>{
     await sdk.updateDoc(sdk.doc(ctx.firestore(),"users",uid,"records",
      recordPath(uid,universe,"recipes","r-f02").split("/").at(-1)),
-     {"record.item."+field:sdk.deleteField()});
+     {["record.item."+field]:sdk.deleteField()});
    });
   }
   assert.equal((await get("ingredients","potato")).stock,200);
