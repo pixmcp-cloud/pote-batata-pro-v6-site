@@ -10,7 +10,27 @@ const fail=(message,code="price_review_required")=>{
 export function serverPricePath(uid,universe,recipeId){
  return "users/"+uid+"/serverPrices/"+keyFor(universe,"recipes",recipeId);
 }
+export function assertSimpleRecipeScope(recipe){
+ const unsupported=[
+  "packagingIngredientIds","addonIds","extraIds","beverageIds",
+  "comboIds","includedAddonIds","selectedAddons","extras","addons",
+  "beverages","comboItems","packagingItems"
+ ];
+ for(const field of unsupported){
+  const value=recipe?.[field];
+  if(value===undefined||value===null)continue;
+  if(Array.isArray(value)&&value.length===0)continue;
+  throw new OperationalError(
+   "Receita possui adicionais, bebidas ou embalagens sem custo homologado",
+   409,"recipe_review_required");
+ }
+ if(recipe?.costEstimateMode==="estimated"||recipe?.priceIncludesExtras===true||
+    recipe?.hasUnknownCosts===true)
+  throw new OperationalError("Custos adicionais exigem revisao",409,
+   "recipe_review_required");
+}
 export function verifyServerPrice(approvalDoc,recipe,universe,recipeId){
+ assertSimpleRecipeScope(recipe);
  const a=approvalDoc?.data;
  if(!a||a.version!==1||a.universe!==universe||a.recipeId!==recipeId||
    !Number.isSafeInteger(a.salePriceCents)||a.salePriceCents<1||

@@ -5,7 +5,7 @@
  * Does not approve addons/combos, estimates or unknown ingredient costs.
  */
 import {OperationalError,recordPath} from "./domain.mjs";
-import {serverPricePath} from "./server_price.mjs";
+import {serverPricePath,assertSimpleRecipeScope} from "./server_price.mjs";
 import {costUnit} from "./order_create.mjs";
 const fail=(code,message,status=409)=>{throw new OperationalError(message,status,code)};
 const put=(path,data,previous)=>({path,data,precondition:previous?
@@ -55,6 +55,7 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
   if(!rec||rec.group!=="recipes"||rec.id!==recipeId||
     rec.universe!==universe||!r||r.unavailable||r.archived)
    fail("recipe_missing","Receita não encontrada",404);
+  assertSimpleRecipeScope(r);
   if(!Array.isArray(r.items)||r.items.length<1||r.items.length>32||
     r.packagingIngredientIds?.length||r.costEstimateMode==="estimated")
    fail("recipe_review_required","Receita não é elegível para preço automático");

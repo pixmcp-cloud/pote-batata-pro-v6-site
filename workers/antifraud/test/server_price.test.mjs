@@ -25,6 +25,23 @@ test("F02 reject missing or forged approvals",()=>{
   {data:{...approval.data,minimumGainPct:-1}}])
   assert.throws(()=>verifyServerPrice(a,item,universe,recipeId));
 });
+test("F02 complex recipe fields fail closed before price approval or order",()=>{
+ const complexFields=["packagingIngredientIds","addonIds","extraIds",
+  "beverageIds","comboIds","includedAddonIds","selectedAddons",
+  "extras","addons","beverages","comboItems","packagingItems"];
+ for(const field of complexFields){
+  const changed={...item,[field]:["test-extra"]};
+  assert.throws(()=>verifyServerPrice(approval,changed,universe,recipeId),
+   {code:"recipe_review_required"},field);
+ }
+ for(const change of [{priceIncludesExtras:true},{hasUnknownCosts:true},
+  {costEstimateMode:"estimated"},{packagingIngredientIds:"unverified"}]){
+  assert.throws(()=>verifyServerPrice(approval,{...item,...change},universe,recipeId),
+   {code:"recipe_review_required"});
+ }
+ assert.equal(verifyServerPrice(approval,{...item,addonIds:[],extras:[],
+  packagingIngredientIds:[]},universe,recipeId).salePriceCents,price);
+});
 test("F02 reject client-side price and ingredient tampering",()=>{
  for(const r of [{...item,serverSalePriceCents:1},
   {...item,serverPriceVersion:2},
