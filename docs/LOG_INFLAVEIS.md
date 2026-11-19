@@ -146,3 +146,19 @@ Diga: **"Abra o Log infláveis e continue o planejamento do sistema de aluguel d
 - Fonte Node.js: https://www.hostinger.com/support/hostinger-node-js-limits-for-web-and-cloud-plans/
 
 **Decisão de arquitetura recomendada, ainda não aprovada como implementação:** começar com build Vite/React hospedado no plano já pago e avaliar backend Node.js/MySQL simples e seguro no próprio plano, desde que os limites e isolamento multiempresa sejam adequados. Evitar pagar Cloud/VPS prematuramente. Plataforma ainda em protótipo; não publicar reservas/pagamentos reais sem homologação. Aproveitar o domínio como marca/portal "Brasil Infláveis" e nome do SaaS a validar.
+
+## 15. Identidade visual Brasil Infláveis v2 — 19/11/2026
+**Pedido do usuário:** área de cliente final muito colorida, divertida, inspirada na energia do universo infantil de espetáculos (sem copiar personagens de terceiros); área do locador sóbria/executiva com cores do Brasil.
+
+**Execução confirmada pelo Desktop Commander no PC:**
+- Pasta: `C:\Users\LIVRESOM\Projects\inflaveis-pro`.
+- Backup intacto: `backup/pre-sites-merge-20261119` no commit `44f40a2`.
+- Branch de design: `design/universo-colorido-20261119`.
+- Commit desta etapa: **`b9e850a`**.
+- Cliente final: paleta azul-céu, rosa, amarelo, laranja e verde; título expressivo, balões e decorações CSS, botões festivos, cartões coloridos; marca provisória Brasil Infláveis.
+- Locador: azul-marinho, verde e amarelo ouro em doses discretas, menu executivo e gráficos de gestão; marca provisória Brasil Infláveis Pro.
+- CSS isolado em `src/visual-v2.css`; especificação em `docs/DESIGN-V2.md`.
+- Testes: `npm run build`, `npm run lint` (0 erros/avisos), `node tests/smoke.mjs` (identidade, vitrine, filtro, cotação, painel, reservas simuladas, persistência e mobile passaram); screenshots locais em `.previews/`.
+- Nenhuma API paga, domínio público ou publicação real ativada. Backend, disponibilidade real e contratos seguem pendentes.
+
+**IMPORTANTE — integração com Site do GPT Work ainda não concluída:** o usuário relata que `https://parque-inflavel-br.nerdflix.chatgpt.site` deriva do protótipo e recebeu melhorias no Work. Leituras externas resultaram em HTTP 401; o código-fonte vinculado ao Sites não está acessível por este link, o repositório Git local não tem remote e a API GitHub conectada não lista esse projeto. Precisamos do repositório ou exportação de código do Work para comparação/merge seguro (com várias locadoras, consulta de data, medidas, monitores opcionais, minuta, painel). Não confundir o redesign local com a integração solicitada.
