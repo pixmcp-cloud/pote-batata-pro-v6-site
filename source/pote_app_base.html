@@ -138,6 +138,7 @@ function savePendingSaleNote(){
  }
  if(notes.length>=30){toast("Limite de 30 anotacoes locais. Exporte e confira antes de continuar.","error");return false}
  const entry={id:"draft-"+uid(),createdAt:new Date().toISOString(),
+ itemLabel:String(document.getElementById("orderItem")?.selectedOptions?.[0]?.textContent||"").split(" · ")[0].slice(0,130),
   fields,customSummary:summary,universe:state.data.businessType||"batataria"};
  notes.unshift(entry);
  try{
@@ -157,7 +158,7 @@ function pendingSalePanel(){
   drafts.map(entry=>{
    const f=entry.fields||{};
    return '<div class="box" style="padding:10px;margin-top:8px">'+
-    '<b>'+escapeHtml(String(f.orderQty||"1"))+'x '+escapeHtml(String(f.orderItem||"Pedido"))+'</b> - R$ '+escapeHtml(String(f.orderPrice||"0"))+
+    '<b>'+escapeHtml(String(f.orderQty||"1"))+'x '+escapeHtml(String(entry.itemLabel||state.data.recipes.find(r=>"recipe:"+r.id===f.orderItem)?.name||state.data.combos.find(c=>"combo:"+c.id===f.orderItem)?.name||f.orderItem||"Pedido"))+'</b> - R$ '+escapeHtml(String(f.orderPrice||"0"))+
     '<div class="muted">'+escapeHtml(new Date(entry.createdAt).toLocaleString("pt-BR"))+'</div>'+
     '<div class="actions"><button type="button" class="btn mini" onclick="restorePendingSaleNote(&quot;'+entry.id+'&quot;)">Reabrir pedido</button>'+
     '<button type="button" class="btn mini line" onclick="removePendingSaleNote(&quot;'+entry.id+'&quot;)">Excluir apos conferir</button></div></div>';
@@ -648,6 +649,14 @@ function editAddon(id){const a=addon(id);if(!a)return;const quantity=prompt('Nov
 function deleteAddon(id){if(state.data.combos.some(c=>(c.addonIds||[]).includes(id))){toast('Adicional usado em um combo. Edite o combo antes de excluir.');return}if(!confirm('Excluir adicional?'))return;state.data.addons=state.data.addons.filter(x=>x.id!==id);render()}
 
 /* --- 2. PEDIDOS + AVISOS WHATSAPP EM 1 CLIQUE + BAIXA DE EMBALAGENS --- */
+function pageOrderSyncWarning(){
+ const blocked=Boolean(window.POTE_SYNC_GUARD?.blocked);
+ const diagnosis=window.POTE_SYNC_GUARD?.diagnosis?.()||{};
+ const title=escapeHtml(diagnosis.title||"Sincronizacao nao confirmada");
+ const cause=escapeHtml(diagnosis.cause||"Existem alteracoes locais nao confirmadas.");
+ const action=escapeHtml(diagnosis.action||"Baixe e confira o backup antes de recuperar.");
+ return '${pageOrderSyncWarning()}';
+}
 function pageOrders(){
  const rOpts=state.data.recipes.filter(canSell).map(r=>['recipe:'+r.id,r.name+' · '+money(sellPrice(r,'direto'))]);
  const cOpts=state.data.combos.filter(c=>canSell(recipe(c.recipeId))).map(c=>['combo:'+c.id,'🥤 '+c.name+' · '+money(comboQuote(c).price)]);
