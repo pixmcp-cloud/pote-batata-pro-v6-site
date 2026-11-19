@@ -2,7 +2,7 @@
 
 **Versão:** 1.0  
 **Criado:** 19 de novembro de 2026  
-**Situação:** pesquisa e concepção. Nenhum software implementado, nenhum serviço pago autorizado.  
+**Situação atual (atualizada em 19/11/2026):** protótipo local v0.2 implementado e testado, com histórico detalhado nas seções 13–16. Hospedagem e domínio adquiridos pelo usuário; site ainda NÃO publicado e backend real NÃO implementado. O enunciado original da pesquisa permanece documentado nas seções iniciais.  
 **Objetivo:** desenvolver uma plataforma de aluguel de brinquedos infláveis e recreativos com recorrência SaaS, operação rentável e opção de marketplace.
 
 ## 1. Origem da ideia
@@ -162,3 +162,29 @@ Diga: **"Abra o Log infláveis e continue o planejamento do sistema de aluguel d
 - Nenhuma API paga, domínio público ou publicação real ativada. Backend, disponibilidade real e contratos seguem pendentes.
 
 **IMPORTANTE — integração com Site do GPT Work ainda não concluída:** o usuário relata que `https://parque-inflavel-br.nerdflix.chatgpt.site` deriva do protótipo e recebeu melhorias no Work. Leituras externas resultaram em HTTP 401; o código-fonte vinculado ao Sites não está acessível por este link, o repositório Git local não tem remote e a API GitHub conectada não lista esse projeto. Precisamos do repositório ou exportação de código do Work para comparação/merge seguro (com várias locadoras, consulta de data, medidas, monitores opcionais, minuta, painel). Não confundir o redesign local com a integração solicitada.
+
+
+## 16. Desenvolvimento local — Marketplace multi-locadora demonstrativo v0.2 — 19/11/2026
+
+**Pedido-base:** ler o Log infláveis e retomar o trabalho. O usuário já determinou preservar a versão local e o histórico Git, não sobrescrever melhorias do GPT Work e não publicar antes da validação.
+
+**Verificação antes da edição:** o computador DESKTOP-9481JM1 estava online via Desktop Commander; pasta C:\Users\LIVRESOM\Projects\inflaveis-pro continha a branch design/universo-colorido-20261119 no commit b9e850a, árvore Git limpa, sem remote. O repositório-fonte do site GPT Work/Sites segue INACESSÍVEL nesta sessão. Nenhum conteúdo da prévia protegida por HTTP 401 foi transferido ou mesclado.
+
+**Nova branch local criada:** feature/marketplace-multilocadoras-20261119, baseada em b9e850a. A branch de segurança backup/pre-sites-merge-20261119 e a branch main permanecem preservadas.
+
+**Commit final desta etapa:** **1c781c6** — feat: marketplace demo com locadoras, filtros, monitores e minuta. Git local limpo após o commit.
+
+**Implementações verificadas (somente front-end demonstrativo):**
+- Catálogo com QUATRO brinquedos vinculados explicitamente a TRÊS LOCADORAS FICTÍCIAS independentes, cada uma identificada por nome e cidade. As fotos existentes foram preservadas.
+- Busca funcional NO CONJUNTO DE EXEMPLO por categoria, cidade atendida, data e dimensões máximas disponíveis (largura, profundidade e altura). Equipamento com reserva confirmada na data da amostra é ocultado. A disponibilidade é conservadora por dia e NÃO é tempo real nem garante espaço/supervisão.
+- Simulador de orçamento: duração (4/6/8 h), entrega fictícia, até 3 monitores opcionais R$ 90/unidade na simulação, total e sinal indicativo de 30%.
+- Geração de minuta preliminar de locação em HTML, baixável e imprimível como PDF pelo navegador, com identificação fictícia da locadora, solicitante opcional, data, cidade, equipamento, frete e valores indicativos. O texto do solicitante é escapado contra injeção HTML. Documento não assinado/não vinculante.
+- Painel com seleção de locadora demonstrativa que FILTRA SOMENTE NA INTERFACE os equipamentos, reservas, métricas, clientes e opções do novo orçamento. Isto **NÃO constitui login, isolamento multi-tenant, RLS ou proteção entre contas**.
+- Aprimoramento de fontes alternativas para o site continuar legível mesmo sem carregar Google Fonts.
+- Arquivos novos: src/marketplace.ts, src/marketplace.css, src/minuta.ts, tests/marketplace.mjs; src/App.tsx, package.json e README.md atualizados.
+
+**Validação local:** npm run build OK; npm run lint OK, 0 warnings/erros; npm run test:smoke OK; npm run test:marketplace OK. O teste adicional confirma 3 empresas independentes, exclusão por data com reserva confirmada, dimensões e cobertura local fictícias, cálculo de 2 monitores/frete/horas, download de minuta e proteção HTML, visualização por empresa no painel e ausência de rolagem horizontal no celular.
+
+**Pendências antes de produção:** acesso ao código-fonte do Sites no GPT Work para comparação/merge; GitHub remoto exclusivo deste produto; backend autenticado com isolamento por locadora; inventário físico e disponibilidade por INTERVALO com transações contra corridas; rateio de recursos compartilhados; transporte/frete e agenda reais; contratos jurídicos revisados; Pix/cartão com webhooks verificados; LGPD, manutenção, segurança de fabricante, hospedagem/SSL e testes operacionais. Não contratar APIs adicionais nem publicar em brasilinflaveis.com sem aprovação.
+
+**Como retomar:** abrir este log, verificar PC e branch feature/marketplace-multilocadoras-20261119, commit 1c781c6, e obter o repo/exportação Sites antes de mesclar a versão mais avançada do GPT Work.
