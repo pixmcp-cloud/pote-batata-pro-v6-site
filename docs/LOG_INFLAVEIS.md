@@ -188,3 +188,29 @@ Diga: **"Abra o Log infláveis e continue o planejamento do sistema de aluguel d
 **Pendências antes de produção:** acesso ao código-fonte do Sites no GPT Work para comparação/merge; GitHub remoto exclusivo deste produto; backend autenticado com isolamento por locadora; inventário físico e disponibilidade por INTERVALO com transações contra corridas; rateio de recursos compartilhados; transporte/frete e agenda reais; contratos jurídicos revisados; Pix/cartão com webhooks verificados; LGPD, manutenção, segurança de fabricante, hospedagem/SSL e testes operacionais. Não contratar APIs adicionais nem publicar em brasilinflaveis.com sem aprovação.
 
 **Como retomar:** abrir este log, verificar PC e branch feature/marketplace-multilocadoras-20261119, commit 1c781c6, e obter o repo/exportação Sites antes de mesclar a versão mais avançada do GPT Work.
+
+## 17. Comparativo preliminar Work versus PC e aprimoramentos locais — 19/11/2026
+
+**Informação fornecida pelo usuário da conversa original do GPT Work (relatada, não confirmada por inspeção de código):**
+- Versão do Sites contém capa SUPER FESTA!, multi-locadoras, busca, orçamento, minuta, agenda conectada ao Cloudflare D1, decoradores e Pula-pula.
+- Login Google/e-mail ainda aguarda configuração; agenda D1 publicada precisa de teste com conta autenticada.
+- Código Work pertence ao repositório de origem vinculado ao Sites, não à prévia pública.
+
+**Busca pelo código do Sites nesta sessão:**
+- GitHub conectado exibe só pixmcp-cloud/livresomcom e pixmcp-cloud/pote-batata-pro-v6-site. Nenhum repositório Sites encontrado.
+- Downloads, Desktop, Documents e Projects no PC pesquisados; nenhum código exportado do Work encontrado.
+- Git local inflaveis-pro não tem remote; URL da prévia retornou 401.
+- Portanto NÃO houve git diff entre Work e PC, transferência de código, merge de repositórios ou teste contra banco D1.
+
+**Melhorias independentes executadas via Desktop Commander:**
+- Pasta C:\Users\LIVRESOM\Projects\inflaveis-pro.
+- Backup extra backup/pre-ui-areas-20261119 criado em 1c781c6.
+- Branch feature/pulapula-decoradores-20261119, commit a56dca5.
+- Pula-pula adicionado imediatamente após Aquáticos, com um brinquedo fictício ilustrativo.
+- Área independente Decoradores com dois perfis inteiramente fictícios, serviços expansíveis e filtragem por cidade.
+- Categoria em linha única com rolagem interna para impedir quebra feia no mobile.
+- Documento docs/COMPARATIVO-WORK.md registra tabela de recursos relatados versus verificações reais e protocolo de transferência.
+- Build, lint, smoke e marketplace E2E aprovados. Teste de ausência de rolagem horizontal em 320, 390, 768 e 1024 px. Git limpo.
+- Nenhum serviço pago foi ativado; nenhuma versão publicada; dados, medidas, preços e fotos seguem fictícios.
+
+**Próximo acesso necessário:** pela conversa GPT Work/Sites, salvar fonte COMPLETA com histórico Git na pasta isolada C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import, ou disponibilizar repositório privado próprio da plataforma no GitHub conectado. NÃO sobrescrever inflaveis-pro. Não compartilhar segredos, .env, tokens, cookies ou dados de clientes; usar .env.example sanitizado. Depois comparar código, migrações D1, interface, login, isolamento por locadora e testes antes de integração/produção.
