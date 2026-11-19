@@ -320,3 +320,25 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 **Escopo e riscos:** ambiente de DEMONSTRAÇÃO público; não é SaaS de produção, não tem autenticação verdadeira, autorização multi-tenant, banco D1 integrado, agenda transacional, checkout ou contratos vinculantes. Dados fictícios e persistência apenas localStorage do visitante; nunca usar informações sensíveis nesta versão. O código original GPT Work/Sites permanece sem comparação/merge. Repositório local segue sem remote; não confundir atualizar este log com publicar código-fonte no GitHub.
 
 **Próximas melhorias:** validar visual diretamente pelo celular do proprietário no domínio; preparar método incremental/seguro de atualização na Hostinger com backup e QA após deploy; obter repositório do GPT Work/Sites para integração por diff. Não abrir inscrições, pagamentos reais nem removê-lo do modo noindex antes de autenticação, segurança, LGPD e homologação.
+
+## 22. [PC/COMMANDER] Hotfix de visibilidade Android e cache Hostinger - 19/11/2026
+
+**Incidente:** proprietario relatou que https://brasilinflaveis.com abria com tela preta em seu celular Android, apos a primeira publicacao Hostinger.
+**Diagnostico honesto:** URL, HTML e assets retornavam HTTP 200; emulacoes Android Chrome Pixel 7 e Android 16 WebView renderizavam o site sem erros JS. O defeito NO APARELHO REAL ainda nao foi reproduzido, portanto a causa raiz permanece desconhecida. DNS/CDN/cache ou navegador embutido sao hipoteses, nao conclusoes.
+
+**Correcoes implementadas (git local):**
+- Branch backup: backup/pre-android-black-screen-20261119, commit a4049f0.
+- Branch hotfix: hotfix/visibilidade-android-20261119, commit **5cf35d8**; working tree Git limpo.
+- Novo index.html com HTML ASCII/entidades, fundo claro, meta color-scheme light e tela inicial estatica com recarregar se JS nao carregar. O HTML antigo de 779 bytes tinha bytes invalidos de UTF-8 no titulo/descricao.
+- React com AppErrorBoundary para erros de renderizacao. Arquivos novos src/AppErrorBoundary.tsx e docs/HOTFIX-ANDROID-20261119.md.
+- Testes novos tests/mobile-fallback.mjs e tests/android-live.mjs, scripts npm run test:mobile-fallback e npm run test:android-live.
+
+**Deploy Hostinger comprovado:**
+- Upload do novo bundle dist/assets/index-CHa452u1.js diretamente a public_html/assets; upload do novo dist/index.html a public_html com confirmacao de substituir arquivo existente.
+- Backup do antigo HTML publicado salvo no PC em .previews/index-live-before-android-hotfix-20261119.html. ZIP tecnico temporario sem segredos na raiz public_html/android-hotfix-upload-20261119.zip; limpeza posterior recomendada.
+- HPanel de brasilinflaveis.com: comando Limpar cache executado; toast oficial 'Cache limpo com sucesso'. Nenhuma mudanca em outros dominios ou D1.
+- HTTP 200 confirmado nos dois hosts brasilinflaveis.com e www.brasilinflaveis.com; novo HTML contem initial-fallback e asset hash index-CHa452u1.js.
+
+**Validacao:** npm run build, lint, smoke, marketplace, rentabilidade, mobile-fallback, android-live e test:live aprovados. Teste via URL PUBLICADA com JavaScript ativado: React e 5 cards funcionam no Pixel 7, 0 erros JS, 0 requests falhas. Com JavaScript DESATIVADO: fallback claro e botao de recarregar visiveis. Responsive 320/390/768/1440 px e area Rentabilidade seguem aprovados.
+
+**Pendencia decisiva:** solicitar teste pelo proprietario no mesmo aparelho Android, preferencialmente Chrome externo e link atualizado com querystring para evitar cache. Se ainda ficar preta, pedir captura, navegador/app e rede; nao declarar falha especifica resolvida sem reproduzir. Versao GPT Work/Sites nao foi mesclada; sitio segue demonstracao com noindex e sem autenticacao real.
