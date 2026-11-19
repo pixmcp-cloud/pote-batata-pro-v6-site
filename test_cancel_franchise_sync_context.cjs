@@ -19,7 +19,7 @@ const ctx={window,navigator:{onLine:true},document:{getElementById:id=>id==="pot
 vm.createContext(ctx);vm.runInContext(guard+"\n"+cancellation,ctx);
 assert.equal(ctx.cancelOrder("order1"),false);
 assert.equal(opened.length,0);
-assert.match(toastMessages[0].msg,/Cancelamento não realizada: Backup local difere do estoque/);
+assert.match(toastMessages[0].msg,/Cancelamento não realizado: Backup local difere do estoque/);
 assert.match(toastMessages[0].msg,/Nenhum pedido, recebimento ou estoque foi alterado/);
 assert(!toastMessages[0].msg.includes("Venda NÃO registrada"));
 assert(moved.includes("recovery"));

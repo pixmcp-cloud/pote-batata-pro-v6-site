@@ -194,21 +194,22 @@ function exportPendingSaleNotes(){
 }
 
 function operationReady(action="Operação"){
+ const label=action==="Cancelamento"?"Cancelamento não realizado":action==="Pedido"?"Pedido não registrado":action==="Produção"?"Produção não iniciada":action==="Entrega"?"Entrega não confirmada":"Operação não realizada";
  if(!window.POTE_AUTH?.uid)return true; // laboratório local
  if(window.POTE_APP_READY!==true){
-  toast(action+' não realizada: os dados da sua conta ainda estão carregando.', 'error');
+  toast(label+': os dados da sua conta ainda estão carregando.', 'error');
   return false;
  }
  if(window.POTE_APP_READY&&window.POTE_MODULE_HEALTH?.safeToOperate!==true){
   window.POTE_HEALTH?.scan?.();
   if(window.POTE_MODULE_HEALTH?.safeToOperate!==true){
-  toast(action+' não realizada: módulo essencial não carregou. Atualize o aplicativo e confira a conexão.');
+  toast(label+': módulo essencial não carregou. Atualize o aplicativo e confira a conexão.');
   return false;
   }
  }
  if(window.POTE_SYNC_GUARD?.blocked){
   const diagnosis=window.POTE_SYNC_GUARD?.diagnosis?.();
-  toast(action+' não realizada: '+String(diagnosis?.title||'sincronização pendente')+'. '+
+  toast(label+': '+String(diagnosis?.title||'sincronização pendente')+'. '+
    (action==='Pedido'?'É possível anotar o pedido neste aparelho, mas ainda não confirmar a venda.':
     'Nenhum pedido, recebimento ou estoque foi alterado. Confira o backup e a nuvem.'), 'error');
   const warning=document.getElementById('poteOrderSyncWarning');
@@ -217,7 +218,7 @@ function operationReady(action="Operação"){
   return false;
  }
  if(navigator.onLine===false){
-  toast(action+' não realizada: dispositivo sem internet. Reconecte e tente novamente.', 'error');
+  toast(label+': dispositivo sem internet. Reconecte e tente novamente.', 'error');
   return false;
  }
  return true;
