@@ -116,7 +116,7 @@ Diga: **"Abra o Log infláveis e continue o planejamento do sistema de aluguel d
 - Documentação local `README.md` e `docs/PRD.md`; teste automatizado `tests/smoke.mjs` e capturas desktop/mobile em `.previews/` (ignorado pelo Git).
 - Build de produção e lint passaram, com 0 warnings/erros. Testes E2E passaram para catálogo, filtro, orçamento, painel, agenda, persistência e ausência de rolagem horizontal mobile.
 - Servidor de desenvolvimento local iniciado em `http://127.0.0.1:5174/` (porta dinâmica: verificar se continua em execução).
-- Ponto de restauração inicial: commit **c4e5e7b** na branch `main` do repositório Git LOCAL. **Ainda não foi enviado ao GitHub.**
+- Ponto de restauração inicial: commit **c4e5e7b** na branch `main` do repositório Git LOCAL. **Ainda não foi enviado ao GitHub.** Commit adicional **44f40a2** para favicon/identidade provisória e remoção de assets padrão. Build local validado e site aberto no navegador do PC com HTTP 200.
 
 **Pendências críticas antes de qualquer operação real:** repositório GitHub próprio, autenticação, tenants, banco PostgreSQL, transações de disponibilidade, contratos, integração de pagamento, equipe e equipamentos compartilhados, definição de preços/frete reais, LGPD e checklists de segurança. Sem autorização de contratação de serviços pagos e sem publicação pública.
 
