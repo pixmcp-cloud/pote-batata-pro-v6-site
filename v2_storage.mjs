@@ -98,6 +98,28 @@ export function createV2Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    }
    delta=diffState(baseline,next);
    batches=planV2Batches(delta);
+   // A new public sequence number and its order record MUST be committed in
+   // one transaction. Two concurrent devices share the inventory guard.
+   const numberedNewOrders=delta.changes.filter(ch=>ch.kind==="record"&&!ch.before&&
+    ch.after?.group==="orders"&&Number.isSafeInteger(ch.after?.item?.orderNumber));
+   if(numberedNewOrders.length){
+    const activeBranch=String(snapshot()?.data?.businessType||"default");
+    const sequenceLast=Number(snapshot()?.data?.orderSequenceLast||0);
+    if(batches.length!==1||!delta.changes.some(ch=>ch.kind==="meta")||
+      !Number.isSafeInteger(sequenceLast)||sequenceLast<1||
+      numberedNewOrders.some(ch=>ch.after.universe!==activeBranch||
+        ch.after.item.orderNumber>sequenceLast))
+      throw Error("Numeracao do pedido exige gravar contador e pedido na mesma transacao");
+    const numbers=new Set();
+    for(const rec of next.records.values()){
+     if(rec.group!=="orders"||rec.universe!==activeBranch)continue;
+     const n=Number(rec.item?.orderNumber||0);
+     if(!n)continue;
+     if(!Number.isSafeInteger(n)||n<1||n>sequenceLast||numbers.has(n))
+      throw Error("Numero sequencial duplicado ou acima do contador da empresa");
+     numbers.add(n);
+    }
+   }
    for(const batch of batches)validateChangeSet({changes:batch});
    validateInventoryJournalDiff(delta);
    validateProductionJournalDiff(delta);

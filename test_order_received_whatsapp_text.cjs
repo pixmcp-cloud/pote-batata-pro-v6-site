@@ -1,6 +1,6 @@
 const assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm");
 const raw=fs.readFileSync("source/pote_app_base.html","utf8"),built=fs.readFileSync("public/index.html","utf8");
-const start=raw.indexOf("function notifyOrderWhatsApp(id){"),stop=raw.indexOf("\nfunction updateOrderSuggestedPrice()",start);
+const start=raw.indexOf("function publicOrderCode(order){"),stop=raw.indexOf("\nfunction updateOrderSuggestedPrice()",start);
 assert(start>=0&&stop>start);
 assert(built.includes("Já está na fila de preparo 🙌🏻"));
 function send(o){
@@ -20,4 +20,5 @@ assert.equal(send({...order,clientName:"Maria",qty:2,price:20,deliveryFee:5}).te
 assert.match(send({...order,status:"entregue"}).text,/foi \*entregue\*!/);
 assert.match(send({...order,status:"em_producao"}).text,/em produção/);
 assert(!send(order).text.includes("�"));assert(!send(order).text.includes("🥔"));
+assert(send({...order,orderNumber:1}).text.includes("N° *#P0000001*"));
 console.log("PASS: received WhatsApp has requested line breaks, bold total, UTF-8, total with delivery and existing statuses.");

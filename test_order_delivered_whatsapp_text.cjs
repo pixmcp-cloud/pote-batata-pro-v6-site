@@ -1,7 +1,7 @@
 const assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm");
 const source=fs.readFileSync("source/pote_app_base.html","utf8");
 const built=fs.readFileSync("public/index.html","utf8");
-const begin=source.indexOf("function notifyOrderWhatsApp(id){");
+const begin=source.indexOf("function publicOrderCode(order){");
 const finish=source.indexOf("\nfunction updateOrderSuggestedPrice()",begin);
 assert(begin>=0&&finish>begin,"Missing real WhatsApp handler");
 const functionSource=source.slice(begin,finish);
