@@ -75,3 +75,31 @@ test("F02 complex recipe still fails closed",async()=>{
  await assert.rejects(approveRecipePrice(body(),h.deps),{code:"recipe_review_required"});
  assert.equal(h.committed,false);
 });
+
+test("F02 concurrent cost revision invalidates approval transaction without partial writes",async()=>{
+ const h=harness();
+ const originalTransaction=h.deps.repository;
+ let revisionChanged=false;
+ h.deps.repository=()=>({transaction:async()=>{
+  const tx=await originalTransaction().transaction();
+  const read=tx.get.bind(tx);
+  tx.get=async path=>{
+   const snapshot=await read(path);
+   if(path===ingredientPath&&snapshot){
+    revisionChanged=true;
+    // Simulate a competing writer after the transaction read snapshot.
+    h.state.set(path,{...snapshot,updateTime:"new-cost-revision",
+      data:{record:{...snapshot.data.record,item:{
+       ...snapshot.data.record.item,purchasePrice:30}}}});
+   }
+   return snapshot;
+  };
+  tx.commit=async changes=>{
+   if(revisionChanged)throw Object.assign(new Error("ABORTED: concurrent cost update"),{code:"ABORTED"});
+   throw new Error("Unexpected successful commit");
+  };
+  return tx;
+ }});
+ await assert.rejects(approveRecipePrice(body(),h.deps),{code:"ABORTED"});
+ assert.equal(h.committed,false);
+});
