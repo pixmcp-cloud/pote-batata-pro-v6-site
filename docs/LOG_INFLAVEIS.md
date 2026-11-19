@@ -405,3 +405,15 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 **URL oficial para fornecer ao usuário sem parâmetros, conforme exigência expressa:** `https://brasilinflaveis.com/` (preferir texto literal/código, sem UTM nem querystring).
 
 **Ação seguinte:** usuário abrir a URL pura diretamente no Chrome no celular pela mesma conexão original e dizer se carregou. Se não carregar, testar uma vez no Wi-Fi e outra em dados móveis, preservando o DNS; com dados comparar o comportamento. Se falhar em ambas, encaminhar evidências (IPv4 não conecta enquanto IPv6 conecta) ao suporte Hostinger e perguntar pela conectividade IPv4 do host/origem. Não realizar alteração DNS sem registrar endereços e validar mudança.
+
+
+## 26. [AUTOMAÇÃO/PC] QA responsivo e acessibilidade não invasivo — 19/11/2026
+
+- Log canônico integral consultado no GitHub antes da execução; Desktop Commander confirmou DESKTOP-9481JM1 online. Projeto local `C:\Users\LIVRESOM\Projects\inflaveis-pro` estava limpo em `feature/icone-b-20261119`, commit `19de490`.
+- Pasta `C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import` **não existe**. Nenhuma exportação GPT Work/Sites disponível; não houve merge, cópia, deploy ou comunicação direta com Work.
+- Backup local `backup/pre-qa-accessibility-20261119`; branch isolada `qa/accessibility-audit-20261119`; commit **`81ba21f`**, árvore Git limpa depois.
+- Criado `tests/qa-responsive-a11y.mjs`: teste automatizado somente no servidor Vite local, com Chrome Playwright; verifica ausência de overflow horizontal e erros JS, atributo de idioma HTML e nomes potenciais de controles interativos visíveis em 320, 390, 768 e 1024 px. **Resultado:** todos os quatro breakpoints sem overflow, sem erro JS e zero controles visíveis detectados sem nome pelo verificador heurístico. Não equivale a auditoria WCAG integral.
+- Build `npm.cmd run build` OK; lint OK (0 warnings, 0 erros); `test:smoke`, `test:marketplace`, `test:rentabilidade` e `test:mobile-fallback` OK. Script novo `node tests/qa-responsive-a11y.mjs` OK. A execução com `npm` puro no PowerShell inicialmente foi bloqueada por política local; `npm.cmd` executou sem alterar a política do sistema.
+- O script novo emite aviso de depreciação Node DEP0190 ao iniciar `npm.cmd` com `shell: true`; não impediu os testes. Melhorar spawn numa etapa futura, sem afetar produção.
+- Nenhum arquivo da aplicação alterado, nenhuma operação em D1, migração, autenticação, agenda, serviço pago, domínio ou Potê Batata. Experiência cliente colorida e painel executivo preservados.
+- Incidente de tela preta Android real e acesso IPv4 ao host permanecem sem solução comprovada; CDN Hostinger havia sido desativada para diagnóstico em sessão anterior, sem correção do problema. A automação não altera a configuração pública sem aprovação.
