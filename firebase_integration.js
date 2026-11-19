@@ -3,7 +3,7 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signO
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {createV2Store} from "./v2_storage.mjs?v=f20-late-atomic-20261118";
 import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs?v=f10-closed-shifts-20261118";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-navigation-20261119";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 import {createWorkerBridge} from "./worker_bridge.mjs?v=cf-bridge-staging-20261118";
 
@@ -634,20 +634,46 @@ async function loadUser(user, index) {
   refreshEntitlements();
   loginBtn.disabled = false;
   setMessage("");
-  const pendingOnLoad=existingPending(user.uid);
+   const pendingOnLoad=existingPending(user.uid);
    const backupCheck=pendingOnLoad?
-    inspectPendingAgainstCloud(pendingOnLoad,user.uid,safeState(),{v2:useV2}):null;
-  if(pendingMatchesLoadedState(pendingOnLoad,user.uid,safeState())||backupCheck?.safeToRelease){
-    // A local pending record may survive a successful previous sync.
-    // Remove it only if every field matches the now-loaded cloud state.
-    try{localStorage.removeItem(pendingKey(user.uid))}catch(error){
-      console.warn("Backup local idêntico não pôde ser liberado:",error.message||error);
-    }
-  }
-  if(existingPending(user.uid)){
-    syncBlocked=true;
-    setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
-   }else{syncBlocked=false;lastSyncCause=null;setStatus(pendingOnLoad?"Backup local conferido: dados comerciais iguais aos da nuvem. Vendas liberadas.":"Dados salvos na nuvem");}
+     inspectPendingAgainstCloud(pendingOnLoad,user.uid,safeState(),{v2:useV2}):null;
+   let notificationReadMerged=false;
+   if(useV2&&backupCheck?.kind==="notification-read-only"&&backupCheck.needsNotificationMerge){
+     // Non-commercial monotonic receipts only. The comparison has already
+     // verified that orders, stock, cash, settings and all other fields match.
+     const before=safeState();
+     const combined={...before,data:{...before.data,
+       notificationCenter:backupCheck.mergedNotificationCenter}};
+     window.POTE_APP.applyState(combined,{preserveNavigation:true});
+     try{
+       const ok=await withDeadline(syncV2(),22000,"reconciliacao das notificacoes");
+       notificationReadMerged=Boolean(ok&&index===epoch&&auth.currentUser?.uid===user.uid);
+     }catch(error){
+       console.warn("Recibos de notificacoes nao sincronizados:",error.code||error.message||error);
+     }
+   }
+   if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
+   if(pendingMatchesLoadedState(pendingOnLoad,user.uid,safeState())||
+      backupCheck?.safeToRelease||notificationReadMerged){
+     // The original backup is cleared only after verifying the exact user,
+     // complete business-state comparison, and successful receipt persistence.
+     try{
+       const current=existingPending(user.uid);
+       if(current&&stableJson(current)===stableJson(pendingOnLoad))
+         localStorage.removeItem(pendingKey(user.uid));
+     }catch(error){
+       console.warn("Backup local nao pôde ser liberado:",error.message||error);
+     }
+   }
+   if(existingPending(user.uid)){
+     syncBlocked=true;
+     setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
+   }else{
+     syncBlocked=false;lastSyncCause=null;
+     setStatus(pendingOnLoad?
+       "Backup conciliado com a nuvem; vendas liberadas.":
+       "Dados salvos na nuvem");
+   }
   setGate(false);
   showBackupButton();
   if(useV2){
