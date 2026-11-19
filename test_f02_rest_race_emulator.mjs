@@ -13,11 +13,11 @@ const repo=createFirestoreRepository({FIREBASE_PROJECT_ID:project},{
 const patch=async(revision,{signal}={})=>{
  const response=await fetch(endpoint,{method:"PATCH",headers:{"Content-Type":"application/json","Authorization":"Bearer owner"},
  body:JSON.stringify({fields:encodeFields({revision})}),signal});
- assert.equal(response.ok,true,await response.text());
+ if(!response.ok)throw Error("Emulator HTTP "+response.status+": "+await response.text());
 };
 const get=async()=>{
  const response=await fetch(endpoint,{headers:{"Authorization":"Bearer owner"}});
- assert.equal(response.ok,true,await response.text());
+ if(!response.ok)throw Error("Emulator HTTP "+response.status+": "+await response.text());
  return response.json();
 };
 try{
