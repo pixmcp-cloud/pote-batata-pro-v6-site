@@ -91,16 +91,21 @@ function syncExplanation(){
   inspectPendingAgainstCloud(pending,active.uid,safeState(),{v2:useV2}):null;
  const differences=comparison?.details||[];
  let title="Alteracoes locais anteriores nao confirmadas";
- if(comparison?.kind==="business-different")title="O backup local difere dos dados da nuvem";
+ if(comparison?.kind==="notification-read-only")title="Somente notificacoes lidas aguardam conciliacao";
+ else if(comparison?.kind==="business-different")title="O backup local difere dos dados da nuvem";
  else if(comparison?.kind==="invalid")title="Backup local invalido ou incompleto";
  else if(/sync\/conflict|conflito|concorrente|alterado em outro/i.test(code+" "+originalReason))
   title="Outra aba ou dispositivo alterou os dados";
  else if(/sync\/invalid-state|schema/i.test(code))title="Inconsistencia nos dados enviados";
  else if(/network|unavailable|offline|deadline/i.test(code))title="Conexao temporariamente indisponivel";
- const cause=(comparison?.kind==="business-different"?
+ const cause=(comparison?.kind==="notification-read-only"?
+  "Nao existe divergencia de pedidos, estoque ou caixa. Diferenca: marcas de notificacoes lidas. ":"")+
+  (comparison?.kind==="business-different"?
   "Diferencas identificadas: "+differences.join("; ")+". ":"")+
   "Motivo registrado: "+originalReason;
- const action=comparison?.kind==="business-different"?
+ const action=comparison?.kind==="notification-read-only"?
+  "Verifique a internet. O aplicativo so libera depois de salvar as marcacoes sem sobrescrever outros dados.":
+  comparison?.kind==="business-different"?
   "Os registros locais nao coincidem com os dados da nuvem. Baixe e confira o backup antes de liberar o salvamento de pedidos.":
   "Feche as outras abas do aplicativo, confira o backup e recupere a sincronizacao com seguranca.";
  return {title,cause,code,action,comparison:comparison?.kind||"none"};
