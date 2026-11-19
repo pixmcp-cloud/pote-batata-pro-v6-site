@@ -1,0 +1,165 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permissions": [
+    {
+      "action": "external_directory",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "read",
+      "resource": "*.env",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*.env.*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*.pem",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*.key",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*credentials*",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "edit",
+      "resource": ".git/*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "shell",
+      "resource": "git status *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git diff *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git log *",
+      "effect": "allow"
+    },
+    {
+      "action": "shell",
+      "resource": "git push *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git reset *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git clean *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "git checkout main*",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "firebase deploy *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "wrangler deploy *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "rm *",
+      "effect": "deny"
+    },
+    {
+      "action": "shell",
+      "resource": "Remove-Item *",
+      "effect": "deny"
+    }
+  ],
+  "default_agent": "plan",
+  "agents": {
+    "developer": {
+      "description": "Implementa correções somente com revisão e autorização explícita para edições e comandos, nunca publica.",
+      "mode": "primary"
+    },
+    "auditor": {
+      "description": "Audita segurança e exposição de segredos sem alterar arquivos.",
+      "mode": "subagent",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
+    },
+    "tester": {
+      "description": "Planeja suites de QA e identifica regressões, sem alterar código ou tocar produção.",
+      "mode": "subagent",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "ask"
+        }
+      ]
+    },
+    "reviewer": {
+      "description": "Revisa PRs, desempenho mobile, integridade e compatibilidade de forma somente leitura.",
+      "mode": "subagent",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
+    }
+  }
+}

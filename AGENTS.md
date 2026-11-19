@@ -1,0 +1,12 @@
+# Agentes Potê Batata Pro — diretivas inegociáveis
+- Antes de trabalhar, ler integralmente `POTE_BATATA_PRO_LOG_MESTRE.md` e conferir `git branch --show-current`.
+- Operar EXCLUSIVAMENTE na branch `feat/f35-completion-audit-20261118` do repositório `pixmcp-cloud/pote-batata-pro-v6-site`.
+- O GitHub é a fonte versionada. Nada deve ser editado em `main`, Floot ou Firebase de produção.
+- Ambiente comercial: https://pdv.livresom.com hospedado no Firebase Hosting projeto `potobatata-b71f3`. Não é GitHub Pages.
+- Jamais conectar testes a dados reais, emitir pagamentos, alterar licenças, publicar, migrar ou contratar serviços pagos.
+- O Worker Cloudflare está em staging com `ENABLE_WRITES=false`. Manter assim.
+- Executar código apenas depois de revisar o comando e receber autorização. Nunca executar comandos destrutivos, `git push`, deploy ou migração por decisão autônoma.
+- Não coletar nem expor chaves ou tokens. Usar Firebase Emulator com projeto `demo-*` e dados sintéticos.
+- Preservar todos os recursos comerciais: Caixa PDV, pedidos, estoque, receitas, custo médio, precificação, cancelamentos, perdas, delivery, motoboy, franquias, Free/Pro, isolamento e backups.
+- Documentar resultado reproduzível, testes PASS/FAIL, origem e hash dos arquivos alterados, rollback e pendências no Log Mestre.
+- Os modelos gratuitos têm cotas e podem tratar código enviado como dados do provedor. Não transmitir segredos, clientes ou registros reais.
