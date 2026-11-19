@@ -241,7 +241,7 @@ function page(){
   '<p>Não desconte batata, bacon, embalagem nem bebidas novamente. O pedido fica marcado como não recebido, com o custo dos produtos separado do valor de venda perdido.</p>'+
   '<div class="pote-loss-form"><label class="loss-wide">Pedido entregue / já produzido'+
    '<select id="lossOrderId">'+
-   (orders.length?selectOptions(orders,x=>x.id,x=>"#"+x.id.slice(-8)+" · "+x.name+" · "+money((Number(x.price)||0)*(Number(x.qty)||1))):
+   (orders.length?selectOptions(orders,x=>x.id,x=>((typeof window==='object'&&window.POTE_ORDER_PUBLIC_CODE?.(x))||('#'+x.id.slice(-8)))+" · "+x.name+" · "+money((Number(x.price)||0)*(Number(x.qty)||1))):
      '<option value="">Sem pedidos elegíveis para inadimplência</option>')+
    '</select></label>'+
    '<label class="loss-wide">Motivo / tentativa de cobrança<input id="lossOrderNote" maxlength="350" placeholder="Ex.: cliente não pagou"></label></div>'+
@@ -251,7 +251,7 @@ function page(){
  '</div>'+
  (unclassified.length?'<section class="pote-loss-panel"><h3>Pedidos cancelados anteriormente</h3>'+
   '<p>Pedidos já produzidos e cancelados sem lançamento de perda. Registre o custo somente se os produtos foram realmente perdidos e não devolvidos ao estoque.</p>'+
-  unclassified.map(o=>'<div class="pote-loss-legacy"><span>#'+esc(o.id.slice(-8))+' · '+esc(o.name)+'</span>'+
+  unclassified.map(o=>'<div class="pote-loss-legacy"><span>#'+esc((typeof window==='object'&&window.POTE_ORDER_PUBLIC_CODE?.(o))||('#'+o.id.slice(-8)))+' · '+esc(o.name)+'</span>'+
   '<button type="button" class="btn mini" data-loss-order="'+esc(o.id)+'" onclick="POTE_LOSSES.submitLegacyLoss(this.dataset.lossOrder)">Registrar prejuízo sem nova baixa</button></div>').join("")+
   '</section>':"")+
  '<div id="poteLossFormError" class="pote-loss-error" role="alert" hidden></div>'+

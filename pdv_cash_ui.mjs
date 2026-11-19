@@ -276,12 +276,12 @@ function render(){
    '<button type="button" data-pdv-action="delivery" data-order-id="'+esc(o.id)+'">Confirmar recebimento</button>':
    '<span class="pote-pdv-warn">Verificar dinheiro recebido</span>';
   return '<div class="pote-pdv-order"><div><strong>'+esc(o.name)+'</strong>'+
-    '<small>Pedido #'+esc(String(o.id).slice(-8))+' · '+label+' · '+brl(orderAmountCents(o)/100)+'</small>'+
+    '<small>Pedido '+esc((typeof window!=='undefined'&&window.POTE_ORDER_PUBLIC_CODE?.(o))||('#'+String(o.id).slice(-8)))+' · '+label+' · '+brl(orderAmountCents(o)/100)+'</small>'+
     '<span class="pote-pdv-pending-status">Aguardando recebimento</span></div>'+button+'</div>';
  }).join(""):'<p class="pote-pdv-ok">Nenhum pagamento pendente deste turno.</p>';
  const pastList=overdue.length?overdue.map(o=>
   '<div class="pote-pdv-order"><div><strong>'+esc(o.name)+'</strong>'+
-  '<small>Pedido anterior #'+esc(String(o.id).slice(-8))+' · '+brl(orderAmountCents(o)/100)+'</small></div>'+
+  '<small>Pedido anterior '+esc((typeof window!=='undefined'&&window.POTE_ORDER_PUBLIC_CODE?.(o))||('#'+String(o.id).slice(-8)))+' · '+brl(orderAmountCents(o)/100)+'</small></div>'+
   '<button type="button" data-pdv-action="late" data-order-id="'+esc(o.id)+'">Confirmar recebimento</button></div>'
  ).join(""):'<p class="pote-pdv-ok">Sem pagamentos antigos pendentes.</p>';
  const figures='<div class="pote-pdv-kpis">'+

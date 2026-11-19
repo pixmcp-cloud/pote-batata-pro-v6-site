@@ -46,7 +46,7 @@ function render(order,type,data){
  const sub=Number(order.price||0)*count,delivery=Number(order.deliveryFee||0);
  const total=sub+delivery,removed=(order.removedIngredients||[]),
   extras=(order.customAddons||[]),beverages=(order.beverageItems||[]),
-  code=String(order.id||"").slice(-8).toUpperCase();
+  code=String((typeof window==='object'&&window.POTE_ORDER_PUBLIC_CODE?.(order))||('#'+String(order.id||'').slice(-8).toUpperCase())).replace(/^#/,'');
  const grouped=new Map();
  for(const item of order.items||[]){
   const key=item.id+":"+(item.addonName||"");

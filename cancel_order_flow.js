@@ -79,7 +79,7 @@ function open(id){
   const it=data().beverages.find(x=>x.id===id);
   return '<li>'+esc(it?.name||id)+' · '+fmt(qty)+' un</li>';
  }).join("");
- $("poteCancelDetails").innerHTML='<p><strong>#'+esc(order.id.slice(-8).toUpperCase())+
+ $("poteCancelDetails").innerHTML='<p><strong>'+esc((typeof window==='object'&&window.POTE_ORDER_PUBLIC_CODE?.(order))||('#'+order.id.slice(-8).toUpperCase()))+
   '</strong> · '+esc(order.name||"Produto")+' · '+fmt(order.qty)+' unidade(s)</p>'+
   '<p>'+(deducted?
   'O pedido já deu baixa no estoque. Devolver soma novamente os ingredientes, embalagens e bebidas que foram descontados.':
