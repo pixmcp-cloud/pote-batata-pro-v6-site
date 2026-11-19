@@ -266,7 +266,7 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
    await env.withSecurityRulesDisabled(async ctx=>{
     await sdk.updateDoc(sdk.doc(ctx.firestore(),"users",uid,"records",
      recordPath(uid,universe,"recipes","r-f02").split("/").at(-1)),
-     {"record.item."+field:value});
+     {["record.item."+field]:value});
    });
    const blockedOrderId="unpriced-complex-"+i;
    const body={...createBody,orderId:blockedOrderId,
