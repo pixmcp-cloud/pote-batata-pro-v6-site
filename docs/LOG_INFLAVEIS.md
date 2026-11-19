@@ -378,3 +378,30 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 **Diagnostico adicional:** Desktop Commander em 19/11/2026 confirmou HTTP 200 e novo bundle no HTTPS oficial, arvore Git local limpa em `feature/icone-b-20261119`, commit `19de490`. Resolvers 1.1.1.1, 8.8.8.8 e 9.9.9.9 retornam diferentes A/AAAA de edges Hostinger; pode ser GeoDNS e nao comprova erro. URL externa pelo web bot nao ficou acessivel. Ainda falta evidencia do navegador/rede/aparelho real.
 
 **Proximo teste recomendado:** usuario copiar a URL P-U-R-A e colar diretamente na barra do Google Chrome (nao no navegador embutido do ChatGPT); se preto persistir, pedir captura e comparar no mesmo dispositivo em Wi-Fi e dados moveis. Se isso nao permitir localizar falha, publicar pagina estatica de diagnostico sem JS/React sob o mesmo dominio para separar falha de edge/rede de falha front-end, sem comprometer site principal.
+
+## 25. [PC/COMMANDER] Diagnostico IPv4 e teste com CDN desativada — 19/11/2026
+
+**Origem:** instrução encaminhada pelo proprietário de testar temporariamente sem CDN no hPanel porque HTTPS no PC funcionava por IPv6 e expirava por IPv4. O incidente real de tela preta no Android CONTINUA ABERTO.
+
+**Mudança executada somente no site brasilinflaveis.com:**
+- Acessei o hPanel Hostinger previamente autenticado no computador DESKTOP-9481JM1, selecionei o domínio correto, menu Desempenho > CDN.
+- A interface mostrava 'brasilinflaveis.com — Ativo'. Cliquei 'Desativar'. O hPanel confirmou 'A CDN foi desativada com sucesso'. Recarreguei a página e confirmei visualmente 'Inativo — Ativar'.
+- Mudança REVERSÍVEL. Nenhum registro DNS foi alterado manualmente, nenhum arquivo/site foi atualizado e nenhuma cobrança foi autorizada. A CDN ficará INATIVA durante o teste com o telefone do proprietário. A reativação é feita no mesmo hPanel > Desempenho > CDN > Ativar.
+
+**Medições em PC, antes de desligar CDN:**
+- `curl.exe -4 --max-time 12 https://brasilinflaveis.com/` → HTTP 000, tempo esgotado após ~12 s.
+- `curl.exe -6 ...` → HTTP 200, aproximadamente 0,114 s.
+- DNS A e AAAA apontavam para múltiplos endereços Hostinger, dependendo da origem do resolvedor; isso por si só não comprova DNS incorreto.
+
+**Medições no PC DEPOIS de desligar CDN:**
+- `curl.exe -4 --max-time 14` → HTTP 000, tempo esgotado após ~14 s (outro teste com connect-timeout 4 s também falhou).
+- `curl.exe -6 ...` → HTTP 200, ~0,109 s, IP IPv6 2a02:4780:13:912:0:36c8:bdf6:2.
+- DNS A observado após desativação: 45.132.157.170; AAAA observado: 2a02:4780:13:912:0:36c8:bdf6:2. A comparação indica que o endereço DNS mudou após desligar a CDN, mas a falha IPv4 permaneceu.
+- Controles por IPv4 usando `curl.exe -4` no mesmo PC: https://www.google.com/ HTTP 200 (~0,57 s), https://www.cloudflare.com/ HTTP 200 (~0,48 s), https://www.hostinger.com/ HTTP 200 (~0,21 s). A falha é específica do caminho IPv4 para brasilinflaveis.com (ou origem Hostinger) no PC, NÃO uma pane geral do IPv4 local.
+- Traceroute IPv4 para 45.132.157.170 passou pelos dois primeiros saltos e deixou de receber respostas ICMP depois; isso não é prova isolada de rota quebrada pois roteadores podem bloquear ICMP.
+
+**Estado/risco:** no PC a falha IPv4 não foi resolvida desligando CDN. Mesmo assim esta mudança pode mudar a rota usada por outro aparelho e deve ser testada pelo proprietário no MESMO celular/rede em que houve a tela preta. NÃO atribuir a tela preta automaticamente ao IPv4 sem o teste real e captura. Alguns usuários podem notar velocidade inferior sem CDN; restabelecer conforme conclusão do teste.
+
+**URL oficial para fornecer ao usuário sem parâmetros, conforme exigência expressa:** `https://brasilinflaveis.com/` (preferir texto literal/código, sem UTM nem querystring).
+
+**Ação seguinte:** usuário abrir a URL pura diretamente no Chrome no celular pela mesma conexão original e dizer se carregou. Se não carregar, testar uma vez no Wi-Fi e outra em dados móveis, preservando o DNS; com dados comparar o comportamento. Se falhar em ambas, encaminhar evidências (IPv4 não conecta enquanto IPv6 conecta) ao suporte Hostinger e perguntar pela conectividade IPv4 do host/origem. Não realizar alteração DNS sem registrar endereços e validar mudança.
