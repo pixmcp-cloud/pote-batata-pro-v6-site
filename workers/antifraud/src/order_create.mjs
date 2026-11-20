@@ -88,15 +88,18 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
     r.packagingIngredientIds?.length||r.costEstimateMode==="estimated")
    bad("recipe_review_required","Receita exige conferência do catálogo");
     const rows=[],source=[];
-  for(const row of r.items){
-   if(!validId(row?.id)||typeof row.g!=="number"||
-     !Number.isFinite(row.g)||row.g<=0||row.g>1000000)
+  const complex=r.serverPriceVersion===2;
+  const allLines=complex?complexRecipeComponentLines(r):null;
+  const ingredientLines=complex?allLines.filter(line=>line.kind==="ingredient"):
+   r.items.map(item=>({id:item.id,quantity:item.g,unit:"g"}));
+  for(const row of ingredientLines){
+   if(!validId(row?.id)||typeof row.quantity!=="number"||row.unit!=="g"||
+     !Number.isFinite(row.quantity)||row.quantity<=0||row.quantity>1000000)
     bad("recipe_review_required","Ingrediente da ficha inválido");
    source.push({id:row.id,g:row.quantity,
     path:recordPath(uid,universe,"ingredients",row.id)});
   }
-  const complex=r.serverPriceVersion===2;
-  const extraLines=complex?complexRecipeComponentLines(r).filter(line=>line.kind!=="ingredient"):[];
+  const extraLines=complex?allLines.filter(line=>line.kind!=="ingredient"):[];
   const groupFor={packaging:"packaging",addon:"addons",beverage:"beverages"};
   const extraSource=extraLines.map(line=>({...line,
    path:recordPath(uid,universe,groupFor[line.kind],line.id)}));
