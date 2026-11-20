@@ -15,6 +15,11 @@ for(const file of ["workers/antifraud/wrangler.toml","workers/antifraud/wrangler
 assert.match(integration,/const CLOUD_WORKER_ACTIVE=false;/);
 assert.match(integration,/const F05_INVENTORY_WORKER_ACTIVE=false;/);
 assert.match(integration,/inventoryEndpoint:"https:\/\/pote-batata-guard-staging\.pixmcp\.workers\.dev"/);
+assert.match(integration,/enabled:\(\)=>CLOUD_WORKER_ACTIVE===true&&rawUserAccessPolicy\?\.workerAuthoritative===true/);
+assert.match(integration,/inventoryEnabled:\(\)=>F05_INVENTORY_WORKER_ACTIVE===true&&rawUserAccessPolicy\?\.workerAuthoritative===true/);
+assert.match(bridge,/const flagOn=flag=>/);
+assert.match(bridge,/if\(!orderGate\(\)\)throw error\("Permissão do Worker revogada/);
+
 assert.match(worker,/metaPath="users\/".*?\/appState\/v5/);
 assert.match(worker,/\/appState\/v5InventoryGuard/);
 assert.match(worker,/\/appState\/v5Pulse/);
