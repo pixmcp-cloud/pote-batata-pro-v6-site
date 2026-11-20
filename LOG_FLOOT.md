@@ -294,3 +294,10 @@ Quando o usuário disser "consulte Log Floot", "continue Floot" ou pedir evoluç
 - Implicação para Floot: o React OrderComposerV5/helper orderSequenceV6 e a interface por iframe NÃO devem gerar um segundo número nem saldo depois que o Worker virar autoridade. Exigir propagação de orderNumber da resposta do servidor, recarregamento V2, mesmo campo de declaração de pagamento e sem ledger paralelo. A sincronização diária às 9h NÃO deve transportar alterações ainda não homologadas/publicadas no site oficial.
 - Status: G3 (F02) e G5 (F20) ainda HOMOLOGAÇÃO PARCIAL no site; no Floot não transferido/homologado. G1 (iframe Google/Android) continua pendente.
 - Evidência: commit master e7ddd561a3b1a8b2a781cabf164b393718fcc100; código F02 1b658fed/04f615eb, F20 dbd5069b, teste 15505915. Próxima ação executável no site: auditoria read-only da migração do contador histórico e fluxo de combos/caixa; no Floot, preservar só versões comerciais aprovadas.
+
+
+### CHECKPOINT FLOOT — 20/11/2026 — auditoria de contador histórico F02 no site
+- Criada no GitHub f35 a função read-only order_sequence_audit.mjs e sete testes para prova de numeração por empresa/universo. Reprova: listagem incompleta, números duplicados, ID repetido, pedidos antigos sem numeração e metadado/controle inconsistentes; só informa baseline sugerido sem escrever no Firestore.
+- Commits: b40d787a e 722efbd7; Worker 100/100 PASS, incluindo 7/7 auditoria. O site/comercial e Floot não foram editados nem publicados nesta ação.
+- Consequência para APK: após cutover F02, o Floot deve tratar a sequência #P e receipt declarada como resultado do servidor e não criar contador paralelo na UI.
+- Próxima ação para transferência: apenas após a migração QA de pedidos/caixa e o G1 login Android; sincronização diária restrita às versões já homologadas em produção. Mantida a política sem gasto ou build APK.
