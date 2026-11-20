@@ -56,12 +56,11 @@ const useV2=window.POTE_USE_V2!==false;
 // Staging-only: enabling the Worker also requires Firebase Rules cutover and
 // server credentials. Never toggle via localStorage, query strings or devtools.
 const CLOUD_WORKER_ACTIVE=false;
-// F05 canary: isolated stock-loss bridge for owner only; other flows stay unchanged.
+// F05: isolated authoritative stock-loss bridge for licensed Pro users; other flows stay unchanged.
 const F05_INVENTORY_WORKER_ACTIVE=true;
 window.POTE_WORKER=createWorkerBridge({
  enabled:CLOUD_WORKER_ACTIVE,
  inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
- inventoryCanaryEmail:"pixmcp@gmail.com",
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
  inventoryEndpoint:"https://pote-batata-f05-live.pixmcp.workers.dev",
  getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
