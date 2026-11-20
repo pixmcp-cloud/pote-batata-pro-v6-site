@@ -211,6 +211,39 @@ test("F20 close cash shift once and release control for next opening",async()=>{
  assert.equal((await app.fetch(request({...opening,operationId:OP3},"/v1/cash/open"),env)).status,200);
  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,3);
 });
+test("F20 checkout registers declared cash/Pix/card in the order once, not a bank settlement",async()=>{
+ for(const [paymentMethod,status] of [["pix","pago"],["card","pago"],
+   ["cash","Pago em dinheiro"],["delivery","pendente"]]){
+  const {db,put,approve}=makeStore(),app=appFor(db);
+  put("recipes","r1",{id:"r1",name:"Batata teste",serverPriceVersion:1,
+   serverSalePriceCents:3000,items:[{id:"batata",g:100}]});
+  approve("r1");
+  put("ingredients","batata",{id:"batata",stock:400,name:"Batata",
+   purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g"});
+  put("cashSessions","s1",{id:"s1",status:"open"});
+  const data={universe:UNIVERSE,operationId:OP1,orderId:"new1",
+   recipeId:"r1",qty:1,cashSessionId:"s1",paymentMethod};
+  const submit=()=>app.fetch(request(data,"/v1/orders/create"),env);
+  const created=await submit();
+  assert.equal(created.status,200,paymentMethod+" "+await created.clone().text());
+  assert.equal((await created.json()).paymentStatus,status);
+  const path=recordPath(UID,UNIVERSE,"orders","new1");
+  const order=db.current(path).record.item;
+  assert.equal(order.paymentStatus,status,paymentMethod);
+  assert.equal(order.bankReconciled,false,"Operator cannot certify bank");
+  assert.equal(Boolean(order.paymentConfirmedAt),paymentMethod!=="delivery");
+  assert.equal(order.paymentDeclarationSource,paymentMethod==="delivery"?undefined:"operador_pdv");
+  assert.equal(order.orderNumber,1);
+  assert.equal(db.current("users/"+UID+"/appState/v2").state.data.orderSequenceLast,1);
+  assert.equal([...db.docs.keys()].filter(x=>x.includes("cashMovements")).length,0,
+   "No parallel browser/server cash movement");
+  const repeated=await submit();
+  assert.equal(repeated.status,200);
+  assert.equal((await repeated.json()).alreadyApplied,true);
+  assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
+  assert.equal(db.current(path).record.item.orderNumber,1);
+ }
+});
 test("F02 server-priced order creation persists once then produces using stored recipe",async()=>{
  const {db,put,approve}=makeStore(),app=appFor(db);
  put("recipes","r1",{id:"r1",name:"Batata teste",serverPriceVersion:1,
@@ -224,7 +257,10 @@ test("F02 server-priced order creation persists once then produces using stored 
  const go=()=>app.fetch(request(body,"/v1/orders/create"),env);
  const created=await go();assert.equal(created.status,200,await created.text());
  const saved=db.current(recordPath(UID,UNIVERSE,"orders","new1")).record.item;
- assert.equal(saved.price,30);assert.equal(saved.paymentStatus,"pendente");
+ assert.equal(saved.price,30);assert.equal(saved.paymentStatus,"pago");
+ assert.equal(saved.paymentDeclarationSource,"operador_pdv");
+ assert.equal(saved.bankReconciled,false);
+ assert.equal(saved.orderNumber,1);
  assert.equal(saved.stockReservationStatus,"reserved");
  assert.equal(saved.stockDeducted,true);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,200);
