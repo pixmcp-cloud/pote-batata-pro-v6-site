@@ -82,7 +82,8 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   const current=Number(rec.item.stock);
   if(!Number.isFinite(current)||current<0||current>1e9)
    refuse("Saldo físico inválido",409,"invalid_stock");
-  if(group!=="beverages"&&!["g","ml","un"].includes(rec.item.measureUnit))
+  if(group!=="beverages"&&rec.item.measureUnit!==undefined&&
+     !["g","ml","un"].includes(rec.item.measureUnit))
    refuse("Unidade física não cadastrada; ajuste bloqueado",409,"invalid_stock_unit");
   if((group==="beverages"||rec.item.measureUnit==="un")&&!Number.isInteger(delta))
    refuse("Produtos em unidades exigem quantidades inteiras");
@@ -106,7 +107,7 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   ];
   if(reason==="loss"){
    const qty=-delta,cost=estimateLoss(rec.item,qty);
-   const unit=group==="beverages"?"un":rec.item.measureUnit;
+   const unit=group==="beverages"?"un":rec.item.measureUnit||"g";
    const loss={id:lossId,at,type:"stock",reason:"outro",
     description:note||"Perda física registrada no servidor",
     itemId,stockGroup:group,itemName:String(rec.item.name||itemId).slice(0,180),
