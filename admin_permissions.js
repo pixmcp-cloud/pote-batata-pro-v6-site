@@ -1,9 +1,9 @@
 /* Controles por conta: universos acessíveis no FREE por padrão; bloqueio opcional do ADM.
    Nenhuma ação comercial/serviço pago é criada aqui. */
-import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,updateDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-const auth=getAuth(getApp()),db=getFirestore(getApp());
+const auth=getAuth(app),db=getFirestore(app);
 const types=[["batataria","Batataria"],["pizzaria","Pizzaria"],["hamburgueria","Hamburgueria"],
  ["hotdog","Hot Dog"],["lancheria","Lancheria"],["pastelaria","Pastelaria"]];
 const services=[

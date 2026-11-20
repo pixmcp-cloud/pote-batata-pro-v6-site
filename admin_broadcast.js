@@ -1,9 +1,9 @@
 /* ADM broadcast console: Google-verified account; Firestore rules enforce admin-only writes. */
-import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,collection,doc,getDocs,setDoc,updateDoc,query,orderBy,limit,serverTimestamp,Timestamp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {validateBroadcast} from "./notification_core.mjs?v=notices-20261116";
-const auth=getAuth(getApp()),db=getFirestore(getApp());
+const auth=getAuth(app),db=getFirestore(app);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const overlay=document.getElementById("poteAdmOverlay");
 if(!overlay)throw Error("Painel ADM indisponível para comunicados.");

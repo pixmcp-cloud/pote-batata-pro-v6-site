@@ -15,7 +15,7 @@ const overlay=element("poteAdmOverlay");
 overlay.hidden=false;overlay.querySelector=()=>({appendChild(panel){assert(panel.innerHTML.includes("Central de Comunicados"))}});
 const auth={currentUser:{uid:"admin-1",email:"pixmcp@gmail.com"}},window={POTE_AUTH:{uid:"admin-1",role:"admin"}};
 const write=[],updates=[];let adminClaim=true;
-const context={document:{getElementById:element,createElement:()=>element("admin-panel")},window,
+const context={document:{getElementById:element,createElement:()=>element("admin-panel")},window,app:{},
  getApp:()=>({}),getAuth:()=>auth,getIdTokenResult:async()=>({claims:{email_verified:true,potebatataAdmin:adminClaim,firebase:{sign_in_provider:"google.com"}}}),
  getFirestore:()=>({}),collection:()=>({}),doc:()=>({id:"boardcast-abcdef123456"}),
  query:()=>({}),orderBy:()=>({}),limit:()=>({}),

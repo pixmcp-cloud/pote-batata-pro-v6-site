@@ -50,7 +50,7 @@ for line in recipe:
 page = (public / "index.html").read_text(encoding="utf-8")
 if "poteAuthGate" not in page or "firebase_integration.js" not in page:
     raise SystemExit("ABORT: generated site lacks authenticated login gate")
-for required in ["free_id_policy.mjs", "v5_store_core.mjs", "v5_storage.mjs", "inventory_integrity.mjs", "v5_batch_planner.mjs", "franchise_financial_report.mjs", "operation_integrity.mjs", "worker_bridge.mjs", "firebase_integration.js", "garimpo_catalog.json"]:
+for required in ["free_id_policy.mjs", "v5_store_core.mjs", "v5_storage.mjs", "inventory_integrity.mjs", "v5_batch_planner.mjs", "franchise_financial_report.mjs", "operation_integrity.mjs", "worker_bridge.mjs", "firebase_app.mjs", "firebase_integration.js", "garimpo_catalog.json"]:
     if not (public / required).is_file():
         raise SystemExit("ABORT: missing asset " + required)
 print(f"FIREBASE_HOSTING_BUILD_OK copies={count} files={len(list(public.rglob('*')))}")

@@ -9,6 +9,6 @@ assert(app.includes("recipeCostIsEstimated"));
 assert(!app.includes("'\n'"),"Unexpected broken multiline string");
 assert.doesNotThrow(()=>new vm.Script(app,{filename:"source/pote_app_base.html"}));
 const release=readFileSync("make_beta.py","utf8");
-assert(release.includes("franchise_sync.js?v=admin-all-universes-20261116"));
+assert(release.includes("franchise_sync.js?v=firebase-order-v5-20261120"));
 assert(readFileSync("franchise_sync.js","utf8").includes("franchise_cost_estimates.mjs"),"Franchise sync must import costing module");
 console.log("PASS: sintaxe do código-fonte original, custos estimados a 40%, módulo de franquia referenciado no build.");
