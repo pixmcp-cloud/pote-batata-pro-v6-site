@@ -124,7 +124,7 @@ assert(saved>0&&rendered>0);
 const moduleUniv=read("universe_core.js");
 assert(/const LISTS=[\s\S]*?"losses"/.test(moduleUniv),"Universos devem isolar as perdas");
 const build=read("public/index.html");
-assert(build.includes("losses.js?v=v3-wave1-20261116"));
+assert(build.includes("losses.js?v=f05-pro-universal-20261120"));
 assert(build.includes("losses.css?v=losses-20261116"));
 assert(build.includes("losses:pageLosses"));
 assert(build.includes("losses:'Perdas'"));
@@ -233,3 +233,38 @@ L.updateStockForm("kind");
 assert.equal(el("lossStockUnit").value,"un");
 assert.equal(el("lossStockQty").disabled,false);
 console.log("PASS: categoria vazia não mostra unidades inventadas nem permite baixar estoque sem item.");
+
+
+// F05 Pro always uses the Worker; no silent fallback to local stock mutation.
+(async()=>{
+ window.POTE_AUTH.proActive=true;
+ el("lossStockKind").value="beverage";
+ L.updateStockForm("kind");
+ el("lossStockId").value="agua-500";
+ L.updateStockForm("item");
+ el("lossStockQty").value="1";
+ el("lossStockUnit").value="un";
+ el("lossStockReason").value="avaria";
+ el("lossStockNote").value="Garrafa quebrada - Pro";
+ const before=water.stock,eventCount=data.losses.length,saveCount=saved;
+ window.POTE_WORKER={inventoryEnabled:false};
+ const disabled=L.submitStock();
+ assert.equal(disabled.ok,false,"Pro sem Worker deve bloquear perda");
+ assert.equal(water.stock,before,"Pro bloqueado não altera saldo local");
+ let requests=0;
+ window.POTE_WORKER={inventoryEnabled:true,async adjustStock(request){
+  requests++;
+  assert.equal(request.group,"beverages");
+  assert.equal(request.itemId,"agua-500");
+  assert.equal(request.delta,-1);
+  assert.equal(request.lossReason,"avaria");
+  return {ok:true,stock:before-1};
+ }};
+ const result=await L.submitStock();
+ assert.equal(result.ok,true);
+ assert.equal(requests,1,"Pro deve enviar uma única operação ao servidor");
+ assert.equal(water.stock,before,"Frontend não pode aplicar baixa local após resposta Worker");
+ assert.equal(data.losses.length,eventCount,"Frontend não pode duplicar evento de perda");
+ assert.equal(saved,saveCount,"Frontend não pode persistir estado local nesta operação");
+ console.log("PASS F05 Pro UI: sem bypass local, Worker único, sem dupla baixa.");
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1});
