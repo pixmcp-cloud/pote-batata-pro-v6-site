@@ -62,6 +62,10 @@ export function createWorkerApp({
   if(env.QA_INVENTORY_ONLY==="true"&&
      (env.FIREBASE_PROJECT_ID!=="pote-batata-qa-worker"||action!=="adjust"))
    return json({error:"qa_route_restricted"},423,headers);
+  // The commercial F05 pilot has its own isolated Worker, and no order/PDV routes.
+  if(env.F05_ONLY==="true"&&
+     (env.FIREBASE_PROJECT_ID!=="potobatata-b71f3"||action!=="adjust"))
+   return json({error:"f05_route_restricted"},423,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
   // Two independent release gates: enabling writes does not authorize a real
@@ -70,7 +74,9 @@ export function createWorkerApp({
   const isolatedQa=env.QA_INVENTORY_ONLY==="true"&&
    env.FIREBASE_PROJECT_ID==="pote-batata-qa-worker"&&
    typeof env.QA_ALLOWED_UID==="string"&&env.QA_ALLOWED_UID.length>10;
-  if(env.ENABLE_WRITES!=="true"||(!demoProject&&!isolatedQa&&env.PRODUCTION_CUTOVER_APPROVED!=="true"))
+  const f05OnlyApproved=env.F05_ONLY==="true"&&env.F05_PRODUCTION_APPROVED==="true"&&
+   env.FIREBASE_PROJECT_ID==="potobatata-b71f3";
+  if(env.ENABLE_WRITES!=="true"||(!demoProject&&!isolatedQa&&!f05OnlyApproved&&env.PRODUCTION_CUTOVER_APPROVED!=="true"))
    return json({error:"not_activated",message:"Cloudflare Worker em homologação"},423,headers);
   const authorization=req.headers.get("Authorization")||"";
   if(!/^Bearer [^\s]+$/.test(authorization))
@@ -80,6 +86,9 @@ export function createWorkerApp({
   catch{return json({error:"invalid_firebase_token"},401,headers)}
   if(env.QA_INVENTORY_ONLY==="true"&&user?.uid!==env.QA_ALLOWED_UID)
    return json({error:"qa_identity_restricted"},403,headers);
+  if(env.F05_ONLY==="true"&&env.F05_CANARY_EMAIL&&
+      user?.email!==env.F05_CANARY_EMAIL)
+   return json({error:"f05_canary_restricted"},403,headers);
   if(!user?.uid||!valueOk(user.uid,/^[a-zA-Z0-9:_-]{1,128}$/))
    return json({error:"invalid_identity"},401,headers);
   let body;
