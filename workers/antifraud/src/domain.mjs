@@ -35,6 +35,13 @@ export function quantities(order){
   const grams=finite(item.g,"Peso de ingrediente",{max:1e8});
   add("ingredients",item.id,grams*qty/(yieldPct/100));
  }
+ for(const [group,field] of [["packaging","packagingItems"],["addons","addonItems"]]){
+  for(const item of order[field]||[]){
+   const yieldPct=finite(item.yieldPct??100,"Rendimento",{min:1,max:100});
+   const amount=finite(item.quantity,"Quantidade do componente",{min:0.000001,max:1e8});
+   add(group,item.id,amount*qty/(yieldPct/100));
+  }
+ }
  for(const item of order.beverageItems||[]){
   const count=finite(item.qty,"Quantidade de bebida",{max:10000});
   add("beverages",item.id,count*qty);
