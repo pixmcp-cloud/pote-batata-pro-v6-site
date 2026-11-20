@@ -370,6 +370,18 @@ assert(!afterLostOrder.losses.some(l=>l.orderId===toCancel.id&&l.type==="stock")
 console.log("PASS: cancelamento real depois da produção registra prejuízo sem estorno ou segunda baixa, e financeiro separa perdas.");
 
 
+// F02 fallback customer receipt uses the canonical server-issued public code.
+const priorReceiptRenderer=window.POTE_RECEIPTS;
+window.POTE_RECEIPTS=null;
+const fallbackReceipt=vm.runInContext(`receiptHTML({
+ id:"qa-internal-order-id",orderNumber:7,qty:1,price:25,date:"2026-11-20",
+ status:"recebido",name:"Batata QA",items:[],beverageItems:[],channel:"direto"
+},"customer")`,sandbox);
+assert.match(fallbackReceipt,/Pedido: #P0000007/,
+ "Fallback receipt must show canonical public sequence instead of internal ID");
+window.POTE_RECEIPTS=priorReceiptRenderer;
+console.log("PASS F02 fallback receipt: public #P0000007 is displayed.");
+
 // F02 staged rollout: the checkout UI must never create a browser-side order
 // when the authoritative Worker is enabled, including unsupported additions.
 (async()=>{
