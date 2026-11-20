@@ -55,6 +55,8 @@ function ensure(){
 }
 function completeSalePayment(order,data){
  if(!access()||!order||!data)return null;
+ if(window.POTE_WORKER?.enabled===true)
+  throw Error("Concluir venda no Worker; o navegador não pode lançar recebimento local paralelo.");
  if(window.POTE_SYNC_GUARD?.blocked)throw Error("Sincronização bloqueada: não registre uma venda antes de resolver o conflito.");
  return confirmPaymentOnSaleCompletion(data,{
   orderId:order.id,operator:window.POTE_AUTH?.email||"Operador",at:new Date().toISOString()
@@ -69,6 +71,8 @@ function editable(){
 }
 function mutate(fn){
  editable();
+ if(window.POTE_WORKER?.enabled===true)
+  throw Error("Movimentação local bloqueada: este tipo de lançamento aguarda integração autoritativa com o Worker.");
  const state=snapshot();
  if(!state?.data)throw Error("Sessão não inicializada");
  const result=fn(state.data);
@@ -391,7 +395,19 @@ function submit(form){
   const type=form.dataset.pdvForm;
   if(type==="open"){
    const operator=window.POTE_AUTH?.email||"Operador";
-   mutate(data=>openCash(data,{id:id(),operator,openingCash:parseMoney(payload.openingCash)}));
+   const openingCash=parseMoney(payload.openingCash);
+   if(window.POTE_WORKER?.enabled===true){
+    editable();
+    if(typeof window.POTE_WORKER.openCash!=="function")
+     throw Error("Abertura de caixa no Worker indisponível.");
+    status("Solicitando abertura do caixa ao servidor...");
+    window.POTE_WORKER.openCash(snapshot()?.data?.businessType||"batataria",
+      Math.round(openingCash*100),operator).then(()=>{
+       status("Caixa aberto e sincronizado com o servidor.");render();
+      }).catch(e=>status("Caixa não confirmado: "+String(e.message||e)));
+    return;
+   }
+   mutate(data=>openCash(data,{id:id(),operator,openingCash}));
    status("Caixa aberto! Registre as vendas, confirme Pix/cartão e conte o dinheiro ao encerrar.");
   }else if(type==="movement"){
    const movement=mutate(data=>registerCashMovement(data,{
@@ -405,6 +421,17 @@ function submit(form){
    const counted=parseMoney(payload.countedCash);
    if(!window.confirm("Fechar o caixa? Dinheiro esperado: "+brl(report.expectedCash)+
     ". Conferido: "+brl(counted)+". A diferença ficará registrada no histórico."))return;
+   if(window.POTE_WORKER?.enabled===true){
+    editable();
+    if(typeof window.POTE_WORKER.closeCash!=="function")
+     throw Error("Fechamento de caixa no Worker indisponível.");
+    status("Solicitando fechamento do caixa ao servidor...");
+    window.POTE_WORKER.closeCash(snapshot()?.data?.businessType||"batataria",
+      s.id,Math.round(counted*100)).then(()=>{
+       status("Caixa fechado no servidor. Conferência bancária permanece pendente.");render();
+      }).catch(e=>status("Fechamento não confirmado: "+String(e.message||e)));
+    return;
+   }
    const result=mutate(d=>closeCash(d,{countedCash:counted,operator:window.POTE_AUTH?.email}));
    status("Caixa fechado. Dinheiro esperado: "+brl(result.expectedCash)+". Contado: "+brl(result.countedCash)+". Diferença: "+brl(result.difference)+". Consulte o histórico para ver também Pix e cartão.");
   }
