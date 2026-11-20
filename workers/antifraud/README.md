@@ -67,3 +67,11 @@ O Worker agora opera **somente** com `users/{uid}/recordsV5/{recordId}`, `appSta
 **Limite de ativação:** para tornar o Worker uma barreira antifraude de fato é necessário que os navegadores deixem de poder atualizar diretamente as operações críticas no Firestore. Essa mudança de regras **não** foi feita porque interromperia o PDV atual. É proibido passar `ENABLE_WRITES=true` antes de autenticação em ambiente isolado, secrets de servidor, canário autorizado, migração de todas as chamadas relevantes e corte coordenado de regras.
 
 Testes: `npm ci --ignore-scripts`, `npm run check`, `npm test`, `node ../../test_f05_worker_staging_contract.cjs` executados a partir desta pasta (último teste executado na raiz). A pipeline de CI testa também concorrência V5 e regras principais/endurecidas do Firestore Emulator.
+
+## Segurança adicional: liberação canário obrigatória (20/11/2026)
+
+Mesmo que `ENABLE_WRITES=true`, nenhuma rota de escrita poderá operar se a variável/secret `CANARY_UIDS` estiver ausente, vazia, inválida ou não contiver exatamente o UID de um usuário canário. Isso vale para produção, cancelamento e descarte, com resposta HTTP 423 antes de abrir transações Firestore. O UID **nunca** é aceito no corpo da requisição: sempre vem do Firebase ID token assinado.
+
+Na Cloudflare, `CANARY_UIDS` deve ser cadastrado somente como Secret pela pessoa que administra a liberação (não em arquivo versionado). Não são permitidos `*`, padrões ou mais de 20 entradas. O valor precisa ser o UID de uma conta sintética criada especificamente para homologação, nunca o email mestre ou de um cliente. A conta também precisa ter licença apropriada e token Google válido.
+
+**Não configurar canário de produção nem habilitar o Worker antes de completar as credenciais servidor, validar em Firestore isolado e coordenar o corte de regras.** Todas as configurações versionadas continuam com `ENABLE_WRITES=false`, independentemente da lista.
