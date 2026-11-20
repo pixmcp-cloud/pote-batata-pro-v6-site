@@ -16,6 +16,14 @@ const originHeaders=(origin,allowed)=>allowed&&origin?{
  "Access-Control-Allow-Methods":"GET, POST, OPTIONS"
 }:{};
 const valueOk=(input,pattern)=>typeof input==="string"&&pattern.test(input);
+// Escritas Cloudflare somente após ativação E inclusão expressa da conta de
+// homologação na lista privada do ambiente. Sem lista, mesmo ENABLE_WRITES=true
+// continua sem mutação de Firestore. Não aceita curingas nem dados do navegador.
+const canaryPermitted=(env,uid)=>{
+ if(env.ENABLE_WRITES!=="true")return false;
+ const list=String(env.CANARY_UIDS||"").split(",").map(x=>x.trim()).filter(Boolean);
+ return list.length>0&&list.length<=20&&list.every(x=>/^[A-Za-z0-9:_-]{1,128}$/.test(x))&&list.includes(uid);
+};
 function hasAccess(profile,claims,universe){
  const policy=profile?.accessPolicy||{};
  if(policy.blockedUniverses?.includes(universe)||
@@ -51,6 +59,8 @@ export function createWorkerApp({
   catch{return json({error:"invalid_firebase_token"},401,headers)}
   if(!user?.uid||!valueOk(user.uid,/^[a-zA-Z0-9:_-]{1,128}$/))
    return json({error:"invalid_identity"},401,headers);
+  if(!canaryPermitted(env,user.uid))
+   return json({error:"canary_not_authorized",message:"Operação reservada à homologação segura"},423,headers);
   let body;
   try{
    const text=await req.text();
@@ -152,6 +162,8 @@ export function createWorkerApp({
   catch{return json({error:"invalid_firebase_token"},401,headers)}
   if(!user?.uid||!valueOk(user.uid,/^[a-zA-Z0-9:_-]{1,128}$/))
    return json({error:"invalid_identity"},401,headers);
+  if(!canaryPermitted(env,user.uid))
+   return json({error:"canary_not_authorized",message:"Operação reservada à homologação segura"},423,headers);
   let body;
   try{
    const text=await req.text();
