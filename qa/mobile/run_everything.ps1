@@ -25,7 +25,10 @@ try {
     "test_operation_integrity.mjs","test_inventory_integrity.mjs",
     "test_v2_storage.mjs","test_hardening_concurrent_clients.mjs",
     "test_pdv_auto_sale_completion.mjs","test_cancel_order_audit.js",
-    "test_admin_claim_contract.mjs","test_auth_v2_integration.js"
+    "test_admin_claim_contract.mjs","test_auth_v2_integration.js",
+    "test_app_routes.js","test_losses.js","test_f05_worker_loss_bridge.mjs",
+    "test_f02_create_order_bridge.mjs","test_f20_cash_worker_bridge.mjs",
+    "test_pdv_cash_ui.mjs","test_worker_bridge.mjs"
   )
   foreach($test in $nodeTests){
     & node $test
@@ -42,6 +45,8 @@ try {
     & node $test
     Check $test
   }
+  & npm.cmd test --prefix workers/antifraud
+  Check "Worker 92 testes unitarios"
   if(-not $SkipFirebase){
     $refTests="node --test --test-concurrency=1 test_firestore_rules_emulator.cjs test_firestore_stock_nonnegative.cjs test_firestore_f02_atomic_guard.cjs test_firestore_f02_multistock.cjs test_firestore_v2_live_concurrency.cjs test_firestore_v2_backup_restore.cjs test_firestore_cash_event_fields.cjs test_firestore_f10_migration.cjs test_firestore_franchise_report.cjs test_firestore_f06_bulk.cjs"
     $env:POTE_HARDENED_RULES="0"
@@ -50,6 +55,9 @@ try {
     $env:POTE_HARDENED_RULES="1"
     & firebase.cmd emulators:exec --only firestore --project demo-pote-hardening --config firebase.hardened.qa.json $refTests
     Check "Firestore Emulator candidato"
+    $workerRestTests="node test_f02_legacy_packaging_emulator.mjs && node test_f02_complex_orders_emulator.mjs && node test_f02_worker_http_emulator.mjs && node test_f05_worker_inventory_http_emulator.mjs && node test_f20_cash_worker_http_emulator.mjs && node test_f10_role_worker_http_emulator.mjs && node test_firestore_worker_emulator.cjs"
+    & firebase.cmd emulators:exec --only firestore --project demo-pote-hardening --config firebase.worker_cutover.qa.json $workerRestTests
+    Check "Worker HTTP Firestore Emulator F02/F05/F20/F10"
   }
   if($SkipFirebase){ Write-Output "QA_LABORATORY_COMPLETED: Chrome, PDV, finanças, backup e sincronização aprovados; Firestore Emulator não executado (-SkipFirebase)." }
   else { Write-Output "QA_LABORATORY_COMPLETED: Chrome, PDV, finanças, backup, sincronização e Firestore Emulator aprovados nas duas configurações." }
