@@ -75,7 +75,7 @@ try{
    {kind:"addon",id:"bacon",quantity:2,unit:"g"},
    {kind:"beverage",id:"juice",quantity:1,unit:"un"}]}}});
  const approvedCombo=await call("/v1/catalog/approve-price",{universe,recipeId,
-  operationId:"f02-complex-race-combo-approve-00002",salePriceCents:2000});
+  operationId:"f02-complex-race-combo-approve-00002",salePriceCents:5000});
  assert.equal(approvedCombo.status,200,"explicit combo approval "+await approvedCombo.clone().text());
  const comboCreate=await call("/v1/orders/create",{...order(0),orderId:"combo-order-valid",
   operationId:"f02-complex-race-combo-order-00002"});
