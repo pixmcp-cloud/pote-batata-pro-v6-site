@@ -55,5 +55,19 @@ try{
  const canceled=await call("/v1/orders/cancel",{universe,orderId:"complex-order-"+actual,operationId:"f02-complex-race-cancel-00001",decision:"return"});
  assert.equal(canceled.status,200,await canceled.clone().text());
  for(const [group,id,,,,,stock] of items)assert.equal(field(await get(record(group,id)),"stock"),stock,group+" restored");
- console.log("PASS F02 COMPLEX CONCURRENT RESERVE AND CANCEL");
-}finally{for(const i of [0,1]){paths.push(record("orders","complex-order-"+i));paths.push(root+"/workerEvents/"+operations[i]);for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-reserve-"+operations[i]+"-"+j));}paths.push(root+"/workerEvents/f02-complex-race-approve-00001",root+"/workerEvents/f02-complex-race-cancel-00001");for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-f02-complex-race-cancel-00001-"+j));for(const p of [...new Set(paths)].reverse())await fetch(base+"/documents/"+p,{method:"DELETE",headers}).catch(()=>{});}
+ const recipePath=record("recipes",recipeId);
+ const before=await get(recipePath);
+ const {decodeFields}=await import("./workers/antifraud/src/firestore.mjs");
+ const oldRecord=decodeFields(before.fields).record;
+ await seed(recipePath,{record:{...oldRecord,item:{...oldRecord.item,comboItems:[{id:"combo-unknown",qty:1}]}}});
+ const comboApproval=await call("/v1/catalog/approve-price",{universe,recipeId,
+  operationId:"f02-complex-race-combo-approve-00001",salePriceCents:2000,
+  expectedRevision:1});
+ console.log("COMBO FAIL CLOSED",comboApproval.status,await comboApproval.clone().text());
+ assert.equal(comboApproval.status,409,"unsupported combo must not be approved");
+ const comboOrder=await call("/v1/orders/create",{...order(0),orderId:"combo-order",
+  operationId:"f02-complex-race-combo-order-00001"});
+ assert.equal(comboOrder.status,409,"modified combo cannot reuse old approval");
+ assert.equal(await get(record("orders","combo-order")),null);
+ console.log("PASS F02 COMPLEX CONCURRENT RESERVE CANCEL AND UNSUPPORTED COMBO BLOCK");
+}finally{for(const i of [0,1]){paths.push(record("orders","complex-order-"+i));paths.push(root+"/workerEvents/"+operations[i]);for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-reserve-"+operations[i]+"-"+j));}paths.push(root+"/workerEvents/f02-complex-race-approve-00001",root+"/workerEvents/f02-complex-race-cancel-00001",root+"/workerEvents/f02-complex-race-combo-approve-00001",root+"/workerEvents/f02-complex-race-combo-order-00001",record("orders","combo-order"));for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-f02-complex-race-cancel-00001-"+j));for(const p of [...new Set(paths)].reverse())await fetch(base+"/documents/"+p,{method:"DELETE",headers}).catch(()=>{});}
