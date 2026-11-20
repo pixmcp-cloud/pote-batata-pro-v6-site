@@ -279,3 +279,9 @@ Quando o usuário disser "consulte Log Floot", "continue Floot" ou pedir evoluç
 - **Gate:** G1 **HOMOLOGAÇÃO PARCIAL** (preview/iframe inspecionados; OAuth/Android pendentes). G3/F02 parcial, G5/F20 parcial, G6/F10 parcial; F05 comercial concluída no site, não inferir homologação Android.
 - **Próxima ação executável:** inspecionar fluxo OAuth em ambiente QA sem credenciais pessoais, testar login Google e retorno do redirect no iframe/Chrome mobile; se bloqueado por third-party cookie/frame, escolher React/native shell com autenticação no top-level. Paralelamente implementar migração segura de `v2OrderSequence__<universe>` e checkout extras/combos no Worker; repetir regressão completa. Não gastar build APK antes de G1.
 - **Não executado:** edição Floot, publicação, APK, migração de contas, alteração de main, Firebase comercial, Cloudflare comercial ou dados reais. Custo adicional R$ 0.
+
+
+### CHECKPOINT FLOOT — 20/11/2026 14h BRT — G8 regressão integral do site LAB
+- **Ambiente/HEAD:** PC `DESKTOP-9481JM1`, f35 `721103e1146987560c5327014c84e3de8106f05e`; Floot preview continua iframe do site oficial, sem edição nem publicação.
+- **Teste completo:** `qa/mobile/run_everything.ps1 -SkipBuild` **PASS FULL_QA_EXIT=0, 96s**, `QA_LABORATORY_COMPLETED`. Chrome mobile, PDV, finanças, backups, sincronização, Worker 92/92, Firestore Rules referência e candidato 10/10 cada, Worker HTTP F02/F05/F20/F10 e nova sequência #P no Emulator PASS. Não se trata de teste de APK Android nativo nem de login Google real no iframe.
+- **Estado:** G8 regressão WEB LAB aprovada, G1 OAuth/Android e G9 release pendentes. Não consumir builds nem ativar deploy. Próximo teste: autenticação real QA no top-level e no iframe, política de cookies/redirect; se incompatível, escolher shell React/native sem duplicar backend.
