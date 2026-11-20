@@ -2,20 +2,20 @@
   "name": "PDV Potê Batata | Gestão Pro",
   "short_name": "PDV",
   "description": "Sistema de gestão de vendas, estoque e financeiro.",
-  "start_url": ".",
-  "scope": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#050607",
   "theme_color": "#070809",
   "icons": [
     {
-      "src": "./assets/brand/pdv-192.png",
+      "src": "/assets/brand/pdv-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./assets/brand/pdv-512.png",
+      "src": "/assets/brand/pdv-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
