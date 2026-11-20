@@ -9,15 +9,15 @@ assert(source.includes("pdv:'Caixa PDV'"),"Caixa PDV must exist as navigation ro
 assert(source.includes("pdv:pagePDV")&&source.includes("function pagePDV()"),"Real dedicated PDV page required");
 assert(source.includes("['pdv','financeiro','Caixa PDV']"),"Home must show a clear Caixa PDV card");
 assert(source.includes("k==='pdv'?'./assets/brand/pdv-512.png'"),"PDV card should use distinctive branded artwork");
-assert(pdv.includes("function renderPage()")&&pdv.includes("window.POTE_PDV={open,close,refresh,renderPage"),"PDV module must expose inline chart");
+assert(pdv.includes("function renderPage()")&&pdv.includes("window.POTE_PDV={open,openMovement,close,refresh,renderPage"),"PDV module must expose inline chart");
 assert(pdv.includes("receiptChart(receipts)")&&pdv.includes("renderPage()"),"Chart must appear in full PDV page");
 assert(pdv.includes("receiptChart(summarizePdvReceipts(reportForDisplay(data,latest)))"),"Closed session must retain visible chart");
 assert(pdv.includes("if(!access())return"),"Free users must not see licensed financial reports");
 assert(pdv.includes("if(!next||el.innerHTML===next.innerHTML)return"),"No unnecessary redraw during mobile interaction");
 assert(css.includes(".pote-pdv-page-chart")&&css.includes(".pote-pdv-page-summary"),"Dedicated chart and totals require styles");
-assert(builder.includes("pdv_cash_ui.mjs?v=withdrawal-label-20261118"));
+assert(builder.includes("pdv_cash_ui.mjs?v=pdv-order-sequence-20261119"));
 assert(builder.includes("pdv_cash.css?v=pdv-visible-v5-20261118"));
-assert(site.includes("pdv_cash_ui.mjs?v=withdrawal-label-20261118"));
+assert(site.includes("pdv_cash_ui.mjs?v=pdv-order-sequence-20261119"));
 assert(site.includes("pdv_cash.css?v=pdv-visible-v5-20261118"));
 assert(fs.existsSync("public/assets/brand/pdv-512.png"),"Bundled PDV card art required");
 console.log("PASS: PDV card, navigation, report chart, closed report, access guard, icon and cache refresh.");
