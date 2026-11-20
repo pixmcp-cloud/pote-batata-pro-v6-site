@@ -36,9 +36,9 @@ function makeStore(){
  const db=new MemoryFirestore(),root="users/"+UID;
  db.seed(root,{email:"qa@example.com",
   license:{status:"active",kind:"lifetime",term:"lifetime"}});
- db.seed(root+"/appState/v2",{schemaVersion:2,state:{data:{businessType:"batataria"}}});
- db.seed(root+"/appState/v2InventoryGuard",{revision:0});
- db.seed(root+"/appState/v2Pulse",{eventId:"previous",sensitive:false,changedKeys:[]});
+ db.seed(root+"/appState/v5",{schemaVersion:5,state:{data:{businessType:"batataria"}}});
+ db.seed(root+"/appState/v5InventoryGuard",{revision:0});
+ db.seed(root+"/appState/v5Pulse",{eventId:"previous",sensitive:false,changedKeys:[]});
  const order={id:"o1",status:"recebido",qty:2,price:35,
   paymentMethod:"Pix",paymentStatus:"pago",stockDeducted:false,
   items:[{id:"batata",g:100,yieldPct:80}],
@@ -94,8 +94,8 @@ test("producing twice is idempotent with same key; new key cannot double charge 
  assert.equal(db.current(recordPath(UID,UNIVERSE,"orders","o1")).record.item.stockDeducted,true);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,150);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"beverages","suco")).record.item.stock,2);
- assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
- assert.equal(db.current("users/"+UID+"/appState/v2Pulse").changedKeys.length,5);
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
+ assert.equal(db.current("users/"+UID+"/appState/v5Pulse").changedKeys.length,5);
  assert.equal([...db.docs.keys()].filter(x=>x.includes("workerEvents/")).length,1);
 });
 test("cancel after production returns physical stock once, or records a loss",async()=>{
@@ -116,7 +116,7 @@ test("concurrent stock consumption is at most once, with independent operation i
  const responses=await Promise.all([OP1,OP2].map(id=>app.fetch(request(payload(id)),env)));
  assert.deepEqual(responses.map(x=>x.status).sort(),[200,409]);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,150);
- assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,1);
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
 });
 test("expired or Free tenant cannot bypass quotas through the Worker",async()=>{
  const {db}=makeStore(),app=appFor(db);
@@ -136,5 +136,76 @@ test("stock shortage does not write order, movements, pulse or journal",async()=
  const response=await app.fetch(request(payload(OP1)),env);
  assert.equal(response.status,409);
  assert.equal(db.docs.size,size);
- assert.equal(db.current("users/"+UID+"/appState/v2InventoryGuard").revision,0);
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,0);
+});
+
+const adjustPayload=(operationId,extra={})=>({
+ universe:UNIVERSE,group:"ingredients",itemId:"batata",
+ delta:-100,reason:"loss",lossReason:"queda",note:"Caída no chão",operationId,...extra
+});
+test("F05 V5: perda real baixa ingrediente, lança histórico e não duplica em retry",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const first=await app.fetch(request(adjustPayload(OP1),"/v1/inventory/adjust"),env);
+ assert.equal(first.status,200);
+ const loss=await first.json();
+ assert.equal(loss?.afterStock,300);
+ const repeat=await app.fetch(request(adjustPayload(OP1),"/v1/inventory/adjust"),env);
+ assert.equal(repeat.status,200);
+ assert.equal((await repeat.json()).alreadyApplied,true);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,300);
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
+ const lost=db.current(recordPath(UID,UNIVERSE,"losses","cf-loss-"+OP1)).record.item;
+ assert.equal(lost.itemKind,"ingredient");
+ assert.equal(lost.costKnown,false);
+ const moved=db.current(recordPath(UID,UNIVERSE,"stockMovements","cf-move-"+OP1)).record.item;
+ assert.equal(moved.quantity,-100);
+ const mismatch=await app.fetch(request(adjustPayload(OP1,{delta:-200}),"/v1/inventory/adjust"),env);
+ assert.equal(mismatch.status,409);
+ const pulse=db.current("users/"+UID+"/appState/v5Pulse");
+ assert.equal(pulse.changedKeys.length,3);
+});
+test("F05 V5: bebida sempre em unidades inteiras; sem estoque não grava",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const invalid=await app.fetch(request(adjustPayload(OP1,{
+  group:"beverages",itemId:"suco",delta:-1.5}),"/v1/inventory/adjust"),env);
+ assert.equal(invalid.status,422);
+ const good=await app.fetch(request(adjustPayload(OP2,{
+  group:"beverages",itemId:"suco",delta:-2}),"/v1/inventory/adjust"),env);
+ assert.equal(good.status,200,await good.text());
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"beverages","suco")).record.item.stock,2);
+ const tooMuch=await app.fetch(request(adjustPayload(OP3,{
+  group:"beverages",itemId:"suco",delta:-4}),"/v1/inventory/adjust"),env);
+ assert.equal(tooMuch.status,409);
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
+});
+test("F05 V5: rejeita parâmetros falsos, conta bloqueada e origem falsa",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ for(const bad of [
+  {group:"addons"},{group:"beverages",itemId:"missing"},{delta:100},
+  {delta:-0.000001},{note:"",lossReason:"outro"},{uid:"evil"},
+  {delta:"-100"},{reason:"recount"}]){
+  const response=await app.fetch(request(adjustPayload(OP1,bad),"/v1/inventory/adjust"),env);
+  assert(response.status>=400,JSON.stringify(bad));
+ }
+ const blocked=await app.fetch(request(adjustPayload(OP1),
+  "/v1/inventory/adjust","https://evil.example"),env);
+ assert.equal(blocked.status,403);
+ db.seed("users/"+UID,{email:"qa@example.com",license:{status:"inactive"}});
+ assert.equal((await app.fetch(request(adjustPayload(OP1),
+  "/v1/inventory/adjust"),env)).status,403);
+});
+test("F05 V5: operação desativada retorna 423 sem sequer ler Firestore",async()=>{
+ const {db}=makeStore(),app=appFor(db),before=db.docs.size;
+ const response=await app.fetch(request(adjustPayload(OP1),
+  "/v1/inventory/adjust"),{...env,ENABLE_WRITES:"false"});
+ assert.equal(response.status,423);
+ assert.equal(db.docs.size,before);
+});
+test("F05 V5: duas sessões não conseguem aplicar a mesma perda duas vezes",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const result=await Promise.all([OP1,OP2].map(operationId=>app.fetch(
+  request(adjustPayload(operationId,{delta:-300}),"/v1/inventory/adjust"),env)));
+ assert.deepEqual(result.map(r=>r.status).sort(),[200,409]);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,100);
+ assert.equal([...db.docs.keys()].filter(x=>x.includes("workerEvents/")).length,1);
 });
