@@ -69,10 +69,17 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
    let done=false;
    return {
     async get(path){
-     const response=await api("/documents/"+path.split("/").map(encodeURIComponent).join("/")+
-      "?transaction="+encodeURIComponent(transaction));
-     if(response.missing)return null;
-     return {data:decodeFields(response.fields),updateTime:response.updateTime};
+     // batchGet envia transaction no corpo JSON, não como parâmetro GET.
+     // Além de ser suportado oficialmente, evita o erro BYTE_STRING do
+     // Firebase Emulator nas consultas GET com ?transaction=....
+     const response=await api("/documents:batchGet",{method:"POST",body:{
+      documents:[fullName(path)],transaction
+     }});
+     const found=Array.isArray(response)?response[0]:response;
+     if(found?.missing)return null;
+     if(!found?.found?.fields||!found.found.updateTime)
+      throw Error("Firestore: resposta transacional batchGet inválida");
+     return {data:decodeFields(found.found.fields),updateTime:found.found.updateTime};
     },
     async commit(writes){
      if(done)throw Error("Transaction already finalized");

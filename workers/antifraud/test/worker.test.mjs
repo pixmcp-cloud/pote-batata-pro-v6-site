@@ -50,7 +50,7 @@ function makeStore(){
  put("beverages","suco",{id:"suco",stock:4,name:"Suco"});
  return {db,put};
 }
-const env={ENABLE_WRITES:"true",FIREBASE_PROJECT_ID:"potobatata-b71f3",
+const env={ENABLE_WRITES:"true",CANARY_UIDS:UID,FIREBASE_PROJECT_ID:"potobatata-b71f3",
  ALLOWED_ORIGINS:"https://pdv.livresom.com"};
 const appFor=db=>createWorkerApp({
  verify:async token=>{
@@ -208,4 +208,21 @@ test("F05 V5: duas sessões não conseguem aplicar a mesma perda duas vezes",asy
  assert.deepEqual(result.map(r=>r.status).sort(),[200,409]);
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,100);
  assert.equal([...db.docs.keys()].filter(x=>x.includes("workerEvents/")).length,1);
+});
+
+test("F05: mesmo ENABLE_WRITES=true não grava sem canário privado (produção e perdas)",async()=>{
+ const {db}=makeStore(),app=appFor(db),before=db.docs.size;
+ for(const broken of ["",undefined,"*","another-owner","owner-qa-01,*",
+  Array.from({length:21},(_,i)=>"id-"+i).join(",")]){
+  const config={...env,CANARY_UIDS:broken};
+  const loss=await app.fetch(request({
+   universe:UNIVERSE,group:"ingredients",itemId:"batata",delta:-10,
+   reason:"loss",lossReason:"queda",note:"Teste",operationId:OP1
+  },"/v1/inventory/adjust"),config);
+  const production=await app.fetch(request(payload(OP2)),config);
+  assert.equal(loss.status,423,"Canário inválido não pode debitar perdas");
+  assert.equal(production.status,423,"Canário inválido não pode iniciar produção");
+ }
+ assert.equal(db.docs.size,before,"Nenhuma escrita com canário ausente");
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
 });
