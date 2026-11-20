@@ -13,7 +13,7 @@ test("F02 complex reservation and cancellation aggregate all component groups",(
  const plan=planOperation({action:"cancel",decision:"return",order,stock,
   universe:"qa",operationId:"complex-cancel-0000000001",at:"2026-11-20T01:00:00Z"});
  assert.equal(plan.stockUpdates.length,4);
- assert.ok(plan.stockUpdates.every(x=>x.item.stock===x.item.stock));
+ assert.deepEqual(plan.stockUpdates.map(x=>[x.group,x.id,x.item.stock]),[\n  ["ingredients","potato",400],["packaging","pot",4],\n  ["addons","bacon",40],["beverages","juice",4]]);\n assert.deepEqual(plan.movements.map(x=>x.stockGroup),\n  ["ingredients","packaging","addons","beverages"]);
  assert.equal(plan.movements.length,4);
  assert.equal(plan.order.stockRestored,true);
 });
