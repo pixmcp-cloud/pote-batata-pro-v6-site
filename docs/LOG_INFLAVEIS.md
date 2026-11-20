@@ -2,7 +2,7 @@
 
 **Versão:** 1.0  
 **Criado:** 19 de novembro de 2026  
-**Situação atual (atualizada em 19/11/2026):** protótipo local v0.2 implementado e testado, com histórico detalhado nas seções 13–16. Hospedagem e domínio adquiridos pelo usuário; site ainda NÃO publicado e backend real NÃO implementado. O enunciado original da pesquisa permanece documentado nas seções iniciais.  
+**Situação atual (atualizada em 20/11/2026):** a versão visual aprovada do GPT Work/Sites foi publicada em `https://brasilinflaveis.com/` como **prévia estática**; catálogo, orçamentos demonstrativos e painel ilustrativo passaram QA, e arquivos obsoletos da versão anterior foram removidos da hospedagem. **Ainda não há reservas reais, autenticação externa ou agenda D1 operante neste domínio.** Histórico inicial preservado abaixo.
 **Objetivo:** desenvolver uma plataforma de aluguel de brinquedos infláveis e recreativos com recorrência SaaS, operação rentável e opção de marketplace.
 
 ## 1. Origem da ideia
@@ -437,3 +437,20 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 **Decisão operacional:** NÃO sobrescrever a hospedagem com cópia visual ou HTML salvo do preview de Sites, pois isso eliminaria backend/agenda D1 e não preservaria histórico. Somente comparar árvores Git, gerar build validado e preparar hospedagem ou solução híbrida segura após fonte Work exportada. Não expor contas, dados financeiros de locadoras nem migrar D1 sem testes.
 
 **URL oficial ao usuário:** https://brasilinflaveis.com/ , exclusivamente sem querystring, UTM ou outros parâmetros.
+
+
+## 20/11/2026 — Publicação da versão correta GPT Work/Sites e remoção da versão anterior
+
+**Autorização do proprietário:** “quero o projeto correto no ar e o errado delete” (20/11/2026). Esta autorização substitui a restrição anterior de não publicar, mas não autoriza migração destrutiva do D1 ou serviços pagos.
+
+**Origem verificada:** código do GPT Work/Sites exportado com `.git` para `C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import\sites-work-git`, branch local `integration/hostinger-work-preview-20261119`; histórico contém commit `ab16e28`, mais alterações locais de hotfix e adaptação para prévia estática. Pacote validado: `C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import\work-aprovado-hostinger-estatico-20261119.zip`, 17 entradas, sem `.env`, `node_modules` ou segredos. Compilação com `VITE_STATIC_PREVIEW=true` reproduziu o hash do JS do pacote.
+
+**Backup do site antigo:** `C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import\backup-live-pc-20261119-2357.zip`, além do arquivo anterior `rollback-hostinger-anterior-20261119.zip`. Não apagar backups nem as duas árvores Git antes de eventual auditoria e integração backend.
+
+**Deploy:** login do proprietário na Hostinger; gerenciador de arquivos específico de `brasilinflaveis.com`; upload do ZIP aprovado, extração para `public_html` com substituição de arquivos, sem subdiretório adicional. O HTML publicado referencia somente `/assets/index-CqYX5N68.js` e `/assets/index-DJQX19os.css`. Site no domínio raiz exato, sem `/chatgpt...` ou querystring.
+
+**Limpeza do site errado:** removidos do diretório público cinco bundles antigos `index-AtQKKGFI.css`, `index-CDNHX-6M.js`, `index-CHa452u1.js`, `index-Cx_ZE-0N.css`, `index-CxTb0StZ.js`. Restaram somente os dois bundles Work acima em `assets/`. Também removidos `icons/`, `manifest.webmanifest`, `android-hotfix-upload-20261119.zip` e o ZIP temporário aprovado do diretório público; o arquivo aprovado permanece no PC. A pasta `images/` tinha exatamente as 12 imagens do pacote Work e foi preservada. O diretório público final contém `assets/`, `images/`, `favicon.svg`, `index.html`, `robots.txt`.
+
+**QA real após limpeza:** `URL_TESTE=https://brasilinflaveis.com/ node tests/hostinger-preview.mjs` aprovado: SUPER FESTA!, 4 brinquedos fictícios, filtros/cotação, painel ilustrativo do locador, responsividade em 320/390/768/1024/1440 px, fallback sem JS, nenhum erro JS, nenhuma chamada indevida de D1. HTTP 200 em raiz e www, e arquivos atuais HTML/JS/CSS/imagens com 200; assets antigos `index-CxTb0StZ.js` e `index-AtQKKGFI.css`, `manifest.webmanifest` e ZIP temporário responderam 404 após remoção.
+
+**Limitações e guardrails:** esta é a versão visual aprovada **estática de demonstração**, não uma plataforma comercial homologada. A API `/api/bookings` da origem Work dependia de D1 e do cabeçalho de identidade do ambiente Sites, ausentes na Hostinger estática; recursos de agenda/reserva e login reais ficam explicitamente indisponíveis. Catálogo e preços são ilustrativos; `noindex,nofollow,noarchive` segue ativo. Não reimplantar o antigo `C:\Users\LIVRESOM\Projects\inflaveis-pro\dist` no domínio; o diretório local antigo foi **mantido para auditoria**, não faz parte da publicação. Prioridade posterior: autenticação própria, integração segura D1/Cloudflare e homologação, sem custos extras não aprovados.
