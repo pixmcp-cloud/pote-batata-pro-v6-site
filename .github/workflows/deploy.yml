@@ -187,6 +187,8 @@ jobs:
           node test_v5_storage.mjs
           node test_hardening_concurrent_clients.mjs
           node test_auth_v5_integration.js
+          node test_v5_startup_contract.cjs
+          node test_v5_stress.mjs
           node test_finance_core.js
           node test_hardening_wave1.cjs
           node test_hardening_render_events.cjs
