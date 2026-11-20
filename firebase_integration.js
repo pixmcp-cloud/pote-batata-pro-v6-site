@@ -5,7 +5,7 @@ import {createV2Store} from "./v2_storage.mjs?v=f20-late-atomic-20261118";
 import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs?v=f10-closed-shifts-20261118";
 import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState} from "./sync_guard.mjs?v=v4-backup-20261117";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
-import {createWorkerBridge} from "./worker_bridge.mjs?v=cf-bridge-staging-20261118";
+import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-pro-universal-20261120";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
@@ -60,7 +60,7 @@ const F05_INVENTORY_WORKER_ACTIVE=true;
 window.POTE_WORKER=createWorkerBridge({
  enabled:CLOUD_WORKER_ACTIVE,
  inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
- inventoryCanaryEmail:"pixmcp@gmail.com",
+ inventoryCanaryEmail:null,
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
  inventoryEndpoint:"https://pote-batata-f05-live.pixmcp.workers.dev",
  getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
