@@ -20,7 +20,7 @@ async function api(url,method="GET",body=null,permitMissing=false){
  const response=await fetch(url,{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},...(body===null?{}:{body:JSON.stringify(body)})});
  if(permitMissing&&response.status===404)return null;
  const result=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(method+" "+new URL(url).pathname+" HTTP "+response.status+" "+(result.error?.status||"failed"));
+ if(!response.ok)throw Error(method+" "+new URL(url).pathname+" HTTP "+response.status+" "+(result.error?.status||"failed")+" "+String(result.error?.message||"").slice(0,900));
  return result;
 }
 const root="https://iam.googleapis.com/v1/projects/"+project+"/serviceAccounts";
