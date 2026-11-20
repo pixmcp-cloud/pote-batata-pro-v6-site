@@ -216,6 +216,34 @@ function save(){
  const x=calc();
  if(!x.valid){$("stockUpdateError").textContent=x.reason;$("stockUpdateError").hidden=false;return false}
  const {item,mode}=x;
+ // No canário, nenhuma compra/contagem pode gravar saldos diretamente.
+ // A compra entra no Worker com UUID idempotente e reconsulta a V5.
+ if(window.POTE_AUTH?.accessPolicy?.workerAuthoritative===true){
+  const errorField=$("stockUpdateError");
+  if(mode!=="purchase"){
+   errorField.textContent="Contagem protegida ainda indisponível no Worker; estoque inalterado.";
+   errorField.hidden=false;return false;
+  }
+  if(window.POTE_WORKER?.inventoryEnabled!==true){
+   errorField.textContent="Compras protegidas aguardam autorização do Worker; estoque inalterado.";
+   errorField.hidden=false;return false;
+  }
+  const kind=current.kind,id=current.id,label=item.name;
+  return window.POTE_WORKER.purchaseStock({
+   universe:state.data.businessType||"batataria",
+   group:kind==="beverage"?"beverages":"ingredients",itemId:id,
+   delta:x.baseAmount,paidTotal:x.paid,enteredQuantity:x.quantity,
+   enteredUnit:x.unit,supplier:String($("stockUpdateSupplier")?.value||"").trim()
+  }).then(result=>{
+   close();render();
+   toast(label+": compra confirmada no servidor. Saldo: "+result.afterStock+".");
+   if(typeof setTimeout==="function")setTimeout(()=>window.POTE_STOCK_UPDATE?.pulse?.(kind,id),0);
+   return true;
+  }).catch(error=>{
+   errorField.textContent=error.message||"Compra não confirmada";
+   errorField.hidden=false;return false;
+  });
+ }
  state.data.purchases??=[];state.data.stockMovements??=[];
  try{
   if(mode==="purchase"){
