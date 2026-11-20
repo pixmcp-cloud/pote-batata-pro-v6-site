@@ -10,12 +10,12 @@ const stock=new Map([
  ["ingredients:queijo",{id:"queijo",name:"Queijo",stock:100,measureUnit:"g"}],
  ["beverages:suco",{id:"suco",name:"Suco",stock:8,measureUnit:"un"}]
 ]);
-test("record IDs match browser V2 base64url encoding",()=>{
+test("record IDs match browser V5 base64url encoding",()=>{
  const values=["batataria","ingredients","batata"];
  const bytes=new TextEncoder().encode(JSON.stringify(values));
  const expected=Buffer.from(bytes).toString("base64url");
  assert.equal(keyFor(...values),expected);
- assert.equal(recordPath("user123",...values),"users/user123/records/"+expected);
+ assert.equal(recordPath("user123",...values),"users/user123/recordsV5/"+expected);
 });
 test("server computes exact consumption from stored order, not client",()=>{
  const qty=quantities(order);
