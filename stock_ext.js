@@ -104,6 +104,21 @@ function saveBeveragePurchase(){
  if(!b){alert("Selecione uma bebida");return}
  const qty=window.POTE_STOCK.number($("stockBeverageQty")?.value);
  if(!Number.isInteger(qty)||qty<1){alert("Informe a quantidade em unidades inteiras.");return}
+ if(window.POTE_AUTH?.accessPolicy?.workerAuthoritative===true){
+  if(window.POTE_WORKER?.inventoryEnabled!==true){
+   alert("Servidor F05 indisponível para esta compra. Estoque preservado.");
+   return false;
+  }
+  const paidTotal=window.POTE_STOCK.number($("stockBeveragePaid")?.value);
+  const supplier=String($("stockBeverageSupplier")?.value||"").trim();
+  return window.POTE_WORKER.purchaseStock({
+   universe:state.data.businessType||"batataria",group:"beverages",
+   itemId:b.id,delta:qty,paidTotal,enteredQuantity:qty,enteredUnit:"un",supplier
+  }).then(result=>{
+   render();toast(b.name+": compra confirmada no servidor. Novo saldo: "+result.afterStock+" un.");
+   return true;
+  }).catch(error=>{alert(error.message||"Compra não confirmada");return false});
+ }
  state.data.purchases??=[];state.data.stockMovements??=[];
  try{
   const result=window.POTE_STOCK.purchase({
