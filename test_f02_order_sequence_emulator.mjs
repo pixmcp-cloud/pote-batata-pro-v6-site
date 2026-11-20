@@ -53,6 +53,17 @@ try{
   operationId:"f02-seq-approve-price-00000001",salePriceCents:2000});
  all.push(root+"/workerEvents/f02-seq-approve-price-00000001");
  assert.equal(approval.status,200,"Approval "+await approval.clone().text());
+ // This remains the DEMO emulator database: a production-like configuration
+ // must reject unverified legacy sequence migration, never silently reset it.
+ const prodLike={...env,FIREBASE_PROJECT_ID:"synthetic-live-gate",PRODUCTION_CUTOVER_APPROVED:"true"};
+ const migrationGate=await app.fetch(new Request("https://qa.example/v1/orders/create",{
+  method:"POST",headers:{Origin:"https://qa.example",Authorization:"Bearer synthetic",
+   "Content-Type":"application/json"},body:JSON.stringify({universe,
+   orderId:orders[0],operationId:ops[0],recipeId,qty:1,
+   cashSessionId:"cash",paymentMethod:"pix"})}),prodLike);
+ assert.equal(migrationGate.status,409);
+ assert.equal((await migrationGate.json()).error,"order_sequence_migration_required");
+ assert.equal(await read(seqPath),null,"Blocked live-like operation must not initialize counter");
  const both=await Promise.all([create(0),create(1)]);
  const statuses=both.map(r=>r.status);
  assert(statuses.every(x=>x===200||x===409),"unexpected statuses "+statuses);
@@ -70,6 +81,11 @@ try{
  assert.equal(repeat.alreadyApplied,true);
  assert.equal(repeat.orderNumber,oa.orderNumber,"Replayed receipt must use original public number");
  assert.equal((await read(seqPath)).last,122);
+ const reused=await request("/v1/orders/create",{orderId:orders[0],operationId:ops[0],
+  recipeId,qty:2,cashSessionId:"cash",paymentMethod:"pix"});
+ assert.equal(reused.status,409,"Operation ID reused with different qty must fail");
+ assert.equal((await reused.json()).error,"idempotency_conflict");
+ assert.equal((await read(seqPath)).last,122,"Idempotency conflict cannot burn sequence number");
  const cancellation=await request("/v1/orders/cancel",{orderId:orders[0],
   operationId:canceled,decision:"return"});
  assert.equal(cancellation.status,200,"Cancel "+await cancellation.clone().text());
