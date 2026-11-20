@@ -10,7 +10,7 @@ function error(message,code="worker/error"){
  const e=Error(message);e.code=code;return e;
 }
 export function createWorkerBridge({
- enabled=false,inventoryEnabled=false,endpoint,inventoryEndpoint=null,getSession,flush,refresh,
+ enabled=false,inventoryEnabled=false,inventoryCanaryEmail=null,endpoint,inventoryEndpoint=null,getSession,flush,refresh,
  requestFetch=fetch,storage=globalThis.sessionStorage,
  uuid=()=>globalThis.crypto.randomUUID(),timeoutMs=12000
 }={}){
@@ -21,6 +21,8 @@ export function createWorkerBridge({
    /^https:\/\//.test(inventoryEndpoint)?inventoryEndpoint.replace(/\/+$/,""):
    (()=>{throw error("Endereço de estoque HTTPS inválido","worker/config")})();
  const busy=new Set();
+ const stockGate=()=> (enabled===true||inventoryEnabled===true)&&
+   (!inventoryCanaryEmail||getSession?.()?.user?.email===inventoryCanaryEmail);
  const readKey=(uid,universe,action,orderId)=>"pote:worker:v1:"+
   encodeURIComponent(uid)+":"+encodeURIComponent(universe)+":"+action+":"+encodeURIComponent(orderId);
  async function transition(action,{orderId,universe,decision,salePriceCents}={}){
@@ -97,7 +99,7 @@ export function createWorkerBridge({
   }finally{busy.delete(lock)}
  }
  async function adjustStock({universe,group,itemId,delta,note="",lossReason="outro"}={}){
-  if(!enabled&&!inventoryEnabled)throw error("Worker desativado. Nenhuma perda enviada.","worker/disabled");
+  if(!stockGate())throw error("Worker desativado. Nenhuma perda enviada.","worker/disabled");
   if(!universePattern.test(universe)||!["ingredients","beverages","packaging","addons"].includes(group)||
      !idPattern.test(itemId)||!Number.isFinite(delta)||delta>=0||
      Math.abs(delta)>1000000||Math.abs(Math.round(delta*1e5)/1e5-delta)>1e-8||
@@ -158,7 +160,7 @@ export function createWorkerBridge({
  }
  return Object.freeze({
   get enabled(){return enabled===true},
-  get inventoryEnabled(){return enabled===true||inventoryEnabled===true},
+  get inventoryEnabled(){return stockGate()},
   adjustStock,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   finish:(orderId,universe)=>transition("finish",{orderId,universe}),
