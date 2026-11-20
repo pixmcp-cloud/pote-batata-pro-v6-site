@@ -35,7 +35,7 @@ class MemoryFirestore{
 function makeStore(){
  const db=new MemoryFirestore(),root="users/"+UID;
  db.seed(root,{email:"qa@example.com",
-  license:{status:"active",kind:"lifetime",term:"lifetime"}});
+  license:{status:"active",kind:"lifetime",term:"lifetime"},accessPolicy:{workerAuthoritative:true}});
  db.seed(root+"/appState/v5",{schemaVersion:5,state:{data:{businessType:"batataria"}}});
  db.seed(root+"/appState/v5InventoryGuard",{revision:0});
  db.seed(root+"/appState/v5Pulse",{eventId:"previous",sensitive:false,changedKeys:[]});
@@ -124,8 +124,16 @@ test("expired or Free tenant cannot bypass quotas through the Worker",async()=>{
  const denied=await app.fetch(request(payload(OP1)),env);
  assert.equal(denied.status,403);
  db.seed("users/"+UID,{email:"qa@example.com",license:{status:"active",kind:"lifetime",
-  term:"lifetime"},accessPolicy:{blockedUniverses:["batataria"]}});
+  term:"lifetime"},accessPolicy:{workerAuthoritative:true,blockedUniverses:["batataria"]}});
  assert.equal((await app.fetch(request(payload(OP1)),env)).status,403);
+});
+test("F05: canário em Secret sem autorização do administrador não escreve",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ db.seed("users/"+UID,{email:"qa@example.com",
+  license:{status:"active",kind:"lifetime",term:"lifetime"}});
+ const denied=await app.fetch(request(payload(OP1)),env);
+ assert.equal(denied.status,403);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
 });
 test("stock shortage does not write order, movements, pulse or journal",async()=>{
  const {db}=makeStore(),app=appFor(db);

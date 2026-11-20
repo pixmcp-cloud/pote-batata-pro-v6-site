@@ -83,3 +83,31 @@ A consulta REST `GET documents/{id}?transaction=<bytes>` foi substituída por `P
 Quando o Firestore responde `ABORTED`/HTTP 409 ou HTTP 412, o Worker repete até três vezes, sempre em **nova transação**, com atraso variável, revalidação de dados e o mesmo UUID de operação. Não repete falhas de identidade, autorização, falta de saldo ou respostas indefinidas.
 
 O teste integrado `test_firestore_worker_v5_rest_e2e.cjs` exercita as rotas HTTP reais, o adaptador REST e o Firestore Emulator: perde 100 g, produz 400 g, devolve 400 g, consulta a mesma operação idempotente e força corrida entre duas baixas de 1.500 g. Apenas uma pode finalizar; saldo final previsto 400 g e revisão 4. Tudo em `demo-pote-hardening`, sem credenciais produtivas.
+
+## Etapa 8 — corte gradual por conta, validado em ambiente isolado (20/11/2026)
+
+**Novo recurso disponível no GitHub, ainda não instalado nas regras produtivas:**
+`firestore.f05-cutover.qa.rules` e `firebase.f05-cutover.qa.json`.
+
+A execução do Worker em modo de escrita exige **três condições independentes**:
+1. `ENABLE_WRITES=true` no Cloudflare Worker (padrão continua `false`).
+2. UID da empresa canário na variável secreta `CANARY_UIDS`.
+3. Documento `users/{uid}` com `accessPolicy.workerAuthoritative=true`, configurado exclusivamente pelo administrador; o titular não pode alterar esse campo pelas Firestore Rules.
+
+A regra candidata, ao receber a flag, impede que o cliente altere diretamente o estoque físico, crie lançamentos de movimentação/perdas, inicie produção ou cancele pedidos pelo SDK. Permite criar pedido recebido, atualizar preço/cadastro sem mudar estoque e finalizar pedido já produzido (`em_producao` → `entregue`), preservando fluxos comerciais. Após a produção, ingredientes, bebidas, quantidades, valor e parâmetros de estoque do pedido ficam imutáveis; portanto, um cliente não consegue inflar o estorno modificando o pedido antes de cancelar.
+
+Contas **sem** a flag continuam nas regras V5 existentes. O rollback autorizado pelo administrador consiste em definir a flag para `false`, sem apagar pedidos ou estoques.
+
+### Evidência e limitação
+
+No Firebase Emulator `demo-pote-hardening`, o teste `test_firestore_f05_cutover.cjs` verificou: bloqueio de baixas, movimentos e cancelamentos enviados diretamente pelo navegador, imutabilidade do pedido, criação de pedidos permitida, entrega permitida, licença e isolamento de empresas, conta tradicional sem regressão e reversão administrativa. `test_firestore_worker_v5_rest_e2e.cjs` validou que o Worker REST continua gravando dentro da mesma configuração, por conta da identidade de serviço do backend.
+
+**Não ativar ainda:** falta a credencial Google protegida, a validação de uma conta canário real e a cobertura completa das rotas de reposição, perdas financeiras, ajustes de receita e cancelamentos de caixa. As regras canário **não** foram referenciadas no `firebase.json`, nem publicadas. O frontend segue com Worker desativado. Ativar antes de cobrir os fluxos restantes pode bloquear lançamentos legítimos do negócio.
+
+### Procedimento de liberação quando requisitos estiverem completos
+
+1. Verificar todas as operações do perfil canário em um ambiente Firebase separado.
+2. Instalar as regras candidatas no Firestore oficial somente após homologação e backup; sem flag em nenhum usuário, seu efeito é nulo.
+3. Prover as credenciais Google por Cloudflare Secrets sem expor chaves; liberar o Worker com o UID canário autorizado.
+4. Após concluir testes reais, habilitar a flag apenas para o canário, monitorar as transações e manter rollback imediato.
+5. Expandir gradualmente, nunca ativando todas as empresas de uma vez.

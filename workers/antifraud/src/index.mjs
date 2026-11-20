@@ -26,6 +26,9 @@ const canaryPermitted=(env,uid)=>{
 };
 function hasAccess(profile,claims,universe){
  const policy=profile?.accessPolicy||{};
+ // Segunda aprovação administrada no Firebase: o secret Cloudflare sozinho
+ // não habilita uma conta. O titular não pode alterar accessPolicy nas Rules.
+ if(policy.workerAuthoritative!==true)return false;
  if(policy.blockedUniverses?.includes(universe)||
     policy.blockedServices?.includes(universe+":stock")||
     policy.blockedServices?.includes(universe+":orders"))return false;

@@ -15,12 +15,27 @@ for(const file of ["workers/antifraud/wrangler.toml","workers/antifraud/wrangler
 assert.match(integration,/const CLOUD_WORKER_ACTIVE=false;/);
 assert.match(integration,/const F05_INVENTORY_WORKER_ACTIVE=false;/);
 assert.match(integration,/inventoryEndpoint:"https:\/\/pote-batata-guard-staging\.pixmcp\.workers\.dev"/);
+assert.match(integration,/enabled:\(\)=>CLOUD_WORKER_ACTIVE===true&&rawUserAccessPolicy\?\.workerAuthoritative===true/);
+assert.match(integration,/inventoryEnabled:\(\)=>F05_INVENTORY_WORKER_ACTIVE===true&&rawUserAccessPolicy\?\.workerAuthoritative===true/);
+assert.match(bridge,/const flagOn=flag=>/);
+assert.match(bridge,/if\(!orderGate\(\)\)throw error\("Permissão do Worker revogada/);
+
 assert.match(worker,/metaPath="users\/".*?\/appState\/v5/);
 assert.match(worker,/\/appState\/v5InventoryGuard/);
 assert.match(worker,/\/appState\/v5Pulse/);
 assert.match(worker,/schemaVersion!==5/);
 assert.match(worker,/\/v1\/inventory\/adjust/);
 assert.match(worker,/const canaryPermitted=/);
+assert.match(worker,/policy\.workerAuthoritative!==true/);
+const f05Rules=read("firestore.f05-cutover.qa.rules");
+assert.match(f05Rules,/function workerCutover\(userId\)/);
+assert.match(f05Rules,/cutoverOrderInputsUnchanged/);
+assert.match(f05Rules,/cutoverCreateAllowed\(userId, record\)/);
+assert.match(f05Rules,/cutoverUpdateAllowed\(userId, record, oldRecord\)/);
+assert.match(f05Rules,/cutoverDeleteAllowed\(userId,resource\.data\.record\)/);
+assert.equal(JSON.parse(read("firebase.json")).firestore.rules,"firestore.rules",
+ "NUNCA publicar regras candidatas F05 antes do corte homologado");
+
 assert.match(worker,/list\.includes\(uid\)/);
 assert.match(worker,/if\(!canaryPermitted\(env,user\.uid\)\)/);
 assert.equal((worker.match(/if\(!canaryPermitted\(env,user\.uid\)\)/g)||[]).length,2,"Produção e perdas devem exigir canário");
@@ -30,5 +45,10 @@ assert.doesNotMatch(domain,/\/records\//);
 assert.match(logic,/stockUnit/);
 assert.match(read("workers/antifraud/src/firestore.mjs"),/documents:batchGet/);
 assert.match(worker,/for\(let attempt=0;attempt<4;attempt\+\+\)/);
+const adminPermissions=read("admin_permissions.js");
+assert.match(adminPermissions,/\[\`accessPolicy\.\$\{listKind\}\`\]:policy\[listKind\]/,
+ "Painel ADM não pode apagar workerAuthoritative ao editar permissões");
+assert.doesNotMatch(adminPermissions,/updateDoc\(ref,\{accessPolicy:policy/,
+ "Sobrescrever accessPolicy completo revoga a autorização canário por acidente");
 assert.match(bridge,/V5 Firestore reload/);
 console.log("PASS F05 V5: caminhos, perdas, ponte desativada e Worker fail-closed.");

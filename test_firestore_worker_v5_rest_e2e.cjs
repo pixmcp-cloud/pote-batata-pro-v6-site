@@ -16,13 +16,15 @@ test('F05 Worker V5 REST: Firestore Emulator transacional com canário e sem dad
  const {createWorkerApp}=await import('./workers/antifraud/src/index.mjs');
  const {createFirestoreRepository}=await import('./workers/antifraud/src/firestore.mjs');
  const {keyFor}=await import('./workers/antifraud/src/domain.mjs');
- const env=await initializeEmulator({hardened:process.env.POTE_HARDENED_RULES==='1'});
+ const env=await initializeEmulator({hardened:process.env.POTE_HARDENED_RULES==='1',
+   cutover:process.env.POTE_F05_CUTOVER_RULES==='1'});
  try{
   await env.withSecurityRulesDisabled(async ctx=>{
    const db=ctx.firestore();
    const put=(p,v)=>sdk.setDoc(sdk.doc(db,p),v);
    await put('users/'+UID,{email:'cloudflare@example.test',
-    license:{status:'active',kind:'lifetime',term:'lifetime'}});
+    license:{status:'active',kind:'lifetime',term:'lifetime'},
+    accessPolicy:{workerAuthoritative:true}});
    await put('users/'+UID+'/appState/v5',{schemaVersion:5,
     state:{data:{businessType:UNIVERSE,businessUniverses:{},settings:{costBasis:'purchase'}}},
     updatedAt:sdk.serverTimestamp()});

@@ -69,12 +69,16 @@ async function toggle(kind,key){
   const before=snapshot.data().accessPolicy||{};
   const blocked=safeSet(before[listKind]);
   if(blocked.has(value))blocked.delete(value);else blocked.add(value);
-  const policy={blockedUniverses:[...safeSet(before.blockedUniverses)],
+  // Preservar workerAuthoritative e quaisquer políticas futuras. Gravar
+  // apenas o campo alterado, sem sobrescrever outras permissões simultâneas.
+  const policy={...before,
+    blockedUniverses:[...safeSet(before.blockedUniverses)],
     blockedServices:[...safeSet(before.blockedServices)]};
   policy[listKind]=[...blocked].sort();
   // Exclusão de Batataria do bloqueio geral é intencional.
   policy.blockedUniverses=policy.blockedUniverses.filter(x=>x!=="batataria");
-  await updateDoc(ref,{accessPolicy:policy,updatedAt:serverTimestamp()});
+  await updateDoc(ref,{[`accessPolicy.${listKind}`]:policy[listKind],
+   updatedAt:serverTimestamp()});
   user.accessPolicy=policy;message.textContent=(willBlock?"Bloqueado: ":"Liberado: ")+value+". Dados preservados.";
  }catch(error){message.textContent="Não foi possível alterar: "+(error.code||error.message)}
  finally{saving=false;paint()}

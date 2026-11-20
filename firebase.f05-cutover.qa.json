@@ -1,0 +1,14 @@
+{
+  "firestore": {
+    "rules": "firestore.f05-cutover.qa.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8787
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}
