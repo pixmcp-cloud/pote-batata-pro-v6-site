@@ -1,6 +1,6 @@
 # Cloudflare Workers — Potê Batata Pro
 
-**Estado: STAGING / DESATIVADO.** O sistema público continua no Firebase. O Worker exige login Cloudflare e credenciais secretas antes de funcionar com dados reais.
+**Estado em 20/11/2026: STAGING V5 / ESCRITAS DESATIVADAS.** O sistema público continua no Firebase V5. A migração do Worker foi implementada e testada, mas não foi ativada para contas reais. Exige conta Cloudflare autorizada, credenciais secretas, canário em banco de testes e bloqueio atômico das escritas diretas de operações críticas antes da ativação.
 
 ## O que foi implementado
 - GET /health: responde estado sem dados de clientes.
@@ -9,12 +9,13 @@
 - Firebase ID token assinado (RS256, projeto, assinatura, emissor, expiração, provedor Google e email_verified); UID obtido exclusivamente do token, nunca do corpo enviado pelo celular.
 - Licença Pro/franquia verificada no servidor. Clientes Free e unidades bloqueadas não podem usar esta API.
 - Chave de idempotência por operação e histórico privado no Firestore para evitar cobranças/consumos duplicados. Dois clientes concorrentes não devem conseguir consumir o mesmo saldo.
-- A operação produz um pulso V2 e avança revisão de estoque, como o aplicativo existente espera para se sincronizar.
+- A operação produz um pulso **V5** e avança a revisão de estoque, como o aplicativo V5 exige para sincronizar dois dispositivos.
+- POST /v1/inventory/adjust: perda de insumo ou bebida por unidade-base; servidor lê cadastro, preço de compra e saldo, grava a perda, o movimento e a baixa em uma única transação, com UUID idempotente.
 
 ## Configuração
 A configuração wrangler.toml inicia com ENABLE_WRITES = "false". Portanto, mesmo publicada, a rota de escrita devolve HTTP 423 e não altera dados. As credenciais da conta de serviço Google precisam ficar em Secrets da Cloudflare (GCP_CLIENT_EMAIL, GCP_PRIVATE_KEY), e nunca em arquivos no GitHub ou no JavaScript do site. O arquivo .dev.vars está ignorado pelo Git.
 
-O Worker não confirma pagamento bancário Pix. O cliente só deve enviar universo, ID do pedido e UUID de operação; nunca enviar quantidade, valor, dados de outros clientes ou UID. Para cancelamento, acrescentar decision=return ou decision=loss.
+O Worker não confirma pagamento bancário Pix. Para pedidos, o cliente só envia universo, ID do pedido e UUID de operação; nunca informa quantidade, valor, dados de outros clientes ou UID. Na perda, a quantidade negativa em unidade-base é permitida apenas para as rotas de estoque; o servidor lê e verifica a versão atual do saldo. Para cancelamento, acrescentar decision=return ou decision=loss.
 
 ## Repetir testes no PC
 Abra a pasta workers/antifraud e execute:
@@ -31,7 +32,7 @@ O runtime local responde HTTP 200 em /health e HTTP 423 nas operações enquanto
 2. Criar conta de serviço Google de menor privilégio possível para Firestore e registrar GCP_CLIENT_EMAIL / GCP_PRIVATE_KEY via wrangler secret put, nunca em conversa nem arquivo versionado.
 3. Publicar ainda com ENABLE_WRITES=false; conferir URL e quotas.
 4. Fazer homologação em conta sintética com acesso a Firestore de testes; em seguida testar um canário Pro real com autorização expressa.
-5. Alterar o app para chamar a API com getIdToken() e UUID estável, sem aplicar uma segunda baixa local. Manter a confirmação e a sincronização via V2.
+5. Alterar o app para chamar a API com getIdToken() e UUID estável, sem aplicar uma segunda baixa local. Manter a confirmação e a sincronização via V5.
 6. Só após homologação completa, passar ENABLE_WRITES=true e fechar nas Firestore Rules a escrita direta dos campos críticos (pedidos, estoque e movimentos). Manter rollback dos dois lados.
 
 **Limitação importante:** enquanto o navegador ainda pode escrever diretamente por Firebase SDK, este Worker não é uma barreira antifraude obrigatória. Não ativar regras de bloqueio antes da migração do cliente. O Google service account tem acesso elevado e exige segredo seguro e rotação. O plano gratuito Workers tem limites; transações Firestore continuam consumindo cotas Firebase. Nenhum serviço pago foi ativado aqui.
@@ -54,3 +55,15 @@ Validação externa na URL: `GET /health` retornou **HTTP 200** com `writesEnabl
 
 ## Ponte de integração pronta (ainda desativada)
 O frontend possui `worker_bridge.mjs` com autenticação Firebase, sincronização prévia, UUID persistido em retries, falha fechada e reload V2 após confirmação de produção/cancelamento. Em `firebase_integration.js`, `CLOUD_WORKER_ACTIVE=false` impede sua execução em contas reais. `test_worker_bridge.mjs` validou as respostas, timeouts e duplicidades. O Firestore Emulator passou os testes transacionais de estoque e concorrência em duas regras distintas. **O teste REST de transações na versão Java do Emulator não é confiável** por falha de interpretação de BYTE_STRING; REST é validado em unitários simulados, e Firestore SDK valida transações reais do emulator. Para ligar produção ainda são necessárias credenciais de servidor, testes REST reais em ambiente isolado e regras Firestore que proíbam bypass do cliente. Ver `CLOUDFLARE_BRIDGE_STAGING_20261118.md`.
+
+## Atualização de arquitetura V5 — 20/11/2026
+
+O Worker agora opera **somente** com `users/{uid}/recordsV5/{recordId}`, `appState/v5`, `v5InventoryGuard` e `v5Pulse`. A consulta e a escrita usam o identificador codificado exatamente como `recordId()` do frontend V5. Não há qualquer rota de fallback para o V2.
+
+**F05 — registro de perdas:** `POST /v1/inventory/adjust` aceita `{universe,group,itemId,delta,reason:"loss",lossReason,note,operationId}`. Os únicos grupos aceitos são `ingredients` e `beverages`; embalagens cadastradas como ingredientes preservam a unidade física do cadastro. Bebidas são sempre unidades inteiras. O servidor calcula custos apenas de dados cadastrados, grava a perda e o movimento de estoque, muda o estoque e incrementa a guarda com um único commit de Firestore. A repetição com o mesmo UUID não duplica o débito e UUID reaproveitado com dados diferentes recebe HTTP 409.
+
+**Segurança:** a licença Google PRO/franquia é verificada no backend, o UID nunca vem do navegador, as origens são limitadas, o endpoint não aceita preço enviado pelo cliente, e `ENABLE_WRITES=false` permanece em ambos os arquivos Wrangler. A ponte do navegador continua com `CLOUD_WORKER_ACTIVE=false` e `F05_INVENTORY_WORKER_ACTIVE=false`; o site permanece na operação V5 existente, sem habilitar chamadas para o Worker.
+
+**Limite de ativação:** para tornar o Worker uma barreira antifraude de fato é necessário que os navegadores deixem de poder atualizar diretamente as operações críticas no Firestore. Essa mudança de regras **não** foi feita porque interromperia o PDV atual. É proibido passar `ENABLE_WRITES=true` antes de autenticação em ambiente isolado, secrets de servidor, canário autorizado, migração de todas as chamadas relevantes e corte coordenado de regras.
+
+Testes: `npm ci --ignore-scripts`, `npm run check`, `npm test`, `node ../../test_f05_worker_staging_contract.cjs` executados a partir desta pasta (último teste executado na raiz). A pipeline de CI testa também concorrência V5 e regras principais/endurecidas do Firestore Emulator.
