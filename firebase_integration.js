@@ -1,9 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {createV2Store} from "./v2_storage.mjs?v=order-sequence-v10-20261119";
+import {createV2Store} from "./v2_storage.mjs?v=f20-late-atomic-20261118";
 import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs?v=f10-closed-shifts-20261118";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
+import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState} from "./sync_guard.mjs?v=v4-backup-20261117";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 import {createWorkerBridge} from "./worker_bridge.mjs?v=cf-bridge-staging-20261118";
 
@@ -48,7 +48,6 @@ let rawUserFranchise = null;
 let rawUserAccessPolicy = null;
 let cloudFingerprint=stableJson(null);
 let syncBlocked=false;
-let lastSyncCause=null;
 let pendingThisSession=false;
 let v2Store=null;
 // A versão V2 inicia contas de teste limpas em coleções por registro, sem migrar appState/main.
@@ -56,16 +55,24 @@ const useV2=window.POTE_USE_V2!==false;
 // Staging-only: enabling the Worker also requires Firebase Rules cutover and
 // server credentials. Never toggle via localStorage, query strings or devtools.
 const CLOUD_WORKER_ACTIVE=false;
+// F05 may be enabled independently: it must never route legacy order cancellation.
+const F05_INVENTORY_WORKER_ACTIVE=true;
 window.POTE_WORKER=createWorkerBridge({
  enabled:CLOUD_WORKER_ACTIVE,
+ inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
+ inventoryCanaryEmail:"pixmcp@gmail.com",
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
+ inventoryEndpoint:"https://pote-batata-f05-live.pixmcp.workers.dev",
  getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
   proActive:Boolean(window.POTE_AUTH?.proActive),
   syncBlocked:syncBlocked||saving}),
  flush:async()=>!syncBlocked&&!saving&&ready&&useV2&&await syncV2(),
  refresh:async()=>{
   if(!v2Store||!ready||syncBlocked)throw Error("Sincronização indisponível");
-  await v2Store.load();
+  // A second firstLoad() bypasses V2 conflict checks and can overwrite local edits.
+  // Only refresh() checks baseline, guard revision and pending state before apply().
+  const reloaded=await v2Store.refresh();
+  if(!reloaded?.ok)throw Error(reloaded?.error||"Recarregamento V2 indisponível");
   lastJson=JSON.stringify(safeState());
   setStatus("Operação confirmada no servidor; estoque sincronizado.");
  }
@@ -82,47 +89,7 @@ function withDeadline(promise, ms, label) {
 }
 if (embeddedBrowser) showBrowserHint();
 
-function setStatus(v) { if (syncEl) syncEl.textContent = v; if(syncBlocked)refreshSyncExplanation(); }
-function syncExplanation(){
- const pending=active?.uid?existingPending(active.uid):null;
- const originalReason=String(lastSyncCause?.detail||pending?.reason||"Nenhum erro detalhado foi registrado anteriormente").slice(0,180);
- const code=String(lastSyncCause?.code||pending?.reason||"pending-local");
- const comparison=pending&&active?.uid?
-  inspectPendingAgainstCloud(pending,active.uid,safeState(),{v2:useV2}):null;
- const differences=comparison?.details||[];
- let title="Alteracoes locais anteriores nao confirmadas";
- if(comparison?.kind==="notification-read-only")title="Somente notificacoes lidas aguardam conciliacao";
- else if(comparison?.kind==="business-different")title="O backup local difere dos dados da nuvem";
- else if(comparison?.kind==="invalid")title="Backup local invalido ou incompleto";
- else if(/sync\/conflict|conflito|concorrente|alterado em outro/i.test(code+" "+originalReason))
-  title="Outra aba ou dispositivo alterou os dados";
- else if(/sync\/invalid-state|schema/i.test(code))title="Inconsistencia nos dados enviados";
- else if(/network|unavailable|offline|deadline/i.test(code))title="Conexao temporariamente indisponivel";
- const cause=(comparison?.kind==="notification-read-only"?
-  "Nao existe divergencia de pedidos, estoque ou caixa. Diferenca: marcas de notificacoes lidas. ":"")+
-  (comparison?.kind==="business-different"?
-  "Diferencas identificadas: "+differences.join("; ")+". ":"")+
-  "Motivo registrado: "+originalReason;
- const action=comparison?.kind==="notification-read-only"?
-  "Verifique a internet. O aplicativo so libera depois de salvar as marcacoes sem sobrescrever outros dados.":
-  comparison?.kind==="business-different"?
-  "Os registros locais nao coincidem com os dados da nuvem. Baixe e confira o backup antes de liberar o salvamento de pedidos.":
-  "Feche as outras abas do aplicativo, confira o backup e recupere a sincronizacao com seguranca.";
- return {title,cause,code,action,comparison:comparison?.kind||"none"};
-}
-function refreshSyncExplanation(){
- const box=document.getElementById("poteOrderSyncWarning");
- if(!box)return;
- box.hidden=!syncBlocked;
- if(!syncBlocked)return;
- const d=syncExplanation();
- const title=box.querySelector("[data-sync-title]")||box.querySelector("strong");
- const cause=box.querySelector("[data-sync-cause]")||box.querySelector("p");
- const action=box.querySelector("[data-sync-action]");
- if(title)title.textContent=d.title;
- if(cause)cause.textContent=d.cause;
- if(action)action.textContent=d.action;
-}
+function setStatus(v) { if (syncEl) syncEl.textContent = v; }
 function setMessage(v) { message.textContent = v; }
 function setGate(show) {
   gate.hidden = !show;
@@ -173,30 +140,12 @@ function showBackupButton(){
  }
  if(recovery)recovery.hidden=!active||!syncBlocked;
 }
-async function resolvePendingConflict(){
+function resolvePendingConflict(){
  if(!active||!syncBlocked)return false;
- const uid=active.uid;
- const backup=existingPending(uid);
- const expected=backup?.state||safeState();
- // Never discard a pending order on the strength of the download click alone.
- try{downloadPending()}catch(error){
-  setStatus("Falha ao exportar backup. Conflito preservado.");return false;
- }
- setStatus("Confirme seu backup: selecione o arquivo JSON que acabou de baixar.");
- const checked=await verifyBackupFile(uid,expected);
- if(!checked?.ok){
-  setStatus("Conflito preservado: "+String(checked?.error||"backup não verificado"));
-  return false;
- }
- if(active?.uid!==uid||auth.currentUser?.uid!==uid||!syncBlocked||
-  stableJson(existingPending(uid)?.state||safeState())!==stableJson(expected)){
-  setStatus("A conta ou o backup mudou. Conflito preservado.");
-  return false;
- }
- if(!window.confirm("Backup verificado ("+checked.fileName+"). Recarregar os dados da nuvem? As alterações locais pendentes ficarão somente no arquivo JSON. Confirme que encerrou as outras abas do Potê Batata."))return false;
- try{localStorage.removeItem(pendingKey(uid))}catch(error){
-  setStatus("Não foi possível liberar o backup pendente.");return false;
- }
+ // Exportação é explícita; não é possível verificar se o navegador salvou o arquivo.
+ try{downloadPending()}catch(error){setStatus("Falha ao exportar backup. Conflito preservado.");return false}
+ if(!window.confirm("Foi solicitado o download do backup pendente. Confira se o arquivo foi salvo. Recarregar a versão da nuvem descarta estas alterações locais, que só poderão ser recuperadas pelo JSON exportado. Continuar?"))return false;
+ try{localStorage.removeItem(pendingKey(active.uid))}catch(error){setStatus("Não foi possível liberar o backup pendente.");return false}
  ready=false;
  syncBlocked=false;
  pendingThisSession=false;
@@ -267,14 +216,11 @@ function verifyBackupFile(expectedUid,expectedState){
 }
 function showRecovery(){
  if(!syncBlocked)return;
- showBackupButton();refreshSyncExplanation();
- const orderNotice=document.getElementById("poteOrderSyncWarning");
- if(orderNotice){orderNotice.hidden=false;}
- const target=orderNotice||document.getElementById("poteSyncResolve")||
-  document.getElementById("potePendingSyncBackup")||syncEl;
+ showBackupButton();
+ const target=document.getElementById("poteSyncResolve")||document.getElementById("potePendingSyncBackup")||syncEl;
  if(target){target.scrollIntoView?.({behavior:"smooth",block:"center"});target.focus?.({preventScroll:true})}
 }
-window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,diagnosis:syncExplanation,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
+window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
 async function offerLegacyMigration(user){
  if(!user?.uid||auth.currentUser?.uid!==user.uid)return;
  let container=document.getElementById("poteLegacyMigration");
@@ -404,12 +350,11 @@ async function syncV2(){
     const result=await v2Store.save();
     if(epoch!==currentEpoch||auth.currentUser?.uid!==currentUid)return false;
     if(!result.ok){
-      if(result.code==="sync/conflict"||result.code==="sync/invalid-state"||result.partial)syncBlocked=true;
-      lastSyncCause={code:result.code,detail:result.error};
+      if(result.code==="sync/conflict"||result.code==="sync/invalid-state")syncBlocked=true;
       setStatus(result.partial?"Importação parcialmente salva ("+result.savedChanges+" cadastros). Backup preservado; retome a sincronização.":
        result.code==="sync/conflict"?"CONFLITO DE ESTOQUE/PEDIDOS — exporte backup.":
        "Alterações ainda não sincronizadas: "+String(result.error||"sem conexão").slice(0,90));
-      savePending(serialized,result.error||result.code||"erro V2");
+      savePending(serialized,result.code||result.error||"erro V2");
       return false;
     }
     lastJson=serialized;
@@ -500,15 +445,7 @@ async function sync() {
 function queueSave(){
   if(!ready||!active)return;
   // Renderização e navegação não precisam gerar gravações se o estado não mudou.
-  const serialized=JSON.stringify(safeState());
-  if(!syncBlocked&&serialized===lastJson)return;
-  if(useV2&&!syncBlocked&&lastJson){
-   try{
-    const comparison=inspectPendingAgainstCloud({version:1,uid:active.uid,state:safeState()},
-     active.uid,JSON.parse(lastJson),{v2:true});
-    if(comparison.safeToRelease){lastJson=serialized;return}
-   }catch(error){}
-  }
+  if(!syncBlocked&&JSON.stringify(safeState())===lastJson)return;
   clearTimeout(timer);
   if(syncBlocked){
     // Nunca tentar sobrescrever a nuvem após descobrir conflito.
@@ -522,13 +459,6 @@ window.addEventListener("beforeunload",event=>{
   if(!ready||!active)return;
   const serialized=JSON.stringify(safeState());
   if(serialized===lastJson&&!syncBlocked)return;
-  if(useV2&&!syncBlocked&&lastJson){
-   try{
-    const comparison=inspectPendingAgainstCloud({version:1,uid:active.uid,state:safeState()},
-     active.uid,JSON.parse(lastJson),{v2:true});
-    if(comparison.safeToRelease)return;
-   }catch(error){}
-  }
   savePending(serialized,"navegador fechado com alterações pendentes");
   event.preventDefault();
   event.returnValue="";
@@ -639,69 +569,27 @@ async function loadUser(user, index) {
   refreshEntitlements();
   loginBtn.disabled = false;
   setMessage("");
-   const pendingOnLoad=existingPending(user.uid);
-   const backupCheck=pendingOnLoad?
-     inspectPendingAgainstCloud(pendingOnLoad,user.uid,safeState(),{v2:useV2}):null;
-   let notificationReadMerged=false;
-   if(useV2&&backupCheck?.kind==="notification-read-only"&&backupCheck.needsNotificationMerge){
-     // Non-commercial monotonic receipts only. The comparison has already
-     // verified that orders, stock, cash, settings and all other fields match.
-     const before=safeState();
-     const combined={...before,data:{...before.data,
-       notificationCenter:backupCheck.mergedNotificationCenter}};
-     window.POTE_APP.applyState(combined,{preserveNavigation:true});
-     try{
-       const ok=await withDeadline(syncV2(),22000,"reconciliacao das notificacoes");
-       notificationReadMerged=Boolean(ok&&index===epoch&&auth.currentUser?.uid===user.uid);
-     }catch(error){
-       console.warn("Recibos de notificacoes nao sincronizados:",error.code||error.message||error);
-     }
-   }
-   if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
-   if(pendingMatchesLoadedState(pendingOnLoad,user.uid,safeState())||
-      backupCheck?.safeToRelease||notificationReadMerged){
-     // The original backup is cleared only after verifying the exact user,
-     // complete business-state comparison, and successful receipt persistence.
-     try{
-       const current=existingPending(user.uid);
-       if(current&&stableJson(current)===stableJson(pendingOnLoad))
-         localStorage.removeItem(pendingKey(user.uid));
-     }catch(error){
-       console.warn("Backup local nao pôde ser liberado:",error.message||error);
-     }
-   }
-   if(existingPending(user.uid)){
-     syncBlocked=true;
-     setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
-   }else{
-     syncBlocked=false;lastSyncCause=null;
-     setStatus(pendingOnLoad?
-       "Backup conciliado com a nuvem; vendas liberadas.":
-       "Dados salvos na nuvem");
-   }
+  const pendingOnLoad=existingPending(user.uid);
+  if(pendingMatchesLoadedState(pendingOnLoad,user.uid,safeState())){
+    // A local pending record may survive a successful previous sync.
+    // Remove it only if every field matches the now-loaded cloud state.
+    try{localStorage.removeItem(pendingKey(user.uid))}catch(error){
+      console.warn("Backup local idêntico não pôde ser liberado:",error.message||error);
+    }
+  }
+  if(existingPending(user.uid)){
+    syncBlocked=true;
+    setStatus("Conflito de sincronização: faça backup das alterações locais antes de resolver.");
+  }else setStatus(pendingOnLoad?"Backup antigo conferido com a nuvem; vendas liberadas.":"Dados salvos na nuvem");
   setGate(false);
   showBackupButton();
   if(useV2){
     v2Store?.subscribe(result=>{
       if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
-      if(result.ok){lastJson=JSON.stringify(safeState());lastSyncCause=null;return}
-      if(result.queued)return;
-      const code=String(result.code||"sync/error");
-      lastSyncCause={code,detail:String(result.error||"")};
-      if(["sync/error","unavailable","deadline-exceeded","network-request-failed"].includes(code)){
-       setStatus("Falha temporaria de conexao: "+String(result.error||code).slice(0,90)+". Tentando novamente.");
-       setTimeout(async()=>{
-        if(!ready||syncBlocked||!v2Store||auth.currentUser?.uid!==user.uid)return;
-        if(JSON.stringify(safeState())!==lastJson){queueSave();return;}
-        const res=await v2Store.refresh();
-        if(res.ok){lastJson=JSON.stringify(safeState());lastSyncCause=null;setStatus("Conexao restabelecida.");}
-        else if(res.code==="sync/conflict"){syncBlocked=true;lastSyncCause={code:res.code,detail:res.error};savePending(JSON.stringify(safeState()),res.error||res.code);}
-       },3500);
-       return;
-      }
+      if(result.ok){lastJson=JSON.stringify(safeState());return}
       syncBlocked=true;
-      savePending(JSON.stringify(safeState()),result.error||code);
-      setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
+      savePending(JSON.stringify(safeState()),result.code||result.error||"atualização V2");
+      setStatus("DIVERGÊNCIA ENTRE DISPOSITIVOS. Exporte backup e entre novamente.");
     });
   }else observeRemote(user, index);
   observeProfile(user, index);
