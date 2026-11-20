@@ -21,12 +21,19 @@ export function createWorkerBridge({
    /^https:\/\//.test(inventoryEndpoint)?inventoryEndpoint.replace(/\/+$/,""):
    (()=>{throw error("Endereço de estoque HTTPS inválido","worker/config")})();
  const busy=new Set();
- const stockGate=()=> (enabled===true||inventoryEnabled===true)&&
+ // Os flags podem ser callbacks de uma autorização remota de perfil.
+ // Falhas ou exceções sempre produzem DESATIVADO, nunca permissão implícita.
+ const flagOn=flag=>{
+  try{return (typeof flag==="function"?flag():flag)===true}
+  catch{return false}
+ };
+ const orderGate=()=>flagOn(enabled);
+ const stockGate=()=> (orderGate()||flagOn(inventoryEnabled))&&
    (!inventoryCanaryEmail||getSession?.()?.user?.email===inventoryCanaryEmail);
  const readKey=(uid,universe,action,orderId)=>"pote:worker:v1:"+
   encodeURIComponent(uid)+":"+encodeURIComponent(universe)+":"+action+":"+encodeURIComponent(orderId);
  async function transition(action,{orderId,universe,decision}={}){
-  if(!enabled)throw error("Worker desativado. Nenhum dado foi alterado.","worker/disabled");
+  if(!orderGate())throw error("Worker desativado. Nenhum dado foi alterado.","worker/disabled");
   if(!allowedAction.has(action)||!idPattern.test(orderId)||!universePattern.test(universe)||
     (action==="cancel"&&!["return","loss"].includes(decision))||
     (action==="produce"&&decision!==undefined))
@@ -42,6 +49,7 @@ export function createWorkerBridge({
    if(typeof flush!=="function"||await flush()!==true)
     throw error("Alterações pendentes não foram salvas. Nenhuma baixa foi enviada.","worker/not-synced");
    const current=getSession?.();
+   if(!orderGate())throw error("Permissão do Worker revogada antes do envio","worker/disabled");
    if(current?.uid!==before.uid||current?.user!==before.user||
       current?.ready!==true||current?.syncBlocked===true)
     throw error("A conta mudou durante a sincronização","worker/session");
@@ -115,6 +123,7 @@ export function createWorkerBridge({
    if(typeof flush!=="function"||await flush()!==true)
     throw error("Sincronização pendente. Perda não enviada.","worker/not-synced");
    const current=getSession?.();
+   if(!stockGate())throw error("Permissão de perdas revogada antes do envio","worker/disabled");
    if(current?.uid!==before.uid||current.user!==before.user||
       current.ready!==true||current.syncBlocked===true)
     throw error("Conta alterada durante a operação","worker/session");
@@ -165,7 +174,7 @@ export function createWorkerBridge({
   }finally{busy.delete(lock)}
  }
  return Object.freeze({
-  get enabled(){return enabled===true},
+  get enabled(){return orderGate()},
   get inventoryEnabled(){return stockGate()},
   adjustStock,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
