@@ -331,6 +331,8 @@ for(const [id,val] of Object.entries({vitrineName:"Cliente vitrine",vitrinePhone
 vm.runInContext("checkoutVitrine(false);",sandbox);
 const fromCart=window.POTE_APP.snapshot().data.orders.find(o=>o.clientName==="Cliente vitrine");
 assert(fromCart,"Combo com variações precisa registrar pela vitrine");
+assert(Number.isSafeInteger(fromCart.orderNumber)&&fromCart.orderNumber>=1,
+ "Digital Menu orders must share the lifetime public order sequence");
 assert.equal(fromCart.recipeId,"r21");
 assert.equal(fromCart.beverageItems[0].id,"preset-cola-600");
 assert.equal(fromCart.deliveryType,"Tele-entrega");
@@ -386,6 +388,19 @@ assert.match(fallbackReceipt,/Pedido: #P0000007/,
  "Fallback receipt must show canonical public sequence instead of internal ID");
 window.POTE_RECEIPTS=priorReceiptRenderer;
 console.log("PASS F02 fallback receipt: public #P0000007 is displayed.");
+
+// F02 staging: the Digital Menu must not bypass the Worker with local cart writes.
+const countBeforeWorkerCart=window.POTE_APP.snapshot().data.orders.length;
+window.POTE_WORKER={enabled:true};
+vm.runInContext("cart=[{kind:\'recipe\',id:\'route-r1\',qty:1,price:50}];",sandbox);
+vm.runInContext("checkoutVitrine(false);",sandbox);
+assert.equal(window.POTE_APP.snapshot().data.orders.length,countBeforeWorkerCart,
+ "Worker cutover must never silently use local Digital Menu order writes");
+assert.equal(vm.runInContext("cart.length",sandbox),1,"Blocked cart remains intact");
+assert.match(el("toast").textContent,/aguardando integração do carrinho/i);
+window.POTE_WORKER={enabled:false};
+vm.runInContext("cart=[];",sandbox);
+console.log("PASS F02 Digital Menu: #P lifetime sequence; Worker cutover prevents browser cart bypass.");
 
 // F02 staged rollout: the checkout UI must never create a browser-side order
 // when the authoritative Worker is enabled, including unsupported additions.
