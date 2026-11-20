@@ -295,7 +295,7 @@ const {createEmulatorRepository}=require("./qa/workers/emulator_repository.cjs")
    assert.equal(rejectedApproval.status,409,
     field+" must also reject re-approval");
    const approvalResult=await rejectedApproval.json();
-   assert.equal(approvalResult.error,"recipe_review_required",field);
+   assert.equal(approvalResult.error,field==="comboItems"?"cost_review_required":"recipe_review_required",field);
    await env.withSecurityRulesDisabled(async ctx=>{
     await sdk.updateDoc(sdk.doc(ctx.firestore(),"users",uid,"records",
      recordPath(uid,universe,"recipes","r-f02").split("/").at(-1)),
