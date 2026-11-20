@@ -34,7 +34,38 @@ try{
  const conflict=await call(op,-8);assert.equal(conflict.status,409,await conflict.clone().text());
  const insufficient=await call("f05-qa-stock-adjust-000000002",-1000);assert.equal(insufficient.status,409,await insufficient.clone().text());
  assert.equal((await read(stock)).record.item.stock,93);
- console.log("PASS F05 REAL FIRESTORE EMULATOR: loss 100->93, journal, idempotency, conflict, insufficient stock");
+ // Each physical stock group must independently persist its own journal and audit trail.
+ for(const [group,itemId,unit,initial,quantity] of [
+  ["packaging","pote-500","un",20,2],
+  ["addons","bacon-extra","g",300,50],
+  ["beverages","refrigerante-lata","un",12,1]
+ ]){
+  const key="f05-qa-"+group+"-loss-00001";
+  const stockPath=recordPath(uid,universe,group,itemId);
+  const lossPath=recordPath(uid,universe,"losses","cf-loss-"+key);
+  const movementPath=recordPath(uid,universe,"stockMovements","cf-adjust-"+key);
+  const journalPath=root+"/workerEvents/"+key;
+  paths.push(stockPath,lossPath,movementPath,journalPath);
+  await write(stockPath,{record:{id:itemId,group,universe,item:{name:"Synthetic "+group,stock:initial,measureUnit:unit,averageUnitCost:0.02,averageCostKnown:true}}});
+  const invoke=async(delta,operationId=key)=>app.fetch(new Request("https://qa.example/v1/inventory/adjust",{method:"POST",headers:{Origin:"https://qa.example",Authorization:"Bearer synthetic","Content-Type":"application/json"},body:JSON.stringify({universe,operationId,group,itemId,delta,reason:"loss",lossReason:"avaria",note:"Emulator fixture"})}),env);
+  const firstResponse=await invoke(-quantity);
+  assert.equal(firstResponse.status,200,group+": "+await firstResponse.clone().text());
+  assert.equal((await read(stockPath)).record.item.stock,initial-quantity,group+" balance");
+  assert.equal((await read(lossPath)).record.item.stockGroup,group,group+" loss group");
+  assert.equal((await read(lossPath)).record.item.reason,"avaria",group+" reason");
+  assert.equal((await read(movementPath)).record.item.stockGroup,group,group+" movement group");
+  assert.equal((await read(movementPath)).record.item.quantity,-quantity,group+" movement quantity");
+  assert(await read(journalPath),group+" idempotency journal");
+  const replay=await invoke(-quantity);
+  assert.equal(replay.status,200,group+" retry");
+  assert.equal((await replay.json()).alreadyApplied,true,group+" retry idempotent");
+  assert.equal((await read(stockPath)).record.item.stock,initial-quantity,group+" no double loss");
+  const excessive=await invoke(-initial,key+"-excess");
+  assert.equal(excessive.status,409,group+" oversell denied");
+  paths.push(root+"/workerEvents/"+key+"-excess");
+  assert.equal((await read(stockPath)).record.item.stock,initial-quantity,group+" no negative stock");
+ }
+ console.log("PASS F05 FOUR GROUPS FIRESTORE EMULATOR: losses, audit, replay, insufficient stock");
 }finally{
  paths.push(root+"/workerEvents/f05-qa-stock-adjust-000000002");
  for(const path of paths.reverse())await fetch(base+"/documents/"+path,{method:"DELETE",headers}).catch(()=>{});
