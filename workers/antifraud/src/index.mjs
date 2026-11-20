@@ -5,6 +5,7 @@
 import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
 import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
+import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -39,8 +40,103 @@ export function createWorkerApp({
  verify=verifyFirebaseToken,repository=createFirestoreRepository,
  clock=()=>new Date()
 }={}){
+ async function performStockAdjust(req,env,headers){
+  if(env.ENABLE_WRITES!=="true")
+   return json({error:"not_activated",message:"Cloudflare Worker em homologação"},423,headers);
+  const authorization=req.headers.get("Authorization")||"";
+  if(!/^Bearer [^\\s]+$/.test(authorization))
+   return json({error:"authentication_required"},401,headers);
+  let user;
+  try{user=await verify(authorization.slice(7),env.FIREBASE_PROJECT_ID)}
+  catch{return json({error:"invalid_firebase_token"},401,headers)}
+  if(!user?.uid||!valueOk(user.uid,/^[a-zA-Z0-9:_-]{1,128}$/))
+   return json({error:"invalid_identity"},401,headers);
+  let body;
+  try{
+   const text=await req.text();
+   if(text.length>4096)throw Error("oversize");
+   body=JSON.parse(text);
+  }catch{return json({error:"invalid_json"},400,headers)}
+  if(!body||typeof body!=="object"||Array.isArray(body)||
+   !valueOk(body.universe,/^[a-z0-9_-]{1,64}$/)||
+   !valueOk(body.group,/^(ingredients|beverages)$/)||
+   !valueOk(body.itemId,/^[a-zA-Z0-9_.:-]{1,180}$/)||
+   !valueOk(body.operationId,/^[a-zA-Z0-9_-]{20,80}$/)||
+   body.reason!=="loss"||
+   !Object.hasOwn(LOSS_REASONS,String(body.lossReason))||
+   typeof body.note!=="string"||body.note.length>350||
+   (body.lossReason==="outro"&&!body.note.trim())||
+   typeof body.delta!=="number"||!Number.isFinite(body.delta)||
+   body.delta>=0||body.delta< -1000000||
+   Math.abs(Math.round(body.delta*1e5)/1e5-body.delta)>1e-8||
+   Object.keys(body).some(k=>!["universe","group","itemId","operationId",
+     "reason","lossReason","note","delta"].includes(k)))
+   return json({error:"invalid_stock_adjustment"},400,headers);
+  const {uid}=user;
+  const {universe,group,itemId,operationId,delta,lossReason,note}=body;
+  const root="users/"+uid;
+  const eventPath=root+"/workerEvents/"+operationId;
+  const stockPath=recordPath(uid,universe,group,itemId);
+  const metaPath=root+"/appState/v5",guardPath=root+"/appState/v5InventoryGuard";
+  const pulsePath=root+"/appState/v5Pulse";
+  const store=repository(env),tx=await store.transaction();
+  try{
+   const profile=await tx.get(root);
+   if(!profile||!hasAccess(profile.data,user,universe))
+    throw new OperationalError("Operação não autorizada para esta unidade",403,"not_allowed");
+   const event=await tx.get(eventPath);
+   if(event){
+    const prior=event.data;
+    if(prior?.action!=="adjust"||prior?.universe!==universe||
+      prior?.group!==group||prior?.itemId!==itemId||
+      prior?.delta!==delta||prior?.lossReason!==lossReason||
+      prior?.note!==note)
+     throw new OperationalError("Identificador usado por outra operação",409,"idempotency_conflict");
+    return json({ok:true,alreadyApplied:true,operationId,group,itemId,
+     afterStock:prior.afterStock},200,headers);
+   }
+   const [meta,guard,pulse,existing]=await Promise.all([
+    tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),tx.get(stockPath)
+   ]);
+   const state=meta?.data?.state?.data;
+   const active=state?.businessType===universe;
+   const archived=state?.businessUniverses?.[universe];
+   if(!meta||meta.data.schemaVersion!==5||!guard||!pulse||
+    !Number.isSafeInteger(guard.data.revision)||guard.data.revision<0||
+    !pulse.data?.eventId||(!active&&!archived))
+    throw new OperationalError("Base V5 não está pronta",409,"not_ready");
+   if(!existing||existing.data?.record?.group!==group||
+     existing.data?.record?.id!==itemId||
+     existing.data?.record?.universe!==universe)
+    throw new OperationalError("Cadastro de estoque inexistente",404,"stock_item_missing");
+   const at=clock().toISOString();
+   const settings=(active?state:archived)?.settings||{};
+   const plan=planStockLoss({group,itemId,delta,lossReason,note,
+    operationId,universe,stock:existing.data.record.item,at,settings});
+   const lossPath=recordPath(uid,universe,"losses",plan.loss.id);
+   const movePath=recordPath(uid,universe,"stockMovements",plan.movement.id);
+   const keys=[stockPath,lossPath,movePath].map(p=>p.split("/").at(-1));
+   const writes=[
+    put(stockPath,{record:persisted(group,itemId,plan.item,universe,existing)},existing),
+    put(lossPath,{record:persisted("losses",plan.loss.id,plan.loss,
+      universe,null,-Date.now())},null),
+    put(movePath,{record:persisted("stockMovements",plan.movement.id,plan.movement,
+      universe,null,-Date.now()-1)},null),
+    put(guardPath,{revision:guard.data.revision+1},guard),
+    put(pulsePath,{eventId:"cf-"+operationId,
+      previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
+      affected:keys.length,changedKeys:keys,metaChanged:false,sensitive:true},pulse),
+    put(eventPath,{action:"adjust",universe,group,itemId,delta,lossReason,note,
+      operationId,actorUid:uid,afterStock:plan.item.stock,lossId:plan.loss.id},null)
+   ];
+   await tx.commit(writes);
+   return json({ok:true,alreadyApplied:false,operationId,group,itemId,
+    afterStock:plan.item.stock,lossId:plan.loss.id},200,headers);
+  }finally{await tx.rollback()}
+ }
  async function perform(req,env,headers){
   const route=new URL(req.url).pathname;
+  if(route==="/v1/inventory/adjust")return performStockAdjust(req,env,headers);
   const action=route==="/v1/orders/produce"?"produce":
    route==="/v1/orders/cancel"?"cancel":null;
   if(!action)return json({error:"not_found"},404,headers);
@@ -73,9 +169,9 @@ export function createWorkerApp({
   const {uid}=user,{universe,orderId,operationId,decision}=body;
   const orderPath=recordPath(uid,universe,"orders",orderId);
   const eventPath="users/"+uid+"/workerEvents/"+operationId;
-  const profilePath="users/"+uid,metaPath="users/"+uid+"/appState/v2";
-  const guardPath="users/"+uid+"/appState/v2InventoryGuard";
-  const pulsePath="users/"+uid+"/appState/v2Pulse";
+  const profilePath="users/"+uid,metaPath="users/"+uid+"/appState/v5";
+  const guardPath="users/"+uid+"/appState/v5InventoryGuard";
+  const pulsePath="users/"+uid+"/appState/v5Pulse";
   const store=repository(env);
   const tx=await store.transaction();
   try{
@@ -94,10 +190,10 @@ export function createWorkerApp({
    const [meta,guard,pulse,ordered]=await Promise.all([
     tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),tx.get(orderPath)
    ]);
-   if(!meta||meta.data?.schemaVersion!==2||
+   if(!meta||meta.data?.schemaVersion!==5||
       meta.data?.migration?.status==="copying"||!guard||!pulse||
       !Number.isInteger(guard.data?.revision)||!pulse.data?.eventId)
-    throw new OperationalError("Sincronização V2 não está pronta",409,"not_ready");
+    throw new OperationalError("Sincronização V5 não está pronta",409,"not_ready");
    if(!ordered||ordered.data?.record?.group!=="orders"||
       ordered.data.record.id!==orderId||ordered.data.record.universe!==universe)
     throw new OperationalError("Pedido não encontrado nesta unidade",404,"order_missing");
@@ -151,7 +247,7 @@ export function createWorkerApp({
      changed.push(path.split("/").at(-1));
     }
    }
-   // The Firestore V2 listeners depend on guard revision and pulse changes.
+   // Firestore V5 listeners depend on guard revision and pulse changes.
    // These must be committed with the operational documents, never later.
    const oldGuard=guard.data.revision,previousPulse=pulse.data.eventId;
    writes.push(put(guardPath,{revision:oldGuard+1},guard));
