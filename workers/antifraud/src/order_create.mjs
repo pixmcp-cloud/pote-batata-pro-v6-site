@@ -49,12 +49,13 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
  const cashPath=recordPath(uid,universe,"cashSessions",cashSessionId);
  const guardPath=root+"/appState/v2InventoryGuard",pulsePath=root+"/appState/v2Pulse";
  const eventPath=root+"/workerEvents/"+operationId;
+ const sequencePath=root+"/appState/v2OrderSequence__"+universe;
  const tx=await repository(env).transaction();
  try{
-  const [profile,meta,guard,pulse,recipe,approval,session,existing,event]=await Promise.all([
+  const [profile,meta,guard,pulse,recipe,approval,session,existing,event,sequenceControl]=await Promise.all([
    tx.get(root),tx.get(root+"/appState/v2"),tx.get(guardPath),
    tx.get(pulsePath),tx.get(recipePath),tx.get(approvalPath),tx.get(cashPath),
-   tx.get(orderPath),tx.get(eventPath)
+   tx.get(orderPath),tx.get(eventPath),tx.get(sequencePath)
   ]);
   if(!profile||!hasAccess(profile.data,user,universe))
    bad("not_allowed","Conta sem permissão",403);
@@ -65,12 +66,28 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
       v.cashSessionId!==cashSessionId||v.paymentMethod!==paymentMethod)
     bad("idempotency_conflict","Identificador de operação reutilizado");
    return {ok:true,alreadyApplied:true,orderId,operationId,
-    priceCents:v.priceCents};
+    orderNumber:v.orderNumber,priceCents:v.priceCents};
   }
   if(!meta||meta.data?.schemaVersion!==2||meta.data?.migration?.status==="copying"||
     !guard||!Number.isInteger(guard.data?.revision)||!pulse?.data?.eventId)
    bad("not_ready","Sincronização V2 não está pronta");
   if(existing)bad("order_exists","Pedido já cadastrado");
+  // The sequence control is created by a verified migration for real tenants.
+  // Demo-only tests can bootstrap from the V2 metadata, never from client input.
+  const state=meta.data?.state?.data;
+  const legacyBranch=state?.businessType===universe?state:state?.businessUniverses?.[universe];
+  const oldNumber=legacyBranch?.orderSequenceLast??0;
+  if(!Number.isSafeInteger(oldNumber)||oldNumber<0)
+   bad("order_sequence_invalid","Contador antigo de pedidos inválido");
+  if(!sequenceControl&&!/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||"")))
+   bad("order_sequence_migration_required","Contador precisa de conferência antes de migrar para pedidos autoritativos");
+  if(sequenceControl&&(sequenceControl.data?.version!==1||sequenceControl.data?.universe!==universe||
+      !Number.isSafeInteger(sequenceControl.data?.last)||sequenceControl.data.last<oldNumber))
+   bad("order_sequence_invalid","Sequência do servidor não corresponde ao histórico V2");
+  const lastNumber=sequenceControl?.data?.last??oldNumber;
+  if(lastNumber>=Number.MAX_SAFE_INTEGER)
+   bad("order_sequence_exhausted","Sequência de pedidos excedeu limite seguro");
+  const orderNumber=lastNumber+1;
   if(session?.data?.record?.group!=="cashSessions"||
      session.data.record.id!==cashSessionId||
      session.data.record.universe!==universe||
@@ -194,7 +211,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   const at=clock().toISOString(),price=priceApproval.salePriceCents/100;
   const method={pix:"Pix",cash:"Dinheiro",card:"Cartão",
    delivery:"Na entrega"}[paymentMethod];
-  const order={id:orderId,recipeId,name:String(r.name||recipeId).slice(0,180),
+  const order={id:orderId,orderNumber,recipeId,name:String(r.name||recipeId).slice(0,180),
    qty,price,deliveryFee:0,cashSessionId,paymentMethod:method,
    paymentStatus:"pendente",status:"recebido",stockDeducted:true,
    createdAt:at,date:at.slice(0,10),channel:"direto",
@@ -222,12 +239,13 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   const writes=[
    put(orderPath,{record:{universe,group:"orders",id:orderId,
     rank:-clock().getTime(),item:order}},null),
+   put(sequencePath,{version:1,universe,last:orderNumber},sequenceControl),
    put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"cf-"+operationId,
     previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
     affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
    put(eventPath,{action:"order_create",universe,orderId,recipeId,
-    qty,cashSessionId,paymentMethod,operationId,
+    qty,cashSessionId,paymentMethod,operationId,orderNumber,
     priceCents:priceApproval.salePriceCents,actorUid:uid,
     stockReservationStatus:"reserved"},null)
   ];
@@ -242,7 +260,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   }
   if(writes.length>100)bad("too_many_items","Pedido excede limite da transação");
   await tx.commit(writes);
-  return {ok:true,alreadyApplied:false,orderId,operationId,
+  return {ok:true,alreadyApplied:false,orderId,operationId,orderNumber,
    priceCents:priceApproval.salePriceCents,status:"recebido",
    reservationStatus:"reserved"};
  }finally{await tx.rollback()}
