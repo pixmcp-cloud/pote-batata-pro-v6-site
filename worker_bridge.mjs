@@ -247,7 +247,8 @@ export function createWorkerBridge({
      result.error||"worker/http-"+response.status);
    }
    if(result.ok!==true||result.operationId!==pending.operationId||
-      result.orderId!==pending.orderId||!Number.isSafeInteger(result.priceCents)||
+      result.orderId!==pending.orderId||!Number.isSafeInteger(result.orderNumber)||
+      result.orderNumber<1||!Number.isSafeInteger(result.priceCents)||
       result.priceCents<=0||(!result.alreadyApplied&&result.reservationStatus!=="reserved"))
     throw error("Resposta incompleta do servidor. Repita para conferir.","worker/invalid-response");
    const post=getSession?.();
