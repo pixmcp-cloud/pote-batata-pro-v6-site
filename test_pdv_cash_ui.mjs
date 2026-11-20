@@ -102,6 +102,41 @@ assert(html.includes('name="countedCash" placeholder="Ex.: 150,00" inputmode="de
  "A contagem final deve abrir o teclado decimal");
 assert(html.includes('name="amount" placeholder="Ex.: 50,00" inputmode="decimal"'),
  "O valor de sangrias e suprimentos deve abrir o teclado decimal");
+// F20 server cutover rehearsal: no direct browser cash writes on a licensed
+// account once the general Worker has been explicitly enabled.
+const beforeF20=writes;
+let opens=0,closes=0;
+window.POTE_WORKER={enabled:true,
+ async openCash(universe,cents,operator){
+  opens++;assert.equal(universe,"batataria");assert.equal(cents,5000);
+  assert(operator);return {ok:true,sessionId:"cf-turn-server-qa",bankReconciled:false};
+ },
+ async closeCash(universe,sessionId,cents){
+  closes++;assert.equal(universe,"batataria");
+  assert.equal(sessionId,"cf-turn-server-qa");assert.equal(cents,10500);
+  return {ok:true,reconciliationStatus:"pending",bankReconciled:false};
+ }};
+app.data.cashSessions=[];app.data.cashMovements=[];
+submit("open",{openingCash:"50,00"});
+await new Promise(resolve=>setImmediate(resolve));
+assert.equal(opens,1,"Cash opening calls Worker once");
+assert.equal(writes,beforeF20,"Worker opening never persists local V2 state");
+assert.equal(app.data.cashSessions.length,0,"No phantom open shift before server reload");
+submit("movement",{kind:"suprimento",amount:"10,00",reason:"Troco"});
+assert.match(message.textContent,/Movimentação local bloqueada/);
+assert.equal(writes,beforeF20,"Unmigrated cash movements must fail closed");
+app.data.cashSessions=[{id:"cf-turn-server-qa",status:"open",
+ openedAt:"2026-11-20T11:00:00Z",openingCash:50,operator:"QA"}];
+submit("close",{countedCash:"105,00"});
+await new Promise(resolve=>setImmediate(resolve));
+assert.equal(closes,1,"Cash closure calls Worker once");
+assert.equal(writes,beforeF20,"Worker closure never persists browser-side close");
+assert.equal(app.data.cashSessions[0].status,"open",
+ "Only Firestore refresh may set the cash session closed");
+assert.throws(()=>api.completeSalePayment(order,app.data),
+ /não pode lançar recebimento local paralelo/);
+window.POTE_WORKER={enabled:false};
+console.log("PASS F20 cash UI: server-only open/close; no local cash/movements/payment writes when Worker enabled.");
 window.POTE_AUTH.role="free";window.POTE_AUTH.proActive=false;
 api.refresh();
 assert.equal(button.hidden,true);
