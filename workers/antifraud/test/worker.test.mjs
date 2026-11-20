@@ -286,3 +286,64 @@ test("F05 V5: compras de bebidas só em unidades e sem valores falsos",async()=>
  }
  assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
 });
+
+const recountPayload=(operationId,extra={})=>({
+ universe:UNIVERSE,group:"ingredients",itemId:"batata",
+ reason:"recount",previousStock:400,countedStock:250,
+ note:"Diferença na conferência",operationId,...extra
+});
+test("F05 V5: contagem gera perda e movimento sem compra fictícia; replay idempotente",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const first=await app.fetch(request(recountPayload(OP1),"/v1/inventory/adjust"),env);
+ assert.equal(first.status,200);
+ const result=await first.json();
+ assert.equal(result.afterStock,250);
+ assert.equal(result.recountId,"cf-recount-"+OP1);
+ const again=await app.fetch(request(recountPayload(OP1),"/v1/inventory/adjust"),env);
+ assert.equal(again.status,200);
+ assert.equal((await again.json()).alreadyApplied,true);
+ const item=db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item;
+ assert.equal(item.stock,250);
+ const loss=db.current(recordPath(UID,UNIVERSE,"losses","cf-recount-"+OP1)).record.item;
+ assert.equal(loss.quantityBase,150);
+ const move=db.current(recordPath(UID,UNIVERSE,"stockMovements","cf-move-"+OP1)).record.item;
+ assert.equal(move.quantity,-150);
+ assert.equal(move.referenceId,loss.id);
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
+ const forged=await app.fetch(request(recountPayload(OP1,{countedStock:1000}),
+   "/v1/inventory/adjust"),env);
+ assert.equal(forged.status,409);
+});
+test("F05 V5: contagem maior acrescenta saldo sem criar compra/perda",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const first=await app.fetch(request(recountPayload(OP1,{countedStock:550}),
+   "/v1/inventory/adjust"),env);
+ assert.equal(first.status,200);
+ const result=await first.json();
+ assert.equal(result.afterStock,550);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,550);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"losses","cf-recount-"+OP1)),undefined);
+ assert.equal([...db.docs.keys()].filter(x=>x.includes("/purchases/")).length,0);
+ const changed=await app.fetch(request(recountPayload(OP2,{countedStock:50}),
+   "/v1/inventory/adjust"),env);
+ assert.equal(changed.status,409,"Saldo esperado ficou desatualizado");
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
+});
+test("F05 V5: contagem bebida exige inteiro e bloqueia fraudes",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ for(const patch of [
+  {group:"beverages",itemId:"suco",previousStock:4,countedStock:2.5},
+  {previousStock:999},{note:""},{countedStock:-1},{countedStock:"250"},
+  {group:"cashSessions"},{itemId:"missing"},{delta:-100},
+  {previousStock:400,countedStock:400}
+ ]){
+  const res=await app.fetch(request(recountPayload(OP1,patch),
+    "/v1/inventory/adjust"),env);
+  assert(res.status>=400,JSON.stringify(patch));
+ }
+ const accepted=await app.fetch(request(recountPayload(OP2,{
+  group:"beverages",itemId:"suco",previousStock:4,countedStock:2}),
+  "/v1/inventory/adjust"),env);
+ assert.equal(accepted.status,200);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"beverages","suco")).record.item.stock,2);
+});
