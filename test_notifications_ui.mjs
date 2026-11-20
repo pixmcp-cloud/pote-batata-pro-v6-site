@@ -30,7 +30,7 @@ const state={data:{deliveryHub:{orders:[{
  importedAt:"2026-11-16T23:30:00Z",items:[{name:"Pastel"}],status:"received"
 }]}}};
 const context={
- document,window,auth,state,console,Date,JSON,Map,Set,Number,String,Array,Event,
+ document,window,app:{},auth,state,console,Date,JSON,Map,Set,Number,String,Array,Event,
  getApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),
  collection:()=>({}),query:()=>({}),orderBy:()=>({}),limit:()=>({}),
  onSnapshot:(q,cb)=>{noticesListener=cb;return ()=>disconnectCount++},
