@@ -33,6 +33,8 @@ try{
  assert(outcomes.every(o=>o.status==="fulfilled"),"both requests must finish");
  const final=await read();
  const revision=Number(final.fields.revision.integerValue);
- assert(revision>=2&&revision<=3);
+ assert.equal(revision,2,"exactly one concurrent approval must commit");
+ const settled=outcomes.map(o=>o.value);
+ assert.deepEqual(settled.sort(),["conflict","ok"],"one winner and one rejected transaction required");
  console.log("PASS F02 REAL REST APPROVAL CONCURRENCY revision",revision);
 }finally{await fetch(endpoint,{method:"DELETE",headers}).catch(()=>{})}
