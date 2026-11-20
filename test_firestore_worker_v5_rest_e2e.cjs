@@ -146,6 +146,41 @@ test('F05 Worker V5 REST: Firestore Emulator transacional com canário e sem dad
    assert.equal(movement.record.item.quantity,100);
    assert.equal(guard.revision,5);
   });
-  console.log('F05_REAL_EMULATOR_REST_PASS loss=-100g production=-400g return=400g concurrency=1of2 purchase=100g costWeighted=0.0088 revision=5 idempotent');
+  const recountId='d0f52026-87ab-42d8-85b8-bc5dfb6e1141';
+  const recount={universe:UNIVERSE,group:'ingredients',itemId:'batata',
+   reason:'recount',previousStock:500,countedStock:350,
+   note:'Conferência no estoque físico',operationId:recountId};
+  const recountResult=await call('/v1/inventory/adjust',recount);
+  assert.equal(recountResult.status,200,JSON.stringify(recountResult));
+  assert.equal(recountResult.body.afterStock,350);
+  const repeatedRecount=await call('/v1/inventory/adjust',recount);
+  assert.equal(repeatedRecount.status,200);
+  assert.equal(repeatedRecount.body.alreadyApplied,true);
+  const staleRecount=await call('/v1/inventory/adjust',{...recount,
+   operationId:'d0f52026-87ab-42d8-85b8-bc5dfb6e1142',countedStock:100});
+  assert.equal(staleRecount.status,409,"Tela desatualizada não pode sobrescrever estoque");
+  const higherId='d0f52026-87ab-42d8-85b8-bc5dfb6e1143';
+  const higher=await call('/v1/inventory/adjust',{
+   ...recount,operationId:higherId,previousStock:350,countedStock:375,
+   note:'Unidades encontradas em conferência'});
+  assert.equal(higher.status,200,JSON.stringify(higher));
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const db=ctx.firestore();
+   const get=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();
+   const potato=await get(path('ingredients','batata',keyFor));
+   const physicalLoss=await get(path('losses','cf-recount-'+recountId,keyFor));
+   const negativeMove=await get(path('stockMovements','cf-move-'+recountId,keyFor));
+   const positiveMove=await get(path('stockMovements','cf-move-'+higherId,keyFor));
+   const positiveLoss=await sdk.getDoc(sdk.doc(db,path('losses','cf-recount-'+higherId,keyFor)));
+   const guard=await get('users/'+UID+'/appState/v5InventoryGuard');
+   assert.equal(potato.record.item.stock,375);
+   assert.equal(physicalLoss.record.item.quantityBase,150);
+   assert.equal(physicalLoss.record.item.costLost,3);
+   assert.equal(negativeMove.record.item.quantity,-150);
+   assert.equal(positiveMove.record.item.quantity,25);
+   assert.equal(positiveLoss.exists(),false,"Saldo encontrado não cria perda");
+   assert.equal(guard.revision,7);
+  });
+  console.log('F05_REAL_EMULATOR_REST_PASS loss=-100g production=-400g return=400g purchase=100g recount=-150g+25g revision=7 concurrent=idempotent');
  }finally{await env.cleanup()}
 });
