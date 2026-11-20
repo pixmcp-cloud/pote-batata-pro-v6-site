@@ -88,12 +88,33 @@ test('F05: Firestore canário protegido, cliente antigo intacto e rollout revers
   await assertSucceeds(sdk.setDoc(potatoRef,{
    record:{...potato,item:{...potato.item,purchasePrice:12}},updatedAt:stamp()}));
   await assertFails(sdk.deleteDoc(potatoRef));
+  // Não se pode adulterar quantidade/receita depois de produzir e devolver
+  // mais batata do que realmente foi consumida.
+  for(const patch of [
+   {qty:99},{items:[{id:'batata',g:99999}]},
+   {beverageItems:[{id:'suco',qty:10}]},{price:0},
+   {stockOverrideApproved:true},{stockActualConsumed:{ingredients:{batata:5000}}}
+  ]){
+   await assertFails(txChange(cut,'qa-cutover','orders','prepared',{
+    item:old=>({...old,...patch})}));
+  }
   // O titular nunca pode ativar ou desativar as regras no próprio perfil.
   await assertFails(sdk.updateDoc(sdk.doc(cut,profile('qa-cutover')),
    {'accessPolicy.workerAuthoritative':false}));
+  // Uma reversão administrada restaura o fluxo anterior de inventário.
+  const admin=env.authenticatedContext('qa-master',{
+   email:'pixmcp@gmail.com',email_verified:true,
+   potebatataAdmin:true,firebase:{sign_in_provider:'google.com'}
+  }).firestore();
+  await assertSucceeds(sdk.updateDoc(sdk.doc(admin,profile('qa-cutover')),
+   {'accessPolicy.workerAuthoritative':false}));
+  await assertSucceeds(txChange(cut,'qa-cutover','ingredients','batata',{
+   item:old=>({...old,stock:1800})}));
+  assert.equal((await sdk.getDoc(potatoRef)).data().record.item.stock,1800,
+   'Reversão autorizada deve devolver a operação ao SDK');
   // A conta sem opt-in mantém operação V5 de venda e inventário.
   await assertSucceeds(txChange(old,'qa-legacy','orders','legacy-order',{
    item:()=>({id:'legacy-order',status:'recebido',stockDeducted:false,qty:1,price:35})}));
-  console.log('PASS_F05_RULES_CANARY: protectedStock=2000 legacyStock=1500 directProduceDenied=true directCancelDenied=true deliveriesAllowed=true');
+  console.log('PASS_F05_RULES_CANARY: protectedStock=2000 rollbackStock=1800 legacyStock=1500 directProduceDenied=true directCancelDenied=true deliveriesAllowed=true');
  }finally{await env.cleanup()}
 });
