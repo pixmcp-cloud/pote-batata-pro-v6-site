@@ -1,10 +1,10 @@
 /* Global notification bell: verified ADM announcements (Firestore realtime)
    and manual delivery imports already saved in the logged-in account. */
-import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,collection,onSnapshot,query,orderBy,limit} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {notificationState,mergeNotifications,unreadCount,markRead} from "./notification_core.mjs?v=notices-20261116";
-const auth=getAuth(getApp()),db=getFirestore(getApp());
+const auth=getAuth(app),db=getFirestore(app);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const root=document.getElementById("poteNotifications")||document.createElement("div");root.id="poteNotifications";root.hidden=false;
 root.innerHTML='<button type="button" id="poteBell" aria-label="Abrir notificações" aria-expanded="false" aria-controls="poteNoticeDrawer">'+
