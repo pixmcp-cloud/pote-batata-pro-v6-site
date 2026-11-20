@@ -43,7 +43,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  };
  const auth={currentUser:null},store=new Map();
  const ctx={
-  ...guard,createV5Store:v2.createV5Store,
+  ...guard,app:{},createV5Store:v2.createV5Store,
   createWorkerBridge:opts=>({enabled:false,stagingEndpoint:opts.endpoint}),
   console:{...console,warn(){}},window:{
    POTE_USE_V5:true,
