@@ -154,6 +154,10 @@ function saveBeverageEdit(id){
  }
  const oldStock=Number(b.stock)||0,oldSale=Number(b.sellPrice)||0,oldPaid=Number(b.purchasePrice)||0,
   oldQty=Number(b.purchaseQuantity)||1;
+ if(window.POTE_AUTH?.accessPolicy?.workerAuthoritative===true&&stock!==oldStock){
+  toast("Contagem física protegida: não é permitido editar o saldo direto no card. Nenhum dado foi alterado.");
+  return false;
+ }
  const reserved=Number(window.POTE_STOCK_STATUS?.reserved?.(state.data)?.beverages?.get(b.id)||0);
  if(stock<reserved&&!window.confirm("Há "+reserved+" unidade(s) reservada(s), mas o saldo informado é "+stock+". Confirmar a divergência?"))return false;
  if(Math.abs(sale-oldSale)<0.000001&&Math.abs(paid-oldPaid)<0.000001&&qty===oldQty&&stock===oldStock){
