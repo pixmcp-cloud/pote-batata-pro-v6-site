@@ -16,8 +16,8 @@ assert(pdv.includes("if(!access())return"),"Free users must not see licensed fin
 assert(pdv.includes("if(!next||el.innerHTML===next.innerHTML)return"),"No unnecessary redraw during mobile interaction");
 assert(css.includes(".pote-pdv-page-chart")&&css.includes(".pote-pdv-page-summary"),"Dedicated chart and totals require styles");
 assert(builder.includes("pdv_cash_ui.mjs?v=pdv-order-sequence-20261119"));
-assert(builder.includes("pdv_cash.css?v=pdv-visible-v5-20261118"));
+assert(builder.includes("pdv_cash.css?v=pdv-page-cash-actions-v7-20261118"));
 assert(site.includes("pdv_cash_ui.mjs?v=pdv-order-sequence-20261119"));
-assert(site.includes("pdv_cash.css?v=pdv-visible-v5-20261118"));
+assert(site.includes("pdv_cash.css?v=pdv-page-cash-actions-v7-20261118"));
 assert(fs.existsSync("public/assets/brand/pdv-512.png"),"Bundled PDV card art required");
 console.log("PASS: PDV card, navigation, report chart, closed report, access guard, icon and cache refresh.");
