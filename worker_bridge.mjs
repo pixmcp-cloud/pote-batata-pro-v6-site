@@ -145,7 +145,16 @@ export function createWorkerBridge({
     throw error("Servidor indisponível. Repita a mesma perda para confirmar sem dupla baixa.","worker/network");
    }finally{clearTimeout(timeout)}
    const result=await response.json().catch(()=>({}));
-   if(!response.ok)throw error(result.message||"Perda recusada pelo servidor",result.error||"worker/http-"+response.status);
+   if(!response.ok){
+    // Definitive validation failures are guaranteed not to commit any loss.
+    // Clear only those; ambiguous network/transaction failures retain the same ID.
+    const refused=new Set(["invalid_stock_adjustment","stock_item_missing",
+     "invalid_stock","invalid_stock_unit","insufficient_stock","not_ready",
+     "not_allowed","authentication_required","invalid_firebase_token",
+     "invalid_identity","origin_not_allowed"]);
+    if(refused.has(result.error))storage?.removeItem(key);
+    throw error(result.message||"Perda recusada pelo servidor",result.error||"worker/http-"+response.status);
+   }
    if(result.ok!==true||result.operationId!==pending.operationId||
       result.group!==group||result.itemId!==itemId)
     throw error("Resposta não confirmada; repita a operação","worker/invalid-response");
