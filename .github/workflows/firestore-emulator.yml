@@ -32,11 +32,11 @@ jobs:
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-pote-hardening --config firebase.emulator.qa.json
-          "node --test --test-concurrency=1 test_firestore_v5_emulator.cjs test_firestore_v5_multistock.cjs"
+          "node --test --test-concurrency=1 test_firestore_v5_emulator.cjs test_firestore_v5_multistock.cjs test_firestore_v5_e2e.cjs"
       - name: Verificar regras candidatas e cotas no projeto demo
         env:
           POTE_HARDENED_RULES: '1'
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-pote-hardening --config firebase.hardened.qa.json
-          "node --test --test-concurrency=1 test_firestore_v5_emulator.cjs test_firestore_v5_multistock.cjs"
+          "node --test --test-concurrency=1 test_firestore_v5_emulator.cjs test_firestore_v5_multistock.cjs test_firestore_v5_e2e.cjs"
