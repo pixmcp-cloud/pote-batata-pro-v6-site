@@ -66,7 +66,8 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
       v.cashSessionId!==cashSessionId||v.paymentMethod!==paymentMethod)
     bad("idempotency_conflict","Identificador de operação reutilizado");
    return {ok:true,alreadyApplied:true,orderId,operationId,
-    orderNumber:v.orderNumber,priceCents:v.priceCents};
+    orderNumber:v.orderNumber,priceCents:v.priceCents,
+    paymentStatus:v.paymentStatus,bankReconciled:false};
   }
   if(!meta||meta.data?.schemaVersion!==2||meta.data?.migration?.status==="copying"||
     !guard||!Number.isInteger(guard.data?.revision)||!pulse?.data?.eventId)
@@ -224,9 +225,16 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   const at=clock().toISOString(),price=priceApproval.salePriceCents/100;
   const method={pix:"Pix",cash:"Dinheiro",card:"Cartão",
    delivery:"Na entrega"}[paymentMethod];
+  // Checkout is an operator-declared receipt, NOT evidence of bank settlement.
+  // This is a single transaction with the order and stock reservation, so a
+  // replay cannot create a second PDV credit or require another cashier click.
+  const declared=paymentMethod!=="delivery";
+  const paymentStatus=!declared?"pendente":paymentMethod==="cash"?"Pago em dinheiro":"pago";
   const order={id:orderId,orderNumber,recipeId,name:String(r.name||recipeId).slice(0,180),
    qty,price,deliveryFee:0,cashSessionId,paymentMethod:method,
-   paymentStatus:"pendente",status:"recebido",stockDeducted:true,
+   paymentStatus,status:"recebido",stockDeducted:true,
+   ...(declared?{paymentConfirmedAt:at,paymentDeclarationSource:"operador_pdv",
+    paymentConfirmationReference:"Recebimento declarado no ato da venda; sem conciliação bancária."}:{}),
    createdAt:at,date:at.slice(0,10),channel:"direto",
    items:rows,packagingItems:extraRows.packaging,
    addonItems:extraRows.addon,
@@ -261,7 +269,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    put(eventPath,{action:"order_create",universe,orderId,recipeId,
     qty,cashSessionId,paymentMethod,operationId,orderNumber,
     priceCents:priceApproval.salePriceCents,actorUid:uid,
-    stockReservationStatus:"reserved"},null)
+    paymentStatus,stockReservationStatus:"reserved"},null)
   ];
   for(const entry of reservations){
    writes.push(put(entry.path,{record:{...entry.prior.data.record,
@@ -275,7 +283,8 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   if(writes.length>100)bad("too_many_items","Pedido excede limite da transação");
   await tx.commit(writes);
   return {ok:true,alreadyApplied:false,orderId,operationId,orderNumber,
-   priceCents:priceApproval.salePriceCents,status:"recebido",
+   priceCents:priceApproval.salePriceCents,paymentStatus,bankReconciled:false,
+   status:"recebido",
    reservationStatus:"reserved"};
  }finally{await tx.rollback()}
 }
