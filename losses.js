@@ -107,7 +107,7 @@ function stockLoss({kind="ingredient",id,quantity,unit,reason="outro",note=""}){
  const costBasis=costUnit(ing),event={
   id:newId(),at:new Date().toISOString(),type:"stock",
   reason,description:String(note||"").slice(0,350),
-  itemId:id,itemName:ing.name,
+  itemId:id,stockGroup:type==="beverage"?"beverages":"ingredients",itemName:ing.name,
   itemKind:type==="ingredient"&&ing.category==="Embalagem"?"packaging":type,
   measureUnit:baseUnit(ing,type),
   quantityBase:base,enteredQuantity:n(quantity),enteredUnit:unit,
@@ -119,7 +119,7 @@ function stockLoss({kind="ingredient",id,quantity,unit,reason="outro",note=""}){
  ing.stock=event.afterStock;
  storage().unshift(event);
  (data().stockMovements??=[]).unshift({
-  id:newId(),at:event.at,ingredientId:type==="beverage"?"bev:"+id:id,
+  id:newId(),at:event.at,stockGroup:type==="beverage"?"beverages":"ingredients",ingredientId:type==="beverage"?"bev:"+id:id,
   ingredientName:ing.name,quantity:-base,
   reason:"Perda: "+(reasons.find(r=>r[0]===reason)?.[1]||reason),
   referenceId:event.id,previousStock:current,afterStock:event.afterStock,
@@ -241,7 +241,7 @@ function page(){
   '<p>Não desconte batata, bacon, embalagem nem bebidas novamente. O pedido fica marcado como não recebido, com o custo dos produtos separado do valor de venda perdido.</p>'+
   '<div class="pote-loss-form"><label class="loss-wide">Pedido entregue / já produzido'+
    '<select id="lossOrderId">'+
-   (orders.length?selectOptions(orders,x=>x.id,x=>((typeof window==='object'&&window.POTE_ORDER_PUBLIC_CODE?.(x))||('#'+x.id.slice(-8)))+" · "+x.name+" · "+money((Number(x.price)||0)*(Number(x.qty)||1))):
+   (orders.length?selectOptions(orders,x=>x.id,x=>"#"+x.id.slice(-8)+" · "+x.name+" · "+money((Number(x.price)||0)*(Number(x.qty)||1))):
      '<option value="">Sem pedidos elegíveis para inadimplência</option>')+
    '</select></label>'+
    '<label class="loss-wide">Motivo / tentativa de cobrança<input id="lossOrderNote" maxlength="350" placeholder="Ex.: cliente não pagou"></label></div>'+
@@ -251,7 +251,7 @@ function page(){
  '</div>'+
  (unclassified.length?'<section class="pote-loss-panel"><h3>Pedidos cancelados anteriormente</h3>'+
   '<p>Pedidos já produzidos e cancelados sem lançamento de perda. Registre o custo somente se os produtos foram realmente perdidos e não devolvidos ao estoque.</p>'+
-  unclassified.map(o=>'<div class="pote-loss-legacy"><span>#'+esc((typeof window==='object'&&window.POTE_ORDER_PUBLIC_CODE?.(o))||('#'+o.id.slice(-8)))+' · '+esc(o.name)+'</span>'+
+  unclassified.map(o=>'<div class="pote-loss-legacy"><span>#'+esc(o.id.slice(-8))+' · '+esc(o.name)+'</span>'+
   '<button type="button" class="btn mini" data-loss-order="'+esc(o.id)+'" onclick="POTE_LOSSES.submitLegacyLoss(this.dataset.lossOrder)">Registrar prejuízo sem nova baixa</button></div>').join("")+
   '</section>':"")+
  '<div id="poteLossFormError" class="pote-loss-error" role="alert" hidden></div>'+
@@ -338,7 +338,31 @@ function preview(){
      " · Custo ainda não cadastrado"):
    " · Informe a quantidade perdida.");
 }
+async function submitStockAuthoritative(){
+ const kind=$("lossStockKind")?.value||"ingredient";
+ const id=$("lossStockId")?.value,quantity=$("lossStockQty")?.value;
+ const unit=$("lossStockUnit")?.value,reason=$("lossStockReason")?.value;
+ const note=String($("lossStockNote")?.value||"").trim();
+ const ing=item(kind,id);
+ if(!ing)return warn("Selecione um item válido");
+ if(!reasons.some(r=>r[0]===reason))return warn("Motivo inválido");
+ if(reason==="outro"&&!note)return warn("Descreva o motivo da perda");
+ let base;
+ try{base=window.POTE_STOCK.toBase(kind==="beverage"?{...ing,measureUnit:"un"}:ing,quantity,unit)}
+ catch(e){return warn(e.message)}
+ if(!Number.isFinite(base)||base<=0)return warn("Quantidade inválida");
+ const group=kind==="beverage"?"beverages":"ingredients";
+ const universe=data().businessType||"batataria";
+ try{
+  const result=await window.POTE_WORKER.adjustStock({universe,group,itemId:id,delta:-base,
+   lossReason:reason,note});
+  if(typeof toast==="function")toast("Perda registrada no servidor e estoque sincronizado");
+  return {ok:true,result};
+ }catch(e){warn(e.message||"Falha ao registrar perda no servidor");return {ok:false,error:e.message}}
+}
 function submitStock(){
+ if(window.POTE_WORKER?.inventoryEnabled===true&&window.POTE_AUTH?.proActive===true)
+  return submitStockAuthoritative();
  const result=stockLoss({kind:$("lossStockKind")?.value,
   id:$("lossStockId")?.value,quantity:$("lossStockQty")?.value,
   unit:$("lossStockUnit")?.value,reason:$("lossStockReason")?.value,
