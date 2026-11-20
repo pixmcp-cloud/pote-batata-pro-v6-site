@@ -35,9 +35,10 @@ const disabled=createWorkerBridge({enabled:false,endpoint:"https://qa.invalid",s
 await assert.rejects(disabled.adjustStock(payload),e=>e.code==="worker/disabled");
 console.log("PASS F05 UI Worker bridge: fail closed, durable retry, no duplicate, refresh, disabled");
 
+const canaryUser={...user,email:"pixmcp@gmail.com"};
 const canary=createWorkerBridge({enabled:false,inventoryEnabled:true,inventoryCanaryEmail:"pixmcp@gmail.com",
  endpoint:"https://core.invalid",inventoryEndpoint:"https://f05.invalid",storage,
- getSession:()=>({uid:"owner",user:{...user,email:"pixmcp@gmail.com"},ready:true,proActive:true,syncBlocked:false}),
+ getSession:()=>({uid:"owner",user:canaryUser,ready:true,proActive:true,syncBlocked:false}),
  flush:async()=>true,refresh:async()=>{},uuid:()=>"f05-canary-uuid-0000000000000002",
  requestFetch:async(url,options)=>{assert.equal(url,"https://f05.invalid/v1/inventory/adjust");const b=JSON.parse(options.body);return {ok:true,json:async()=>({ok:true,operationId:b.operationId,group:b.group,itemId:b.itemId,stock:16})}}});
 assert.equal(canary.enabled,false,"Other Worker routes must stay disabled");
