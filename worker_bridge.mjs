@@ -247,10 +247,85 @@ export function createWorkerBridge({
    return result;
   }finally{busy.delete(lock)}
  }
+ async function recountStock({
+  universe,group,itemId,previousStock,countedStock,note=""
+ }={}){
+  if(!stockGate())throw error("Servidor de conferência desativado; saldo preservado.","worker/disabled");
+  if(!universePattern.test(universe)||!["ingredients","beverages"].includes(group)||
+   !idPattern.test(itemId)||
+   !Number.isFinite(previousStock)||previousStock<0||previousStock>1e9||
+   !Number.isFinite(countedStock)||countedStock<0||countedStock>1e9||
+   Math.abs(Math.round(previousStock*1e5)/1e5-previousStock)>1e-8||
+   Math.abs(Math.round(countedStock*1e5)/1e5-countedStock)>1e-8||
+   typeof note!=="string"||!note.trim()||note.length>350)
+   throw error("Contagem ou justificativa inválida","worker/invalid");
+  const before=getSession?.();
+  if(!before?.uid||before.user?.uid!==before.uid||before.ready!==true||
+   before.proActive!==true||before.syncBlocked===true)
+   throw error("Conta ou sincronização indisponível","worker/session");
+  const lock=before.uid+"|"+universe+"|recount|"+group+"|"+itemId;
+  if(busy.has(lock))throw error("Conferência já em processamento","worker/busy");
+  busy.add(lock);
+  try{
+   if(typeof flush!=="function"||await flush()!==true)
+    throw error("Alterações pendentes não salvas. Conferência não enviada.","worker/not-synced");
+   const current=getSession?.();
+   if(!stockGate()||current?.uid!==before.uid||current?.user!==before.user||
+    current.ready!==true||current.syncBlocked===true)
+    throw error("A conta ou a autorização mudou","worker/session");
+   const token=await current.user.getIdToken();
+   if(typeof token!=="string"||token.length<32)
+    throw error("Token de autenticação indisponível","worker/auth");
+   const key=readKey(before.uid,universe,"recount",group+":"+itemId);
+   const payload={universe,group,itemId,reason:"recount",
+    previousStock,countedStock,note};
+   let pending;
+   try{pending=JSON.parse(storage?.getItem(key)||"null")}catch{}
+   if(pending&&uuidPattern.test(pending.operationId)){
+    if(JSON.stringify(pending.payload)!==JSON.stringify(payload))
+     throw error("Conferência anterior sem resposta. Repita o mesmo saldo para conciliar.","worker/pending");
+   }else{
+    const operationId=uuid();
+    if(!uuidPattern.test(operationId))throw error("Identificador inválido","worker/id");
+    pending={operationId,payload};
+    storage?.setItem(key,JSON.stringify(pending));
+   }
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),timeoutMs);
+   let response;
+   try{
+    response=await requestFetch(stockRoot+"/v1/inventory/adjust",{
+     method:"POST",mode:"cors",cache:"no-store",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+     body:JSON.stringify({...payload,operationId:pending.operationId}),signal:controller.signal
+    });
+   }catch{
+    throw error("Servidor indisponível. Repita a mesma conferência para não duplicar.","worker/network");
+   }finally{clearTimeout(timeout)}
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok){
+    const refused=new Set(["invalid_recount","invalid_stock_unit",
+     "stock_item_missing","invalid_stock","stock_conflict","stock_unchanged",
+     "not_allowed","invalid_identity","origin_not_allowed",
+     "authentication_required","invalid_firebase_token"]);
+    if(refused.has(result.error))storage?.removeItem(key);
+    throw error(result.message||"Conferência recusada",result.error||"worker/http-"+response.status);
+   }
+   if(result.ok!==true||result.operationId!==pending.operationId||
+    result.itemId!==itemId||result.group!==group||
+    result.recountId!=="cf-recount-"+pending.operationId)
+    throw error("Conferência sem confirmação. Repita para reconciliar.","worker/invalid-response");
+   if(getSession?.()?.uid!==before.uid)
+    throw error("Conta alterada. Confira o saldo.","worker/session");
+   try{await refresh()}
+   catch{throw error("Servidor confirmou a contagem, mas o app não sincronizou. Repita.","worker/refresh")}
+   storage?.removeItem(key);
+   return result;
+  }finally{busy.delete(lock)}
+ }
  return Object.freeze({
   get enabled(){return orderGate()},
   get inventoryEnabled(){return stockGate()},
-  adjustStock,purchaseStock,
+  adjustStock,purchaseStock,recountStock,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   cancel:(orderId,universe,decision)=>transition("cancel",{orderId,universe,decision}),
   // Kept strictly private; no client-side switch to enable writes.
