@@ -334,8 +334,8 @@ service cloud.firestore {
         function validCreate(document) {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
-            && canWriteOperationalRecord(userId, recordId, record)
             && !requiresF05Server(userId, record)
+            && canWriteOperationalRecord(userId, recordId, record)
             && (record.group != 'cashSessions' || record.item.status == 'open')
             // Pedidos, movimentos, compras e perdas não podem ser criados fora
             // da transação de inventário: evita gravações soltas pelo SDK.
@@ -346,10 +346,10 @@ service cloud.firestore {
           let record = document.get('record', null);
           let oldRecord = oldDocument.record;
           return validRecordDocument(document, record)
-            && canWriteOperationalRecord(userId, recordId, record)
-            && preservesRecordIdentity(userId, recordId, record, oldRecord)
             && !requiresF05Server(userId, record)
             && !requiresF05Server(userId, oldRecord)
+            && canWriteOperationalRecord(userId, recordId, record)
+            && preservesRecordIdentity(userId, recordId, record, oldRecord)
             && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
             // Movimentos são imutáveis. Turnos abertos só podem ser fechados.
             && (record.group == 'cashMovements' ? record == oldRecord
@@ -360,9 +360,9 @@ service cloud.firestore {
         allow create: if canAccess(userId) && validCreate(request.resource.data);
         allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
+          && !requiresF05Server(userId, resource.data.record)
           && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group)
-          && !requiresF05Server(userId, resource.data.record)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
       }
       // F02: privileged price approvals are server-owned. Tenant browsers
