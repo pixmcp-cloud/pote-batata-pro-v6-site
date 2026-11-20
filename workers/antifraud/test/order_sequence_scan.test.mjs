@@ -17,7 +17,7 @@ function fixture({numbers=[119,120,20],mutate=false,repeatToken=false,corrupt=fa
  const pages=[
   {documents:[docs("orders","o1",numbers[0]),docs("ingredients","potato",1)],nextPageToken:"token-a"},
   {documents:[docs("orders","o2",numbers[1]),docs("orders","other",5,"pizzaria")],nextPageToken:"token-b"},
-  {documents:[corrupt?{name:"incomplete",fields:{}}:docs("orders","o3",numbers[2])]}
+  {documents:[corrupt?{...docs("orders","o3",numbers[2]),fields:{}}:docs("orders","o3",numbers[2])]}
  ];
  const requestFetch=async url=>{
   const u=new URL(url),path=u.pathname;
