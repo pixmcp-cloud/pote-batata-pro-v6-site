@@ -98,4 +98,31 @@ const stockOk=await stock.adjustStock({universe,group:"ingredients",itemId:"bata
  delta:-1,lossReason:"queda",note:"teste"});
 assert.equal(stockOk.ok,true);
 serverApproved=false;
+let purchaseCalls=0, purchaseNetworkFail=true;
+const purchaseBridge=make({enabled:false,inventoryEnabled:true,
+ requestFetch:async(url,options)=>{
+  assert(url.endsWith("/v1/inventory/adjust"));
+  purchaseCalls++;
+  const sent=JSON.parse(options.body);
+  assert.equal(sent.reason,"purchase");
+  assert.equal(sent.enteredQuantity,0.1);
+  assert.equal(sent.enteredUnit,"kg");
+  if(purchaseNetworkFail){purchaseNetworkFail=false;throw Error("rede temporária")}
+  return new Response(JSON.stringify({ok:true,operationId:sent.operationId,
+   group:"ingredients",itemId:"batata",purchaseId:"cf-purchase-"+sent.operationId,
+   afterStock:100}),{status:200});
+ }});
+const buying={universe,group:"ingredients",itemId:"batata",delta:100,
+ paidTotal:2,enteredQuantity:0.1,enteredUnit:"kg",supplier:"Mercado QA"};
+await assert.rejects(()=>purchaseBridge.purchaseStock(buying),e=>e.code==="worker/network");
+const pendingPurchases=storage.size;
+assert(pendingPurchases>=1,"Compra em rede instável deve manter UUID para retry");
+await assert.rejects(()=>purchaseBridge.purchaseStock({...buying,paidTotal:20}),
+ e=>e.code==="worker/pending");
+const purchased=await purchaseBridge.purchaseStock(buying);
+assert.equal(purchased.afterStock,100);
+assert.equal(purchaseCalls,2,"Uma falha e exatamente uma repetição");
+assert.equal(storage.size,0,"Compra confirmada limpa UUID pendente");
+const inactivePurchases=make({enabled:false,inventoryEnabled:false});
+await assert.rejects(()=>inactivePurchases.purchaseStock(buying),e=>e.code==="worker/disabled");
 console.log("PASS Worker client: disabled default, auth, preflush, durable retries, 423 fail-closed, cancel.");
