@@ -1,4 +1,4 @@
-name: Publicar V6 e beta autenticado
+name: Publicar V5 unificado e beta autenticado
 on:
   push:
     branches: [main]
@@ -29,13 +29,11 @@ jobs:
           cp -R assets/brand public/assets/brand
           cp firebase_integration.js public/firebase_integration.js
           cp sync_guard.mjs public/sync_guard.mjs
-          cp v2_store_core.mjs public/v2_store_core.mjs
-          cp v2_storage.mjs public/v2_storage.mjs
+          cp v5_store_core.mjs public/v5_store_core.mjs
+          cp v5_storage.mjs public/v5_storage.mjs
           cp inventory_integrity.mjs public/inventory_integrity.mjs
-          cp v2_batch_planner.mjs public/v2_batch_planner.mjs
+          cp v5_batch_planner.mjs public/v5_batch_planner.mjs
           cp franchise_financial_report.mjs public/franchise_financial_report.mjs
-          cp legacy_migration_v2.mjs public/legacy_migration_v2.mjs
-          cp migration_preview.mjs public/migration_preview.mjs
           cp operation_integrity.mjs public/operation_integrity.mjs
           cp worker_bridge.mjs public/worker_bridge.mjs
           cp free_limits.mjs public/free_limits.mjs
@@ -171,7 +169,6 @@ jobs:
           node --input-type=module --check < public/firebase_integration.js
           node --check public/sync_guard.mjs
           node test_sync_guard.mjs
-          node test_sync_integration.js
           node test_inventory_integrity.mjs
           node test_operation_integrity.mjs
           node test_worker_bridge.mjs
@@ -180,13 +177,14 @@ jobs:
           node test_v2_batch_planner.mjs
           node test_v2_large_batch.mjs
           node --check public/inventory_integrity.mjs
-          node --check public/v2_batch_planner.mjs
+          node --check public/v5_batch_planner.mjs
           node test_v2_store.mjs
           node test_hardening_v2_rank.mjs
           node test_v2_active_archive_regression.mjs
           node test_v2_storage.mjs
+          node test_v5_storage.mjs
           node test_hardening_concurrent_clients.mjs
-          node test_auth_v2_integration.js
+          node test_auth_v5_integration.js
           node test_finance_core.js
           node test_hardening_wave1.cjs
           node test_hardening_render_events.cjs
@@ -208,18 +206,17 @@ jobs:
           node test_module_health.js
           node test_average_cost.js
           node --check public/finance_core.js
-          node --check public/v2_store_core.mjs
+          node --check public/v5_store_core.mjs
           node --check public/free_id_policy.mjs
-          node --check public/v2_storage.mjs
+          node --check public/v5_storage.mjs
           node --check public/operation_integrity.mjs
-          node --check public/legacy_migration_v2.mjs
           node --check public/franchise_financial_report.mjs
           node test_free_limits.mjs
           node test_migration_preview.mjs
           node test_commercial_date.js
           node test_reset_guard.js
           node test_import_guard.js
-          node test_security_contract.js
+          node test_v5_security_contract.js
           node --check public/supplier_integration.js
           node test_suppliers.js
           node --check public/supplier_directory.js
