@@ -23,7 +23,7 @@ const account={currentUser:{uid}};
 const window={POTE_AUTH:{uid,role:"free"},addEventListener(name,handler){callbacks.set("window:"+name,handler)},
  dispatchEvent(event){callbacks.get("window:"+event.type)?.(event)}};
 const state={data:{notificationCenter:{read:{}},deliveryHub:{orders:[]}}};
-const context={window,document,state,Date,JSON,Map,Set,String,Number,Array,console,
+const context={window,document,app:{},state,Date,JSON,Map,Set,String,Number,Array,console,
  getApp:()=>({}),getAuth:()=>account,getFirestore:()=>({}),collection:()=>({}),
  onSnapshot:(_q,callback)=>{onAnnouncements=callback;return()=>{}},
  query:()=>({}),orderBy:()=>({}),limit:()=>({}),
