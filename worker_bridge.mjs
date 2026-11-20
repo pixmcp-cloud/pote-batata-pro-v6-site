@@ -98,6 +98,75 @@ export function createWorkerBridge({
    return result;
   }finally{busy.delete(lock)}
  }
+ // F02: atomic order registration on the server, with a durable order ID.
+ // One pending order per tenant/universe prevents creating a second order
+ // while the outcome of a network timeout is still unknown.
+ async function createOrder({universe,recipeId,qty,cashSessionId,paymentMethod}={}){
+  if(!enabled)throw error("Criação de pedidos no Worker desativada.","worker/disabled");
+  if(!universePattern.test(universe)||!idPattern.test(recipeId)||
+     !idPattern.test(cashSessionId)||!Number.isSafeInteger(qty)||
+     qty<1||qty>1000||!["pix","cash","card","delivery"].includes(paymentMethod))
+   throw error("Dados de pedido inválidos","worker/invalid");
+  const before=getSession?.();
+  if(!before?.uid||!before?.user||before.user.uid!==before.uid||
+     before.ready!==true||before.proActive!==true||before.syncBlocked===true)
+   throw error("Conta ou sincronização indisponível","worker/session");
+  const lock=before.uid+"|"+universe+"|create";
+  if(busy.has(lock))throw error("Pedido já em processamento","worker/busy");
+  busy.add(lock);
+  try{
+   if(typeof flush!=="function"||await flush()!==true)
+    throw error("Sincronização pendente. Pedido não enviado.","worker/not-synced");
+   const current=getSession?.();
+   if(current?.uid!==before.uid||current.user!==before.user||
+      current.ready!==true||current.syncBlocked===true)
+    throw error("Conta alterada durante o pedido","worker/session");
+   const token=await current.user.getIdToken();
+   if(typeof token!=="string"||token.length<32)
+    throw error("Autenticação indisponível","worker/auth");
+   const key=readKey(before.uid,universe,"create","pending");
+   const input={universe,recipeId,qty,cashSessionId,paymentMethod};
+   let pending;
+   try{pending=JSON.parse(storage?.getItem(key)||"null")}catch{}
+   if(pending&&uuidPattern.test(pending.operationId)&&idPattern.test(pending.orderId)){
+    if(JSON.stringify(pending.input)!==JSON.stringify(input))
+     throw error("Existe um pedido anterior sem confirmação. Repita os mesmos dados antes de outro pedido.","worker/pending");
+   }else{
+    const operationId=uuid(),orderId="f02-"+uuid();
+    if(!uuidPattern.test(operationId)||!idPattern.test(orderId))
+     throw error("Identificador de pedido inválido","worker/id");
+    pending={operationId,orderId,input};
+    storage?.setItem(key,JSON.stringify(pending));
+   }
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),timeoutMs);
+   let response;
+   try{
+    response=await requestFetch(root+"/v1/orders/create",{
+     method:"POST",mode:"cors",cache:"no-store",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+     body:JSON.stringify({...input,operationId:pending.operationId,orderId:pending.orderId}),
+     signal:controller.signal
+    });
+   }catch{
+    throw error("Resposta do servidor incerta. Repita o mesmo pedido para evitar duplicidade.","worker/network");
+   }finally{clearTimeout(timeout)}
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw error(result.message||"Pedido recusado pelo servidor",
+     result.error||"worker/http-"+response.status);
+   if(result.ok!==true||result.operationId!==pending.operationId||
+      result.orderId!==pending.orderId||!Number.isSafeInteger(result.priceCents)||
+      result.priceCents<=0||(!result.alreadyApplied&&result.reservationStatus!=="reserved"))
+    throw error("Resposta incompleta do servidor. Repita para conferir.","worker/invalid-response");
+   const post=getSession?.();
+   if(post?.uid!==before.uid||post.user!==before.user||post.ready!==true)
+    throw error("Conta alterada; confira o pedido antes de prosseguir","worker/session");
+   try{await refresh()}catch{
+    throw error("Pedido confirmado no servidor, mas não sincronizado. Repita o mesmo pedido.","worker/refresh");
+   }
+   storage?.removeItem(key);
+   return result;
+  }finally{busy.delete(lock)}
+ }
  async function adjustStock({universe,group,itemId,delta,note="",lossReason="outro"}={}){
   if(!stockGate())throw error("Worker desativado. Nenhuma perda enviada.","worker/disabled");
   if(!universePattern.test(universe)||!["ingredients","beverages","packaging","addons"].includes(group)||
@@ -162,6 +231,7 @@ export function createWorkerBridge({
   get enabled(){return enabled===true},
   get inventoryEnabled(){return stockGate()},
   adjustStock,
+  createOrder,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   finish:(orderId,universe)=>transition("finish",{orderId,universe}),
   cancel:(orderId,universe,decision)=>transition("cancel",{orderId,universe,decision}),
