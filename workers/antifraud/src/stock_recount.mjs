@@ -15,15 +15,15 @@ export function planStockRecount({
  if(!["ingredients","beverages"].includes(group)||!itemId||!operationId||!universe||
   typeof note!=="string"||!note.trim()||note.length>350||
   !valid(previousStock)||!valid(countedStock)||
-  !nearly(round5(previousStock),previousStock)||
-  !nearly(round5(countedStock),countedStock))
+  Math.abs(round5(previousStock)-previousStock)>1e-8||
+  Math.abs(round5(countedStock)-countedStock)>1e-8)
   throw new OperationalError("Contagem física inválida",400,"invalid_recount");
  if(!stock||stock.archived===true)
   throw new OperationalError("Item de estoque inexistente",404,"stock_item_missing");
  const before=stock.stock;
  if(!valid(before))
   throw new OperationalError("Saldo atual inválido",409,"invalid_stock");
- if(!nearly(before,previousStock))
+ if(Math.abs(before-previousStock)>1e-8)
   throw new OperationalError("Estoque mudou em outro dispositivo. Atualize a tela.",409,
    "stock_conflict");
  const unit=stockUnit(stock,group);
