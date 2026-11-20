@@ -1,9 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {createV2Store} from "./v2_storage.mjs?v=order-sequence-v10-20261119";
-import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs?v=f10-closed-shifts-20261118";
-import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
+import {createV5Store} from "./v5_storage.mjs?v=v5-clean-20261120";
+import {stableJson,jsonBytes,MAX_APPSTATE_BYTES,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
+const pendingKey=uid=>"pote-sync-pending-v5:"+String(uid||"");
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120";
 
@@ -50,29 +50,29 @@ let cloudFingerprint=stableJson(null);
 let syncBlocked=false;
 let lastSyncCause=null;
 let pendingThisSession=false;
-let v2Store=null;
-// A versão V2 inicia contas de teste limpas em coleções por registro, sem migrar appState/main.
-const useV2=window.POTE_USE_V2!==false;
+let v5Store=null;
+// A versão V5 inicia contas de teste limpas em coleções por registro, sem migrar appState/main.
+const useV5=true; // Armazenamento único: não existe fallback V1/V2.
 // Staging-only: enabling the Worker also requires Firebase Rules cutover and
 // server credentials. Never toggle via localStorage, query strings or devtools.
 const CLOUD_WORKER_ACTIVE=false;
 // F05: isolated authoritative stock-loss bridge for licensed Pro users; other flows stay unchanged.
-const F05_INVENTORY_WORKER_ACTIVE=true;
+const F05_INVENTORY_WORKER_ACTIVE=false; // Worker V5 antigo desativado para a base V5.
 window.POTE_WORKER=createWorkerBridge({
  enabled:CLOUD_WORKER_ACTIVE,
  inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
  inventoryCanaryEmail:null, // All verified licensed Pro accounts; Worker validates license.
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
  inventoryEndpoint:"https://pote-batata-f05-live.pixmcp.workers.dev",
- getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
+ getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV5,
   proActive:Boolean(window.POTE_AUTH?.proActive),
   syncBlocked:syncBlocked||saving}),
- flush:async()=>!syncBlocked&&!saving&&ready&&useV2&&await syncV2(),
+ flush:async()=>!syncBlocked&&!saving&&ready&&useV5&&await syncV5(),
  refresh:async()=>{
-  if(!v2Store||!ready||syncBlocked)throw Error("Sincronização indisponível");
-  // Refresh checks for unsaved local changes and never resets V2 baseline blindly.
-  const reloaded=await v2Store.refresh();
-  if(!reloaded?.ok)throw Error(reloaded?.error||"Recarregamento V2 indisponível");
+  if(!v5Store||!ready||syncBlocked)throw Error("Sincronização indisponível");
+  // Refresh checks for unsaved local changes and never resets V5 baseline blindly.
+  const reloaded=await v5Store.refresh();
+  if(!reloaded?.ok)throw Error(reloaded?.error||"Recarregamento V5 indisponível");
   lastJson=JSON.stringify(safeState());
   setStatus("Operação confirmada no servidor; estoque sincronizado.");
  }
@@ -95,7 +95,7 @@ function syncExplanation(){
  const originalReason=String(lastSyncCause?.detail||pending?.reason||"Nenhum erro detalhado foi registrado anteriormente").slice(0,180);
  const code=String(lastSyncCause?.code||pending?.reason||"pending-local");
  const comparison=pending&&active?.uid?
-  inspectPendingAgainstCloud(pending,active.uid,safeState(),{v2:useV2}):null;
+  inspectPendingAgainstCloud(pending,active.uid,safeState(),{v2:useV5}):null;
  const differences=comparison?.details||[];
  let title="Alteracoes locais anteriores nao confirmadas";
  if(comparison?.kind==="notification-read-only")title="Somente notificacoes lidas aguardam conciliacao";
@@ -282,70 +282,6 @@ function showRecovery(){
  if(target){target.scrollIntoView?.({behavior:"smooth",block:"center"});target.focus?.({preventScroll:true})}
 }
 window.POTE_SYNC_GUARD={downloadPending,verifyBackupFile,resolvePendingConflict,showRecovery,diagnosis:syncExplanation,get blocked(){return syncBlocked},hasPending:()=>Boolean(active&&existingPending(active.uid))};
-async function offerLegacyMigration(user){
- if(!user?.uid||auth.currentUser?.uid!==user.uid)return;
- let container=document.getElementById("poteLegacyMigration");
- if(!container){
-  container=document.createElement("div");container.id="poteLegacyMigration";
-  container.style.cssText="margin:14px auto;padding:16px;border:1px solid #e0b97a;border-radius:12px;background:#152d46;color:#f3e6d0;max-width:520px";
-  const head=document.createElement("strong");head.textContent="Recuperação segura da conta antiga (V1 → V2)";
-  const info=document.createElement("p");info.textContent="O histórico V1 será mantido. Primeiro exporte o backup; depois selecione o arquivo salvo para verificar e migrar. Não feche a página enquanto houver transferência.";
-  const exportBtn=document.createElement("button");exportBtn.type="button";exportBtn.textContent="1. Baixar backup V1";
-  const importBtn=document.createElement("button");importBtn.type="button";importBtn.textContent="2. Verificar arquivo e migrar";
-  exportBtn.style.margin="6px";importBtn.style.margin="6px";
-  const state=document.createElement("p");state.setAttribute?.("role","status");
-  container.append(head,info,exportBtn,importBtn,state);
-  (gate||document.body).appendChild(container);
-  const getPlan=async()=>{
-   const source=await getDoc(doc(db,"users",auth.currentUser.uid,"appState","main"));
-   if(!source.exists()||!source.data()?.state)throw Error("Histórico V1 não encontrado.");
-   const planned=await prepareLegacyMigration(source.data().state,{free:false});
-   // O histórico V1 deve migrar integralmente, inclusive cadastros anteriores
-   // aos limites FREE. A política de edição FREE continua aplicada após a cópia.
-   return planned;
-  };
-  exportBtn.onclick=async()=>{
-   try{
-    state.textContent="Conferindo a integridade do histórico...";
-    const planned=await getPlan();
-    const file=new Blob([JSON.stringify({backupVersion:1,uid:auth.currentUser.uid,
-     exportedAt:new Date().toISOString(),state:planned.state},null,2)],{type:"application/json"});
-    const href=URL.createObjectURL(file),a=document.createElement("a");
-    a.href=href;a.download="pote-v1-backup-"+new Date().toISOString().slice(0,10)+".json";
-    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),10000);
-    state.textContent="Backup solicitado: "+planned.recordCount+" registros. Confira o arquivo antes de migrar.";
-   }catch(e){state.textContent="Backup não disponibilizado: "+(e.code||e.message)}
-  };
-  importBtn.onclick=()=>{
-   const picker=document.createElement("input");picker.type="file";picker.accept=".json,application/json";
-   picker.hidden=true;document.body.appendChild(picker);
-   picker.onchange=async()=>{
-    const file=picker.files?.[0];picker.remove();if(!file)return;
-    if(!auth.currentUser?.uid||file.size>30*1024*1024){state.textContent="Arquivo inválido ou maior que 30 MB";return}
-    importBtn.disabled=true;exportBtn.disabled=true;
-    try{
-     state.textContent="Validando o backup selecionado...";
-     const uid=auth.currentUser.uid,backup=JSON.parse(await file.text()),planned=await getPlan();
-     if(!inspectLegacyBackup(backup,uid,planned.state))
-      throw Error("Backup diferente do histórico atual, inválido ou de outra conta.");
-     if(!window.confirm("Backup conferido ("+planned.recordCount+" registros). Iniciar cópia V1 → V2, preservando o histórico original?"))
-      throw Error("Migração cancelada; nenhum dado foi copiado.");
-     const outcome=await migrateLegacyV2({uid,db,
-      sdk:{doc,getDoc,getDocs,collection,runTransaction,serverTimestamp},planned,
-      onProgress:p=>state.textContent="Migrando: "+p.processed+" de "+p.total+" registros verificados..."});
-     state.textContent="Migração verificada: "+outcome.records+" registros. Carregando seus dados...";
-     window.location.reload();
-    }catch(error){
-     state.textContent="Migração suspensa, sem apagar V1: "+(error.code||error.message)+
-       ". Utilize o mesmo backup para retomar.";
-     importBtn.disabled=false;exportBtn.disabled=false;
-    }
-   };
-   picker.click();
-  };
- }
- container.hidden=false;
-}
 window.addEventListener("online",()=>{if(ready&&!syncBlocked)queueSave()});
 function refreshEntitlements() {
   if (!window.POTE_AUTH) return;
@@ -396,19 +332,18 @@ function observeProfile(user, index) {
   if (expiryCheckInterval) clearInterval(expiryCheckInterval);
   expiryCheckInterval = setInterval(refreshEntitlements, 1000);
 }
-function refFor(user) { return doc(db, "users", user.uid, "appState", "main"); }
 
-async function syncV2(){
-  if(!ready||!active||!v2Store||auth.currentUser?.uid!==active.uid)return false;
+async function syncV5(){
+  if(!ready||!active||!v5Store||auth.currentUser?.uid!==active.uid)return false;
   if(saving){queued=true;return false}
   const serialized=JSON.stringify(safeState());
   if(serialized===lastJson)return true;
-  if(syncBlocked){savePending(serialized,"conflito V2 não resolvido");return false}
+  if(syncBlocked){savePending(serialized,"conflito V5 não resolvido");return false}
   saving=true;
   const currentEpoch=epoch,currentUid=active.uid;
-  setStatus("Sincronizando registros V2...");
+  setStatus("Sincronizando registros V5...");
   try{
-    const result=await v2Store.save();
+    const result=await v5Store.save();
     if(epoch!==currentEpoch||auth.currentUser?.uid!==currentUid)return false;
     if(!result.ok){
       if(result.code==="sync/conflict"||result.code==="sync/invalid-state"||result.partial)syncBlocked=true;
@@ -416,7 +351,7 @@ async function syncV2(){
       setStatus(result.partial?"Importação parcialmente salva ("+result.savedChanges+" cadastros). Backup preservado; retome a sincronização.":
        result.code==="sync/conflict"?"CONFLITO DE ESTOQUE/PEDIDOS — exporte backup.":
        "Alterações ainda não sincronizadas: "+String(result.error||"sem conexão").slice(0,90));
-      savePending(serialized,result.error||result.code||"erro V2");
+      savePending(serialized,result.error||result.code||"erro V5");
       return false;
     }
     lastJson=serialized;
@@ -424,92 +359,26 @@ async function syncV2(){
       try{localStorage.removeItem(pendingKey(currentUid))}catch(e){}
       pendingThisSession=false;
     }
-    setStatus("Dados V2 salvos com segurança");showBackupButton();
+    setStatus("Dados V5 salvos com segurança");showBackupButton();
     if(JSON.stringify(safeState())!==serialized)queued=true;
     return true;
   }catch(e){
     if(epoch!==currentEpoch)return false;
-    savePending(serialized,e.message||"falha V2");
-    setStatus("Erro de sincronização V2: exporte backup");
+    savePending(serialized,e.message||"falha V5");
+    setStatus("Erro de sincronização V5: exporte backup");
     return false;
   }finally{
     saving=false;
     if(queued&&!syncBlocked){queued=false;queueSave()}
   }
 }
-async function sync() {
-  if(useV2)return syncV2();
-  if(!ready||!active||auth.currentUser?.uid!==active.uid)return false;
-  if(saving){queued=true;return false}
-  const value=safeState(),serialized=JSON.stringify(value);
-  if(serialized===lastJson)return true;
-  if(syncBlocked){
-    savePending(serialized,"conflito não resolvido");
-    setStatus("SINCRONIZAÇÃO BLOQUEADA: exporte o backup pendente.");
-    return false;
-  }
-  // O estado antigo ainda é um único documento. Impedir ultrapassar o limite antes da escrita.
-  if(jsonBytes(serialized)>MAX_APPSTATE_BYTES){
-    syncBlocked=true;
-    savePending(serialized,"documento próximo do limite Firestore");
-    setStatus("Limite de armazenamento próximo: exporte backup e contate o suporte.");
-    return false;
-  }
-  const user=active,saveEpoch=epoch,expected=cloudFingerprint;
-  saving=true;setStatus("Salvando na nuvem...");
-  try{
-    // A comparação da versão de TODOS os campos bloqueia gravações antigas ou concorrentes.
-    // Não migra, apaga ou duplica os documentos da conta existente.
-    await runTransaction(db,async tx=>{
-      const reference=refFor(user),document=await tx.get(reference);
-      if(!matchesRemote(document.data()?.state??null,expected)){
-        const error=new Error("Dados alterados em outro dispositivo");
-        error.code="sync/conflict";
-        throw error;
-      }
-      if(saveEpoch!==epoch||auth.currentUser?.uid!==user.uid){
-        const error=new Error("Sessão alterada durante a gravação");
-        error.code="sync/session-changed";
-        throw error;
-      }
-      tx.set(reference,{
-        state:value,updatedAt:serverTimestamp(),
-        syncRevision:nextRevision(document.data()?.syncRevision)
-      },{merge:true});
-    });
-    if(saveEpoch!==epoch||auth.currentUser?.uid!==user.uid)return false;
-    cloudFingerprint=stableJson(value);
-    lastJson=serialized;
-    if(pendingThisSession){
-      try{localStorage.removeItem(pendingKey(user.uid))}catch(e){}
-      pendingThisSession=false;
-    }
-    setStatus("Dados salvos na nuvem");
-    showBackupButton();
-    if(JSON.stringify(safeState())!==serialized)queued=true;
-    return true;
-  }catch(e){
-    if(saveEpoch!==epoch||auth.currentUser?.uid!==user.uid)return false;
-    if(e.code==="sync/conflict"){
-      syncBlocked=true;
-      setStatus("CONFLITO: outro dispositivo alterou os dados. Exporte backup local.");
-    }else{
-      setStatus("Falha na nuvem. Alterações pendentes: exporte o backup.");
-    }
-    savePending(serialized,e.code||e.message||"falha de sincronização");
-    console.warn("Firestore sync:",e.code||e.message);
-    return false;
-  }finally{
-    saving=false;
-    if(queued&&!syncBlocked){queued=false;queueSave()}
-  }
-}
+async function sync(){ return syncV5(); }
 function queueSave(){
   if(!ready||!active)return;
   // Renderização e navegação não precisam gerar gravações se o estado não mudou.
   const serialized=JSON.stringify(safeState());
   if(!syncBlocked&&serialized===lastJson)return;
-  if(useV2&&!syncBlocked&&lastJson){
+  if(useV5&&!syncBlocked&&lastJson){
    try{
     const comparison=inspectPendingAgainstCloud({version:1,uid:active.uid,state:safeState()},
      active.uid,JSON.parse(lastJson),{v2:true});
@@ -529,7 +398,7 @@ window.addEventListener("beforeunload",event=>{
   if(!ready||!active)return;
   const serialized=JSON.stringify(safeState());
   if(serialized===lastJson&&!syncBlocked)return;
-  if(useV2&&!syncBlocked&&lastJson){
+  if(useV5&&!syncBlocked&&lastJson){
    try{
     const comparison=inspectPendingAgainstCloud({version:1,uid:active.uid,state:safeState()},
      active.uid,JSON.parse(lastJson),{v2:true});
@@ -540,34 +409,6 @@ window.addEventListener("beforeunload",event=>{
   event.preventDefault();
   event.returnValue="";
 });
-
-function observeRemote(user, index) {
-  if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
-  unsubscribeRemote = onSnapshot(refFor(user), snapshot => {
-    if (index !== epoch || !ready || auth.currentUser?.uid !== user.uid) return;
-    if (snapshot.metadata.hasPendingWrites || saving) return;
-    const remote=snapshot.data()?.state;
-    if(!remote||!remote.data)return;
-    const incoming=JSON.stringify(remote);
-    const fingerprint=stableJson(remote);
-    if(fingerprint===cloudFingerprint)return;
-    if(syncBlocked){showBackupButton();return}
-    // Outro dispositivo atualizou a nuvem enquanto existiam mudanças locais ainda pendentes.
-    if(JSON.stringify(safeState())!==lastJson){
-      syncBlocked=true;
-      savePending(JSON.stringify(safeState()),"alteração concorrente detectada");
-      setStatus("CONFLITO ENTRE DISPOSITIVOS. Exporte backup local.");
-      return;
-    }
-    window.POTE_APP.applyState(remote,{preserveNavigation:true});
-    cloudFingerprint=fingerprint;
-    lastJson=JSON.stringify(safeState());
-    setStatus("Atualizado entre aplicativos");
-  }, error => {
-    console.warn("Firestore realtime:", error.code || error.message);
-    setStatus("Sincronização em tempo real indisponível. Atualize a página.");
-  });
-}
 
 async function loadUser(user, index) {
   setGate(true);
@@ -596,9 +437,9 @@ async function loadUser(user, index) {
       updatedAt: serverTimestamp()
     }), 15000, "criação do perfil");
   }
-  if(useV2){
-    v2Store?.dispose();
-    v2Store=createV2Store({
+  if(useV5){
+    v5Store?.dispose();
+    v5Store=createV5Store({
       uid:user.uid,db,
       sdk:{doc,collection,getDoc,getDocs,runTransaction,onSnapshot,serverTimestamp},
       fresh:()=>window.POTE_APP.reset(),
@@ -606,38 +447,9 @@ async function loadUser(user, index) {
       apply:next=>window.POTE_APP.applyState(next,{preserveNavigation:true}),
       status:setStatus
     });
-    await withDeadline(v2Store.load(),25000,"inicialização do banco V2");
+    await withDeadline(v5Store.load(),25000,"inicialização do banco V5");
     if(index!==epoch)return;
     lastJson=JSON.stringify(safeState());
-  }else{
-  const record = await withDeadline(getDoc(refFor(user)), 15000, "carregamento dos seus dados");
-  if (index !== epoch) return;
-  cloudFingerprint=stableJson(record.data()?.state??null);
-  if (record.exists() && record.data().state) {
-    const remote = record.data().state;
-    // Only reset a FREE account automatically when every field matches
-    // the untouched built-in demo. Any user edits must be preserved.
-    if (!admin && window.POTE_APP.isPristineDemo(remote)) {
-      window.POTE_APP.reset();
-      const fresh = safeState();
-      await withDeadline(setDoc(refFor(user), {
-        state: fresh, demoClearedVersion: 1, updatedAt: serverTimestamp()
-      }, {merge: true}), 15000, "remoção de dados demonstrativos da conta FREE");
-      lastJson = JSON.stringify(fresh);
-      cloudFingerprint=stableJson(fresh);
-    } else {
-      window.POTE_APP.applyState(remote);
-      lastJson = JSON.stringify(safeState());
-    }
-  } else {
-    window.POTE_APP.reset();
-    const start = safeState();
-    await withDeadline(setDoc(refFor(user), {
-      state: start, demoClearedVersion: 1, updatedAt: serverTimestamp()
-    }), 15000, "primeira gravação");
-    lastJson = JSON.stringify(start);
-    cloudFingerprint=stableJson(start);
-  }
   }
   if (index !== epoch) return;
   ready = true;
@@ -648,9 +460,9 @@ async function loadUser(user, index) {
   setMessage("");
    const pendingOnLoad=existingPending(user.uid);
    const backupCheck=pendingOnLoad?
-     inspectPendingAgainstCloud(pendingOnLoad,user.uid,safeState(),{v2:useV2}):null;
+     inspectPendingAgainstCloud(pendingOnLoad,user.uid,safeState(),{v2:useV5}):null;
    let notificationReadMerged=false;
-   if(useV2&&backupCheck?.kind==="notification-read-only"&&backupCheck.needsNotificationMerge){
+   if(useV5&&backupCheck?.kind==="notification-read-only"&&backupCheck.needsNotificationMerge){
      // Non-commercial monotonic receipts only. The comparison has already
      // verified that orders, stock, cash, settings and all other fields match.
      const before=safeState();
@@ -658,7 +470,7 @@ async function loadUser(user, index) {
        notificationCenter:backupCheck.mergedNotificationCenter}};
      window.POTE_APP.applyState(combined,{preserveNavigation:true});
      try{
-       const ok=await withDeadline(syncV2(),22000,"reconciliacao das notificacoes");
+       const ok=await withDeadline(syncV5(),22000,"reconciliacao das notificacoes");
        notificationReadMerged=Boolean(ok&&index===epoch&&auth.currentUser?.uid===user.uid);
      }catch(error){
        console.warn("Recibos de notificacoes nao sincronizados:",error.code||error.message||error);
@@ -688,8 +500,8 @@ async function loadUser(user, index) {
    }
   setGate(false);
   showBackupButton();
-  if(useV2){
-    v2Store?.subscribe(result=>{
+  if(useV5){
+    v5Store?.subscribe(result=>{
       if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
       if(result.ok){lastJson=JSON.stringify(safeState());lastSyncCause=null;return}
       if(result.queued)return;
@@ -698,9 +510,9 @@ async function loadUser(user, index) {
       if(["sync/error","unavailable","deadline-exceeded","network-request-failed"].includes(code)){
        setStatus("Falha temporaria de conexao: "+String(result.error||code).slice(0,90)+". Tentando novamente.");
        setTimeout(async()=>{
-        if(!ready||syncBlocked||!v2Store||auth.currentUser?.uid!==user.uid)return;
+        if(!ready||syncBlocked||!v5Store||auth.currentUser?.uid!==user.uid)return;
         if(JSON.stringify(safeState())!==lastJson){queueSave();return;}
-        const res=await v2Store.refresh();
+        const res=await v5Store.refresh();
         if(res.ok){lastJson=JSON.stringify(safeState());lastSyncCause=null;setStatus("Conexao restabelecida.");}
         else if(res.code==="sync/conflict"){syncBlocked=true;lastSyncCause={code:res.code,detail:res.error};savePending(JSON.stringify(safeState()),res.error||res.code);}
        },3500);
@@ -710,7 +522,7 @@ async function loadUser(user, index) {
       savePending(JSON.stringify(safeState()),result.error||code);
       setStatus("Vendas aguardando sincronizacao: "+syncExplanation().title);
     });
-  }else observeRemote(user, index);
+  }
   observeProfile(user, index);
   window.POTE_BUSINESS?.refresh?.();
   window.dispatchEvent(new Event("pote:user-ready"));
@@ -766,7 +578,7 @@ exitBtn.addEventListener("click", async () => {
 });
 onAuthStateChanged(auth, async user => {
   const myEpoch = ++epoch;
-  if(v2Store){v2Store.dispose();v2Store=null}
+  if(v5Store){v5Store.dispose();v5Store=null}
   if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
   if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
   if (expiryCheckInterval) { clearInterval(expiryCheckInterval); expiryCheckInterval = null; }
@@ -805,7 +617,6 @@ onAuthStateChanged(auth, async user => {
     if(oldMigration)oldMigration.hidden=true;
     await loadUser(user, myEpoch);
   } catch (e) {
-    if(e.code==="migration/required")void offerLegacyMigration(user);
     ready = false;
     setGate(true);
     loginBtn.disabled = false;
