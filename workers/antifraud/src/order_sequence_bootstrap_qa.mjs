@@ -13,6 +13,9 @@ export async function bootstrapOrderSequenceQa({
     typeof repository!=="function")
   fail("invalid_bootstrap_request");
  const a=report?.anchors;
+ if(report?.scope?.uid!==uid||report.scope.universe!==universe||
+    report.scope.projectId!==env.FIREBASE_PROJECT_ID)
+  fail("preflight_scope_mismatch");
  if(report?.status!=="ready"||report.action!=="initialize_after_authorization"||
     report.listingComplete!==true||report.snapshotStable!==true||
     !Number.isSafeInteger(report.proposedLast)||report.proposedLast<0||
