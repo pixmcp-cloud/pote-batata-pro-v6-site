@@ -179,6 +179,18 @@ service cloud.firestore {
       return record.group in ['ingredients', 'beverages', 'orders', 'stockMovements',
         'purchases', 'losses', 'prepBatches'];
     }
+    // F05: verified Pro tenants register physical losses through the Worker.
+    // Non-payment/order losses and other inventory flows remain compatible.
+    // Service account writes bypass browser-side Firestore rules.
+    function requiresF05Server(userId, record) {
+      let stockLoss = record.group == 'losses'
+        && record.item is map && record.item.get('type', '') == 'stock';
+      let lossMovement = record.group == 'stockMovements'
+        && record.item is map
+        && record.item.get('reason', '') is string
+        && record.item.get('reason', '').matches('^Perda.*');
+      return (stockLoss || lossMovement) && canUseFinancialRecords(userId);
+    }
     function validRecordDocument(document, record) {
       return document.keys().hasOnly(['record', 'updatedAt'])
         && document.get('updatedAt', null) == request.time
@@ -323,6 +335,7 @@ service cloud.firestore {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
             && canWriteOperationalRecord(userId, recordId, record)
+            && !requiresF05Server(userId, record)
             && (record.group != 'cashSessions' || record.item.status == 'open')
             // Pedidos, movimentos, compras e perdas não podem ser criados fora
             // da transação de inventário: evita gravações soltas pelo SDK.
@@ -335,6 +348,8 @@ service cloud.firestore {
           return validRecordDocument(document, record)
             && canWriteOperationalRecord(userId, recordId, record)
             && preservesRecordIdentity(userId, recordId, record, oldRecord)
+            && !requiresF05Server(userId, record)
+            && !requiresF05Server(userId, oldRecord)
             && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
             // Movimentos são imutáveis. Turnos abertos só podem ser fechados.
             && (record.group == 'cashMovements' ? record == oldRecord
@@ -347,6 +362,7 @@ service cloud.firestore {
         allow delete: if canAccess(userId)
           && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group)
+          && !requiresF05Server(userId, resource.data.record)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
       }
       // F02: privileged price approvals are server-owned. Tenant browsers
