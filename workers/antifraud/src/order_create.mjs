@@ -105,6 +105,11 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    path:recordPath(uid,universe,groupFor[line.kind],line.id)}));
   const ingDocs=await Promise.all(source.map(entry=>tx.get(entry.path)));
   const extraDocs=await Promise.all(extraSource.map(entry=>tx.get(entry.path)));
+  // Legacy V2 packaging is an ingredient with category "Embalagem".
+  // Never synthesize a second packaging inventory balance or overwrite it.
+  const legacyPackaging=await Promise.all(extraSource.map((part,i)=>
+   part.kind==="packaging"&&!extraDocs[i]?
+    tx.get(recordPath(uid,universe,"ingredients",part.id)):Promise.resolve(null)));
   let materialCost=0;
   const reserveByIngredient=new Map();
   for(let i=0;i<source.length;i++){
@@ -130,23 +135,37 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   const extraReservations=new Map();
   const extraRows={packaging:[],addon:[],beverage:[]};
   for(let i=0;i<extraSource.length;i++){
-   const part=extraSource[i],prior=extraDocs[i],recExtra=prior?.data?.record,item=recExtra?.item;
-   if(!recExtra||recExtra.group!==groupFor[part.kind]||recExtra.id!==part.id||
+   const part=extraSource[i],dedicated=extraDocs[i]?.data?.record;
+   const legacy=!dedicated&&part.kind==="packaging"?
+    legacyPackaging[i]?.data?.record:null;
+   const useLegacy=legacy?.group==="ingredients"&&legacy?.id===part.id&&
+    legacy.universe===universe&&legacy.item?.category==="Embalagem"&&
+    legacy.item?.measureUnit==="un";
+   const physicalGroup=useLegacy?"ingredients":groupFor[part.kind];
+   const prior=useLegacy?legacyPackaging[i]:extraDocs[i];
+   const recExtra=prior?.data?.record,item=recExtra?.item;
+   if(!recExtra||recExtra.group!==physicalGroup||recExtra.id!==part.id||
       recExtra.universe!==universe||!item||item.archived||item.measureUnit!==part.unit)
     bad("missing_stock","Componente sem estoque ou unidade incompatível");
+   if(useLegacy&&source.some(row=>row.id===part.id))
+    bad("recipe_review_required","Embalagem também presente como ingrediente da ficha");
    const yieldPct=Number(item.yield??100),onHand=Number(item.stock);
    if(!Number.isFinite(yieldPct)||yieldPct<=0||yieldPct>100||
       !Number.isFinite(onHand)||onHand<0)bad("invalid_stock","Estoque ou rendimento inválido");
    if(part.kind==="beverage"&&yieldPct!==100)
     bad("recipe_review_required","Bebida fracionada exige contrato de estoque");
    const needed=part.quantity*qty/(yieldPct/100);
-   const key=part.kind+":"+part.id;
+   const path=useLegacy?recordPath(uid,universe,"ingredients",part.id):part.path;
+   const key=physicalGroup+":"+part.id;
    const previous=extraReservations.get(key);
    if(previous)previous.needed+=needed;
-   else extraReservations.set(key,{kind:part.kind,id:part.id,path:part.path,
-    prior,item,onHand,needed});
+   else extraReservations.set(key,{kind:useLegacy?"ingredient":part.kind,
+    id:part.id,path,prior,item,onHand,needed});
    materialCost+=part.quantity*costUnit(item)/(yieldPct/100);
-   extraRows[part.kind].push({id:part.id,quantity:part.quantity,
+   if(useLegacy)rows.push({id:part.id,g:part.quantity,yieldPct,
+    measureUnit:"un",ingredientName:String(item.name||part.id).slice(0,150),
+    isPkg:true,stockGroup:"ingredients"});
+   else extraRows[part.kind].push({id:part.id,quantity:part.quantity,
     yieldPct,measureUnit:part.unit});
   }
   const reservations=[];
