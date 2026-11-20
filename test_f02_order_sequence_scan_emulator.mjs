@@ -1,7 +1,7 @@
 // Read-only F02 sequence preflight against genuine paginated Firestore REST.
 // All fixture writes are to demo-pote-hardening Emulator; never to production.
 import assert from "node:assert/strict";
-import {encodeFields,decodeFields,createFirestoreRepository} from "./workers/antifraud/src/firestore.mjs";
+import {encodeFields,decodeFields} from "./workers/antifraud/src/firestore.mjs";
 import {bootstrapOrderSequenceQa} from "./workers/antifraud/src/order_sequence_bootstrap_qa.mjs";
 import {recordPath} from "./workers/antifraud/src/domain.mjs";
 import {scanOrderSequenceFirestore} from "./workers/antifraud/src/order_sequence_scan.mjs";
@@ -63,18 +63,16 @@ try{
   rank:-102,item:{id:"historic-c",orderNumber:120}}});
  const report=await audit();
  assert.equal(report.status,"ready");
- const repository=env=>createFirestoreRepository(env,{
-  accessToken:async()=>"owner",apiBaseUrl:base});
  const env={FIREBASE_PROJECT_ID:project};
  await assert.rejects(bootstrapOrderSequenceQa({uid,universe,
-  env:{FIREBASE_PROJECT_ID:"potobatata-b71f3"},report,repository}),
+  env:{FIREBASE_PROJECT_ID:"potobatata-b71f3"},report}),
   /qa_project_only/);
  await assert.rejects(bootstrapOrderSequenceQa({uid:"other-tenant",universe,
-  env,report,repository}),/preflight_scope_mismatch/);
+  env,report}),/preflight_scope_mismatch/);
  await assert.rejects(bootstrapOrderSequenceQa({uid,universe:"pizzaria",
-  env,report,repository}),/preflight_scope_mismatch/);
+  env,report}),/preflight_scope_mismatch/);
  await write(root+"/appState/v2InventoryGuard",{revision:2});
- await assert.rejects(bootstrapOrderSequenceQa({uid,universe,env,report,repository}),
+ await assert.rejects(bootstrapOrderSequenceQa({uid,universe,env,report}),
   /stale_sequence_preflight/);
  const markerPath=root+"/appState/v2OrderSequence__"+universe;
  const getMarker=async()=>{
@@ -85,14 +83,14 @@ try{
  const fresh=await audit();
  assert.equal(fresh.status,"ready");
  const migrated=await bootstrapOrderSequenceQa({uid,universe,env,
-  report:fresh,repository});
+  report:fresh});
  assert.equal(migrated.ok,true);assert.equal(migrated.last,120);
  assert.equal((await getMarker()).last,120);
  const after=await audit();
  assert.equal(after.action,"already_initialized");
  assert.equal(after.last,120);
  await assert.rejects(bootstrapOrderSequenceQa({uid,universe,env,
-  report:fresh,repository}),/stale_sequence_preflight/);
+  report:fresh}),/stale_sequence_preflight/);
  console.log("PASS F02 PAGED SEQUENCE SCAN + QA BOOTSTRAP REST EMULATOR: pages, duplicates, stale read refused, demo-only atomic marker, replay refused");
 }finally{
  for(const path of paths.reverse()){
