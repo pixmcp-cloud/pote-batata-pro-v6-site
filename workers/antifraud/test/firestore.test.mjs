@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {encodeFields,decodeFields,FirestoreError,createFirestoreRepository}
  from "../src/firestore.mjs";
-test("Firestore REST codec preserves nested V2 data, arrays and money",()=>{
+test("Firestore REST codec preserves nested V5 data, arrays and money",()=>{
  const value={record:{universe:"batataria",group:"orders",id:"o1",rank:1,
   item:{id:"o1",price:30.9,qty:2,stockDeducted:false,
    items:[{id:"batata",g:100},{id:"agua",g:0}],nullField:null}}};
@@ -15,12 +15,18 @@ test("real REST adapter commits Firestore transaction with version guards and se
   if(url.endsWith(":beginTransaction"))
    return new Response(JSON.stringify({transaction:"serialized-transaction"}),{
     status:200,headers:{"content-type":"application/json"}});
-  if(url.includes("/documents/users/uid/records/existing"))
-   return new Response(JSON.stringify({name:"existing",updateTime:"2026-11-18T10:00:00Z",
-    fields:encodeFields({record:{id:"o1",stock:100}})}),{
+  if(url.endsWith(":batchGet")){
+   const query=JSON.parse(options.body);
+   assert.equal(options.method,"POST");
+   assert.equal(query.transaction,"serialized-transaction");
+   const resource=query.documents[0];
+   assert(resource.startsWith("projects/potobatata-b71f3/databases/(default)/documents/"));
+   return new Response(JSON.stringify(resource.endsWith("/existing")?
+    {found:{name:resource,updateTime:"2026-11-18T10:00:00Z",
+     fields:encodeFields({record:{id:"o1",stock:100}})}}:
+    {missing:resource}),{
     status:200,headers:{"content-type":"application/json"}});
-  if(url.includes("/documents/users/uid/records/missing"))
-   return new Response("Not Found",{status:404});
+  }
   if(url.endsWith(":commit"))
    return new Response(JSON.stringify({commitTime:"2026-11-18T10:01:00Z"}),{
     status:200,headers:{"content-type":"application/json"}});
@@ -29,14 +35,14 @@ test("real REST adapter commits Firestore transaction with version guards and se
  };
  const store=createFirestoreRepository(env,{requestFetch,accessToken:async()=>"test-access"});
  const tx=await store.transaction();
- const doc=await tx.get("users/uid/records/existing");
+ const doc=await tx.get("users/uid/recordsV5/existing");
  assert.equal(doc.data.record.stock,100);
  assert.equal(doc.updateTime,"2026-11-18T10:00:00Z");
- assert.equal(await tx.get("users/uid/records/missing"),null);
+ assert.equal(await tx.get("users/uid/recordsV5/missing"),null);
  await tx.commit([
-  {path:"users/uid/records/existing",data:{record:{id:"o1",stock:90}},
+  {path:"users/uid/recordsV5/existing",data:{record:{id:"o1",stock:90}},
    precondition:{updateTime:doc.updateTime}},
-  {path:"users/uid/records/new",data:{record:{id:"movement",quantity:-10}},
+  {path:"users/uid/recordsV5/new",data:{record:{id:"movement",quantity:-10}},
    precondition:{exists:false}}
  ]);
  await tx.rollback();
