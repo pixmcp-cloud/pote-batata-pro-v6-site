@@ -98,6 +98,87 @@ export function createWorkerBridge({
    return result;
   }finally{busy.delete(lock)}
  }
+ // F20: cash shifts are reserved by the Worker. Browser never forges a
+ // server shift or assumes a payment is reconciled with an external bank.
+ async function cashTransition(action,input={}){
+  if(!enabled)throw error("Caixa autoritativo desativado","worker/disabled");
+  const open=action==="open",close=action==="close";
+  const {universe,openingCashCents,declaredCashCents,operator,sessionId}=input;
+  if((!open&&!close)||!universePattern.test(universe)||
+     (open&&(!Number.isSafeInteger(openingCashCents)||openingCashCents<0||
+       openingCashCents>1000000||(operator!==undefined&&
+       (typeof operator!=="string"||operator.length>90))))||
+     (close&&(!/^cf-turn-[a-zA-Z0-9_-]{20,80}$/.test(sessionId||"")||
+       !Number.isSafeInteger(declaredCashCents)||declaredCashCents<0||
+       declaredCashCents>100000000)))
+   throw error("Dados do caixa inválidos","worker/invalid");
+  const before=getSession?.();
+  if(!before?.uid||!before.user||before.user.uid!==before.uid||
+     before.ready!==true||before.proActive!==true||before.syncBlocked===true)
+   throw error("Conta ou sincronização indisponível","worker/session");
+  const lock=before.uid+"|"+universe+"|cash";
+  if(busy.has(lock))throw error("Outra ação de caixa em andamento","worker/busy");
+  busy.add(lock);
+  try{
+   if(typeof flush!=="function"||await flush()!==true)
+    throw error("Alterações pendentes não sincronizadas; caixa preservado.","worker/not-synced");
+   const current=getSession?.();
+   if(current?.uid!==before.uid||current.user!==before.user||
+      current.ready!==true||current.syncBlocked===true)
+    throw error("Conta alterada durante a operação do caixa","worker/session");
+   const token=await current.user.getIdToken();
+   if(typeof token!=="string"||token.length<32)
+    throw error("Token de acesso indisponível","worker/auth");
+   const key=readKey(before.uid,universe,"cash-"+action,"pending");
+   const payload=open?{universe,openingCashCents,...(operator?{operator}:{})}:
+    {universe,sessionId,declaredCashCents};
+   let pending;
+   try{pending=JSON.parse(storage?.getItem(key)||"null")}catch{}
+   if(pending&&uuidPattern.test(pending.operationId)){
+    if(JSON.stringify(pending.payload)!==JSON.stringify(payload))
+     throw error("Existe um movimento de caixa sem confirmação. Repita os mesmos dados.","worker/pending");
+   }else{
+    const operationId=uuid();
+    if(!uuidPattern.test(operationId))throw error("Identificador de caixa inválido","worker/id");
+    pending={operationId,payload};
+    storage?.setItem(key,JSON.stringify(pending));
+   }
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),timeoutMs);
+   let response;
+   try{
+    response=await requestFetch(root+"/v1/cash/"+action,{
+     method:"POST",mode:"cors",cache:"no-store",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+     body:JSON.stringify({...payload,operationId:pending.operationId}),
+     signal:controller.signal});
+   }catch{
+    throw error("Resposta do caixa incerta. Repita a mesma operação para evitar duplicidade.","worker/network");
+   }finally{clearTimeout(timeout)}
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok){
+    const definitive=new Set(["invalid_cash_open","invalid_cash_close","not_allowed",
+     "not_ready","cash_migration_required","cash_already_open",
+     "session_conflict","cash_not_open","invalid_firebase_token","invalid_identity"]);
+    if(definitive.has(result.error))storage?.removeItem(key);
+    throw error(result.message||"Operação de caixa recusada",
+     result.error||"worker/http-"+response.status);
+   }
+   if(result.ok!==true||result.operationId!==pending.operationId||
+      (open?result.sessionId!=="cf-turn-"+pending.operationId:
+       result.sessionId!==sessionId)||
+      (!result.alreadyApplied&&result.status!==(open?"open":"closed"))||
+      (close&&result.reconciliationStatus!=="pending"))
+    throw error("Resposta de caixa não confirmada. Repita para conferir.","worker/invalid-response");
+   const post=getSession?.();
+   if(post?.uid!==before.uid||post.user!==before.user||post.ready!==true)
+    throw error("Conta alterada; confira o caixa","worker/session");
+   try{await refresh()}catch{
+    throw error("Caixa confirmado no servidor, mas sincronização falhou. Repita a mesma operação.","worker/refresh");
+   }
+   storage?.removeItem(key);
+   return result;
+  }finally{busy.delete(lock)}
+ }
  // F02: atomic order registration on the server, with a durable order ID.
  // One pending order per tenant/universe prevents creating a second order
  // while the outcome of a network timeout is still unknown.
@@ -244,6 +325,8 @@ export function createWorkerBridge({
   get inventoryEnabled(){return stockGate()},
   adjustStock,
   createOrder,
+  openCash:(universe,openingCashCents,operator)=>cashTransition("open",{universe,openingCashCents,operator}),
+  closeCash:(universe,sessionId,declaredCashCents)=>cashTransition("close",{universe,sessionId,declaredCashCents}),
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   finish:(orderId,universe)=>transition("finish",{orderId,universe}),
   cancel:(orderId,universe,decision)=>transition("cancel",{orderId,universe,decision}),
