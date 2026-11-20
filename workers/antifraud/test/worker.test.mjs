@@ -98,7 +98,26 @@ test("F02 purchase adjustment is atomic and idempotent",async()=>{
  assert.equal(e.quantityBase,20);
  assert.equal(e.costKnown,false);
  assert.equal((await(await fn()).json()).alreadyApplied,true);
-});test("F02 adjustment rejects oversubtraction",async()=>{
+});test("F05 HTTP loss of packaging and addons is atomic, auditable and idempotent",async()=>{
+ for(const [group,id,unit] of [["packaging","pot","un"],["addons","bacon","g"]]){
+  const {db,put}=makeStore(),app=appFor(db);
+  put(group,id,{id,stock:20,name:id,measureUnit:unit});
+  const body={universe:UNIVERSE,operationId:OP1,group,itemId:id,
+   delta:-2,reason:"loss",note:"Descarte sanitário"};
+  const go=()=>app.fetch(request(body,"/v1/inventory/adjust"),env);
+  const first=await go();
+  assert.equal(first.status,200,await first.text());
+  assert.equal(db.current(recordPath(UID,UNIVERSE,group,id)).record.item.stock,18);
+  const movement=db.current(recordPath(UID,UNIVERSE,"stockMovements","cf-adjust-"+OP1)).record.item;
+  const loss=db.current(recordPath(UID,UNIVERSE,"losses","cf-loss-"+OP1)).record.item;
+  assert.equal(movement.stockGroup,group);
+  assert.equal(loss.stockGroup,group);
+  assert.equal(loss.quantityBase,2);
+  assert.equal((await(await go()).json()).alreadyApplied,true);
+  assert.equal(db.current(recordPath(UID,UNIVERSE,group,id)).record.item.stock,18);
+ }
+});
+test("F02 adjustment rejects oversubtraction",async()=>{
  const {db}=makeStore(),app=appFor(db);
  const b={universe:UNIVERSE,operationId:OP3,group:"ingredients",itemId:"batata",delta:-999,reason:"loss"};
  assert.equal((await app.fetch(request(b,"/v1/inventory/adjust"),env)).status,409);
