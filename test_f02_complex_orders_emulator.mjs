@@ -86,5 +86,21 @@ try{
   operationId:"f02-complex-race-combo-cancel-00002",decision:"return"});
  assert.equal(comboCancel.status,200,"combo cancel "+await comboCancel.clone().text());
  for(const [group,id,,,,,stock] of items)assert.equal(field(await get(record(group,id)),"stock"),stock,group+" combo restored");
- console.log("PASS F02 COMPLEX CONCURRENT RESERVE CANCEL, LEGACY COMBO BLOCK, EXPLICIT COMBO APPROVAL RESERVE CANCEL");
-}finally{for(const i of [0,1]){paths.push(record("orders","complex-order-"+i));paths.push(root+"/workerEvents/"+operations[i]);for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-reserve-"+operations[i]+"-"+j));}paths.push(root+"/workerEvents/f02-complex-race-approve-00001",root+"/workerEvents/f02-complex-race-cancel-00001",root+"/workerEvents/f02-complex-race-combo-approve-00001",root+"/workerEvents/f02-complex-race-combo-order-00001",record("orders","combo-order"),record("orders","combo-order-valid"),root+"/workerEvents/f02-complex-race-combo-approve-00002",root+"/workerEvents/f02-complex-race-combo-order-00002",root+"/workerEvents/f02-complex-race-combo-cancel-00002");for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-f02-complex-race-cancel-00001-"+j));for(const p of [...new Set(paths)].reverse())await fetch(base+"/documents/"+p,{method:"DELETE",headers}).catch(()=>{});}
+ const comboRace=(i)=>call("/v1/orders/create",{...order(i),
+  orderId:"combo-race-"+i,operationId:"f02-combo-race-order-0000000"+i});
+ const competing=await Promise.all([comboRace(0),comboRace(1)]);
+ const statuses=competing.map(r=>r.status);
+ console.log("COMBO CONCURRENT",JSON.stringify(statuses));
+ assert(statuses.every(s=>s===200||s===409));
+ let comboSuccess=statuses.filter(s=>s===200).length;
+ for(let i=0;i<2;i++)if(statuses[i]!==200){
+  const retry=await comboRace(i);
+  if(retry.status===200)comboSuccess++;
+  else assert.equal(retry.status,409);
+ }
+ assert.equal(comboSuccess,1,"only one combo may reserve shared physical stock");
+ assert.equal(field(await get(record("ingredients","potato")),"stock"),100);
+ assert.equal(field(await get(record("packaging","pot")),"stock"),0);
+ assert.equal(field(await get(record("beverages","juice")),"stock"),0);
+ console.log("PASS F02 COMPLEX AND COMBO CONCURRENT, RESERVE, CANCEL, LEGACY BLOCK");
+}finally{for(const i of [0,1]){paths.push(record("orders","complex-order-"+i));paths.push(root+"/workerEvents/"+operations[i]);for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-reserve-"+operations[i]+"-"+j));}for(let i=0;i<2;i++){paths.push(record("orders","combo-race-"+i),root+"/workerEvents/f02-combo-race-order-0000000"+i);for(let j=0;j<8;j++)paths.push(record("stockMovements","cf-reserve-f02-combo-race-order-0000000"+i+"-"+j));}paths.push(root+"/workerEvents/f02-complex-race-approve-00001",root+"/workerEvents/f02-complex-race-cancel-00001",root+"/workerEvents/f02-complex-race-combo-approve-00001",root+"/workerEvents/f02-complex-race-combo-order-00001",record("orders","combo-order"),record("orders","combo-order-valid"),root+"/workerEvents/f02-complex-race-combo-approve-00002",root+"/workerEvents/f02-complex-race-combo-order-00002",root+"/workerEvents/f02-complex-race-combo-cancel-00002");for(let j=0;j<4;j++)paths.push(record("stockMovements","cf-f02-complex-race-cancel-00001-"+j));for(const p of [...new Set(paths)].reverse())await fetch(base+"/documents/"+p,{method:"DELETE",headers}).catch(()=>{});}
