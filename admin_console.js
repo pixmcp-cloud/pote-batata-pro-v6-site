@@ -1,11 +1,11 @@
-import {getApp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit,where,startAfter} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115-years";
 import {computeFranchiseFinances} from "./franchise_financial_report.mjs?v=finance-brazil-20261118";
 import {manualLicensePayment} from "./manual_receipt.mjs?v=pilot-10-20261118";
 
-const auth=getAuth(getApp()),db=getFirestore(getApp());
+const auth=getAuth(app),db=getFirestore(app);
 const btn=document.getElementById("poteAdminOpen");
 if(!btn)throw Error("Botão administrativo não encontrado no cabeçalho");
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
