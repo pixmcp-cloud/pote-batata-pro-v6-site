@@ -49,8 +49,8 @@ test('F05 Worker V5 REST: Firestore Emulator transacional com canário e sem dad
     try{
      const resp=await fetch(url,init);
      const endpoint=new URL(url).pathname.split('/').slice(-2).join('/');
-     console.log('QA_REST',endpoint,'status',resp.status,'ms',Date.now()-started);
      if(!resp.ok){
+      console.log('QA_REST_ERROR',endpoint,'status',resp.status,'ms',Date.now()-started);
       const details=await resp.clone().text().catch(()=> '');
       console.log('QA_REST_FAILURE',details.slice(0,1200));
      }
@@ -104,6 +104,19 @@ test('F05 Worker V5 REST: Firestore Emulator transacional com canário e sem dad
    assert.equal(guard.revision,3);
    assert.equal(pulse.sensitive,true);
   });
-  console.log('F05_REAL_EMULATOR_REST_PASS loss=-100g production=-400g return=400g revision=3 retries=idempotent');
+  // Dois clientes tentam dar baixa que não cabe duas vezes no mesmo estoque.
+  const competing=[{...loss,operationId:'a0f50c7b-33fa-4307-85d4-3d7fb3e7ab10',delta:-1500},
+   {...loss,operationId:'b0f50c7b-33fa-4307-85d4-3d7fb3e7ab11',delta:-1500}];
+  const race=await Promise.all(competing.map(p=>call('/v1/inventory/adjust',p)));
+  assert.deepEqual(race.map(x=>x.status).sort(),[200,409],
+   'Estoque não pode ser descontado duas vezes por sessões concorrentes');
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const db=ctx.firestore();
+   const potato=(await sdk.getDoc(sdk.doc(db,path('ingredients','batata',keyFor)))).data();
+   const guard=(await sdk.getDoc(sdk.doc(db,'users/'+UID+'/appState/v5InventoryGuard'))).data();
+   assert.equal(potato.record.item.stock,400);
+   assert.equal(guard.revision,4);
+  });
+  console.log('F05_REAL_EMULATOR_REST_PASS loss=-100g production=-400g return=400g concurrency=1of2 revision=4 retries=idempotent');
  }finally{await env.cleanup()}
 });
