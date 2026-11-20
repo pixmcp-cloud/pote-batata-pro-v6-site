@@ -27,6 +27,7 @@ jobs:
           cp assets/pote-logo-original.jpg public/assets/pote-logo-original.jpg
           cp -R assets/generic public/assets/generic
           cp -R assets/brand public/assets/brand
+          cp firebase_app.mjs public/firebase_app.mjs
           cp firebase_integration.js public/firebase_integration.js
           cp sync_guard.mjs public/sync_guard.mjs
           cp v5_store_core.mjs public/v5_store_core.mjs
@@ -166,6 +167,7 @@ jobs:
           node --check app-check.js
           python3 -c 'import pathlib,re; s=pathlib.Path("public/beta.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
           node --check app-check.js
+          node --check public/firebase_app.mjs
           node --input-type=module --check < public/firebase_integration.js
           node --check public/sync_guard.mjs
           node test_sync_guard.mjs
