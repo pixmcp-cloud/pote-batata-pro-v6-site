@@ -27,7 +27,9 @@ const success=(result,label)=>{check(result.ok===true||typeof result.created==='
     license:{kind:'lifetime',term:'lifetime',status:'active'}}),
    sdk.setDoc(sdk.doc(db,'users','qa-company-2'),{email:'company2@example.test',
     license:{kind:'lifetime',term:'lifetime',status:'active'}}),
-   sdk.setDoc(sdk.doc(db,'users','qa-free'),{email:'free@example.test'})
+   sdk.setDoc(sdk.doc(db,'users','qa-free'),{email:'free@example.test'}),
+   sdk.setDoc(sdk.doc(db,'users','qa-race-new'),{email:'race@example.test',
+    license:{kind:'lifetime',term:'lifetime',status:'active'}})
   ]);
  });
  const login=(uid,email)=>{
@@ -201,6 +203,18 @@ const success=(result,label)=>{check(result.ok===true||typeof result.created==='
  check(final.read().data.cashSessions.filter(x=>x.status==='closed').length===1&&
   final.read().data.cashSessions.filter(x=>x.status==='open').length===1,
   'Caixas antigo encerrado e novo aberto no teste');
+ // Abertura simultânea de uma conta inédita: todos os navegadores
+ // devem carregar V5 sem exigir reiniciar a tela ou enfraquecer as regras.
+ const parallel=Array.from({length:5},()=>login('qa-race-new','race@example.test'));
+ const boot=await Promise.allSettled(parallel.map(actor=>actor.store.load()));
+ check(boot.every(x=>x.status==='fulfilled'&&
+   typeof x.value?.created==='boolean'),
+   'Cinco logins simultâneos em conta inédita falharam: '+
+   JSON.stringify(boot.map(x=>x.status==='rejected'?
+    {status:x.status,code:x.reason?.code,message:x.reason?.message}:x.value)));
+ check(parallel.every(x=>x.read().data.orders.length===0),
+   'Novas sessões concorrentes não podem misturar pedidos de outra conta');
+ stat.parallelFirstLogins=boot.length;
  console.log('PASS_V5_AUTH_E2E '+JSON.stringify(stat));
 })().catch(e=>{console.error('FAIL_V5_AUTH_E2E',e.stack||e);process.exitCode=1})
 .finally(async()=>{actors.forEach(x=>x.store.dispose());if(env)await env.cleanup()});
