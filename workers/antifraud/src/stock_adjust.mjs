@@ -17,7 +17,7 @@ function refuse(message,status=400,code="invalid_stock_adjustment"){
 }
 export function validateStockAdjustment(body){
  if(!body||typeof body!=="object"||Array.isArray(body)||
-    Object.keys(body).some(k=>!["universe","operationId","group","itemId","delta","reason","note"].includes(k)))
+    Object.keys(body).some(k=>!["universe","operationId","group","itemId","delta","reason","lossReason","note"].includes(k)))
   refuse("Campos de ajuste inválidos");
  const {universe,operationId,group,itemId,delta,reason}=body;
  if(typeof universe!=="string"||!/^[a-z0-9_-]{1,64}$/.test(universe)||
@@ -30,11 +30,16 @@ export function validateStockAdjustment(body){
   refuse("Quantidade inválida: informe até cinco casas decimais");
  if((reason==="purchase"&&delta<=0)||(reason==="loss"&&delta>=0))
   refuse("Compra deve aumentar e perda deve reduzir o estoque");
+ const lossReason=body.lossReason===undefined?"outro":body.lossReason;
+ if(reason==="loss"&&(!["vencimento","queda","higiene","preparo","deterioracao","avaria","outro"].includes(lossReason)||
+    (lossReason==="outro"&&!String(body.note||"").trim())))
+  refuse("Motivo de perda inválido");
+ if(reason!=="loss"&&body.lossReason!==undefined)refuse("Motivo de perda incompatível");
  const note=body.note===undefined?"":body.note;
  if(typeof note!=="string"||note.length>350||
     (reason==="correction"&&note.trim().length<3))
   refuse("Informe um motivo válido de até 350 caracteres");
- return {universe,operationId,group,itemId,delta,reason,note:note.trim()};
+ return {universe,operationId,group,itemId,delta,reason,lossReason,note:note.trim()};
 }
 function estimateLoss(item,qty){
  const average=Number(item.averageUnitCost);
@@ -44,7 +49,7 @@ function estimateLoss(item,qty){
 }
 export async function adjustInventory(body,{user,env,repository,clock,hasAccess}){
  const input=validateStockAdjustment(body);
- const {universe,operationId,group,itemId,delta,reason,note}=input;
+ const {universe,operationId,group,itemId,delta,reason,lossReason,note}=input;
  const uid=user.uid;
  const root="users/"+uid;
  const record=recordPath(uid,universe,group,itemId);
@@ -67,7 +72,8 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
    const prev=event.data;
    if(prev.action!=="adjust"||prev.universe!==universe||
       prev.group!==group||prev.itemId!==itemId||
-      prev.delta!==delta||prev.reason!==reason||prev.note!==note)
+      prev.delta!==delta||prev.reason!==reason||prev.note!==note||
+      (prev.lossReason||"outro")!==lossReason)
     refuse("Identificador usado por outra operação",409,"idempotency_conflict");
    return {ok:true,alreadyApplied:true,group,itemId,operationId,
     stock:prev.resultingStock};
@@ -108,10 +114,10 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   if(reason==="loss"){
    const qty=-delta,cost=estimateLoss(rec.item,qty);
    const unit=group==="beverages"?"un":rec.item.measureUnit||"g";
-   const loss={id:lossId,at,type:"stock",reason:"outro",
+   const loss={id:lossId,at,type:"stock",reason:lossReason,
     description:note||"Perda física registrada no servidor",
     itemId,stockGroup:group,itemName:String(rec.item.name||itemId).slice(0,180),
-    itemKind:group==="beverages"?"beverage":group==="packaging"?"packaging":group==="addons"?"addon":"ingredient",
+    itemKind:group==="beverages"?"beverage":group==="packaging"||rec.item.category==="Embalagem"?"packaging":group==="addons"?"addon":"ingredient",
     measureUnit:unit,quantityBase:qty,enteredQuantity:qty,enteredUnit:unit,
     ...cost,uncollectedSale:0,previousStock:current,afterStock:next};
    writes.push(change(lossPath,{record:{universe,group:"losses",
@@ -126,7 +132,7 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   },pulse));
   writes.push(change(journal,{
    action:"adjust",universe,operationId,group,itemId,delta,reason,note,
-   actorUid:uid,resultingStock:next
+   actorUid:uid,resultingStock:next,lossReason
   },null));
   await tx.commit(writes);
   return {ok:true,alreadyApplied:false,group,itemId,operationId,
