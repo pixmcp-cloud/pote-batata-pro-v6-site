@@ -50,6 +50,45 @@ export function authoritativeComponentCost(lines,resolve){
  return Object.freeze({materialCostCents:Math.ceil(total*100-1e-9),
   details:Object.freeze(details)});
 }
+// F02 complex catalog preflight: normalize explicit server-stored component lines.
+// This helper does not authorize checkout or bypass assertSimpleRecipeScope.
+// Unsupported combo nesting and unknown shapes fail closed.
+export function complexRecipeComponentLines(recipe){
+ if(!recipe||typeof recipe!=="object"||Array.isArray(recipe))
+  reject("Receita complexa inválida");
+ const supported=[
+  ["items","ingredient","g"],
+  ["packagingItems","packaging","un"],
+  ["addons","addon",null],
+  ["beverages","beverage","un"]
+ ];
+ const unsupported=["comboIds","comboItems","includedAddonIds",
+  "packagingIngredientIds","addonIds","extraIds","beverageIds",
+  "selectedAddons","extras","priceIncludesExtras"];
+ for(const key of unsupported){
+  const value=recipe[key];
+  if(value!==undefined&&value!==null&&value!==false&&
+   (!Array.isArray(value)||value.length>0))reject("Componente sem contrato homologado: "+key);
+ }
+ const lines=[];
+ for(const [field,kind,defaultUnit] of supported){
+  const group=recipe[field];
+  if(group===undefined)continue;
+  if(!Array.isArray(group)||group.length>64)reject("Lista inválida: "+field);
+  for(const entry of group){
+   if(!entry||typeof entry!=="object"||Array.isArray(entry)||
+    Object.keys(entry).some(k=>!["id","g","quantity","unit"].includes(k)))
+    reject("Componente inválido: "+field);
+   const quantity=entry.quantity??entry.g;
+   if(entry.quantity!==undefined&&entry.g!==undefined)
+    reject("Quantidade ambígua: "+field);
+   lines.push({kind,id:entry.id,quantity,unit:entry.unit??defaultUnit});
+  }
+ }
+ if(!lines.some(x=>x.kind==="ingredient")||lines.length>128)
+  reject("Receita sem ingredientes ou com componentes demais");
+ return Object.freeze(lines.map(line=>Object.freeze(line)));
+}
 export function minimumApprovedPriceCents(materialCostCents,minimumGainPct){
  if(!Number.isSafeInteger(materialCostCents)||materialCostCents<1||
   materialCostCents>1e11||typeof minimumGainPct!=="number"||
