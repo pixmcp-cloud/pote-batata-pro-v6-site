@@ -56,10 +56,11 @@ const useV2=window.POTE_USE_V2!==false;
 // server credentials. Never toggle via localStorage, query strings or devtools.
 const CLOUD_WORKER_ACTIVE=false;
 // F05 may be enabled independently: it must never route legacy order cancellation.
-const F05_INVENTORY_WORKER_ACTIVE=false;
+const F05_INVENTORY_WORKER_ACTIVE=true;
 window.POTE_WORKER=createWorkerBridge({
  enabled:CLOUD_WORKER_ACTIVE,
  inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
+ inventoryCanaryEmail:"pixmcp@gmail.com",
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
  inventoryEndpoint:"https://pote-batata-f05-live.pixmcp.workers.dev",
  getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
