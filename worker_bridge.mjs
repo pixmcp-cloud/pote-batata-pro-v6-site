@@ -93,8 +93,67 @@ export function createWorkerBridge({
    return result;
   }finally{busy.delete(lock)}
  }
+ async function adjustStock({universe,group,itemId,delta,note=""}={}){
+  if(!enabled)throw error("Worker desativado. Nenhuma perda enviada.","worker/disabled");
+  if(!universePattern.test(universe)||!["ingredients","beverages","packaging","addons"].includes(group)||
+     !idPattern.test(itemId)||!Number.isFinite(delta)||delta>=0||
+     Math.abs(delta)>1000000||Math.abs(Math.round(delta*1e5)/1e5-delta)>1e-8||
+     typeof note!=="string"||note.length>350)
+   throw error("Dados de perda inválidos","worker/invalid");
+  const before=getSession?.();
+  if(!before?.uid||!before.user||before.user.uid!==before.uid||
+     before.ready!==true||before.proActive!==true||before.syncBlocked===true)
+   throw error("Conta ou sincronização indisponível","worker/session");
+  const lock=before.uid+"|"+universe+"|loss|"+group+"|"+itemId;
+  if(busy.has(lock))throw error("Perda já em processamento","worker/busy");
+  busy.add(lock);
+  try{
+   if(typeof flush!=="function"||await flush()!==true)
+    throw error("Sincronização pendente. Perda não enviada.","worker/not-synced");
+   const current=getSession?.();
+   if(current?.uid!==before.uid||current.user!==before.user||
+      current.ready!==true||current.syncBlocked===true)
+    throw error("Conta alterada durante a operação","worker/session");
+   const token=await current.user.getIdToken();
+   if(typeof token!=="string"||token.length<32)throw error("Token indisponível","worker/auth");
+   const key=readKey(before.uid,universe,"loss",group+":"+itemId);
+   let pending;
+   try{pending=JSON.parse(storage?.getItem(key)||"null")}catch{}
+   const payload={universe,group,itemId,delta,reason:"loss",note};
+   if(pending&&uuidPattern.test(pending.operationId)){
+    if(JSON.stringify(pending.payload)!==JSON.stringify(payload))
+     throw error("Existe uma perda anterior sem confirmação. Repita os mesmos valores antes de registrar outra.","worker/pending");
+   }else{
+    const operationId=uuid();
+    if(!uuidPattern.test(operationId))throw error("Identificador inválido","worker/id");
+    pending={operationId,payload};
+    storage?.setItem(key,JSON.stringify(pending));
+   }
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),timeoutMs);
+   let response;
+   try{
+    response=await requestFetch(root+"/v1/inventory/adjust",{
+     method:"POST",mode:"cors",cache:"no-store",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+     body:JSON.stringify({...payload,operationId:pending.operationId}),signal:controller.signal
+    });
+   }catch{
+    throw error("Servidor indisponível. Repita a mesma perda para confirmar sem dupla baixa.","worker/network");
+   }finally{clearTimeout(timeout)}
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw error(result.message||"Perda recusada pelo servidor",result.error||"worker/http-"+response.status);
+   if(result.ok!==true||result.operationId!==pending.operationId||
+      result.group!==group||result.itemId!==itemId)
+    throw error("Resposta não confirmada; repita a operação","worker/invalid-response");
+   if(getSession?.().uid!==before.uid)throw error("Conta alterada; confira o estoque","worker/session");
+   try{await refresh()}catch{throw error("Perda confirmada, mas recarga falhou. Repita para sincronizar.","worker/refresh")}
+   storage?.removeItem(key);
+   return result;
+  }finally{busy.delete(lock)}
+ }
  return Object.freeze({
   get enabled(){return enabled===true},
+  adjustStock,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   finish:(orderId,universe)=>transition("finish",{orderId,universe}),
   cancel:(orderId,universe,decision)=>transition("cancel",{orderId,universe,decision}),
