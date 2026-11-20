@@ -92,7 +92,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    if(!validId(row?.id)||typeof row.g!=="number"||
      !Number.isFinite(row.g)||row.g<=0||row.g>1000000)
     bad("recipe_review_required","Ingrediente da ficha inválido");
-   source.push({id:row.id,g:row.g,
+   source.push({id:row.id,g:row.quantity,
     path:recordPath(uid,universe,"ingredients",row.id)});
   }
   const complex=r.serverPriceVersion===2;
