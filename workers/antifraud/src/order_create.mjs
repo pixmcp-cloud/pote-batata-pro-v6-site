@@ -134,6 +134,8 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    const yieldPct=Number(item.yield??100),onHand=Number(item.stock);
    if(!Number.isFinite(yieldPct)||yieldPct<=0||yieldPct>100||
       !Number.isFinite(onHand)||onHand<0)bad("invalid_stock","Estoque ou rendimento inválido");
+   if(part.kind==="beverage"&&yieldPct!==100)
+    bad("recipe_review_required","Bebida fracionada exige contrato de estoque");
    const needed=part.quantity*qty/(yieldPct/100);
    const key=part.kind+":"+part.id;
    const previous=extraReservations.get(key);
