@@ -53,6 +53,12 @@ assert.doesNotMatch(adminPermissions,/updateDoc\(ref,\{accessPolicy:policy/,
 // Etapa 9: compra de estoque sempre pelo Worker no canário, sem segunda
 // mutação local ou fallback de edição física quando o servidor estiver off.
 assert.match(worker,/planStockPurchase\(/);
+assert.match(worker,/planStockRecount\(/);
+assert.match(read("workers/antifraud/src/stock_recount.mjs"),/export function planStockRecount/);
+assert.match(bridge,/async function recountStock\(/);
+assert.match(read("stock_update_modal.js"),/POTE_WORKER\.recountStock\(/);
+assert.match(read("workers/antifraud/src/stock_recount.mjs"),/stock_conflict/);
+
 assert.match(read("workers/antifraud/src/stock_purchase.mjs"),/export function planStockPurchase/);
 assert.match(bridge,/async function purchaseStock\(/);
 assert.match(bridge,/get inventoryEnabled\(\)/);
