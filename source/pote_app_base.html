@@ -340,6 +340,12 @@ function updateVitrineTotal(){
 function checkoutVitrine(openWa){
  if(!operationReady())return;
  if(!cart.length)return;
+ // A multi-item cart requires its own atomic server contract before cutover.
+ // Never silently write browser-side orders when the general Worker is active.
+ if(window.POTE_WORKER?.enabled===true){
+  toast('Cardápio Digital aguardando integração do carrinho ao servidor. Nenhuma venda foi registrada.', 'error');
+  return;
+ }
  if(!window.POTE_ORDER?.acceptCart?.(cart,{requireMain:true}))return;
  if(openWa&&!confirm('Enviar pedido pelo WhatsApp? Ele poderá abrir outro aplicativo. O pedido será registrado no caixa e permanecerá em Pedidos.'))return;
  const cName=document.getElementById('vitrineName').value.trim()||'Cliente Vitrine';
@@ -358,11 +364,18 @@ function checkoutVitrine(openWa){
  const extraBevs=cart.filter(x=>x.kind==='bev');
  const extraAddons=cart.filter(x=>x.kind==='addon');
 
- let firstOrderId=null;
+ const firstSequence=mainItems.length?nextOrderSequence(state.data):null;
+ if(mainItems.length&&(!firstSequence||firstSequence>Number.MAX_SAFE_INTEGER-mainItems.length+1)){
+  toast('Sequência dos pedidos inválida. Nenhum pedido foi registrado.', 'error');return;
+ }
+ const quotes=mainItems.map(m=>window.POTE_DRINKS?.quoteForCart?.(m,'direto')||optionQuote(m.kind+':'+m.id,'direto'));
+ if(quotes.some(q=>!q)){
+  toast('Itens do carrinho sem preço válido. Nenhum pedido foi registrado.', 'error');return;
+ }
+ let firstOrderId=null,nextSequence=firstSequence;
  if(mainItems.length){
   mainItems.forEach((m,idx)=>{
-   const q=window.POTE_DRINKS?.quoteForCart?.(m,'direto')||optionQuote(m.kind+':'+m.id,'direto');
-   if(!q)return;
+   const q=quotes[idx];
    const itemRows=copy(q.recipe.items);
    for(const a of q.addons)itemRows.push({id:a.ingredientId,g:a.quantity,addonName:a.name});
     if(state.data.settings.usePackagingStock){
@@ -388,7 +401,7 @@ function checkoutVitrine(openWa){
    const contrib=unitPrice*(1-feeRate('direto')/100)-unitVar;
    const createdOrderId=uid();if(!firstOrderId)firstOrderId=createdOrderId;
    state.data.orders.unshift({
-     ...paymentDetails,cashSessionId:window.POTE_PDV?.getSessionId?.()||null,deliveryType:document.getElementById('vitrineHasDelivery')?.value==='sim'?'Tele-entrega':'Retirada',id:createdOrderId,name:m.name,recipeId:q.recipe.id,comboId:m.combo?.id||'',qty:m.qty,price:Number(unitPrice.toFixed(2)),
+     orderNumber:nextSequence++, ...paymentDetails,cashSessionId:window.POTE_PDV?.getSessionId?.()||null,deliveryType:document.getElementById('vitrineHasDelivery')?.value==='sim'?'Tele-entrega':'Retirada',id:createdOrderId,name:m.name,recipeId:q.recipe.id,comboId:m.combo?.id||'',qty:m.qty,price:Number(unitPrice.toFixed(2)),
     deliveryFee:idx===0?deliv:0,deliveryCost:idx===0?num(state.data.settings.deliveryCostPerOrder||0):0,
     profit:contrib-fixedPerUnit(),unitContribution:contrib,unitVariableCost:unitVar,feePct:feeRate('direto'),
     clientName:cName,clientPhone:cPhone,clientAddress:cAddr,status:'recebido',date:commercialDate(),
@@ -396,6 +409,7 @@ function checkoutVitrine(openWa){
     addons:idx===0?extraAddons.map(a=>({name:a.name,quantity:a.qty,unit:'un'})):[]
    });
   });
+  state.data.orderSequenceLast=nextSequence-1;
  }
  const lines=cart.map(x=>`• ${x.qty}x ${x.name} — ${money(x.price*x.qty)}`).join('\n');
  const msg=`*NOVO PEDIDO • ${state.data.brand?.name||'Meu Negócio'}*
