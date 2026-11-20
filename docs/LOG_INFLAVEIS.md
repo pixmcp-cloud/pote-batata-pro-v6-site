@@ -417,3 +417,23 @@ Realizar QA de responsividade, acessibilidade, contratos demonstrativos e testes
 - O script novo emite aviso de depreciação Node DEP0190 ao iniciar `npm.cmd` com `shell: true`; não impediu os testes. Melhorar spawn numa etapa futura, sem afetar produção.
 - Nenhum arquivo da aplicação alterado, nenhuma operação em D1, migração, autenticação, agenda, serviço pago, domínio ou Potê Batata. Experiência cliente colorida e painel executivo preservados.
 - Incidente de tela preta Android real e acesso IPv4 ao host permanecem sem solução comprovada; CDN Hostinger havia sido desativada para diagnóstico em sessão anterior, sem correção do problema. A automação não altera a configuração pública sem aprovação.
+
+## 27. [PC/WORK] Prévia autenticada do Sites e pedido de exportação de origem — 19/11/2026
+
+**Fato confirmado por acesso no PC, distinto da demonstração Hostinger:**
+- No Chrome do computador DESKTOP-9481JM1, abri https://parque-inflavel-br.nerdflix.chatgpt.site/; a prévia solicitou autenticação ChatGPT.
+- Cliquei 'Continuar com ChatGPT' e escolhi a conta previamente autenticada no próprio computador. Após login, a prévia Sites carregou com logo B, navegação 'Explorar brinquedos', 'Decoração', 'Como funciona', 'Para locadores', 'Minha conta', 'Área do locador' e o grande castelo inflável / chamada 'SUPER FESTA!'. Essa interface é visualmente distinta da versão de demonstração publicada em brasilinflaveis.com.
+- O botão 'Editar site' abriu a conversa original ChatGPT 'Criar site de infláveis' com painel Sites integrado em chatgpt.com/c/6aff2f8c-1794-83e9-98e2-dc8784696de2. O projeto de Sites é acessível pela sessão autorizada do navegador, embora os arquivos do repositório ainda não tenham sido transferidos.
+- Enviei nessa conversa original uma solicitação explícita de HANDOFF: **não alterar o site nem publicar**, exportar fonte completa com histórico Git para C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import pelo Desktop Commander, ou disponibilizar repositório privado próprio acessível a pixmcp-cloud / ZIP mais git bundle, sem segredos, com migrações D1, branch e commit. Solicitei registro neste log canônico.
+- A solicitação apareceu como mensagem enviada e o Work iniciou seu processamento. **Isso não comprova exportação concluída.**
+
+**Acesso a fontes verificado:**
+- GitHub da conexão nesta sessão lista somente pixmcp-cloud/livresomcom e pixmcp-cloud/pote-batata-pro-v6-site; busca por repositório do Brasil Infláveis não retornou resultado.
+- Desktop Commander: C:\Users\LIVRESOM\Projects\brasil-inflaveis-sites-import ainda não existe; C:\Users\LIVRESOM\Projects\inflaveis-pro é protótipo local distinto, branch qa/accessibility-audit-20261119 e commit 81ba21f, árvore limpa.
+- A Library contém arquivos antigos 'Log infláveis.md', mas **não** código-fonte atualizado do Work; não usar os logs desatualizados da Library como substitutos da fonte.
+
+**Relatório Hostinger levado pelo usuário:** hPanel IA afirma domínio/arquivos operacionais e observa múltiplos bundles JS no diretório; múltiplos hashes de bundles Vite podem ser normais após sucessivos builds, não comprovam causa de tela preta. Só haverá erro de JS se o index apontar a arquivo incorreto ou inexistente. A falha real no celular permanece sem causa confirmada; testes prévios mostraram IPv4 TCP443 ao IP 45.132.157.170 inacessível no PC e IPv6 funcionando. CDN temporariamente desativada não corrigiu IPv4.
+
+**Decisão operacional:** NÃO sobrescrever a hospedagem com cópia visual ou HTML salvo do preview de Sites, pois isso eliminaria backend/agenda D1 e não preservaria histórico. Somente comparar árvores Git, gerar build validado e preparar hospedagem ou solução híbrida segura após fonte Work exportada. Não expor contas, dados financeiros de locadoras nem migrar D1 sem testes.
+
+**URL oficial ao usuário:** https://brasilinflaveis.com/ , exclusivamente sem querystring, UTM ou outros parâmetros.
