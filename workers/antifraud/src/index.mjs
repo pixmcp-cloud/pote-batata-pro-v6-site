@@ -67,7 +67,10 @@ export function createWorkerApp({
   // Two independent release gates: enabling writes does not authorize a real
   // Firebase project until a separate, auditable cutover is approved.
   const demoProject=/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||""));
-  if(env.ENABLE_WRITES!=="true"||(!demoProject&&env.PRODUCTION_CUTOVER_APPROVED!=="true"))
+  const isolatedQa=env.QA_INVENTORY_ONLY==="true"&&
+   env.FIREBASE_PROJECT_ID==="pote-batata-qa-worker"&&
+   typeof env.QA_ALLOWED_UID==="string"&&env.QA_ALLOWED_UID.length>10;
+  if(env.ENABLE_WRITES!=="true"||(!demoProject&&!isolatedQa&&env.PRODUCTION_CUTOVER_APPROVED!=="true"))
    return json({error:"not_activated",message:"Cloudflare Worker em homologação"},423,headers);
   const authorization=req.headers.get("Authorization")||"";
   if(!/^Bearer [^\s]+$/.test(authorization))
