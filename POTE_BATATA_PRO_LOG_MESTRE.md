@@ -718,3 +718,15 @@ Commit 0c01b24 adicionou test_f02_worker_http_emulator.mjs: chama createWorkerAp
 
 ### F02 PREFLIGHT RECEITAS COMPLEXAS / 19-11-2026 22H BRT
 Commits 952688f e 5ebd1e8 criam complexRecipeComponentLines no modulo de custo do Worker, normalizando ingredientes, embalagens, adicionais com quantidade repetida e bebidas, rejeitando campos ambiguos, combos aninhados e custos ausentes. Helper NAO e conectado a aprovacao ou venda; os bloqueios fail-closed continuam ativos para evitar precificacao insegura. Testes no PC: 76/76 PASS, 0 fail, incluindo 2 novos testes de composicao e rejeicao. Exemplo sintetico: custo R$7,60, minimo com ganho 100% R$15,20. Nenhum deploy. PROXIMO: integrar preflight ao fluxo transacional de aprovacao, preservar snapshot dos componentes e impedir venda ate reserva de estoque de todos os tipos estar validada.
+
+
+### CADEIA DE EXECUCAO SEQUENCIAL ATE HOMOLOGACAO / 19-11-2026 22H BRT
+REGRA: em cada execucao autonoma, ler este log inteiro, selecionar a PRIMEIRA etapa nao homologada, implementar e testar codigo SOMENTE na branch feat/f35-completion-audit-20261118, registrar commits/evidencias, e avancar para a proxima etapa na MESMA execucao se houver tempo. Nunca afirmar concluido sem teste. Erros exigem diagnostico e tentativa de correcao. Nao criar automacoes adicionais. Ordem de dependencia:
+ETAPA 1 F02: integrar componentes de receitas complexas na aprovacao de preco com custo transacional, snapshots de ingredientes/adicionais/bebidas/embalagens, unidades e rendimento; preservar bloqueio de combos ate contrato validado. Depois integrar reserva e baixa de estoque e cancelamento para cada componente, idempotencia e concorrencia HTTP real no Emulator. Estado: preflight 76/76 PASS, integracao pendente.
+ETAPA 2 F05: reconciliar reserva, consumo, perdas, cancelamentos e devolucoes para ingredientes, bebidas, adicionais, embalagens e combos; verificar unidades g/ml/un e estoque negativo, relatorios e movimentos auditaveis.
+ETAPA 3 F20: validar pedido -> producao -> pagamento Pix/cartao/dinheiro/entrega -> PDV -> fechamento; uma unica confirmacao de venda, sem dupla entrada; graficos e saldos consistentes.
+ETAPA 4 F10: Free/Pro/ADM/franquia, licencas e expiracao, limites, isolamento de tenants, teste de dados zerados, permissoes, pagamentos apenas em sandbox.
+ETAPA 5 UX/APP: telas premium responsivas Android, imagens corretas, menu fixo, login, WhatsApp com quebras de linha, sequencia #P0000001, simulacao sem dados reais, acessibilidade e falhas de navegacao.
+ETAPA 6 AUDITORIA: regressao integral, E2E Android/emulador, backup verificavel, seguranca, concorrencia, performance, cenarios negativos, homologacao documentada por etapa.
+ETAPA 7 PUBLICACAO: somente DEPOIS de todas etapas homologadas e mediante autorizacao especifica para deploy, planejar Hostinger com rollback; nao ativar pagos nem alterar main/Floot/producao antecipadamente.
+Para cada etapa registrar: estado PENDENTE/EM EXECUCAO/HOMOLOGADA, commit, testes e proxima acao exata. O progresso e medido por criterios verificaveis, nao porcentagem inventada.
