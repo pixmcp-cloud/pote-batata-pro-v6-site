@@ -15,7 +15,7 @@ const change=(path,data,prior)=>({
 function refuse(message,status=400,code="invalid_stock_adjustment"){
  throw new OperationalError(message,status,code);
 }
-function validate(body){
+export function validateStockAdjustment(body){
  if(!body||typeof body!=="object"||Array.isArray(body)||
     Object.keys(body).some(k=>!["universe","operationId","group","itemId","delta","reason","note"].includes(k)))
   refuse("Campos de ajuste inválidos");
@@ -43,7 +43,7 @@ function estimateLoss(item,qty){
  return {costKnown:false,costLost:0};
 }
 export async function adjustInventory(body,{user,env,repository,clock,hasAccess}){
- const input=validate(body);
+ const input=validateStockAdjustment(body);
  const {universe,operationId,group,itemId,delta,reason,note}=input;
  const uid=user.uid;
  const root="users/"+uid;
