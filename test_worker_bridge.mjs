@@ -126,4 +126,29 @@ assert.equal([...storage.keys()].filter(k=>k.includes(":purchase:")).length,0,
  "Compra confirmada limpa seu UUID sem apagar operações pendentes de outras ações");
 const inactivePurchases=make({enabled:false,inventoryEnabled:false});
 await assert.rejects(()=>inactivePurchases.purchaseStock(buying),e=>e.code==="worker/disabled");
+let recountCalls=0,failRecountOnce=true;
+const recountBridge=make({enabled:false,inventoryEnabled:true,
+ requestFetch:async(url,options)=>{
+  assert(url.endsWith("/v1/inventory/adjust"));
+  recountCalls++;
+  const sent=JSON.parse(options.body);
+  assert.equal(sent.reason,"recount");
+  assert.equal(sent.previousStock,100);
+  assert.equal(sent.countedStock,80);
+  assert.equal("delta" in sent,false);
+  if(failRecountOnce){failRecountOnce=false;throw Error("offline")}
+  return new Response(JSON.stringify({ok:true,operationId:sent.operationId,
+   group:"ingredients",itemId:"batata",recountId:"cf-recount-"+sent.operationId,
+   afterStock:80}),{status:200});
+ }});
+const count={universe,group:"ingredients",itemId:"batata",previousStock:100,
+ countedStock:80,note:"Conferência do estoque"};
+await assert.rejects(()=>recountBridge.recountStock(count),e=>e.code==="worker/network");
+assert.equal([...storage.keys()].filter(k=>k.includes(":recount:")).length,1);
+await assert.rejects(()=>recountBridge.recountStock({...count,countedStock:30}),
+ e=>e.code==="worker/pending");
+assert.equal((await recountBridge.recountStock(count)).afterStock,80);
+assert.equal(recountCalls,2);
+assert.equal([...storage.keys()].filter(k=>k.includes(":recount:")).length,0);
+await assert.rejects(()=>inactivePurchases.recountStock(count),e=>e.code==="worker/disabled");
 console.log("PASS Worker client: disabled default, auth, preflush, durable retries, 423 fail-closed, cancel.");
