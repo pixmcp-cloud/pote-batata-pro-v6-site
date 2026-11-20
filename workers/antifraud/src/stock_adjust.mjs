@@ -32,7 +32,7 @@ export function validateStockAdjustment(body){
   refuse("Compra deve aumentar e perda deve reduzir o estoque");
  const lossReason=body.lossReason===undefined?"outro":body.lossReason;
  if(reason==="loss"&&(!["vencimento","queda","higiene","preparo","deterioracao","avaria","outro"].includes(lossReason)||
-    (lossReason==="outro"&&!String(body.note||"").trim())))
+    (body.lossReason!==undefined&&lossReason==="outro"&&!String(body.note||"").trim())))
   refuse("Motivo de perda inválido");
  if(reason!=="loss"&&body.lossReason!==undefined)refuse("Motivo de perda incompatível");
  const note=body.note===undefined?"":body.note;
