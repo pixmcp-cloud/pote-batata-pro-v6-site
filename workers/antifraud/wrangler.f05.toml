@@ -1,5 +1,5 @@
 # Dedicated commercial F05 inventory-only Worker. Not the general purpose staging Worker.
-name = "pote-batata-f05-production"
+name = "pote-batata-f05-live"
 main = "src/index.mjs"
 compatibility_date = "2026-11-18"
 workers_dev = true
