@@ -1,0 +1,17 @@
+# Dedicated commercial F05 inventory-only Worker. Not the general purpose staging Worker.
+name = "pote-batata-f05-production"
+main = "src/index.mjs"
+compatibility_date = "2026-11-18"
+workers_dev = true
+preview_urls = false
+
+[vars]
+FIREBASE_PROJECT_ID = "potobatata-b71f3"
+ALLOWED_ORIGINS = "https://pdv.livresom.com,https://potobatata-b71f3.web.app"
+ENABLE_WRITES = "false"
+PRODUCTION_CUTOVER_APPROVED = "false"
+F05_ONLY = "true"
+F05_PRODUCTION_APPROVED = "false"
+F05_CANARY_EMAIL = "pixmcp@gmail.com"
+ASAAS_WEBHOOK_ENABLED = "false"
+ASAAS_MODE = "off"
