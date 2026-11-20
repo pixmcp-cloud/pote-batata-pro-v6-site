@@ -124,7 +124,7 @@ export function planOperation({action,decision,order,stock,universe,operationId,
    stockUpdates.push({group,id,item:{...previous,stock:updated}});
    const movementId="cf-"+operationId+"-"+n++;
    movements.push({
-    id:movementId,at,ingredientId:group==="beverages"?"bev:"+id:id,
+    id:movementId,at,stockGroup:group,ingredientId:group==="beverages"?"bev:"+id:id,
     ingredientName:String(previous.name||id).slice(0,180),
     quantity:isProduce?-needed:needed,
     reason:isProduce?(group==="beverages"?"Bebida vendida":"Produção"):
