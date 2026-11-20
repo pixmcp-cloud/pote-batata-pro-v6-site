@@ -1,6 +1,6 @@
-/* F02/F05/F20 - invariant checks before V2 transaction.
+/* F02/F05/F20 - invariant checks before V5 transaction.
    No cloud read cost. These cannot authenticate external payment receipts. */
-import {recordId} from "./v2_store_core.mjs";
+import {recordId} from "./v5_store_core.mjs";
 import {paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs";
 const error=(message)=>{const e=Error(message);e.code="integrity/rejected";throw e};
 const near=(a,b)=>Math.abs(Number(a)-Number(b))<=0.00002;
