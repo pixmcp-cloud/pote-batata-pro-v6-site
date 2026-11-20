@@ -55,8 +55,11 @@ const useV2=window.POTE_USE_V2!==false;
 // Staging-only: enabling the Worker also requires Firebase Rules cutover and
 // server credentials. Never toggle via localStorage, query strings or devtools.
 const CLOUD_WORKER_ACTIVE=false;
+// F05 may be enabled independently: it must never route legacy order cancellation.
+const F05_INVENTORY_WORKER_ACTIVE=false;
 window.POTE_WORKER=createWorkerBridge({
  enabled:CLOUD_WORKER_ACTIVE,
+ inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
  getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
   proActive:Boolean(window.POTE_AUTH?.proActive),
@@ -64,7 +67,10 @@ window.POTE_WORKER=createWorkerBridge({
  flush:async()=>!syncBlocked&&!saving&&ready&&useV2&&await syncV2(),
  refresh:async()=>{
   if(!v2Store||!ready||syncBlocked)throw Error("Sincronização indisponível");
-  await v2Store.load();
+  // A second firstLoad() bypasses V2 conflict checks and can overwrite local edits.
+  // Only refresh() checks baseline, guard revision and pending state before apply().
+  const reloaded=await v2Store.refresh();
+  if(!reloaded?.ok)throw Error(reloaded?.error||"Recarregamento V2 indisponível");
   lastJson=JSON.stringify(safeState());
   setStatus("Operação confirmada no servidor; estoque sincronizado.");
  }
