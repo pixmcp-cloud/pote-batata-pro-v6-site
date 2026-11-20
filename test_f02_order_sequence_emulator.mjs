@@ -9,7 +9,7 @@ const host=process.env.FIRESTORE_EMULATOR_HOST,project=process.env.GCLOUD_PROJEC
 if(!host||project!=="demo-pote-hardening")throw Error("Refusing non-demo project");
 const uid="f02-sequence-atomic-qa",universe="batataria",recipeId="batata";
 const root="users/"+uid,base="http://"+host+"/v1/projects/"+project+"/databases/(default)";
-const headers={Authorization:"Bearer emulator","Content-Type":"application/json"};
+const headers={Authorization:"Bearer owner","Content-Type":"application/json"};
 const rec=(group,id)=>recordPath(uid,universe,group,id);
 const seqPath=root+"/appState/v2OrderSequence__"+universe;
 const all=[root,root+"/appState/v2",root+"/appState/v2InventoryGuard",
