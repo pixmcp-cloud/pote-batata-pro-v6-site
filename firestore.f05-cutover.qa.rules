@@ -185,6 +185,19 @@ service cloud.firestore {
             && record.item.get('stockRestored', false) == false))
       );
     }
+    // Evita aumentar insumos na restituição falsificando o pedido produzido.
+    // A mesma restrição vale quando o status permanece inalterado.
+    function cutoverOrderInputsUnchanged(item, before) {
+      return item.get('qty', null) == before.get('qty', null)
+        && item.get('items', []) == before.get('items', [])
+        && item.get('beverageItems', []) == before.get('beverageItems', [])
+        && item.get('recipeId', null) == before.get('recipeId', null)
+        && item.get('price', null) == before.get('price', null)
+        && item.get('deliveryFee', null) == before.get('deliveryFee', null)
+        && item.get('stockOverrideApproved', false) == before.get('stockOverrideApproved', false)
+        && item.get('stockActualConsumed', {}) == before.get('stockActualConsumed', {})
+        && item.get('stockShortages', []) == before.get('stockShortages', []);
+    }
     function cutoverUpdateAllowed(userId, record, oldRecord) {
       return !workerCutover(userId) || (
         !workerManagedGroup(record.group)
@@ -196,6 +209,7 @@ service cloud.firestore {
             && record.item.get('stockDeducted', false) == oldRecord.item.get('stockDeducted', false)
             && record.item.get('stockRestored', false) == oldRecord.item.get('stockRestored', false)
             && record.item.get('stockReturnDeclined', false) == oldRecord.item.get('stockReturnDeclined', false)
+            && cutoverOrderInputsUnchanged(record.item, oldRecord.item)
             && (
               record.item.get('status', null) == oldRecord.item.get('status', null)
               || (oldRecord.item.get('status', null) == 'em_producao'
