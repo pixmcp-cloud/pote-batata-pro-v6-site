@@ -75,6 +75,8 @@ export function createWorkerApp({
   let user;
   try{user=await verify(authorization.slice(7),env.FIREBASE_PROJECT_ID)}
   catch{return json({error:"invalid_firebase_token"},401,headers)}
+  if(env.QA_INVENTORY_ONLY==="true"&&user?.uid!==env.QA_ALLOWED_UID)
+   return json({error:"qa_identity_restricted"},403,headers);
   if(!user?.uid||!valueOk(user.uid,/^[a-zA-Z0-9:_-]{1,128}$/))
    return json({error:"invalid_identity"},401,headers);
   let body;
