@@ -5,7 +5,7 @@ import {createV2Store} from "./v2_storage.mjs?v=order-sequence-v10-20261119";
 import {prepareLegacyMigration,inspectLegacyBackup,migrateLegacyV2} from "./legacy_migration_v2.mjs?v=f10-closed-shifts-20261118";
 import {stableJson,matchesRemote,nextRevision,jsonBytes,MAX_APPSTATE_BYTES,pendingKey,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
-import {createWorkerBridge} from "./worker_bridge.mjs?v=cf-bridge-staging-20261118";
+import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-owner-canary-20261120";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
