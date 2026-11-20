@@ -1,0 +1,14 @@
+name = "pote-batata-guard-qa"
+main = "src/index.mjs"
+compatibility_date = "2026-11-18"
+workers_dev = true
+preview_urls = false
+
+# QA isolated from the commercial Firebase project.
+[vars]
+FIREBASE_PROJECT_ID = "pote-batata-qa-worker"
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+ENABLE_WRITES = "false"
+PRODUCTION_CUTOVER_APPROVED = "false"
+ASAAS_WEBHOOK_ENABLED = "false"
+ASAAS_MODE = "off"
