@@ -31,7 +31,7 @@ function receive(event){
  if(packet.id!=null){const p=pending.get(packet.id);if(!p)return;pending.delete(packet.id);
   packet.error?p.reject(Error(JSON.stringify(packet.error))):p.resolve(packet.result);return;}
  if(packet.method==='Runtime.exceptionThrown')
-  exceptions.push(packet.params?.exceptionDetails?.text||'Excecao JS');
+  exceptions.push({description:packet.params?.exceptionDetails?.exception?.description||packet.params?.exceptionDetails?.text||'Excecao JS',url:packet.params?.exceptionDetails?.url||'',line:packet.params?.exceptionDetails?.lineNumber||0});
  if(packet.method==='Network.loadingFailed'){
   const e=packet.params?.errorText||'erro de rede';
   if(!/ERR_ABORTED/.test(e))failedRequests.push(e);
@@ -66,9 +66,9 @@ async function main(){
   await call('Emulation.setTouchEmulationEnabled',{enabled:screen.mobile,maxTouchPoints:5});
   await call('Page.navigate',{url:'https://pdv.livresom.com/?qa='+screen.width+'x'+screen.height});
   for(let tick=0;tick<35;tick++){
-   await sleep(250);
+   await sleep(350);
    const ready=await evaluate('document.readyState');
-   if(ready==='complete'&&tick>=7)break;
+   if(ready==='complete'&&tick>=11)break;
   }
   const info=await evaluate(`(()=>({
    url:location.href,ready:document.readyState,
