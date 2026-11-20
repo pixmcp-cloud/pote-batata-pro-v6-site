@@ -88,6 +88,19 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   if(lastNumber>=Number.MAX_SAFE_INTEGER)
    bad("order_sequence_exhausted","Sequência de pedidos excedeu limite seguro");
   const orderNumber=lastNumber+1;
+  // Keep the V2 metadata counter in the same transaction as the server
+  // control and order record: clients loading/recovering the UI must never
+  // fall behind or reissue a public number after a rollback to the web UI.
+  // Production cutover additionally requires a verified migrated counter.
+  const envelope=meta.data?.state,activeState=envelope?.data;
+  const activeUniverse=activeState?.businessType===universe;
+  const archived=activeState?.businessUniverses?.[universe];
+  if(!activeUniverse&&!archived&&!/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||"")))
+   bad("order_sequence_migration_required","Universo comercial não existe no estado V2");
+  const nextData=activeUniverse?{...activeState,orderSequenceLast:orderNumber}:
+   archived?{...activeState,businessUniverses:{...activeState.businessUniverses,
+    [universe]:{...archived,orderSequenceLast:orderNumber}}}:null;
+  const nextMeta=nextData?{...meta.data,state:{...envelope,data:nextData}}:null;
   if(session?.data?.record?.group!=="cashSessions"||
      session.data.record.id!==cashSessionId||
      session.data.record.universe!==universe||
@@ -240,10 +253,11 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    put(orderPath,{record:{universe,group:"orders",id:orderId,
     rank:-clock().getTime(),item:order}},null),
    put(sequencePath,{version:1,universe,last:orderNumber},sequenceControl),
+   ...(nextMeta?[put(root+"/appState/v2",nextMeta,meta)]:[]),
    put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"cf-"+operationId,
     previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
-    affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
+    affected:changed.length,changedKeys:changed,metaChanged:Boolean(nextMeta),sensitive:true},pulse),
    put(eventPath,{action:"order_create",universe,orderId,recipeId,
     qty,cashSessionId,paymentMethod,operationId,orderNumber,
     priceCents:priceApproval.salePriceCents,actorUid:uid,
