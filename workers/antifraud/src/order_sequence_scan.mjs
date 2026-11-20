@@ -100,5 +100,6 @@ export async function scanOrderSequenceFirestore({
   pulseEventId:pulse.eventId??null
  });
  return Object.freeze({...result,pages,scanned,orderDocuments:orders.length,
-  listingComplete:true,snapshotStable:true,anchors});
+  listingComplete:true,snapshotStable:true,anchors,
+  scope:Object.freeze({uid,universe,projectId})});
 }
