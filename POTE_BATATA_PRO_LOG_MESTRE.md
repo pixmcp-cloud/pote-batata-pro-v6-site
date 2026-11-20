@@ -730,3 +730,7 @@ ETAPA 5 UX/APP: telas premium responsivas Android, imagens corretas, menu fixo, 
 ETAPA 6 AUDITORIA: regressao integral, E2E Android/emulador, backup verificavel, seguranca, concorrencia, performance, cenarios negativos, homologacao documentada por etapa.
 ETAPA 7 PUBLICACAO: somente DEPOIS de todas etapas homologadas e mediante autorizacao especifica para deploy, planejar Hostinger com rollback; nao ativar pagos nem alterar main/Floot/producao antecipadamente.
 Para cada etapa registrar: estado PENDENTE/EM EXECUCAO/HOMOLOGADA, commit, testes e proxima acao exata. O progresso e medido por criterios verificaveis, nao porcentagem inventada.
+
+
+### F02 EXECUCAO IMEDIATA: PREVIEW TRANSACIONAL / 19-11-2026 22H BRT
+A pedido do proprietario, automacao existente foi acionada para execucao imediata. Commits e879def e 0328c79 criam transactionComplexCostPreview, lendo ingredientes, embalagens, adicionais e bebidas dentro da mesma transacao, validando grupo/tenant/ID, rejeitando fichas ausentes/estimadas e calculando preco minimo autoritativo. Testes no PC DESKTOP-9481JM1: 78/78 PASS, 0 fail. Estado F02: EM EXECUCAO, NAO HOMOLOGADA. Funcao e preview interno sem endpoint; aprovacao/venda de receita complexa continuam bloqueadas. Proxima acao: integrar preview ao endpoint de aprovacao com snapshot completo e contrato de reserva de estoque, depois testar corrida real no Emulator. Nenhum deploy nem alteracao de producao.
