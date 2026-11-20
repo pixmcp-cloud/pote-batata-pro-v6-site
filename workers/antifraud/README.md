@@ -111,3 +111,17 @@ No Firebase Emulator `demo-pote-hardening`, o teste `test_firestore_f05_cutover.
 3. Prover as credenciais Google por Cloudflare Secrets sem expor chaves; liberar o Worker com o UID canário autorizado.
 4. Após concluir testes reais, habilitar a flag apenas para o canário, monitorar as transações e manter rollback imediato.
 5. Expandir gradualmente, nunca ativando todas as empresas de uma vez.
+
+## Etapa 9 — compras e reposição autoritativas (20/11/2026)
+
+A rota já existente `POST /v1/inventory/adjust` também aceita `reason:"purchase"`. Para esta ação, o cliente envia apenas `universe`, `group` (`ingredients` ou `beverages`), `itemId`, `operationId`, `delta` positiva em unidade física base, `enteredQuantity`, `enteredUnit`, `paidTotal` e `supplier`. Não envia UID, saldo anterior, valor total do estoque ou custo médio.
+
+O Worker verifica a identidade Google, licença, `ENABLE_WRITES=true`, canário na secret `CANARY_UIDS`, aprovação da conta `accessPolicy.workerAuthoritative=true`, o saldo corrente do item e a unidade. As bebidas são sempre `un` inteiras. Insumos aceitam `g/kg`, `ml/L` ou `un`, conforme cadastro. Com uma única transação, atualiza o saldo, calcula a média ponderada quando há custo histórico confiável, registra o recibo `purchases`, movimento `stockMovements`, incrementa `v5InventoryGuard`, emite `v5Pulse` e grava o evento idempotente em `workerEvents`.
+
+As telas `stock_ui.js`, `stock_ext.js` e `stock_update_modal.js` passam compras de contas canário pelo `purchaseStock()` da ponte: token Google, sincronização prévia, UUID retido em falhas de rede, reconsulta confirmada e **zero segunda baixa local**. Sem Worker, recusam a operação sem alterar os saldos. As contas tradicionais permanecem com o caminho V5 atual.
+
+**Regra contábil:** `paidTotal` é o valor que o operador informa ter pago ao fornecedor; o Worker valida o formato, não tem como comprovar liquidação bancária nem preços do fornecedor. O histórico é um lançamento operacional auditável, não um comprovante bancário. Se o estoque antigo tem custo desconhecido, não é inventado custo histórico e a conta é marcada para conferência física.
+
+**Testes:** `stock_purchase.test.mjs` (unidades, custo médio, bebida, entrada inválida), `worker.test.mjs` (recibo, movimento, idempotência), `test_worker_bridge.mjs` (perda de rede e retry sem duplicidade) e `test_firestore_worker_v5_rest_e2e.cjs` (compra real pelo REST contra Firestore Emulator com políticas canário). A última verificação integrada mostrou compra de 100 g após descarte/produção/estorno, custo médio R$ 0,0088/g, saldo 500 g e revisão 5.
+
+**PENDÊNCIA:** contagem física/ajuste de saldo por inventário em conta canário ainda não tem endpoint autoritativo; a interface recusa esse ajuste para proteger o estoque. A ativação comercial permanece condicionada ao Worker seguro, serviço Google autorizado, validação OAuth e cobertura de todos os fluxos físicos. As regras oficiais e o Worker de produção continuam desativados.

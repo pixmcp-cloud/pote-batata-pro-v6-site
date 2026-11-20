@@ -234,3 +234,55 @@ test("F05: mesmo ENABLE_WRITES=true não grava sem canário privado (produção 
  assert.equal(db.docs.size,before,"Nenhuma escrita com canário ausente");
  assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,400);
 });
+
+const purchasePayload=(operationId,extra={})=>({
+ universe:UNIVERSE,group:"ingredients",itemId:"batata",
+ delta:100,reason:"purchase",paidTotal:9,enteredQuantity:0.1,
+ enteredUnit:"kg",supplier:"Fornecedor QA",operationId,...extra
+});
+test("F05 V5: compra baixa custo, aumenta estoque e cria recibo/movimento atômicos",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const response=await app.fetch(request(purchasePayload(OP1),"/v1/inventory/adjust"),env);
+ assert.equal(response.status,200);
+ const receipt=await response.json();
+ assert.equal(receipt.purchaseId,"cf-purchase-"+OP1);
+ assert.equal(receipt.afterStock,500);
+ const repeat=await app.fetch(request(purchasePayload(OP1),"/v1/inventory/adjust"),env);
+ assert.equal(repeat.status,200);
+ assert.equal((await repeat.json()).alreadyApplied,true);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"ingredients","batata")).record.item.stock,500);
+ const purchase=db.current(recordPath(UID,UNIVERSE,"purchases","cf-purchase-"+OP1)).record.item;
+ assert.equal(purchase.added,100);
+ assert.equal(purchase.totalPaid,9);
+ assert.equal(purchase.supplier,"Fornecedor QA");
+ const movement=db.current(recordPath(UID,UNIVERSE,"stockMovements","cf-move-"+OP1)).record.item;
+ assert.equal(movement.referenceId,purchase.id);
+ assert.equal(movement.quantity,100);
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
+ const clash=await app.fetch(request(purchasePayload(OP1,{paidTotal:90}),
+  "/v1/inventory/adjust"),env);
+ assert.equal(clash.status,409);
+});
+test("F05 V5: compras de bebidas só em unidades e sem valores falsos",async()=>{
+ const {db}=makeStore(),app=appFor(db);
+ const wrong=await app.fetch(request(purchasePayload(OP1,{
+  group:"beverages",itemId:"suco",delta:0.5,enteredQuantity:0.5,enteredUnit:"un"
+ }),"/v1/inventory/adjust"),env);
+ assert.equal(wrong.status,422);
+ const good=await app.fetch(request(purchasePayload(OP2,{
+  group:"beverages",itemId:"suco",delta:3,enteredQuantity:3,enteredUnit:"un",
+  paidTotal:18
+ }),"/v1/inventory/adjust"),env);
+ assert.equal(good.status,200);
+ assert.equal(db.current(recordPath(UID,UNIVERSE,"beverages","suco")).record.item.stock,7);
+ for(const extra of [
+  {delta:-100},{delta:100,enteredQuantity:3},{paidTotal:0},
+  {paidTotal:"12"},{supplier:"x".repeat(131)},
+  {group:"addons"},{itemId:"missing"},{note:"campos não permitidos"}
+ ]){
+  const failed=await app.fetch(request(purchasePayload(OP3,extra),
+   "/v1/inventory/adjust"),env);
+  assert(failed.status>=400,JSON.stringify(extra));
+ }
+ assert.equal(db.current("users/"+UID+"/appState/v5InventoryGuard").revision,1);
+});

@@ -173,10 +173,84 @@ export function createWorkerBridge({
    return result;
   }finally{busy.delete(lock)}
  }
+ async function purchaseStock({
+  universe,group,itemId,delta,paidTotal,enteredQuantity,enteredUnit,supplier=""
+ }={}){
+  if(!stockGate())throw error("Servidor de compras desativado. Estoque inalterado.","worker/disabled");
+  if(!universePattern.test(universe)||!["ingredients","beverages"].includes(group)||
+    !idPattern.test(itemId)||!Number.isFinite(delta)||delta<=0||delta>1000000||
+    Math.abs(Math.round(delta*1e5)/1e5-delta)>1e-8||
+    !Number.isFinite(paidTotal)||paidTotal<=0||paidTotal>1e9||
+    !Number.isFinite(enteredQuantity)||enteredQuantity<=0||enteredQuantity>1e6||
+    !["g","kg","ml","L","un"].includes(enteredUnit)||
+    typeof supplier!=="string"||supplier.length>130)
+   throw error("Quantidade, unidade ou valor de compra inválidos","worker/invalid");
+  const before=getSession?.();
+  if(!before?.uid||before.user?.uid!==before.uid||
+    before.ready!==true||before.proActive!==true||before.syncBlocked===true)
+   throw error("Conta ou sincronização indisponível","worker/session");
+  const lock=before.uid+"|"+universe+"|purchase|"+group+"|"+itemId;
+  if(busy.has(lock))throw error("Esta compra já está sendo enviada","worker/busy");
+  busy.add(lock);
+  try{
+   if(typeof flush!=="function"||await flush()!==true)
+    throw error("Sincronização pendente. Compra não enviada.","worker/not-synced");
+   const current=getSession?.();
+   if(!stockGate()||current?.uid!==before.uid||current?.user!==before.user||
+      current.ready!==true||current.syncBlocked===true)
+    throw error("A conta ou a permissão mudou durante a compra","worker/session");
+   const token=await current.user.getIdToken();
+   if(typeof token!=="string"||token.length<32)throw error("Token indisponível","worker/auth");
+   const key=readKey(before.uid,universe,"purchase",group+":"+itemId);
+   const payload={universe,group,itemId,delta,reason:"purchase",paidTotal,
+    enteredQuantity,enteredUnit,supplier};
+   let pending;
+   try{pending=JSON.parse(storage?.getItem(key)||"null")}catch{}
+   if(pending&&uuidPattern.test(pending.operationId)){
+    if(JSON.stringify(pending.payload)!==JSON.stringify(payload))
+     throw error("Uma compra anterior não foi confirmada. Repita os mesmos dados antes de lançar outra.","worker/pending");
+   }else{
+    const operationId=uuid();
+    if(!uuidPattern.test(operationId))throw error("Identificador não confiável","worker/id");
+    pending={operationId,payload};
+    storage?.setItem(key,JSON.stringify(pending));
+   }
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),timeoutMs);
+   let response;
+   try{
+    response=await requestFetch(stockRoot+"/v1/inventory/adjust",{
+     method:"POST",mode:"cors",cache:"no-store",
+     headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+     body:JSON.stringify({...payload,operationId:pending.operationId}),
+     signal:controller.signal
+    });
+   }catch{
+    throw error("Sem confirmação do servidor. Repita a mesma compra para consultar sem duplicar.","worker/network");
+   }finally{clearTimeout(timeout)}
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok){
+    const refused=new Set(["invalid_purchase","invalid_purchase_unit",
+      "stock_item_missing","invalid_stock","not_allowed","invalid_identity",
+      "origin_not_allowed","authentication_required","invalid_firebase_token"]);
+    if(refused.has(result.error))storage?.removeItem(key);
+    throw error(result.message||"Compra não autorizada",result.error||"worker/http-"+response.status);
+   }
+   if(result.ok!==true||result.operationId!==pending.operationId||
+      result.itemId!==itemId||result.group!==group||
+      result.purchaseId!=="cf-purchase-"+pending.operationId)
+    throw error("Compra não confirmada; repita para verificar","worker/invalid-response");
+   if(getSession?.()?.uid!==before.uid)
+    throw error("Conta alterada; confira o estoque","worker/session");
+   try{await refresh()}
+   catch{throw error("Compra confirmada, mas sincronização falhou. Repita para reconciliar.","worker/refresh")}
+   storage?.removeItem(key);
+   return result;
+  }finally{busy.delete(lock)}
+ }
  return Object.freeze({
   get enabled(){return orderGate()},
   get inventoryEnabled(){return stockGate()},
-  adjustStock,
+  adjustStock,purchaseStock,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   cancel:(orderId,universe,decision)=>transition("cancel",{orderId,universe,decision}),
   // Kept strictly private; no client-side switch to enable writes.

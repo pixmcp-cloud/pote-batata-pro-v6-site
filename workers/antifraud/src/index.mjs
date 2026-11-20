@@ -6,6 +6,7 @@ import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
 import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
 import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
+import {planStockPurchase} from "./stock_purchase.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -70,23 +71,35 @@ export function createWorkerApp({
    if(text.length>4096)throw Error("oversize");
    body=JSON.parse(text);
   }catch{return json({error:"invalid_json"},400,headers)}
+  const isPurchase=body?.reason==="purchase";
+  const isLoss=body?.reason==="loss";
+  const common=["universe","group","itemId","operationId","reason","delta"];
+  const extra=isPurchase?["paidTotal","enteredQuantity","enteredUnit","supplier"]:
+   ["lossReason","note"];
   if(!body||typeof body!=="object"||Array.isArray(body)||
+   !isPurchase&&!isLoss||
    !valueOk(body.universe,/^[a-z0-9_-]{1,64}$/)||
    !valueOk(body.group,/^(ingredients|beverages)$/)||
    !valueOk(body.itemId,/^[a-zA-Z0-9_.:-]{1,180}$/)||
    !valueOk(body.operationId,/^[a-zA-Z0-9_-]{20,80}$/)||
-   body.reason!=="loss"||
-   !Object.hasOwn(LOSS_REASONS,String(body.lossReason))||
-   typeof body.note!=="string"||body.note.length>350||
-   (body.lossReason==="outro"&&!body.note.trim())||
    typeof body.delta!=="number"||!Number.isFinite(body.delta)||
-   body.delta>=0||body.delta< -1000000||
+   Math.abs(body.delta)>1000000||
    Math.abs(Math.round(body.delta*1e5)/1e5-body.delta)>1e-8||
-   Object.keys(body).some(k=>!["universe","group","itemId","operationId",
-     "reason","lossReason","note","delta"].includes(k)))
-   return json({error:"invalid_stock_adjustment"},400,headers);
+   (isLoss&&(body.delta>=0||!Object.hasOwn(LOSS_REASONS,String(body.lossReason))||
+     typeof body.note!=="string"||body.note.length>350||
+     body.lossReason==="outro"&&!body.note.trim()))||
+   (isPurchase&&(body.delta<=0||
+     typeof body.paidTotal!=="number"||!Number.isFinite(body.paidTotal)||
+     body.paidTotal<=0||body.paidTotal>1e9||
+     typeof body.enteredQuantity!=="number"||!Number.isFinite(body.enteredQuantity)||
+     body.enteredQuantity<=0||body.enteredQuantity>1e6||
+     typeof body.enteredUnit!=="string"||!["g","kg","ml","L","un"].includes(body.enteredUnit)||
+     typeof body.supplier!=="string"||body.supplier.length>130))||
+   Object.keys(body).some(k=>!common.includes(k)&&!extra.includes(k)))
+   return json({error:isPurchase?"invalid_purchase":"invalid_stock_adjustment"},400,headers);
   const {uid}=user;
-  const {universe,group,itemId,operationId,delta,lossReason,note}=body;
+  const {universe,group,itemId,operationId,delta,lossReason,note,
+   paidTotal,enteredQuantity,enteredUnit,supplier}=body;
   const root="users/"+uid;
   const eventPath=root+"/workerEvents/"+operationId;
   const stockPath=recordPath(uid,universe,group,itemId);
@@ -100,13 +113,18 @@ export function createWorkerApp({
    const event=await tx.get(eventPath);
    if(event){
     const prior=event.data;
-    if(prior?.action!=="adjust"||prior?.universe!==universe||
-      prior?.group!==group||prior?.itemId!==itemId||
-      prior?.delta!==delta||prior?.lossReason!==lossReason||
-      prior?.note!==note)
+    const same=prior?.action===(isPurchase?"purchase":"adjust")&&
+      prior?.universe===universe&&prior?.group===group&&
+      prior?.itemId===itemId&&prior?.delta===delta&&
+      (isPurchase?
+       prior?.paidTotal===paidTotal&&prior?.enteredQuantity===enteredQuantity&&
+       prior?.enteredUnit===enteredUnit&&prior?.supplier===supplier:
+       prior?.lossReason===lossReason&&prior?.note===note);
+    if(!same)
      throw new OperationalError("Identificador usado por outra operação",409,"idempotency_conflict");
     return json({ok:true,alreadyApplied:true,operationId,group,itemId,
-     afterStock:prior.afterStock},200,headers);
+     afterStock:prior.afterStock,
+     ...(isPurchase?{purchaseId:prior.purchaseId}:{lossId:prior.lossId})},200,headers);
    }
    const [meta,guard,pulse,existing]=await Promise.all([
     tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),tx.get(stockPath)
@@ -124,14 +142,19 @@ export function createWorkerApp({
     throw new OperationalError("Cadastro de estoque inexistente",404,"stock_item_missing");
    const at=clock().toISOString();
    const settings=(active?state:archived)?.settings||{};
-   const plan=planStockLoss({group,itemId,delta,lossReason,note,
-    operationId,universe,stock:existing.data.record.item,at,settings});
-   const lossPath=recordPath(uid,universe,"losses",plan.loss.id);
+   const plan=isPurchase?
+    planStockPurchase({group,itemId,delta,paidTotal,enteredQuantity,enteredUnit,
+     supplier,operationId,universe,stock:existing.data.record.item,at}):
+    planStockLoss({group,itemId,delta,lossReason,note,
+     operationId,universe,stock:existing.data.record.item,at,settings});
+   const ledger=isPurchase?plan.purchase:plan.loss;
+   const ledgerGroup=isPurchase?"purchases":"losses";
+   const ledgerPath=recordPath(uid,universe,ledgerGroup,ledger.id);
    const movePath=recordPath(uid,universe,"stockMovements",plan.movement.id);
-   const keys=[stockPath,lossPath,movePath].map(p=>p.split("/").at(-1));
+   const keys=[stockPath,ledgerPath,movePath].map(p=>p.split("/").at(-1));
    const writes=[
     put(stockPath,{record:persisted(group,itemId,plan.item,universe,existing)},existing),
-    put(lossPath,{record:persisted("losses",plan.loss.id,plan.loss,
+    put(ledgerPath,{record:persisted(ledgerGroup,ledger.id,ledger,
       universe,null,-Date.now())},null),
     put(movePath,{record:persisted("stockMovements",plan.movement.id,plan.movement,
       universe,null,-Date.now()-1)},null),
@@ -139,12 +162,17 @@ export function createWorkerApp({
     put(pulsePath,{eventId:"cf-"+operationId,
       previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
       affected:keys.length,changedKeys:keys,metaChanged:false,sensitive:true},pulse),
-    put(eventPath,{action:"adjust",universe,group,itemId,delta,lossReason,note,
-      operationId,actorUid:uid,afterStock:plan.item.stock,lossId:plan.loss.id},null)
+    put(eventPath,{
+      action:isPurchase?"purchase":"adjust",universe,group,itemId,delta,
+      ...(isPurchase?{paidTotal,enteredQuantity,enteredUnit,supplier}:{lossReason,note}),
+      operationId,actorUid:uid,afterStock:plan.item.stock,
+      ...(isPurchase?{purchaseId:ledger.id}:{lossId:ledger.id})
+     },null)
    ];
    await tx.commit(writes);
    return json({ok:true,alreadyApplied:false,operationId,group,itemId,
-    afterStock:plan.item.stock,lossId:plan.loss.id},200,headers);
+    afterStock:plan.item.stock,
+    ...(isPurchase?{purchaseId:ledger.id}:{lossId:ledger.id})},200,headers);
   }finally{await tx.rollback()}
  }
  async function perform(req,env,headers){

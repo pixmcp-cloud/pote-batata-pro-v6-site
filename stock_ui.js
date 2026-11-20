@@ -285,6 +285,25 @@ function savePurchase(){
  if(!item){toast("Selecione um ingrediente.");return}
  try{
   const qty=$("stockPurchaseQty")?.value,paid=$("stockPurchasePaid")?.value;
+  if(window.POTE_AUTH?.accessPolicy?.workerAuthoritative===true){
+   if(window.POTE_WORKER?.inventoryEnabled!==true){
+    alert("Compras protegidas exigem o servidor F05 ativo. Nenhum saldo foi alterado.");
+    return false;
+   }
+   const unit=$("stockPurchaseUnit").value;
+   const quantity=S.number(qty),paidTotal=S.number(paid);
+   const delta=S.toBase(item,qty,unit);
+   const supplier=String($("stockPurchaseSupplier")?.value||"").trim();
+   return window.POTE_WORKER.purchaseStock({
+    universe:state.data.businessType||"batataria",group:"ingredients",
+    itemId:item.id,delta,paidTotal,enteredQuantity:quantity,enteredUnit:unit,supplier
+   }).then(result=>{
+    render();window.POTE_STOCK_UPDATE?.pulse?.("ingredient",item.id);
+    toast("Compra confirmada pelo servidor: "+item.name+
+     " · saldo "+S.formatStock(item,result.afterStock)+".");
+    return true;
+   }).catch(error=>{alert(error.message||"Compra não confirmada");return false});
+  }
   const data=state.data;
   data.purchases??=[];data.stockMovements??=[];
   const result=S.purchase({ingredient:item,quantity:qty,unit:$("stockPurchaseUnit").value,

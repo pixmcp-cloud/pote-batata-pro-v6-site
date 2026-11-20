@@ -104,6 +104,21 @@ function saveBeveragePurchase(){
  if(!b){alert("Selecione uma bebida");return}
  const qty=window.POTE_STOCK.number($("stockBeverageQty")?.value);
  if(!Number.isInteger(qty)||qty<1){alert("Informe a quantidade em unidades inteiras.");return}
+ if(window.POTE_AUTH?.accessPolicy?.workerAuthoritative===true){
+  if(window.POTE_WORKER?.inventoryEnabled!==true){
+   alert("Servidor F05 indisponível para esta compra. Estoque preservado.");
+   return false;
+  }
+  const paidTotal=window.POTE_STOCK.number($("stockBeveragePaid")?.value);
+  const supplier=String($("stockBeverageSupplier")?.value||"").trim();
+  return window.POTE_WORKER.purchaseStock({
+   universe:state.data.businessType||"batataria",group:"beverages",
+   itemId:b.id,delta:qty,paidTotal,enteredQuantity:qty,enteredUnit:"un",supplier
+  }).then(result=>{
+   render();toast(b.name+": compra confirmada no servidor. Novo saldo: "+result.afterStock+" un.");
+   return true;
+  }).catch(error=>{alert(error.message||"Compra não confirmada");return false});
+ }
  state.data.purchases??=[];state.data.stockMovements??=[];
  try{
   const result=window.POTE_STOCK.purchase({
@@ -139,6 +154,10 @@ function saveBeverageEdit(id){
  }
  const oldStock=Number(b.stock)||0,oldSale=Number(b.sellPrice)||0,oldPaid=Number(b.purchasePrice)||0,
   oldQty=Number(b.purchaseQuantity)||1;
+ if(window.POTE_AUTH?.accessPolicy?.workerAuthoritative===true&&stock!==oldStock){
+  toast("Contagem física protegida: não é permitido editar o saldo direto no card. Nenhum dado foi alterado.");
+  return false;
+ }
  const reserved=Number(window.POTE_STOCK_STATUS?.reserved?.(state.data)?.beverages?.get(b.id)||0);
  if(stock<reserved&&!window.confirm("Há "+reserved+" unidade(s) reservada(s), mas o saldo informado é "+stock+". Confirmar a divergência?"))return false;
  if(Math.abs(sale-oldSale)<0.000001&&Math.abs(paid-oldPaid)<0.000001&&qty===oldQty&&stock===oldStock){

@@ -50,5 +50,18 @@ assert.match(adminPermissions,/\[\`accessPolicy\.\$\{listKind\}\`\]:policy\[list
  "Painel ADM não pode apagar workerAuthoritative ao editar permissões");
 assert.doesNotMatch(adminPermissions,/updateDoc\(ref,\{accessPolicy:policy/,
  "Sobrescrever accessPolicy completo revoga a autorização canário por acidente");
+// Etapa 9: compra de estoque sempre pelo Worker no canário, sem segunda
+// mutação local ou fallback de edição física quando o servidor estiver off.
+assert.match(worker,/planStockPurchase\(/);
+assert.match(read("workers/antifraud/src/stock_purchase.mjs"),/export function planStockPurchase/);
+assert.match(bridge,/async function purchaseStock\(/);
+assert.match(bridge,/get inventoryEnabled\(\)/);
+assert.match(read("stock_ui.js"),/POTE_WORKER\.purchaseStock\(/);
+assert.match(read("stock_ext.js"),/POTE_WORKER\.purchaseStock\(/);
+assert.match(read("stock_update_modal.js"),/POTE_WORKER\.purchaseStock\(/);
+for(const source of ["stock_ui.js","stock_ext.js","stock_update_modal.js"]){
+ assert.match(read(source),/workerAuthoritative===true/,
+  "Compras canário devem exigir política remota: "+source);
+}
 assert.match(bridge,/V5 Firestore reload/);
 console.log("PASS F05 V5: caminhos, perdas, ponte desativada e Worker fail-closed.");
