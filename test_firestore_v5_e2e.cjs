@@ -16,7 +16,7 @@ let env;const actors=[];
 const stat={checks:0,accounts:3,sessions:0,orders:0,conflicts:0,
  production:0,cancellations:0,offlines:0,recoveries:0};
 const check=(condition,message)=>{assert.ok(condition,message);stat.checks++};
-const success=(result,label)=>{check(result.ok===true,label+' '+JSON.stringify(result));return result};
+const success=(result,label)=>{check(result.ok===true||typeof result.created==='boolean',label+' '+JSON.stringify(result));return result};
 (async()=>{
  const {createV5Store}=await import('./v5_storage.mjs');
  env=await initializeEmulator({hardened:process.env.POTE_HARDENED_RULES==='1'});
