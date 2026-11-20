@@ -54,7 +54,15 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
     });
     created=true;
    }catch(e){
-    if(e.code!=="sync/conflict")throw e;
+    // Dois dispositivos podem abrir uma conta nova ao mesmo tempo. Se o
+    // primeiro já criou os três documentos atômicos, o segundo pode receber
+    // PERMISSION_DENIED (a regra de criação da guarda virou update). Nesse
+    // caso, abrir a conta já criada é seguro; nunca reduzir as regras.
+    if(!["sync/conflict","permission-denied","aborted",
+      "already-exists","failed-precondition"].includes(String(e?.code||"")))
+      throw e;
+    const concurrent=await getDoc(root);
+    if(!concurrent.exists()||concurrent.data()?.schemaVersion!==5)throw e;
    }
    metaSnap=await getDoc(root);
   }
