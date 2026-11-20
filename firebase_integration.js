@@ -50,8 +50,10 @@ const CLOUD_WORKER_ACTIVE=false;
 // F05: isolated authoritative stock-loss bridge for licensed Pro users; other flows stay unchanged.
 const F05_INVENTORY_WORKER_ACTIVE=false; // V5 adaptada; ativar apenas após segredos, canário e corte de regras.
 window.POTE_WORKER=createWorkerBridge({
- enabled:CLOUD_WORKER_ACTIVE,
- inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
+ // Dupla autorização: liberação compilada e flag assinada do perfil Firestore.
+ // Query string, localStorage e window.POTE_AUTH não podem ativar o Worker.
+ enabled:()=>CLOUD_WORKER_ACTIVE===true&&rawUserAccessPolicy?.workerAuthoritative===true,
+ inventoryEnabled:()=>F05_INVENTORY_WORKER_ACTIVE===true&&rawUserAccessPolicy?.workerAuthoritative===true,
  inventoryCanaryEmail:null, // All verified licensed Pro accounts; Worker validates license.
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
  inventoryEndpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
