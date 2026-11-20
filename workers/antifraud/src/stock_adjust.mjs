@@ -22,7 +22,7 @@ function validate(body){
  const {universe,operationId,group,itemId,delta,reason}=body;
  if(typeof universe!=="string"||!/^[a-z0-9_-]{1,64}$/.test(universe)||
     !isUuid(operationId)||!isId(itemId)||
-    !["ingredients","beverages"].includes(group)||
+    !["ingredients","beverages","packaging","addons"].includes(group)||
     !["purchase","loss","correction"].includes(reason))
   refuse("Identificação ou motivo de ajuste inválidos");
  if(typeof delta!=="number"||!Number.isFinite(delta)||delta===0||
@@ -82,7 +82,7 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   const current=Number(rec.item.stock);
   if(!Number.isFinite(current)||current<0||current>1e9)
    refuse("Saldo físico inválido",409,"invalid_stock");
-  if((group==="beverages"||rec.item.measureUnit==="un")&&!Number.isInteger(delta))
+  if(rec.item.measureUnit==="un"&&!Number.isInteger(delta))
    refuse("Produtos em unidades exigem quantidades inteiras");
   const next=round5(current+delta);
   if(next<0||next>1e9)
@@ -90,9 +90,9 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   const at=clock().toISOString(),rank=-clock().getTime();
   const affected=[record.split("/").at(-1),movementPath.split("/").at(-1)];
   const movement={
-   id:movementId,at,ingredientId:group==="beverages"?"bev:"+itemId:itemId,
+   id:movementId,at,stockGroup:group,ingredientId:group==="beverages"?"bev:"+itemId:itemId,
    ingredientName:String(rec.item.name||itemId).slice(0,180),
-   itemKind:group==="beverages"?"beverage":"ingredient",
+   itemKind:group==="beverages"?"beverage":group==="packaging"?"packaging":group==="addons"?"addon":"ingredient",
    quantity:delta,reason:reason==="purchase"?"Entrada física por compra":
     reason==="loss"?"Perda de estoque":"Conferência manual de estoque",
    referenceId:operationId,previousStock:current,afterStock:next,note
@@ -108,7 +108,7 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
     ["g","ml","un"].includes(rec.item.measureUnit)?rec.item.measureUnit:"g";
    const loss={id:lossId,at,type:"stock",reason:"outro",
     description:note||"Perda física registrada no servidor",
-    itemId,itemName:String(rec.item.name||itemId).slice(0,180),
+    itemId,stockGroup:group,itemName:String(rec.item.name||itemId).slice(0,180),
     itemKind:group==="beverages"?"beverage":"ingredient",
     measureUnit:unit,quantityBase:qty,enteredQuantity:qty,enteredUnit:unit,
     ...cost,uncollectedSale:0,previousStock:current,afterStock:next};
