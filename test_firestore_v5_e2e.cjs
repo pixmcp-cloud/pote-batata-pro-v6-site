@@ -50,8 +50,14 @@ const success=(result,label)=>{check(result.ok===true,label+' '+JSON.stringify(r
  const b=login('qa-company-1','company1@example.test');
  const other=login('qa-company-2','company2@example.test');
  const free=login('qa-free','free@example.test');
- const first=await Promise.all([a.store.load(),b.store.load(),
-  other.store.load(),free.store.load()]);
+ console.log('QA_STAGE: inicializar primeira conta Pro');
+ await a.store.load();
+ console.log('QA_STAGE: abrir segunda sessao Pro');
+ await b.store.load();
+ console.log('QA_STAGE: inicializar outra empresa');
+ await other.store.load();
+ console.log('QA_STAGE: inicializar conta Free');
+ await free.store.load();
  check(a.read().data.orders.length===0&&b.read().data.orders.length===0,
   'Login novo deve carregar pedidos vazios');
  check(other.read().data.orders.length===0&&free.read().data.orders.length===0,
