@@ -7,7 +7,7 @@ function part(from,to){
 }
 const functions=part('function parseBRNumber(v)','function commercialDate(')
  +part('function paymentSettled(order)','function setMode(')
- +part('function operationReady(){','function canOperate(');
+ +part('function operationReady(action="Operação"){','function canOperate(');
 const data={
  orders:[
  {id:'pending-pix',status:'entregue',paymentStatus:'Informado',price:100,qty:1,deliveryFee:10,deliveryCost:6,profit:30},
