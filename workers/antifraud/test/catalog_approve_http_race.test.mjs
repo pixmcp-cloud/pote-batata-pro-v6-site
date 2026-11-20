@@ -106,3 +106,30 @@ test("F02 HTTP two approvals race: one commit only, conflict is retryable",async
  assert.equal(store.get(root+"/appState/v2InventoryGuard").revision,2);
  assert.equal([...store.docs.keys()].filter(p=>p.includes("/workerEvents/")).length,1);
 });
+
+test("F02 HTTP complex recipe approval uses all component costs and rejects snapshot tampering",async()=>{
+ const {store,app}=fixture();
+ const r=store.get(recipe).record;
+ store.seed(recipe,{record:{...r,item:{...r.item,
+  packagingItems:[{id:"pot",quantity:1}],
+  addons:[{id:"bacon",quantity:2,unit:"g"}],
+  beverages:[{id:"juice",quantity:1}]}}});
+ for(const [group,id,measureUnit,price,quantity,unit] of [
+  ["packaging","pot","un",20,10,"un"],
+  ["addons","bacon","g",50,1,"kg"],
+  ["beverages","juice","un",30,10,"un"]]){
+  store.seed(recordPath(uid,universe,group,id),{record:{id,group,universe,
+   item:{measureUnit,purchasePrice:price,purchaseQuantity:quantity,purchaseUnit:unit}}});
+ }
+ const op="f02-http-complex-approval-0000001";
+ const response=await app.fetch(request(op),env);
+ assert.equal(response.status,200,await response.clone().text());
+ assert.equal(store.get(approval).version,2);
+ assert.equal(store.get(approval).materialCostCents,610);
+ assert.equal(store.get(recipe).record.item.serverPriceVersion,2);
+ const {verifyServerPrice}=await import("../src/server_price.mjs");
+ const approved={data:store.get(approval)};
+ const approvedRecipe=store.get(recipe).record.item;
+ assert.equal(verifyServerPrice(approved,approvedRecipe,universe,recipeId).salePriceCents,2000);
+ assert.throws(()=>verifyServerPrice(approved,{...approvedRecipe,addons:[{id:"bacon",quantity:3,unit:"g"}]},universe,recipeId));
+});
