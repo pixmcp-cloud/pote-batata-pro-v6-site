@@ -128,7 +128,7 @@ for(const expected of ["POTE_PAYMENT?.validate","POTE_PAYMENT?.vitrineValidate",
  assert(src.includes(expected),"Integração ausente "+expected);
 }
 const page=read("public/index.html");
-for(const expected of ["beverage_catalog.js?v=commerce-20261115","payment_flow.js?v=sale-done-auto-20261118",
+for(const expected of ["beverage_catalog.js?v=commerce-20261115","payment_flow.js?v=exact-cash-safe-sync-20261118",
  "stock_inventory.js?v=stock-priority-20261115","stock_ext.js?v=v4-stock-balance-20261117",
  "commerce_update.css?v=commerce-20261115"]){assert(page.includes(expected),expected)}
 console.log("PASS: 11 bebidas com estoque zero, combo 3 sabores/5%, dinheiro/troco, entrega, duplicados e compras físicas.");

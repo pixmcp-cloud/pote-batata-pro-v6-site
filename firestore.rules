@@ -45,19 +45,6 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/users/$(userId))
           && premiumProfile(userId));
     }
-    // Legacy collections can be read for migration/export but never used by a
-    // Free account as an unrestricted alternative to V2 quota-controlled flows.
-    // Compatible with V2: appState/v2, v2InventoryGuard and v2Pulse remain writable.
-    function canWriteLegacy(userId) {
-      // Contas ainda exclusivamente V1 preservam seus dados e fluxo.
-      // Assim que V2 existe, o mesmo usuário não pode escrever por um
-      // caminho antigo sem o controle transacional de estoque/pedidos.
-      return isAdmin()
-        || (isOwner(userId)
-          && exists(/databases/$(database)/documents/users/$(userId))
-          && premiumProfile(userId)
-          && !exists(/databases/$(database)/documents/users/$(userId)/appState/v2));
-    }
     function freeScope(record) {
       return record.universe in ['batataria','default','kitchen'] ? 'base' : 'extra';
     }
@@ -143,8 +130,8 @@ service cloud.firestore {
     // documento guarda avance NA MESMA operação atômica. Um write isolado
     // via SDK não pode contornar o bloqueio de concorrência do aplicativo.
     function validAtomicInventoryGuard(userId, recordId) {
-      let guardPath = /databases/$(database)/documents/users/$(userId)/appState/v2InventoryGuard;
-      let pulsePath = /databases/$(database)/documents/users/$(userId)/appState/v2Pulse;
+      let guardPath = /databases/$(database)/documents/users/$(userId)/appState/v5InventoryGuard;
+      let pulsePath = /databases/$(database)/documents/users/$(userId)/appState/v5Pulse;
       let before = get(guardPath).data;
       let after = getAfter(guardPath).data;
       let priorPulse = get(pulsePath).data;
@@ -178,18 +165,6 @@ service cloud.firestore {
     function isInventoryRecord(record) {
       return record.group in ['ingredients', 'beverages', 'orders', 'stockMovements',
         'purchases', 'losses', 'prepBatches'];
-    }
-    // F05: verified Pro tenants register physical losses through the Worker.
-    // Non-payment/order losses and other inventory flows remain compatible.
-    // Service account writes bypass browser-side Firestore rules.
-    function requiresF05Server(userId, record) {
-      let stockLoss = record.group == 'losses'
-        && record.item is map && record.item.get('type', '') == 'stock';
-      let lossMovement = record.group == 'stockMovements'
-        && record.item is map
-        && record.item.get('reason', '') is string
-        && record.item.get('reason', '').matches('^Perda.*');
-      return (stockLoss || lossMovement) && canUseFinancialRecords(userId);
     }
     function validRecordDocument(document, record) {
       return document.keys().hasOnly(['record', 'updatedAt'])
@@ -284,57 +259,41 @@ service cloud.firestore {
       );
       allow delete: if isAdmin();
 
-      match /recipes/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
-      match /ingredients/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
-      match /suppliers/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
-      match /products/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
-      match /clients/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
-      match /orders/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
-      match /inventory/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
-      match /expenses/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if canWriteLegacy(userId);
-      }
+      // V1/V2: todos os caminhos antigos desativados para clientes.
+      match /recipes/{id} { allow read, write: if false; }
+      match /ingredients/{id} { allow read, write: if false; }
+      match /suppliers/{id} { allow read, write: if false; }
+      match /products/{id} { allow read, write: if false; }
+      match /clients/{id} { allow read, write: if false; }
+      match /orders/{id} { allow read, write: if false; }
+      match /inventory/{id} { allow read, write: if false; }
+      match /expenses/{id} { allow read, write: if false; }
+      match /records/{recordId} { allow read, write: if false; }
       match /appState/{id} {
-        allow read: if canAccess(userId);
-        allow create, update, delete: if id != 'v2InventoryGuard'
-          && (canWriteLegacy(userId) || (isOwner(userId) && id in ['v2','v2Pulse']));
-        allow create: if id == 'v2InventoryGuard' && canAccess(userId)
+        allow read: if canAccess(userId) && id in ['v5','v5Pulse','v5InventoryGuard'];
+        allow create, update: if canAccess(userId) && (
+          (id == 'v5'
+            && request.resource.data.schemaVersion == 5
+            && request.resource.data.state is map
+            && request.resource.data.updatedAt == request.time)
+          || (id == 'v5Pulse'
+            && request.resource.data.eventId is string
+            && request.resource.data.updatedAt == request.time)
+        );
+        allow create: if id == 'v5InventoryGuard' && canAccess(userId)
           && validInventoryRevision(request.resource.data)
           && request.resource.data.revision in [0, 1];
-        allow update: if id == 'v2InventoryGuard' && canAccess(userId)
+        allow update: if id == 'v5InventoryGuard' && canAccess(userId)
           && validInventoryRevision(request.resource.data)
           && resource.data.get('revision', null) is int && resource.data.revision >= 0
           && request.resource.data.revision == resource.data.revision + 1;
+        allow delete: if false;
       }
-      // V2: um documento por registro operacional. Impede acesso entre contas
-      // e restringe o formato, sem interferir nos documentos V1 já existentes.
-      match /records/{recordId} {
+      // V5: um documento por entidade, com isolamento por conta e negócio.
+      match /recordsV5/{recordId} {
         function validCreate(document) {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
-            && !requiresF05Server(userId, record)
             && canWriteOperationalRecord(userId, recordId, record)
             && (record.group != 'cashSessions' || record.item.status == 'open')
             // Pedidos, movimentos, compras e perdas não podem ser criados fora
@@ -346,8 +305,6 @@ service cloud.firestore {
           let record = document.get('record', null);
           let oldRecord = oldDocument.record;
           return validRecordDocument(document, record)
-            && !requiresF05Server(userId, record)
-            && !requiresF05Server(userId, oldRecord)
             && canWriteOperationalRecord(userId, recordId, record)
             && preservesRecordIdentity(userId, recordId, record, oldRecord)
             && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
@@ -360,7 +317,6 @@ service cloud.firestore {
         allow create: if canAccess(userId) && validCreate(request.resource.data);
         allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
-          && !requiresF05Server(userId, resource.data.record)
           && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
