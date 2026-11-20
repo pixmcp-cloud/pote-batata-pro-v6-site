@@ -10,13 +10,16 @@ function error(message,code="worker/error"){
  const e=Error(message);e.code=code;return e;
 }
 export function createWorkerBridge({
- enabled=false,inventoryEnabled=false,endpoint,getSession,flush,refresh,
+ enabled=false,inventoryEnabled=false,endpoint,inventoryEndpoint=null,getSession,flush,refresh,
  requestFetch=fetch,storage=globalThis.sessionStorage,
  uuid=()=>globalThis.crypto.randomUUID(),timeoutMs=12000
 }={}){
  if(typeof endpoint!=="string"||!/^https:\/\//.test(endpoint))
   throw error("Endereço HTTPS do servidor ausente");
  const root=endpoint.replace(/\/+$/,"");
+ const stockRoot=inventoryEndpoint==null?root:
+   /^https:\/\//.test(inventoryEndpoint)?inventoryEndpoint.replace(/\/+$/,""):
+   (()=>{throw error("Endereço de estoque HTTPS inválido","worker/config")})();
  const busy=new Set();
  const readKey=(uid,universe,action,orderId)=>"pote:worker:v1:"+
   encodeURIComponent(uid)+":"+encodeURIComponent(universe)+":"+action+":"+encodeURIComponent(orderId);
@@ -134,7 +137,7 @@ export function createWorkerBridge({
    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),timeoutMs);
    let response;
    try{
-    response=await requestFetch(root+"/v1/inventory/adjust",{
+    response=await requestFetch(stockRoot+"/v1/inventory/adjust",{
      method:"POST",mode:"cors",cache:"no-store",
      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
      body:JSON.stringify({...payload,operationId:pending.operationId}),signal:controller.signal
