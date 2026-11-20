@@ -107,7 +107,7 @@ function stockLoss({kind="ingredient",id,quantity,unit,reason="outro",note=""}){
  const costBasis=costUnit(ing),event={
   id:newId(),at:new Date().toISOString(),type:"stock",
   reason,description:String(note||"").slice(0,350),
-  itemId:id,itemName:ing.name,
+  itemId:id,stockGroup:type==="beverage"?"beverages":"ingredients",itemName:ing.name,
   itemKind:type==="ingredient"&&ing.category==="Embalagem"?"packaging":type,
   measureUnit:baseUnit(ing,type),
   quantityBase:base,enteredQuantity:n(quantity),enteredUnit:unit,
@@ -119,7 +119,7 @@ function stockLoss({kind="ingredient",id,quantity,unit,reason="outro",note=""}){
  ing.stock=event.afterStock;
  storage().unshift(event);
  (data().stockMovements??=[]).unshift({
-  id:newId(),at:event.at,ingredientId:type==="beverage"?"bev:"+id:id,
+  id:newId(),at:event.at,stockGroup:type==="beverage"?"beverages":"ingredients",ingredientId:type==="beverage"?"bev:"+id:id,
   ingredientName:ing.name,quantity:-base,
   reason:"Perda: "+(reasons.find(r=>r[0]===reason)?.[1]||reason),
   referenceId:event.id,previousStock:current,afterStock:event.afterStock,
