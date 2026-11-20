@@ -338,7 +338,30 @@ function preview(){
      " · Custo ainda não cadastrado"):
    " · Informe a quantidade perdida.");
 }
+async function submitStockAuthoritative(){
+ const kind=$("lossStockKind")?.value||"ingredient";
+ const id=$("lossStockId")?.value,quantity=$("lossStockQty")?.value;
+ const unit=$("lossStockUnit")?.value,reason=$("lossStockReason")?.value;
+ const note=String($("lossStockNote")?.value||"").trim();
+ const ing=item(kind,id);
+ if(!ing)return warn("Selecione um item válido");
+ if(!reasons.some(r=>r[0]===reason))return warn("Motivo inválido");
+ if(reason==="outro"&&!note)return warn("Descreva o motivo da perda");
+ let base;
+ try{base=window.POTE_STOCK.toBase(kind==="beverage"?{...ing,measureUnit:"un"}:ing,quantity,unit)}
+ catch(e){return warn(e.message)}
+ if(!Number.isFinite(base)||base<=0)return warn("Quantidade inválida");
+ const group=kind==="beverage"?"beverages":"ingredients";
+ const universe=data().businessType||"batataria";
+ try{
+  const result=await window.POTE_WORKER.adjustStock({universe,group,itemId:id,delta:-base,
+   note:(reasons.find(r=>r[0]===reason)?.[1]||reason)+(note?" — "+note:"")});
+  if(typeof toast==="function")toast("Perda registrada no servidor e estoque sincronizado");
+  return {ok:true,result};
+ }catch(e){warn(e.message||"Falha ao registrar perda no servidor");return {ok:false,error:e.message}}
+}
 function submitStock(){
+ if(window.POTE_WORKER?.enabled===true)return submitStockAuthoritative();
  const result=stockLoss({kind:$("lossStockKind")?.value,
   id:$("lossStockId")?.value,quantity:$("lossStockQty")?.value,
   unit:$("lossStockUnit")?.value,reason:$("lossStockReason")?.value,
