@@ -7,6 +7,7 @@ import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
 import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
 import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
 import {planStockPurchase} from "./stock_purchase.mjs";
+import {planStockRecount} from "./stock_recount.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -73,18 +74,26 @@ export function createWorkerApp({
   }catch{return json({error:"invalid_json"},400,headers)}
   const isPurchase=body?.reason==="purchase";
   const isLoss=body?.reason==="loss";
-  const common=["universe","group","itemId","operationId","reason","delta"];
+  const isRecount=body?.reason==="recount";
+  const common=["universe","group","itemId","operationId","reason",
+   ...(isRecount?[]:["delta"])];
   const extra=isPurchase?["paidTotal","enteredQuantity","enteredUnit","supplier"]:
-   ["lossReason","note"];
+   isRecount?["previousStock","countedStock","note"]:["lossReason","note"];
   if(!body||typeof body!=="object"||Array.isArray(body)||
-   !isPurchase&&!isLoss||
+   !isPurchase&&!isLoss&&!isRecount||
    !valueOk(body.universe,/^[a-z0-9_-]{1,64}$/)||
    !valueOk(body.group,/^(ingredients|beverages)$/)||
    !valueOk(body.itemId,/^[a-zA-Z0-9_.:-]{1,180}$/)||
    !valueOk(body.operationId,/^[a-zA-Z0-9_-]{20,80}$/)||
-   typeof body.delta!=="number"||!Number.isFinite(body.delta)||
-   Math.abs(body.delta)>1000000||
-   Math.abs(Math.round(body.delta*1e5)/1e5-body.delta)>1e-8||
+   (!isRecount&&(typeof body.delta!=="number"||!Number.isFinite(body.delta)||
+    Math.abs(body.delta)>1000000||
+    Math.abs(Math.round(body.delta*1e5)/1e5-body.delta)>1e-8))||
+   (isRecount&&(typeof body.previousStock!=="number"||
+    typeof body.countedStock!=="number"||
+    !Number.isFinite(body.previousStock)||!Number.isFinite(body.countedStock)||
+    body.previousStock<0||body.previousStock>1e9||
+    body.countedStock<0||body.countedStock>1e9||
+    typeof body.note!=="string"||!body.note.trim()||body.note.length>350))||
    (isLoss&&(body.delta>=0||!Object.hasOwn(LOSS_REASONS,String(body.lossReason))||
      typeof body.note!=="string"||body.note.length>350||
      body.lossReason==="outro"&&!body.note.trim()))||
@@ -96,10 +105,12 @@ export function createWorkerApp({
      typeof body.enteredUnit!=="string"||!["g","kg","ml","L","un"].includes(body.enteredUnit)||
      typeof body.supplier!=="string"||body.supplier.length>130))||
    Object.keys(body).some(k=>!common.includes(k)&&!extra.includes(k)))
-   return json({error:isPurchase?"invalid_purchase":"invalid_stock_adjustment"},400,headers);
+   return json({error:isPurchase?"invalid_purchase":
+    isRecount?"invalid_recount":"invalid_stock_adjustment"},400,headers);
   const {uid}=user;
   const {universe,group,itemId,operationId,delta,lossReason,note,
-   paidTotal,enteredQuantity,enteredUnit,supplier}=body;
+   paidTotal,enteredQuantity,enteredUnit,supplier,
+   previousStock,countedStock}=body;
   const root="users/"+uid;
   const eventPath=root+"/workerEvents/"+operationId;
   const stockPath=recordPath(uid,universe,group,itemId);
@@ -113,18 +124,21 @@ export function createWorkerApp({
    const event=await tx.get(eventPath);
    if(event){
     const prior=event.data;
-    const same=prior?.action===(isPurchase?"purchase":"adjust")&&
+    const same=prior?.action===(isPurchase?"purchase":isRecount?"recount":"adjust")&&
       prior?.universe===universe&&prior?.group===group&&
-      prior?.itemId===itemId&&prior?.delta===delta&&
-      (isPurchase?
+      prior?.itemId===itemId&&
+      (isRecount?prior?.previousStock===previousStock&&
+       prior?.countedStock===countedStock&&prior?.note===note:
+       prior?.delta===delta&&(isPurchase?
        prior?.paidTotal===paidTotal&&prior?.enteredQuantity===enteredQuantity&&
        prior?.enteredUnit===enteredUnit&&prior?.supplier===supplier:
-       prior?.lossReason===lossReason&&prior?.note===note);
+       prior?.lossReason===lossReason&&prior?.note===note));
     if(!same)
      throw new OperationalError("Identificador usado por outra operação",409,"idempotency_conflict");
     return json({ok:true,alreadyApplied:true,operationId,group,itemId,
      afterStock:prior.afterStock,
-     ...(isPurchase?{purchaseId:prior.purchaseId}:{lossId:prior.lossId})},200,headers);
+     ...(isPurchase?{purchaseId:prior.purchaseId}:
+      isRecount?{recountId:prior.recountId}:{lossId:prior.lossId})},200,headers);
    }
    const [meta,guard,pulse,existing]=await Promise.all([
     tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),tx.get(stockPath)
@@ -145,17 +159,20 @@ export function createWorkerApp({
    const plan=isPurchase?
     planStockPurchase({group,itemId,delta,paidTotal,enteredQuantity,enteredUnit,
      supplier,operationId,universe,stock:existing.data.record.item,at}):
+    isRecount?planStockRecount({group,itemId,previousStock,countedStock,note,
+     operationId,universe,stock:existing.data.record.item,at,settings}):
     planStockLoss({group,itemId,delta,lossReason,note,
      operationId,universe,stock:existing.data.record.item,at,settings});
    const ledger=isPurchase?plan.purchase:plan.loss;
    const ledgerGroup=isPurchase?"purchases":"losses";
-   const ledgerPath=recordPath(uid,universe,ledgerGroup,ledger.id);
+   const ledgerPath=ledger?recordPath(uid,universe,ledgerGroup,ledger.id):null;
    const movePath=recordPath(uid,universe,"stockMovements",plan.movement.id);
-   const keys=[stockPath,ledgerPath,movePath].map(p=>p.split("/").at(-1));
+   const keys=[stockPath,...(ledgerPath?[ledgerPath]:[]),movePath]
+    .map(p=>p.split("/").at(-1));
    const writes=[
     put(stockPath,{record:persisted(group,itemId,plan.item,universe,existing)},existing),
-    put(ledgerPath,{record:persisted(ledgerGroup,ledger.id,ledger,
-      universe,null,-Date.now())},null),
+    ...(ledgerPath?[put(ledgerPath,{record:persisted(ledgerGroup,ledger.id,ledger,
+      universe,null,-Date.now())},null)]:[]),
     put(movePath,{record:persisted("stockMovements",plan.movement.id,plan.movement,
       universe,null,-Date.now()-1)},null),
     put(guardPath,{revision:guard.data.revision+1},guard),
@@ -163,16 +180,20 @@ export function createWorkerApp({
       previousEventId:pulse.data.eventId,origin:"cloudflare-worker",
       affected:keys.length,changedKeys:keys,metaChanged:false,sensitive:true},pulse),
     put(eventPath,{
-      action:isPurchase?"purchase":"adjust",universe,group,itemId,delta,
-      ...(isPurchase?{paidTotal,enteredQuantity,enteredUnit,supplier}:{lossReason,note}),
+      action:isPurchase?"purchase":isRecount?"recount":"adjust",universe,group,itemId,
+      ...(isRecount?{previousStock,countedStock,note}:{delta}),
+      ...(isPurchase?{paidTotal,enteredQuantity,enteredUnit,supplier}:
+        isRecount?{}:{lossReason,note}),
       operationId,actorUid:uid,afterStock:plan.item.stock,
-      ...(isPurchase?{purchaseId:ledger.id}:{lossId:ledger.id})
+      ...(isPurchase?{purchaseId:ledger.id}:
+        isRecount?{recountId:plan.recountId}:{lossId:ledger.id})
      },null)
    ];
    await tx.commit(writes);
    return json({ok:true,alreadyApplied:false,operationId,group,itemId,
     afterStock:plan.item.stock,
-    ...(isPurchase?{purchaseId:ledger.id}:{lossId:ledger.id})},200,headers);
+    ...(isPurchase?{purchaseId:ledger.id}:
+      isRecount?{recountId:plan.recountId}:{lossId:ledger.id})},200,headers);
   }finally{await tx.rollback()}
  }
  async function perform(req,env,headers){
