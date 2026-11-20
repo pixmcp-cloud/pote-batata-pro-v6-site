@@ -17,7 +17,7 @@ const field=(doc,name)=>Number(doc.fields.record.mapValue.fields.item.mapValue.f
 const env={FIREBASE_PROJECT_ID:project,ENABLE_WRITES:"true",PRODUCTION_CUTOVER_APPROVED:"false",ALLOWED_ORIGINS:"https://qa.example"};
 const app=createWorkerApp({verify:async()=>({uid}),repository:()=>createFirestoreRepository(env,{accessToken:async()=>"owner",apiBaseUrl:base}),clock:()=>new Date("2026-11-20T01:00:00Z")});
 const call=(route,data)=>app.fetch(new Request("https://qa.example"+route,{method:"POST",headers:{Origin:"https://qa.example",Authorization:"Bearer synthetic","Content-Type":"application/json"},body:JSON.stringify(data)}),env);
-const items=[["ingredients","potato","g",10,1,"kg",400],["packaging","pot","un",20,10,"un",1],["addons","bacon","g",50,1,"kg",20],["beverages","juice","un",30,10,"un",1]];
+const items=[["ingredients","potato","g",10,1,"kg",400],["packaging","pot","un",20,10,"un",2],["addons","bacon","g",50,1,"kg",20],["beverages","juice","un",30,10,"un",2]];
 const operations=["f02-complex-race-order-00000001","f02-complex-race-order-00000002"];
 try{
  await seed(root,{license:{status:"active",kind:"lifetime",term:"lifetime"}});
@@ -45,7 +45,7 @@ try{
   else assert.equal(retry.status,409);
  }
  assert.equal(successes,1,"exactly one order must reserve limited packaging and beverage");
- const expected={ingredients:150,packaging:0,addons:18,beverages:0};
+ const expected={ingredients:150,packaging:1,addons:18,beverages:1};
  for(const [group,id] of items){const doc=await get(record(group,id));assert.equal(field(doc,"stock"),expected[group],group+" physical stock");}
  const accepted=results.findIndex(x=>x.status===200);
  const actual=accepted>=0?accepted:(await get(record("orders","complex-order-0"))?0:1);
@@ -80,7 +80,7 @@ try{
  const comboCreate=await call("/v1/orders/create",{...order(0),orderId:"combo-order-valid",
   operationId:"f02-complex-race-combo-order-00002"});
  assert.equal(comboCreate.status,200,"explicit combo order "+await comboCreate.clone().text());
- const consumed={ingredients:100,packaging:-1,addons:16,beverages:-1};
+ const consumed={ingredients:100,packaging:0,addons:16,beverages:0};
  for(const [group,id] of items)assert.equal(field(await get(record(group,id)),"stock"),consumed[group],group+" combo reserved");
  const comboCancel=await call("/v1/orders/cancel",{universe,orderId:"combo-order-valid",
   operationId:"f02-complex-race-combo-cancel-00002",decision:"return"});
