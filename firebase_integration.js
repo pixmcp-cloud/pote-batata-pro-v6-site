@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-app.js";
+import {app} from "./firebase_app.mjs?v=init-20261120";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {createV5Store} from "./v5_storage.mjs?v=v5-clean-20261120";
@@ -7,15 +7,6 @@ const pendingKey=uid=>"pote-sync-pending-v5:"+String(uid||"");
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCG8KCd6LKhYOIH3eLxifoT7IC9k3oMYCk",
-  authDomain: "potobatata-b71f3.firebaseapp.com",
-  projectId: "potobatata-b71f3",
-  appId: "1:947524221002:web:ece242260f26bb46418eb3",
-  messagingSenderId: "947524221002",
-  storageBucket: "potobatata-b71f3.firebasestorage.app"
-};
-const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const google = new GoogleAuthProvider();
