@@ -361,8 +361,14 @@ async function submitStockAuthoritative(){
  }catch(e){warn(e.message||"Falha ao registrar perda no servidor");return {ok:false,error:e.message}}
 }
 function submitStock(){
- if(window.POTE_WORKER?.inventoryEnabled===true&&window.POTE_AUTH?.proActive===true)
+ // Licensed accounts must never silently revert to an unguarded browser-side stock loss.
+ if(window.POTE_AUTH?.proActive===true){
+  if(window.POTE_WORKER?.inventoryEnabled!==true){
+   warn("Registro de perdas temporariamente indisponível. Nenhum estoque foi alterado.");
+   return {ok:false,error:"worker/disabled"};
+  }
   return submitStockAuthoritative();
+ }
  const result=stockLoss({kind:$("lossStockKind")?.value,
   id:$("lossStockId")?.value,quantity:$("lossStockQty")?.value,
   unit:$("lossStockUnit")?.value,reason:$("lossStockReason")?.value,
