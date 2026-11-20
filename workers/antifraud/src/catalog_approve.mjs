@@ -6,7 +6,8 @@
  */
 import {OperationalError,recordPath} from "./domain.mjs";
 import {serverPricePath,assertSimpleRecipeScope} from "./server_price.mjs";
-import {authoritativeComponentCost,minimumApprovedPriceCents} from "./component_cost.mjs";
+import {authoritativeComponentCost,minimumApprovedPriceCents,complexRecipeSnapshot} from "./component_cost.mjs";
+import {transactionComplexCostPreview} from "./complex_cost_preview.mjs";
 const fail=(code,message,status=409)=>{throw new OperationalError(message,status,code)};
 const put=(path,data,previous)=>({path,data,precondition:previous?
  {updateTime:previous.updateTime}:{exists:false}});
@@ -55,7 +56,10 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
   if(!rec||rec.group!=="recipes"||rec.id!==recipeId||
     rec.universe!==universe||!r||r.unavailable||r.archived)
    fail("recipe_missing","Receita não encontrada",404);
-  assertSimpleRecipeScope(r);
+  const complex=Array.isArray(r.packagingItems)&&r.packagingItems.length>0||
+    Array.isArray(r.addons)&&r.addons.length>0||
+    Array.isArray(r.beverages)&&r.beverages.length>0;
+  if(!complex)assertSimpleRecipeScope(r);
   if(!Array.isArray(r.items)||r.items.length<1||r.items.length>32||
     r.packagingIngredientIds?.length||r.costEstimateMode==="estimated")
    fail("recipe_review_required","Receita não é elegível para preço automático");
@@ -68,9 +72,10 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
     fail("recipe_review_required","Ingredientes ou quantidades inválidos");
    return {id:item.id,g:item.g,path:recordPath(uid,universe,"ingredients",item.id)};
   });
-  const docList=await Promise.all(rows.map(row=>tx.get(row.path)));
+  const complexPreview=complex?await transactionComplexCostPreview(tx,uid,universe,r):null;
+  const docList=complex?[]:await Promise.all(rows.map(row=>tx.get(row.path)));
   const resolved=new Map();
-  for(let i=0;i<rows.length;i++){
+  for(let i=0;i<(complex?0:rows.length);i++){
    const record=docList[i]?.data?.record;
    if(!record||record.group!=="ingredients"||record.universe!==universe||
       record.id!==rows[i].id||record.item?.archived)
@@ -82,7 +87,7 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
   }
   // No browser-provided cost is trusted. All component documents were read
   // within this transaction, so concurrent cost changes invalidate the commit.
-  const cost=authoritativeComponentCost(rows.map(row=>({
+  const cost=complex?complexPreview.cost:authoritativeComponentCost(rows.map(row=>({
    kind:"ingredient",id:row.id,quantity:row.g,unit:"g"
   })),(kind,id)=>kind==="ingredient"?resolved.get(id):undefined);
   const requiredPrice=minimumApprovedPriceCents(cost.materialCostCents,minimum);
@@ -102,9 +107,11 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
    version:1,universe,recipeId,salePriceCents,
    minimumGainPct:minimum,revision,items:cleanItems,
    approvedByUid:uid,approvedAt:at,
-   materialCostCents:cost.materialCostCents
+   materialCostCents:cost.materialCostCents,
+   ...(complex?{version:2,componentSnapshot:complexRecipeSnapshot(r),
+    componentCostDetails:cost.details}: {})
   };
-  const updatedRecipe={...r,serverPriceVersion:1,
+  const updatedRecipe={...r,serverPriceVersion:complex?2:1,
    serverSalePriceCents:salePriceCents,
    serverMinimumGainPct:minimum,serverPriceRevision:revision};
   const recordId=recipePath.split("/").at(-1);
