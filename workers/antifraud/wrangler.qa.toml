@@ -7,8 +7,11 @@ preview_urls = false
 # QA isolated from the commercial Firebase project.
 [vars]
 FIREBASE_PROJECT_ID = "pote-batata-qa-worker"
-ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
-ENABLE_WRITES = "false"
+ALLOWED_ORIGINS = "http://localhost:8765"
+ENABLE_WRITES = "true"
 PRODUCTION_CUTOVER_APPROVED = "false"
 ASAAS_WEBHOOK_ENABLED = "false"
 ASAAS_MODE = "off"
+
+QA_INVENTORY_ONLY = "true"
+QA_ALLOWED_UID = "5wiBJ9bnI3VwozBC7vP8wcOZlOV2"
