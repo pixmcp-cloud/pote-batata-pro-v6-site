@@ -151,8 +151,20 @@ export function createWorkerBridge({
     throw error("Resposta do servidor incerta. Repita o mesmo pedido para evitar duplicidade.","worker/network");
    }finally{clearTimeout(timeout)}
    const result=await response.json().catch(()=>({}));
-   if(!response.ok)throw error(result.message||"Pedido recusado pelo servidor",
+   if(!response.ok){
+    // The server rejects these requests before commit (or aborts the entire
+    // Firestore transaction). Allow a corrected order without leaving an
+    // orphaned pending checkout. Unknown/ambiguous failures retain the ID.
+    const definitive=new Set(["invalid_order_request","not_allowed","not_ready",
+     "cash_session_required","recipe_missing","price_review_required",
+     "recipe_review_required","missing_stock","invalid_stock",
+     "insufficient_stock","cost_review_required","price_below_cost",
+     "authentication_required","invalid_firebase_token","invalid_identity",
+     "origin_not_allowed"]);
+    if(definitive.has(result.error))storage?.removeItem(key);
+    throw error(result.message||"Pedido recusado pelo servidor",
      result.error||"worker/http-"+response.status);
+   }
    if(result.ok!==true||result.operationId!==pending.operationId||
       result.orderId!==pending.orderId||!Number.isSafeInteger(result.priceCents)||
       result.priceCents<=0||(!result.alreadyApplied&&result.reservationStatus!=="reserved"))
