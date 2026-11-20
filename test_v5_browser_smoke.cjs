@@ -3,6 +3,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os');
 const path=require('node:path'),cp=require('node:child_process');
+const baseUrl=process.env.POTE_TEST_URL||'https://pdv.livresom.com/';
 const chrome=process.platform==='win32'?'C:/Program Files/Google/Chrome/Application/chrome.exe':'google-chrome';
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'pote-v5-chrome-'));
 const child=cp.spawn(chrome,['--headless=new','--no-first-run','--no-default-browser-check',
@@ -64,7 +65,7 @@ async function main(){
   await call('Emulation.setDeviceMetricsOverride',{width:screen.width,height:screen.height,
    deviceScaleFactor:screen.mobile?3:1,mobile:screen.mobile});
   await call('Emulation.setTouchEmulationEnabled',{enabled:screen.mobile,maxTouchPoints:5});
-  await call('Page.navigate',{url:'https://pdv.livresom.com/?qa='+screen.width+'x'+screen.height});
+  await call('Page.navigate',{url:baseUrl+(baseUrl.includes('?')?'&':'?')+'qa='+screen.width+'x'+screen.height});
   for(let tick=0;tick<35;tick++){
    await sleep(350);
    const ready=await evaluate('document.readyState');
@@ -93,6 +94,7 @@ async function main(){
    overflow:info.doc>info.viewport+2,loginVisible:info.loginVisible,
    loginText:info.loginText,authGate:info.gateVisible});
  }
+ assert.equal(exceptions.length,0,'Excecoes JavaScript na inicializacao: '+JSON.stringify(exceptions.slice(0,8)));
  console.log(JSON.stringify({status:'PASS',screens:results,exceptions:exceptions.slice(0,8),
   networkErrors:failedRequests.slice(0,8),jsExceptionCount:exceptions.length,
   networkErrorCount:failedRequests.length}));
