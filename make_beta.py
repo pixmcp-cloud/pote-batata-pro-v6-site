@@ -30,7 +30,7 @@ if n != 1:
     raise SystemExit("Previous localStorage guest state pattern changed; stopping")
 once("function persist(){window.POTE_KITCHEN?.capture?.(state);try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}",
      "function persist(){window.POTE_KITCHEN?.capture?.(state);if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
-once("V6 • DEMONSTRAÇÃO FREE", "POTÊ BATATA PRO • ONLINE")
+once("V6 • DEMONSTRAÇÃO FREE", "POTÊ BATATA PRO V5 • ONLINE")
 once("🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.",
      "🔐 Beta conectado ao Firebase: dados por conta Google. Contas FREE e PRO com licença vinculada à sua conta Google.")
 once("Todos os dados de teste são armazenados somente no navegador deste aparelho.",
