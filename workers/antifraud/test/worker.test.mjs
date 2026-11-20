@@ -40,6 +40,7 @@ function makeStore(){
  db.seed(root+"/appState/v2",{schemaVersion:2,state:{data:{businessType:"batataria"}}});
  db.seed(root+"/appState/v2InventoryGuard",{revision:0});
  db.seed(root+"/appState/v2Pulse",{eventId:"previous",sensitive:false,changedKeys:[]});
+ db.seed(root+"/appState/v2OrderSequence__"+UNIVERSE,{version:1,universe:UNIVERSE,last:0});
  const order={id:"o1",status:"recebido",qty:2,price:35,
   paymentMethod:"Pix",paymentStatus:"pago",stockDeducted:false,
   items:[{id:"batata",g:100,yieldPct:80}],
