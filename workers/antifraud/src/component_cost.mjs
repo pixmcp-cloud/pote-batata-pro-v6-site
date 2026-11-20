@@ -85,7 +85,22 @@ export function complexRecipeComponentLines(recipe){
    lines.push({kind,id:entry.id,quantity,unit:entry.unit??defaultUnit});
   }
  }
- // Explicit combo contract: every entry identifies a physical stock component.\n // Legacy comboItems {id,qty} has no defined kind or unit and remains blocked.\n if(recipe.comboItems!==undefined){\n  if(!Array.isArray(recipe.comboItems)||recipe.comboItems.length>64)\n   reject("Lista de combo inválida");\n  for(const part of recipe.comboItems){\n   if(!part||typeof part!=="object"||Array.isArray(part)||\n    Object.keys(part).some(k=>!["kind","id","quantity","unit"].includes(k))||\n    !kinds.has(part.kind)||part.unit!==\n      (part.kind==="ingredient"?"g":part.kind==="addon"?part.unit:"un")||\n    !["g","ml","un"].includes(part.unit))\n    reject("Combo sem tipo, unidade ou quantidade explícitos");\n   lines.push({kind:part.kind,id:part.id,quantity:part.quantity,unit:part.unit});\n  }\n }\n if(!lines.some(x=>x.kind==="ingredient")||lines.length>128)
+ // Explicit combo contract: every entry identifies a physical stock component.
+ // Legacy comboItems {id,qty} has no defined kind or unit and remains blocked.
+ if(recipe.comboItems!==undefined){
+  if(!Array.isArray(recipe.comboItems)||recipe.comboItems.length>64)
+   reject("Lista de combo inválida");
+  for(const part of recipe.comboItems){
+   if(!part||typeof part!=="object"||Array.isArray(part)||
+    Object.keys(part).some(k=>!["kind","id","quantity","unit"].includes(k))||
+    !kinds.has(part.kind)||part.unit!==
+      (part.kind==="ingredient"?"g":part.kind==="addon"?part.unit:"un")||
+    !["g","ml","un"].includes(part.unit))
+    reject("Combo sem tipo, unidade ou quantidade explícitos");
+   lines.push({kind:part.kind,id:part.id,quantity:part.quantity,unit:part.unit});
+  }
+ }
+ if(!lines.some(x=>x.kind==="ingredient")||lines.length>128)
   reject("Receita sem ingredientes ou com componentes demais");
  return Object.freeze(lines.map(line=>Object.freeze(line)));
 }
