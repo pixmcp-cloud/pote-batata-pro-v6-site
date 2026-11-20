@@ -179,6 +179,18 @@ service cloud.firestore {
       return record.group in ['ingredients', 'beverages', 'orders', 'stockMovements',
         'purchases', 'losses', 'prepBatches'];
     }
+    // F05: verified Pro tenants register physical losses through the Worker.
+    // Non-payment/order losses and other inventory flows remain compatible.
+    // Service account writes bypass browser-side Firestore rules.
+    function requiresF05Server(userId, record) {
+      let stockLoss = record.group == 'losses'
+        && record.item is map && record.item.get('type', '') == 'stock';
+      let lossMovement = record.group == 'stockMovements'
+        && record.item is map
+        && record.item.get('reason', '') is string
+        && record.item.get('reason', '').matches('^Perda.*');
+      return (stockLoss || lossMovement) && canUseFinancialRecords(userId);
+    }
     function validRecordDocument(document, record) {
       return document.keys().hasOnly(['record', 'updatedAt'])
         && document.get('updatedAt', null) == request.time
@@ -322,6 +334,7 @@ service cloud.firestore {
         function validCreate(document) {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
+            && !requiresF05Server(userId, record)
             && canWriteOperationalRecord(userId, recordId, record)
             && (record.group != 'cashSessions' || record.item.status == 'open')
             // Pedidos, movimentos, compras e perdas não podem ser criados fora
@@ -333,6 +346,8 @@ service cloud.firestore {
           let record = document.get('record', null);
           let oldRecord = oldDocument.record;
           return validRecordDocument(document, record)
+            && !requiresF05Server(userId, record)
+            && !requiresF05Server(userId, oldRecord)
             && canWriteOperationalRecord(userId, recordId, record)
             && preservesRecordIdentity(userId, recordId, record, oldRecord)
             && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
@@ -345,6 +360,7 @@ service cloud.firestore {
         allow create: if canAccess(userId) && validCreate(request.resource.data);
         allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
+          && !requiresF05Server(userId, resource.data.record)
           && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));

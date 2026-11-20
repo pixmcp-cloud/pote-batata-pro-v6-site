@@ -124,7 +124,7 @@ assert(saved>0&&rendered>0);
 const moduleUniv=read("universe_core.js");
 assert(/const LISTS=[\s\S]*?"losses"/.test(moduleUniv),"Universos devem isolar as perdas");
 const build=read("public/index.html");
-assert(build.includes("losses.js?v=order-sequence-20261119"));
+assert(build.includes("losses.js?v=f05-final-20261120"));
 assert(build.includes("losses.css?v=losses-20261116"));
 assert(build.includes("losses:pageLosses"));
 assert(build.includes("losses:'Perdas'"));
@@ -233,3 +233,29 @@ L.updateStockForm("kind");
 assert.equal(el("lossStockUnit").value,"un");
 assert.equal(el("lossStockQty").disabled,false);
 console.log("PASS: categoria vazia não mostra unidades inventadas nem permite baixar estoque sem item.");
+
+
+// F05 Pro: a loss must go through the Worker, never local Firebase persistence.
+(async()=>{
+ window.POTE_AUTH.proActive=true;
+ el("lossStockKind").value="beverage";L.updateStockForm("kind");
+ el("lossStockId").value="agua-500";L.updateStockForm("item");
+ el("lossStockQty").value="1";el("lossStockUnit").value="un";
+ el("lossStockReason").value="avaria";el("lossStockNote").value="Garrafa quebrada";
+ const before=water.stock,lossCount=data.losses.length,persistCount=saved;
+ window.POTE_WORKER={inventoryEnabled:false};
+ assert.equal(L.submitStock().ok,false,"Pro must fail closed when Worker is unavailable");
+ assert.equal(water.stock,before);
+ let requests=0;
+ window.POTE_WORKER={inventoryEnabled:true,async adjustStock(request){
+  requests++;assert.equal(request.group,"beverages");assert.equal(request.itemId,"agua-500");
+  assert.equal(request.delta,-1);assert.equal(request.lossReason,"avaria");
+  return {ok:true,stock:before-1};
+ }};
+ assert.equal((await L.submitStock()).ok,true);
+ assert.equal(requests,1);
+ assert.equal(water.stock,before,"No browser deduction after Worker response");
+ assert.equal(data.losses.length,lossCount,"No duplicate client loss record");
+ assert.equal(saved,persistCount,"No local persistence for Pro physical loss");
+ console.log("PASS F05 Pro UI: Worker only; no silent local fallback or double deduction.");
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1});
