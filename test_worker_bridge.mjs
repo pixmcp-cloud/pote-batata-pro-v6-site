@@ -59,4 +59,43 @@ const cancel=make({requestFetch:async(url,opts)=>{
 }});
 await cancel.cancel(orderId,universe,"loss");
 assert.equal(storage.size,1,"Other action's pending ID must remain intact");
+let serverApproved=false;
+const dynamic=make({enabled:()=>serverApproved,inventoryEnabled:()=>serverApproved});
+assert.equal(dynamic.enabled,false);
+assert.equal(dynamic.inventoryEnabled,false);
+await assert.rejects(()=>dynamic.produce("canary-order",universe),
+ e=>e.code==="worker/disabled");
+serverApproved=true;
+assert.equal(dynamic.enabled,true);
+assert.equal(dynamic.inventoryEnabled,true);
+const routed=await dynamic.produce("canary-order",universe);
+assert.equal(routed.ok,true,"Canário autenticado e flag remota podem rotear");
+serverApproved=false;
+assert.equal(dynamic.enabled,false);
+assert.equal(dynamic.inventoryEnabled,false);
+await assert.rejects(()=>dynamic.produce("canary-revoked",universe),
+ e=>e.code==="worker/disabled");
+const unsafe=make({enabled:()=>{throw Error("permissão Firestore não disponível")}});
+assert.equal(unsafe.enabled,false,"Erro na leitura do perfil é sempre acesso negado");
+let sendAfterRevocation=0,revokedDuringFlush=true;
+const midFlight=make({enabled:()=>revokedDuringFlush,
+ flush:async()=>{revokedDuringFlush=false;return true},
+ requestFetch:async()=>{sendAfterRevocation++;throw Error("não deveria chamar servidor")}})
+await assert.rejects(()=>midFlight.produce("order-revoked-during-flush",universe),
+ e=>e.code==="worker/disabled");
+assert.equal(sendAfterRevocation,0,"Revogação entre sincronização e envio impede escrita");
+const stock=make({enabled:false,inventoryEnabled:()=>serverApproved,
+ requestFetch:async(url,options)=>{
+  assert(url.endsWith("/v1/inventory/adjust"));
+  const sent=JSON.parse(options.body);
+  return new Response(JSON.stringify({ok:true,operationId:sent.operationId,
+   group:sent.group,itemId:sent.itemId,afterStock:9}),{status:200});
+ }});
+await assert.rejects(()=>stock.adjustStock({universe,group:"ingredients",itemId:"batata",
+ delta:-1,lossReason:"queda",note:"teste"}),e=>e.code==="worker/disabled");
+serverApproved=true;
+const stockOk=await stock.adjustStock({universe,group:"ingredients",itemId:"batata",
+ delta:-1,lossReason:"queda",note:"teste"});
+assert.equal(stockOk.ok,true);
+serverApproved=false;
 console.log("PASS Worker client: disabled default, auth, preflush, durable retries, 423 fail-closed, cancel.");
