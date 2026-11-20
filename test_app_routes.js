@@ -387,7 +387,7 @@ console.log("PASS: cancelamento real depois da produção registra prejuízo sem
  window.POTE_WORKER={enabled:true,async createOrder(args){
   calls.push(args);
   if(fail)throw Error("QA simulated server outage");
-  return {ok:true,orderId:"server-only-1",priceCents:5000};
+  return {ok:true,orderId:"server-only-1",orderNumber:1,priceCents:5000};
  }};
  window.POTE_PDV={getSessionId:()=>"cash-session-qa"};
  window.POTE_APP.applyState(staged);
