@@ -69,6 +69,10 @@ try{
  await assert.rejects(bootstrapOrderSequenceQa({uid,universe,
   env:{FIREBASE_PROJECT_ID:"potobatata-b71f3"},report,repository}),
   /qa_project_only/);
+ await assert.rejects(bootstrapOrderSequenceQa({uid:"other-tenant",universe,
+  env,report,repository}),/preflight_scope_mismatch/);
+ await assert.rejects(bootstrapOrderSequenceQa({uid,universe:"pizzaria",
+  env,report,repository}),/preflight_scope_mismatch/);
  await write(root+"/appState/v2InventoryGuard",{revision:2});
  await assert.rejects(bootstrapOrderSequenceQa({uid,universe,env,report,repository}),
   /stale_sequence_preflight/);
