@@ -8,6 +8,10 @@ export async function bootstrapOrderSequenceQa({
 }={}){
  if(!/^demo-[a-z0-9-]+$/.test(env?.FIREBASE_PROJECT_ID||""))
   fail("qa_project_only");
+ // Deliberately unusable by deployed Workers or with a normal production CLI.
+ if(typeof process==="undefined"||!process.env.FIRESTORE_EMULATOR_HOST||
+    process.env.GCLOUD_PROJECT!==env.FIREBASE_PROJECT_ID)
+  fail("qa_emulator_required");
  if(typeof uid!=="string"||!/^[a-zA-Z0-9_-]{1,128}$/.test(uid)||
     typeof universe!=="string"||!/^[a-z0-9_-]{1,64}$/.test(universe)||
     typeof repository!=="function")
