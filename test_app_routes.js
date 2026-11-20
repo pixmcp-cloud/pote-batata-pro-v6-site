@@ -1,8 +1,8 @@
 const fs=require("node:fs"),vm=require("node:vm"),assert=require("node:assert/strict");
 const html=fs.readFileSync("public/index.html","utf8");
 const betaBuilder=fs.readFileSync("make_beta.py","utf8");
-const firebaseTag=betaBuilder.match(/firebase_integration\\.js\\?v=([a-z0-9-]+)/i);
-assert(firebaseTag&&html.includes("firebase_integration.js?v="+firebaseTag[1]),
+const firebaseTag=betaBuilder.split("firebase_integration.js?v=")[1]?.split('"')[0];
+assert(firebaseTag&&html.includes("firebase_integration.js?v="+firebaseTag),
  "Build de outra branch ou desatualizado: execute python build_hosting.py antes do teste.");
 const backup=html.match(/<script id="backup" type="application\/json">([\s\S]*?)<\/script>/);
 assert(backup,"Modelo de dados embutido ausente");
