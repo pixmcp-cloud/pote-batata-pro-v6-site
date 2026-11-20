@@ -410,6 +410,7 @@ console.log("PASS: cancelamento real depois da produção registra prejuízo sem
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(current().data.orders.length,0,"No phantom order after server reply");
  assert.equal(current().data.ingredients[0].stock,originalStock,"No local stock deduction");
+ assert.match(el("toast").textContent,/#P0000001/,"UI must show the server-issued sequential order number");
  fail=true;
  vm.runInContext("newOrder();",sandbox);
  await new Promise(resolve=>setImmediate(resolve));
