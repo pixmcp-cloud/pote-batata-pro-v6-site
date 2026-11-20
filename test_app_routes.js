@@ -285,7 +285,10 @@ for(const [id,value] of Object.entries({
  orderHasDelivery:"sim",orderAddress:"Rua Teste 20",orderPayment:"dinheiro",
  orderCashReceived:"1000,00",orderChannel:"direto",orderExtraBev:"",orderExtraAddon:"",
  orderClient:"",orderNote:"Combo com Bacon",orderWeight:"500"}))el(id).value=value;
+const comboAlerts=[];sandbox.alert=(m)=>{comboAlerts.push(String(m));console.error("COMBO_SUBMIT_ALERT:",m)};
+console.error("COMBO_PRECHECK:",JSON.stringify({quote:window.POTE_ORDER.calc(comboQuote,1),payment:window.POTE_PAYMENT?.validate?.(),drink:window.POTE_APP.snapshot().data.beverages.find(b=>b.id==="preset-cola-lata")}));
 vm.runInContext("newOrder();",sandbox);
+console.error("COMBO_POSTCHECK:",JSON.stringify({alerts:comboAlerts,orders:window.POTE_APP.snapshot().data.orders.length}));
 let finalCombo=window.POTE_APP.snapshot().data.orders[0];
 assert(finalCombo,"O combo deve ser registrável após repor o refrigerante");
 assert.equal(finalCombo.recipeId,"r03");
