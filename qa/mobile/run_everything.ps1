@@ -46,7 +46,7 @@ try {
     Check $test
   }
   & npm.cmd test --prefix workers/antifraud
-  Check "Worker 92 testes unitarios"
+  Check "Worker testes unitarios (contagem automatica)"
   if(-not $SkipFirebase){
     $refTests="node --test --test-concurrency=1 test_firestore_rules_emulator.cjs test_firestore_stock_nonnegative.cjs test_firestore_f02_atomic_guard.cjs test_firestore_f02_multistock.cjs test_firestore_v2_live_concurrency.cjs test_firestore_v2_backup_restore.cjs test_firestore_cash_event_fields.cjs test_firestore_f10_migration.cjs test_firestore_franchise_report.cjs test_firestore_f06_bulk.cjs"
     $env:POTE_HARDENED_RULES="0"
