@@ -119,6 +119,33 @@ test('F05 Worker V5 REST: Firestore Emulator transacional com canário e sem dad
    assert.equal(potato.record.item.stock,400);
    assert.equal(guard.revision,4);
   });
-  console.log('F05_REAL_EMULATOR_REST_PASS loss=-100g production=-400g return=400g concurrency=1of2 revision=4 retries=idempotent');
+  const purchaseId='c0f52026-87ab-42d8-85b8-bc5dfb6e1140';
+  const purchase={universe:UNIVERSE,group:'ingredients',itemId:'batata',
+   delta:100,reason:'purchase',paidTotal:2,enteredQuantity:0.1,
+   enteredUnit:'kg',supplier:'Fornecedor de homologação',operationId:purchaseId};
+  const bought=await call('/v1/inventory/adjust',purchase);
+  assert.equal(bought.status,200,JSON.stringify(bought));
+  assert.equal(bought.body.afterStock,500);
+  const duplicate=await call('/v1/inventory/adjust',purchase);
+  assert.equal(duplicate.status,200);
+  assert.equal(duplicate.body.alreadyApplied,true);
+  const reused=await call('/v1/inventory/adjust',{...purchase,paidTotal:99});
+  assert.equal(reused.status,409);
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const db=ctx.firestore();
+   const get=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();
+   const potato=await get(path('ingredients','batata',keyFor));
+   const receipt=await get(path('purchases','cf-purchase-'+purchaseId,keyFor));
+   const movement=await get(path('stockMovements','cf-move-'+purchaseId,keyFor));
+   const guard=await get('users/'+UID+'/appState/v5InventoryGuard');
+   assert.equal(potato.record.item.stock,500);
+   assert.equal(potato.record.item.averageUnitCost,0.0088);
+   assert.equal(receipt.record.item.totalPaid,2);
+   assert.equal(receipt.record.item.added,100);
+   assert.equal(movement.record.item.referenceId,receipt.record.item.id);
+   assert.equal(movement.record.item.quantity,100);
+   assert.equal(guard.revision,5);
+  });
+  console.log('F05_REAL_EMULATOR_REST_PASS loss=-100g production=-400g return=400g concurrency=1of2 purchase=100g costWeighted=0.0088 revision=5 idempotent');
  }finally{await env.cleanup()}
 });
