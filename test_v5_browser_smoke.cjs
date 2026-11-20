@@ -26,13 +26,17 @@ async function connect(){
  await new Promise((ok,bad)=>{ws.onopen=ok;ws.onerror=bad;});
  return ws;
 }
-const pending=new Map();let seq=0,exceptions=[],failedRequests=[];
+const pending=new Map();let seq=0,exceptions=[],failedRequests=[],consoleErrors=[],httpErrors=[];
 function receive(event){
  const packet=JSON.parse(event.data);
  if(packet.id!=null){const p=pending.get(packet.id);if(!p)return;pending.delete(packet.id);
   packet.error?p.reject(Error(JSON.stringify(packet.error))):p.resolve(packet.result);return;}
  if(packet.method==='Runtime.exceptionThrown')
   exceptions.push({description:packet.params?.exceptionDetails?.exception?.description||packet.params?.exceptionDetails?.text||'Excecao JS',url:packet.params?.exceptionDetails?.url||'',line:packet.params?.exceptionDetails?.lineNumber||0});
+ if(packet.method==='Runtime.consoleAPICalled' && packet.params?.type==='error'){
+  consoleErrors.push((packet.params?.args||[]).map(x=>x.value||x.description||'').join(' ').slice(0,250));}
+ if(packet.method==='Network.responseReceived' && packet.params?.response?.status>=400){
+  httpErrors.push({status:packet.params.response.status,url:packet.params.response.url});}
  if(packet.method==='Network.loadingFailed'){
   const e=packet.params?.errorText||'erro de rede';
   if(!/ERR_ABORTED/.test(e))failedRequests.push(e);
@@ -88,16 +92,19 @@ async function main(){
   }))()`);
   assert(info.gateExists&&info.gateVisible,'Sem protecao Google em '+screen.name);
   assert(info.loginVisible,'Botao Google inacessivel em '+screen.name);
+  assert(!info.loginText.includes('Preparando autenticação'), 'Login ficou preso na inicialização: '+screen.name+' '+info.loginText);
   assert(info.moduleLoaded&&info.storageLoaded,'Bibliotecas V5 nao chegaram em '+screen.name);
   assert(!info.legacyStorageLoaded,'Browser baixou armazenamento V2 antigo');
   results.push({screen:screen.name,viewport:screen.width,docWidth:info.doc,
    overflow:info.doc>info.viewport+2,loginVisible:info.loginVisible,
    loginText:info.loginText,authGate:info.gateVisible});
  }
- assert.equal(exceptions.length,0,'Excecoes JavaScript na inicializacao: '+JSON.stringify(exceptions.slice(0,8)));
+ assert.equal(exceptions.length,0,'Excecoes JS: '+JSON.stringify(exceptions.slice(0,8)));
+ assert.equal(consoleErrors.length,0,'Erros no console: '+JSON.stringify(consoleErrors.slice(0,8)));
+ assert.equal(httpErrors.length,0,'Arquivos HTTP com erro: '+JSON.stringify(httpErrors.slice(0,8)));
  console.log(JSON.stringify({status:'PASS',screens:results,exceptions:exceptions.slice(0,8),
   networkErrors:failedRequests.slice(0,8),jsExceptionCount:exceptions.length,
-  networkErrorCount:failedRequests.length}));
+  networkErrorCount:failedRequests.length,consoleErrors:consoleErrors.slice(0,4),httpErrors:httpErrors.slice(0,4)}));
 }
 main().catch(e=>{console.error('V5_BROWSER_FAIL',e.stack||e);process.exitCode=1}).finally(async()=>{
  try{ws?.close();}catch(e){}
