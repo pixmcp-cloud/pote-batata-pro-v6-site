@@ -24,7 +24,7 @@ const make=(overrides={})=>createWorkerBridge({
   assert.equal(b.qty,2);
   if(responses===1)throw Error("simulated timeout");
   return new Response(JSON.stringify({ok:true,orderId:b.orderId,operationId:b.operationId,
-   alreadyApplied:true,priceCents:3990}),{status:200});
+   alreadyApplied:true,orderNumber:9,priceCents:3990}),{status:200});
  },...overrides});
 const bridge=make();
 await assert.rejects(()=>bridge.createOrder(input),e=>e.code==="worker/network");
@@ -49,7 +49,7 @@ assert.equal(store.size,1,"Ambiguous/concurrent conflict must retain pending ID 
 store.clear();
 const suspicious=make({requestFetch:async(url,opts)=>{
  const b=JSON.parse(opts.body);return new Response(JSON.stringify({
- ok:true,orderId:b.orderId,operationId:b.operationId,priceCents:3990,reservationStatus:"none"
+ ok:true,orderId:b.orderId,operationId:b.operationId,orderNumber:9,priceCents:3990,reservationStatus:"none"
  }),{status:200});
 }});
 await assert.rejects(()=>suspicious.createOrder(input),e=>e.code==="worker/invalid-response");
