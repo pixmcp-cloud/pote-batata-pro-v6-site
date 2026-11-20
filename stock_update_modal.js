@@ -220,23 +220,31 @@ function save(){
  // A compra entra no Worker com UUID idempotente e reconsulta a V5.
  if(window.POTE_AUTH?.accessPolicy?.workerAuthoritative===true){
   const errorField=$("stockUpdateError");
-  if(mode!=="purchase"){
-   errorField.textContent="Contagem protegida ainda indisponível no Worker; estoque inalterado.";
+  if(window.POTE_WORKER?.inventoryEnabled!==true){
+   errorField.textContent="Servidor F05 não habilitado. Nenhum saldo foi alterado.";
    errorField.hidden=false;return false;
   }
-  if(window.POTE_WORKER?.inventoryEnabled!==true){
-   errorField.textContent="Compras protegidas aguardam autorização do Worker; estoque inalterado.";
+  if(mode==="adjust"&&(!Number.isFinite(x.before)||Math.abs(x.after-x.before)<=0.00001)){
+   errorField.textContent="A conferência não apresenta diferença válida para registrar.";
    errorField.hidden=false;return false;
   }
   const kind=current.kind,id=current.id,label=item.name;
-  return window.POTE_WORKER.purchaseStock({
-   universe:state.data.businessType||"batataria",
-   group:kind==="beverage"?"beverages":"ingredients",itemId:id,
-   delta:x.baseAmount,paidTotal:x.paid,enteredQuantity:x.quantity,
-   enteredUnit:x.unit,supplier:String($("stockUpdateSupplier")?.value||"").trim()
-  }).then(result=>{
+  const group=kind==="beverage"?"beverages":"ingredients";
+  const universe=state.data.businessType||"batataria";
+  const operation=mode==="purchase"?
+   window.POTE_WORKER.purchaseStock({
+    universe,group,itemId:id,delta:x.baseAmount,
+    paidTotal:x.paid,enteredQuantity:x.quantity,enteredUnit:x.unit,
+    supplier:String($("stockUpdateSupplier")?.value||"").trim()
+   }):
+   window.POTE_WORKER.recountStock({
+    universe,group,itemId:id,previousStock:x.before,countedStock:x.after,
+    note:String($("stockUpdateReason")?.value||"Conferência física").trim()
+   });
+  return operation.then(result=>{
    close();render();
-   toast(label+": compra confirmada no servidor. Saldo: "+result.afterStock+".");
+   toast(label+": "+(mode==="purchase"?"compra":"conferência")+
+    " confirmada no servidor. Saldo: "+result.afterStock+".");
    if(typeof setTimeout==="function")setTimeout(()=>window.POTE_STOCK_UPDATE?.pulse?.(kind,id),0);
    return true;
   }).catch(error=>{
