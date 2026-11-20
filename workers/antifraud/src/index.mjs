@@ -44,7 +44,7 @@ export function createWorkerApp({
   if(env.ENABLE_WRITES!=="true")
    return json({error:"not_activated",message:"Cloudflare Worker em homologação"},423,headers);
   const authorization=req.headers.get("Authorization")||"";
-  if(!/^Bearer [^\\s]+$/.test(authorization))
+  if(!/^Bearer [^\s]+$/.test(authorization))
    return json({error:"authentication_required"},401,headers);
   let user;
   try{user=await verify(authorization.slice(7),env.FIREBASE_PROJECT_ID)}
