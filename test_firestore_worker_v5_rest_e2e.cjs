@@ -44,7 +44,23 @@ test('F05 Worker V5 REST: Firestore Emulator transacional com canário e sem dad
    accessToken:async()=> 'owner',
    apiBaseUrl:'http://'+process.env.FIRESTORE_EMULATOR_HOST+
     '/v1/projects/'+URI+'/databases/(default)',
-   requestFetch:fetch
+   requestFetch:async(url,init)=>{
+    const started=Date.now();
+    try{
+     const resp=await fetch(url,init);
+     const endpoint=new URL(url).pathname.split('/').slice(-2).join('/');
+     console.log('QA_REST',endpoint,'status',resp.status,'ms',Date.now()-started);
+     if(!resp.ok){
+      const details=await resp.clone().text().catch(()=> '');
+      console.log('QA_REST_FAILURE',details.slice(0,1200));
+     }
+     return resp;
+    }catch(e){
+     console.log('QA_REST_TRANSPORT_ERROR',e.name,String(e.message).slice(0,200),
+      Date.now()-started);
+     throw e;
+    }
+   }
   });
   const app=createWorkerApp({
    verify:async token=>{if(token!=='qa-token')throw Error('token inválido');
