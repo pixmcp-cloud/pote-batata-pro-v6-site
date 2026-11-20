@@ -40,6 +40,8 @@ try{
   state=await read(approval);
  }
  assert(state,"approval must be persisted");
+ assert.equal(Number(state.fields.materialCostCents.integerValue),100,"100g at R$10/kg must cost R$1");
+ assert.equal(Number(state.fields.salePriceCents.integerValue),2000);
  const revision=Number(state.fields.revision.integerValue);
  assert(revision>=1&&revision<=2);
  const guard=await read(root+"/appState/v2InventoryGuard");
