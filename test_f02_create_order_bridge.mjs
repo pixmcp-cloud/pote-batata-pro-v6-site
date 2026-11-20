@@ -41,7 +41,11 @@ await assert.rejects(()=>make().createOrder({...input,paymentMethod:"card",cashS
 const refusal=make({requestFetch:async()=>new Response(JSON.stringify({
  error:"cash_session_required",message:"Caixa fechado"}),{status:409})});
 await assert.rejects(()=>refusal.createOrder(input),e=>e.code==="cash_session_required");
-assert.equal(store.size,1,"Rejected order cannot trigger a local browser save");
+assert.equal(store.size,0,"Definitively rejected order cannot strand the checkout in pending state");
+const unavailable=make({requestFetch:async()=>new Response(JSON.stringify({
+ error:"transaction_conflict",message:"Transação concorrente"}),{status:409})});
+await assert.rejects(()=>unavailable.createOrder(input),e=>e.code==="transaction_conflict");
+assert.equal(store.size,1,"Ambiguous/concurrent conflict must retain pending ID for safe retry");
 store.clear();
 const suspicious=make({requestFetch:async(url,opts)=>{
  const b=JSON.parse(opts.body);return new Response(JSON.stringify({
