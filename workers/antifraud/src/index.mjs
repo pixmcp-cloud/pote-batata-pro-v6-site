@@ -58,6 +58,10 @@ export function createWorkerApp({
    route==="/v1/catalog/approve-price"?"approve_price":
    route==="/v1/orders/finish"?"finish_sale":null;
   if(!action)return json({error:"not_found"},404,headers);
+  // Isolated QA environment: only the inventory endpoint may write.
+  if(env.QA_INVENTORY_ONLY==="true"&&
+     (env.FIREBASE_PROJECT_ID!=="pote-batata-qa-worker"||action!=="adjust"))
+   return json({error:"qa_route_restricted"},423,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
   // Two independent release gates: enabling writes does not authorize a real
