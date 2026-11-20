@@ -125,3 +125,17 @@ As telas `stock_ui.js`, `stock_ext.js` e `stock_update_modal.js` passam compras 
 **Testes:** `stock_purchase.test.mjs` (unidades, custo médio, bebida, entrada inválida), `worker.test.mjs` (recibo, movimento, idempotência), `test_worker_bridge.mjs` (perda de rede e retry sem duplicidade) e `test_firestore_worker_v5_rest_e2e.cjs` (compra real pelo REST contra Firestore Emulator com políticas canário). A última verificação integrada mostrou compra de 100 g após descarte/produção/estorno, custo médio R$ 0,0088/g, saldo 500 g e revisão 5.
 
 **PENDÊNCIA:** contagem física/ajuste de saldo por inventário em conta canário ainda não tem endpoint autoritativo; a interface recusa esse ajuste para proteger o estoque. A ativação comercial permanece condicionada ao Worker seguro, serviço Google autorizado, validação OAuth e cobertura de todos os fluxos físicos. As regras oficiais e o Worker de produção continuam desativados.
+
+## Etapa 10 — conferência física, perdas e saldos concorrentes (20/11/2026)
+
+`POST /v1/inventory/adjust` admite também `reason:"recount"`, com `universe`, `group`, `itemId`, `operationId`, `previousStock`, `countedStock` e `note`. O operador informa o saldo físico contado e o saldo visto no momento da conferência; o servidor lê o saldo real e exige **igualdade exata até cinco casas decimais**. Se outra sessão tiver produzido, cancelado, comprado ou baixado uma perda depois da leitura, recebe HTTP 409 `stock_conflict` e precisa atualizar a tela. Não aceita saldo negativo, bebida fracionada, contagem sem diferença nem justificativa vazia.
+
+Em uma transação Firestore, o servidor:
+- Atualiza o item ao saldo contado e registra `stockMovements` com diferença, motivo, saldos anterior/novo e UUID persistente.
+- **Diferença negativa:** registra `losses` com quantidade física ausente e custo de referência, separado de receita não recebida.
+- **Diferença positiva:** cria apenas movimento de contagem, nunca inventa compra ou perda.
+- Atualiza `v5InventoryGuard`, `v5Pulse` e `workerEvents` atomicamente. Repetir o mesmo UUID não gera outra mudança.
+
+O modal `stock_update_modal.js` usa `recountStock()` da ponte somente para a conta com `accessPolicy.workerAuthoritative=true`; nunca faz uma segunda alteração local. A ponte faz preflush, envia token Firebase, retém UUID em falha de rede e só limpa a pendência depois de confirmar a atualização no V5. Outros usuários continuam com contagem física pela V5 existente.
+
+Teste de homologação com Firestore REST real: saldo 500g → 350g (perda de 150g) → 375g (25g localizados), contagem obsoleta recusada, revisão da guarda final 7; idempotência aprovada. **A proteção segue desativada no site público** até credenciais seguras, canário real e coordenação das regras com todos os demais fluxos físicos. Não tocar dados reais, segredos, pagamentos ou regras oficiais durante a homologação.
