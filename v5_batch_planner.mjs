@@ -8,7 +8,7 @@ const BATCHABLE_GROUPS=new Set(['recipes','clients','suppliers',
  'recipeVersions','recipeTrash','checklist','garimpoOffers']);
 export const SAFE_V5_BATCH_DOCUMENTS=150;
 export const SAFE_V5_BATCH_BYTES=1500000;
-export function planV2Batches(diff){
+export function planV5Batches(diff){
  const changes=diff?.changes||[];
  if(changes.length<=MAX_CHANGES_PER_TX)return [changes];
  if(diff.sensitive || changes.some(change=>
