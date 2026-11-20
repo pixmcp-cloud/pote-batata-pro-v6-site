@@ -361,6 +361,10 @@ function checkoutVitrine(openWa){
 
  // Register orders for each main item (recipe/combo) or standalone item
  const mainItems=cart.filter(x=>x.kind==='recipe'||x.kind==='combo');
+ if(!mainItems.length){
+  toast('Carrinho sem prato principal: venda avulsa de bebidas e adicionais ainda exige integração de estoque. Nenhum pedido foi registrado; a sacola foi preservada.', 'error');
+  return;
+ }
  const extraBevs=cart.filter(x=>x.kind==='bev');
  const extraAddons=cart.filter(x=>x.kind==='addon');
 
