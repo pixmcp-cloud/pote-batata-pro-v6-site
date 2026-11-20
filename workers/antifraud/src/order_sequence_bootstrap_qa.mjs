@@ -11,7 +11,7 @@ export async function bootstrapOrderSequenceQa({
   fail("qa_project_only");
  // Deliberately unusable by deployed Workers or with a normal production CLI.
  if(typeof process==="undefined"||
-    !/^(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]{2,5}$/.test(
+    !/^(127\.0\.0\.1|localhost|\[::1\]):[0-9]{2,5}$/.test(
       process.env.FIRESTORE_EMULATOR_HOST||"")||
     process.env.GCLOUD_PROJECT!==env.FIREBASE_PROJECT_ID)
   fail("qa_emulator_required");
