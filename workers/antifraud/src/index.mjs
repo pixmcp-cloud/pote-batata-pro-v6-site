@@ -294,7 +294,22 @@ export function createWorkerApp({
     return json({status:"ok",project:"pote-batata-pro",
      writesEnabled:env.ENABLE_WRITES==="true"},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
-   try{return await perform(req,env,headers)}
+   try{
+    // O SDK Firestore do navegador repete transações em conflito; o REST
+    // não faz retry automático. Tentar com uma NOVA transação (mesmo UUID)
+    // evita perder a venda em conflitos transitórios; o estoque segue
+    // protegido por updateTime, guarda e idempotência.
+    for(let attempt=0;attempt<4;attempt++){
+     try{return await perform(req.clone(),env,headers)}
+     catch(error){
+      if(!(error instanceof FirestoreError)||
+         ![409,412].includes(error.status)||attempt===3)throw error;
+      await new Promise(resolve=>setTimeout(resolve,
+       60*(attempt+1)+Math.floor(Math.random()*160)));
+     }
+    }
+    throw Error("Tentativas de transação esgotadas");
+   }
    catch(e){
     if(e instanceof OperationalError)
      return json({error:e.code,message:e.message},e.status,headers);
