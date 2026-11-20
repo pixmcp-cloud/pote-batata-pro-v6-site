@@ -4,6 +4,7 @@
  * Firestore Rules deny browser writes to /users/{uid}/serverPrices/{id}.
  */
 import {OperationalError,keyFor} from "./domain.mjs";
+import {assertComplexRecipeSnapshot} from "./component_cost.mjs";
 const fail=(message,code="price_review_required")=>{
  throw new OperationalError(message,409,code);
 };
@@ -30,19 +31,21 @@ export function assertSimpleRecipeScope(recipe){
    "recipe_review_required");
 }
 export function verifyServerPrice(approvalDoc,recipe,universe,recipeId){
- assertSimpleRecipeScope(recipe);
+ const complex=recipe?.serverPriceVersion===2;
+ if(!complex)assertSimpleRecipeScope(recipe);
  const a=approvalDoc?.data;
- if(!a||a.version!==1||a.universe!==universe||a.recipeId!==recipeId||
+ if(!a||(complex?a.version!==2:a.version!==1)||a.universe!==universe||a.recipeId!==recipeId||
    !Number.isSafeInteger(a.salePriceCents)||a.salePriceCents<1||
    a.salePriceCents>10000000||
    !Number.isSafeInteger(a.revision)||a.revision<1||
    !Number.isFinite(a.minimumGainPct)||a.minimumGainPct<0||
    a.minimumGainPct>500)
   fail("Preço não aprovado no servidor");
- if(recipe?.serverPriceVersion!==1||
+ if(recipe?.serverPriceVersion!==(complex?2:1)||
    recipe?.serverSalePriceCents!==a.salePriceCents||
    (recipe.serverPriceRevision!==undefined&&recipe.serverPriceRevision!==a.revision))
   fail("Preço da ficha diverge da aprovação do servidor");
+ if(complex)assertComplexRecipeSnapshot(recipe,a.componentSnapshot);
  if(!Array.isArray(recipe?.items)||!Array.isArray(a.items)||
    recipe.items.length===0||recipe.items.length!==a.items.length||
    recipe.items.some((r,i)=>r?.id!==a.items[i]?.id||
