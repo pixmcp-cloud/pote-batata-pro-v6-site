@@ -704,6 +704,10 @@ function newOrder(){
   approxWeightG:Math.max(0,num(document.getElementById('orderWeight')?.value||0)||0),
   recipeCategory:q.recipe.category||'',businessType:state.data.businessType||'',
   addons:q.addons.map(a=>({name:a.name,quantity:a.quantity,unit:ingredient(a.ingredientId)?.measureUnit||'g'}))};
+ const sequence=nextOrderSequence(state.data);
+ if(!sequence){toast("Sequência dos pedidos inválida. Nenhum pedido foi registrado.", "error");return;}
+ order.orderNumber=sequence;
+ state.data.orderSequenceLast=sequence;
  state.data.orders.unshift(order);window.POTE_DELIVERY_HUB?.onRegistered?.(order);state.tab='orders';window.POTE_ORDER_CUSTOM?.reset?.();render();window.POTE_ORDER?.scrollToOrders?.(order.id);toast('Pedido registrado! Confira a seção Pedidos.');window.POTE_ORDER?.lowAfterOrder?.(order);
 }
 function produce(id){
@@ -771,6 +775,22 @@ function cancelOrder(id){
 function showReceipt(id,type){const o=state.data.orders.find(x=>x.id===id);if(!o||!canOperate(o.recipeId))return;
  if(window.POTE_RECEIPTS?.open){window.POTE_RECEIPTS.open(id,type);return;}
  state.expansion={receiptId:id,receiptType:type};state.tab='settings';render()}
+function publicOrderCode(order){
+ const n=Number(order?.orderNumber??0);
+ return Number.isSafeInteger(n)&&n>=1?'#P'+String(n).padStart(7,'0'):'#'+String(order?.id||'').slice(-8).toUpperCase();
+}
+function nextOrderSequence(data){
+ const last=Number(data?.orderSequenceLast??0);
+ if(!Number.isSafeInteger(last)||last<0)return null;
+ let highest=last;
+ for(const o of data?.orders||[]){
+  const number=Number(o?.orderNumber??0);
+  if(!Number.isSafeInteger(number)||number<0)return null;
+  highest=Math.max(highest,number);
+ }
+ return highest<Number.MAX_SAFE_INTEGER?highest+1:null;
+}
+window.POTE_ORDER_PUBLIC_CODE=publicOrderCode;
 function receiptHTML(o,type){
  if(window.POTE_RECEIPTS?.render)return window.POTE_RECEIPTS.render(o,type,state.data);
  const kitchen=type==='kitchen',sums=new Map();for(const x of o.items||[]){const key=x.id,qty=num(x.g)*num(o.qty);const old=sums.get(key)||{g:0,ingredientName:x.ingredientName||ingredient(key)?.name||key,measureUnit:x.measureUnit||ingredient(key)?.measureUnit||'g'};sums.set(key,{...old,g:old.g+qty})}
