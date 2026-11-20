@@ -115,14 +115,15 @@ const purchaseBridge=make({enabled:false,inventoryEnabled:true,
 const buying={universe,group:"ingredients",itemId:"batata",delta:100,
  paidTotal:2,enteredQuantity:0.1,enteredUnit:"kg",supplier:"Mercado QA"};
 await assert.rejects(()=>purchaseBridge.purchaseStock(buying),e=>e.code==="worker/network");
-const pendingPurchases=storage.size;
-assert(pendingPurchases>=1,"Compra em rede instável deve manter UUID para retry");
+const pendingPurchases=[...storage.keys()].filter(k=>k.includes(":purchase:"));
+assert.equal(pendingPurchases.length,1,"Compra em rede instável deve manter um único UUID para retry");
 await assert.rejects(()=>purchaseBridge.purchaseStock({...buying,paidTotal:20}),
  e=>e.code==="worker/pending");
 const purchased=await purchaseBridge.purchaseStock(buying);
 assert.equal(purchased.afterStock,100);
 assert.equal(purchaseCalls,2,"Uma falha e exatamente uma repetição");
-assert.equal(storage.size,0,"Compra confirmada limpa UUID pendente");
+assert.equal([...storage.keys()].filter(k=>k.includes(":purchase:")).length,0,
+ "Compra confirmada limpa seu UUID sem apagar operações pendentes de outras ações");
 const inactivePurchases=make({enabled:false,inventoryEnabled:false});
 await assert.rejects(()=>inactivePurchases.purchaseStock(buying),e=>e.code==="worker/disabled");
 console.log("PASS Worker client: disabled default, auth, preflush, durable retries, 423 fail-closed, cancel.");
