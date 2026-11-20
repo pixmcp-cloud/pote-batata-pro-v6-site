@@ -250,3 +250,13 @@ Quando o usuário disser "consulte Log Floot", "continue Floot" ou pedir evoluç
 7. Publicação comercial, novo custo, mudança destrutiva ou edição de main/Floot precisam obedecer à aprovação explícita registrada.
 
 **Último gate aberto:** G1 — validar iframe/login/origin/Android antes de escolher arquitetura definitiva e antes de gastar builds.
+
+
+### CHECKPOINT FLOOT — 20/11/2026 — G0 persistência e automação vinculadas
+- **Planejado:** manter Log Floot canônico para toda atividade Floot/Android, com histórico append-only e retomada automática da primeira etapa executável.
+- **Executado com evidência:** LOG_FLOOT.md criado via GitHub commit 64e0af3dec9226eee315a8976b2a40f64cc14671; o Log Mestre foi atualizado para apontar a este arquivo no commit ee2851b55a4b46b8c0c66101df4bbe2ab1df19c2.
+- **Automação existente:** Desenvolvimento Potê Batata, id Automation_05d302fb0ec08191a8676da8b87d37e8. Sua instrução foi atualizada com sucesso para ler obrigatoriamente o Log Mestre e o Log Floot e anexar checkpoints verificáveis a ambos conforme o domínio, preservando branch, limites de produção, custos e F05 homologada. Tarefa permanece habilitada no cron HOURLY original; nenhuma tarefa duplicada foi criada. **Não se presume que execução futura tenha ocorrido ou que tenha passado.**
+- **Testes/verificação documental:** arquivo criado e lido via GitHub; links e hashes identificados. Inspeção Floot de leitura sem alterações: app não publicado e com entrada iframe para site oficial.
+- **Não executado:** edição de código Floot, GitHub main, migração, publicação, build Android, ativação de serviços pagos, alteração de dados reais.
+- **Estado:** G0 DOCUMENTAÇÃO CONCLUÍDA; G0 baseline operacional ainda parcial; G1 pendente.
+- **Próxima ação executável:** G1 — obter captura do preview Floot e dados de DOM/erro do iframe, verificar login no contexto móvel de QA e registrar a decisão Trilha A/B; manter duas builds nativas disponíveis até decisão.
