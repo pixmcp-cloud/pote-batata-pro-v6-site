@@ -260,3 +260,12 @@ Quando o usuário disser "consulte Log Floot", "continue Floot" ou pedir evoluç
 - **Não executado:** edição de código Floot, GitHub main, migração, publicação, build Android, ativação de serviços pagos, alteração de dados reais.
 - **Estado:** G0 DOCUMENTAÇÃO CONCLUÍDA; G0 baseline operacional ainda parcial; G1 pendente.
 - **Próxima ação executável:** G1 — obter captura do preview Floot e dados de DOM/erro do iframe, verificar login no contexto móvel de QA e registrar a decisão Trilha A/B; manter duas builds nativas disponíveis até decisão.
+
+### CHECKPOINT FLOOT — 20/11/2026 — Agendamento diário às 09h
+- **Pedido:** sincronizar o aplicativo Floot diariamente com atualizações já homologadas e publicadas no site oficial.
+- **Executado:** automação separada `Sincronizar Potê no Floot`, ID `Automation_f9e6bb0639288191830d3d50cac5fc28`, ativa, agendada para todos os dias às 09:00 America/Sao_Paulo; próxima ocorrência confirmada para 21/11/2026 às 09:00 (-03:00).
+- **Automação horária anterior:** `Desenvolvimento Potê Batata` mantida; não foi substituída.
+- **Instrução permanente:** antes de executar, ler LOG_FLOOT.md e Log Mestre; comparar GitHub main/deploy do site oficial e projeto Floot; somente sincronizar alterações já aprovadas, pelo caminho GitHub → testes → Floot preview. Como a página principal do Floot é iframe do site oficial, não duplicar código nem tratar o simples iframe atualizado como prova de homologação mobile.
+- **Contenção:** sem novos gastos, sem novos APKs/builds nativas, sem publicação Floot ou mutação de dados reais, sem mudança na produção Firebase/Worker/main. Se conector Floot indisponível, registrar precisamente o impedimento em vez de afirmar que atualizou.
+- **Estado:** AGENDAMENTO CONFIRMADO, execução futura ainda NÃO realizada. Cada execução deve gerar checkpoint append-only com data, SHAs/versionamento, diferenças, ação, testes PASS/FAIL e próxima etapa.
+- **Próxima ação:** auditoria e sincronização condicionada no primeiro agendamento, 21/11/2026 às 09:00 BRT.
