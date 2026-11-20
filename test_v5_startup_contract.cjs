@@ -1,8 +1,8 @@
 const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
 const read=name=>fs.readFileSync(name,"utf8");
-const module=read("firebase_app.mjs"),main=read("firebase_integration.js"),
+const firebaseModule=read("firebase_app.mjs"),main=read("firebase_integration.js"),
  finance=read("operation_integrity.mjs"),builder=read("make_beta.py");
-assert(module.includes("initializeApp(firebaseConfig)")&&module.includes("getApps()"),"Firebase app compartilhado deve ser inicializado");
+assert(firebaseModule.includes("initializeApp(firebaseConfig)")&&firebaseModule.includes("getApps()"),"Firebase app compartilhado deve ser inicializado");
 assert(main.includes('from "./firebase_app.mjs?v=init-20261120"'),"Login deve carregar o app compartilhado");
 assert(!main.includes("initializeApp(firebaseConfig)"),"Inicialização duplicada proibida");
 assert(finance.includes('from "./v5_store_core.mjs"'),"Operações não podem importar o V2");
