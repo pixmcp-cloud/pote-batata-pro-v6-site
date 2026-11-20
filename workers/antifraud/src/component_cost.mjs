@@ -96,3 +96,16 @@ export function minimumApprovedPriceCents(materialCostCents,minimumGainPct){
   reject("Custo ou ganho mínimo inválido");
  return Math.ceil(materialCostCents*(1+minimumGainPct/100)-1e-9);
 }
+
+// Canonical immutable comparison payload for an approved complex recipe.
+// Stored on the server; any edit to a quantity, kind, unit or order invalidates it.
+export function complexRecipeSnapshot(recipe){
+ const lines=complexRecipeComponentLines(recipe);
+ return JSON.stringify(lines.map(({kind,id,quantity,unit})=>[kind,id,quantity,unit]));
+}
+export function assertComplexRecipeSnapshot(recipe,approvedSnapshot){
+ if(typeof approvedSnapshot!=="string"||approvedSnapshot.length===0||
+  complexRecipeSnapshot(recipe)!==approvedSnapshot)
+  reject("Componentes alterados após aprovação");
+ return true;
+}
