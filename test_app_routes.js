@@ -368,3 +368,57 @@ assert.equal(financial.lossCost,events[0].costLost);
 assert(financial.lossCount>=1);
 assert(!afterLostOrder.losses.some(l=>l.orderId===toCancel.id&&l.type==="stock"));
 console.log("PASS: cancelamento real depois da produção registra prejuízo sem estorno ou segunda baixa, e financeiro separa perdas.");
+
+
+// F02 staged rollout: the checkout UI must never create a browser-side order
+// when the authoritative Worker is enabled, including unsupported additions.
+(async()=>{
+ const staged=structuredClone(testState);
+ staged.data.businessType="batataria";
+ staged.data.orders=[];staged.data.stockMovements=[];staged.data.combos=[];
+ staged.data.beverages=[];staged.data.addons=[];
+ staged.data.recipes[0].serverPriceVersion=1;
+ staged.data.recipes[0].serverSalePriceCents=5000;
+ staged.data.settings.usePackagingStock=false;
+ window.POTE_AUTH={uid:"f02-ui-qa",email:"qa@example.com",role:"admin",proActive:true};
+ window.POTE_APP_READY=true;
+ window.POTE_MODULE_HEALTH={safeToOperate:true};
+ let calls=[],fail=false;
+ window.POTE_WORKER={enabled:true,async createOrder(args){
+  calls.push(args);
+  if(fail)throw Error("QA simulated server outage");
+  return {ok:true,orderId:"server-only-1",priceCents:5000};
+ }};
+ window.POTE_PDV={getSessionId:()=>"cash-session-qa"};
+ window.POTE_APP.applyState(staged);
+ vm.runInContext('state.tab="orders";render();',sandbox);
+ const values={
+  orderItem:"recipe:route-r1",orderChannel:"direto",orderQty:"1",
+  orderPrice:"50,00",orderDelivery:"0",orderHasDelivery:"nao",
+  orderPayment:"pix",orderCashReceived:"",orderAddress:"",
+  orderExtraBev:"",orderExtraAddon:"",orderNote:"Ensaio Worker",
+  orderWeight:"500",orderClient:""
+ };
+ for(const [id,v] of Object.entries(values))el(id).value=v;
+ const originalStock=current().data.ingredients[0].stock;
+ vm.runInContext("newOrder();",sandbox);
+ assert.equal(calls.length,1,"Worker called exactly once");
+ assert.deepEqual(Object.keys(calls[0]).sort(),
+  ["cashSessionId","paymentMethod","qty","recipeId","universe"]);
+ assert.equal(calls[0].paymentMethod,"pix");
+ assert.equal(current().data.orders.length,0,"No local order before server reload");
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(current().data.orders.length,0,"No phantom order after server reply");
+ assert.equal(current().data.ingredients[0].stock,originalStock,"No local stock deduction");
+ fail=true;
+ vm.runInContext("newOrder();",sandbox);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(current().data.orders.length,0,"Server rejection cannot fallback to local registration");
+ assert.equal(current().data.ingredients[0].stock,originalStock);
+ fail=false;
+ el("orderPrice").value="40,00";
+ const callsBefore=calls.length;
+ vm.runInContext("newOrder();",sandbox);
+ assert.equal(calls.length,callsBefore,"Client price deviating from server approval must fail closed");
+ console.log("PASS F02 checkout staged UI: Worker-only, no local mutation, server outage and price mismatch blocked.");
+})().catch(error=>{console.error(error.stack||error);process.exitCode=1});
