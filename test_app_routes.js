@@ -1,5 +1,9 @@
 const fs=require("node:fs"),vm=require("node:vm"),assert=require("node:assert/strict");
 const html=fs.readFileSync("public/index.html","utf8");
+const betaBuilder=fs.readFileSync("make_beta.py","utf8");
+const firebaseTag=betaBuilder.match(/firebase_integration\\.js\\?v=([a-z0-9-]+)/i);
+assert(firebaseTag&&html.includes("firebase_integration.js?v="+firebaseTag[1]),
+ "Build de outra branch ou desatualizado: execute python build_hosting.py antes do teste.");
 const backup=html.match(/<script id="backup" type="application\/json">([\s\S]*?)<\/script>/);
 assert(backup,"Modelo de dados embutido ausente");
 const SEED=JSON.parse(backup[1]),elements=new Map(),errors=[];
@@ -285,14 +289,7 @@ for(const [id,value] of Object.entries({
  orderHasDelivery:"sim",orderAddress:"Rua Teste 20",orderPayment:"dinheiro",
  orderCashReceived:"1000,00",orderChannel:"direto",orderExtraBev:"",orderExtraAddon:"",
  orderClient:"",orderNote:"Combo com Bacon",orderWeight:"500"}))el(id).value=value;
-const comboAlerts=[];sandbox.alert=(m)=>{comboAlerts.push(String(m));console.error("COMBO_SUBMIT_ALERT:",m)};
-console.error("COMBO_PRECHECK:",JSON.stringify({quote:window.POTE_ORDER.calc(comboQuote,1),payment:window.POTE_PAYMENT?.validate?.(),drink:window.POTE_APP.snapshot().data.beverages.find(b=>b.id==="preset-cola-lata")}));
-console.error("COMBO_READINESS:",JSON.stringify({appReady:window.POTE_APP_READY,moduleHealth:window.POTE_MODULE_HEALTH,syncGuard:window.POTE_SYNC_GUARD,navigator:sandbox.navigator,toast:el("toast").textContent}));
-console.error("COMBO_GATES:",vm.runInContext("JSON.stringify({ready:operationReady(),pro:pro(),item:document.getElementById(\'orderItem\').value,channel:document.getElementById(\'orderChannel\').value,q:optionQuote(document.getElementById(\'orderItem\').value,document.getElementById(\'orderChannel\').value,document.getElementById(\'orderExtraBev\').value,\'\'),corrected:window.POTE_ORDER_CUSTOM?.adjustQuote?.(optionQuote(document.getElementById(\'orderItem\').value,document.getElementById(\'orderChannel\').value,\'\',\'\'))})",sandbox));
-console.error("COMBO_CURRENT:",JSON.stringify(window.POTE_ORDER.currentQuote()));
-console.error("COMBO_REGISTER_CHECK:",window.POTE_ORDER.checkBeforeRegister());
 vm.runInContext("newOrder();",sandbox);
-console.error("COMBO_POSTCHECK:",JSON.stringify({alerts:comboAlerts,orders:window.POTE_APP.snapshot().data.orders.length}));
 let finalCombo=window.POTE_APP.snapshot().data.orders[0];
 assert(finalCombo,"O combo deve ser registrável após repor o refrigerante");
 assert.equal(finalCombo.recipeId,"r03");
