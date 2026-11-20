@@ -253,7 +253,8 @@ export function createWorkerApp({
     return json({status:"ok",project:"pote-batata-pro",
      writesEnabled:env.ENABLE_WRITES==="true"&&(/^demo-[a-z0-9-]+$/.test(String(env.FIREBASE_PROJECT_ID||""))||env.PRODUCTION_CUTOVER_APPROVED==="true"||
        (env.F05_ONLY==="true"&&env.F05_PRODUCTION_APPROVED==="true"&&env.FIREBASE_PROJECT_ID==="potobatata-b71f3")),
-     mode:env.F05_ONLY==="true"?"f05-inventory-only":env.QA_INVENTORY_ONLY==="true"?"qa-inventory-only":"general"},200,headers);
+     ...(env.F05_ONLY==="true"?{mode:"f05-inventory-only"}:
+        env.QA_INVENTORY_ONLY==="true"?{mode:"qa-inventory-only"}:{})},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
    try{
     if(route==="/v1/asaas/webhook"){
