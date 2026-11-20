@@ -82,7 +82,9 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   const current=Number(rec.item.stock);
   if(!Number.isFinite(current)||current<0||current>1e9)
    refuse("Saldo físico inválido",409,"invalid_stock");
-  if(rec.item.measureUnit==="un"&&!Number.isInteger(delta))
+  if(group!=="beverages"&&!["g","ml","un"].includes(rec.item.measureUnit))
+   refuse("Unidade física não cadastrada; ajuste bloqueado",409,"invalid_stock_unit");
+  if((group==="beverages"||rec.item.measureUnit==="un")&&!Number.isInteger(delta))
    refuse("Produtos em unidades exigem quantidades inteiras");
   const next=round5(current+delta);
   if(next<0||next>1e9)
@@ -104,12 +106,11 @@ export async function adjustInventory(body,{user,env,repository,clock,hasAccess}
   ];
   if(reason==="loss"){
    const qty=-delta,cost=estimateLoss(rec.item,qty);
-   const unit=group==="beverages"?"un":
-    ["g","ml","un"].includes(rec.item.measureUnit)?rec.item.measureUnit:"g";
+   const unit=group==="beverages"?"un":rec.item.measureUnit;
    const loss={id:lossId,at,type:"stock",reason:"outro",
     description:note||"Perda física registrada no servidor",
     itemId,stockGroup:group,itemName:String(rec.item.name||itemId).slice(0,180),
-    itemKind:group==="beverages"?"beverage":"ingredient",
+    itemKind:group==="beverages"?"beverage":group==="packaging"?"packaging":group==="addons"?"addon":"ingredient",
     measureUnit:unit,quantityBase:qty,enteredQuantity:qty,enteredUnit:unit,
     ...cost,uncollectedSale:0,previousStock:current,afterStock:next};
    writes.push(change(lossPath,{record:{universe,group:"losses",
