@@ -246,6 +246,7 @@ assert.equal(vm.runInContext("state.tab",sandbox),"ingredients","Sync remoto nã
 console.log("PASS: personalizar sem milho, dois adicionais, baixa do estoque, recibo detalhado e permanência em Pedidos/Estoque.");
 
 window.POTE_AUTH={email:"pixmcp@gmail.com",uid:"test-admin",role:"admin",proActive:true,franchiseActive:false};
+window.POTE_APP_READY=true; // O teste do combo usa uma sessao Google carregada, nao o laboratorio anonimo.
 const comboState=structuredClone(testState);
 comboState.data.businessType="batataria";
 comboState.data.recipes=structuredClone(SEED.recipes).filter(r=>["r01","r03","r21"].includes(r.id));
