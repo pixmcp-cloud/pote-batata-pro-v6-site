@@ -89,6 +89,16 @@ export async function scanOrderSequenceFirestore({
  const result=auditOrderSequence({
   universe,v2State:meta.state,orderRecords:orders,control,listingComplete:true
  });
+ const guard=decodeFields(before[1].fields??{});
+ const pulse=decodeFields(before[2].fields??{});
+ const anchors=Object.freeze({
+  metaUpdateTime:before[0].updateTime??null,
+  guardUpdateTime:before[1].updateTime??null,
+  pulseUpdateTime:before[2].updateTime??null,
+  controlUpdateTime:before[3]?.updateTime??null,
+  guardRevision:guard.revision??null,
+  pulseEventId:pulse.eventId??null
+ });
  return Object.freeze({...result,pages,scanned,orderDocuments:orders.length,
-  listingComplete:true,snapshotStable:true});
+  listingComplete:true,snapshotStable:true,anchors});
 }
