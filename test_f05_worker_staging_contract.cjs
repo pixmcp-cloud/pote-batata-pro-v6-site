@@ -21,6 +21,16 @@ assert.match(worker,/\/appState\/v5Pulse/);
 assert.match(worker,/schemaVersion!==5/);
 assert.match(worker,/\/v1\/inventory\/adjust/);
 assert.match(worker,/const canaryPermitted=/);
+assert.match(worker,/policy\.workerAuthoritative!==true/);
+const f05Rules=read("firestore.f05-cutover.qa.rules");
+assert.match(f05Rules,/function workerCutover\(userId\)/);
+assert.match(f05Rules,/cutoverOrderInputsUnchanged/);
+assert.match(f05Rules,/cutoverCreateAllowed\(userId, record\)/);
+assert.match(f05Rules,/cutoverUpdateAllowed\(userId, record, oldRecord\)/);
+assert.match(f05Rules,/cutoverDeleteAllowed\(userId,resource\.data\.record\)/);
+assert.equal(JSON.parse(read("firebase.json")).firestore.rules,"firestore.rules",
+ "NUNCA publicar regras candidatas F05 antes do corte homologado");
+
 assert.match(worker,/list\.includes\(uid\)/);
 assert.match(worker,/if\(!canaryPermitted\(env,user\.uid\)\)/);
 assert.equal((worker.match(/if\(!canaryPermitted\(env,user\.uid\)\)/g)||[]).length,2,"Produção e perdas devem exigir canário");
