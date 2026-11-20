@@ -24,7 +24,7 @@ const read=async p=>{const r=await fetch(base+"/documents/"+p,{headers});
 const env={FIREBASE_PROJECT_ID:project,ENABLE_WRITES:"true",
  PRODUCTION_CUTOVER_APPROVED:"false",ALLOWED_ORIGINS:"https://qa.example"};
 const app=createWorkerApp({verify:async()=>({uid}),
- repository:()=>createFirestoreRepository(env,{accessToken:async()=>"emulator",apiBaseUrl:base}),
+ repository:()=>createFirestoreRepository(env,{accessToken:async()=>"owner",apiBaseUrl:base}),
  clock:()=>new Date("2026-11-20T17:00:00Z")});
 const request=(route,payload)=>app.fetch(new Request("https://qa.example"+route,{
  method:"POST",headers:{Origin:"https://qa.example","Content-Type":"application/json",
