@@ -28,5 +28,8 @@ assert.match(domain,/\/recordsV5\//);
 assert.doesNotMatch(worker,/\/appState\/v2/);
 assert.doesNotMatch(domain,/\/records\//);
 assert.match(logic,/stockUnit/);
+assert.match(read("workers/antifraud/src/firestore.mjs"),/documents:batchGet/);
+assert.doesNotMatch(read("workers/antifraud/src/firestore.mjs"),/\?transaction=/);
+assert.match(worker,/for\(let attempt=0;attempt<4;attempt\+\+\)/);
 assert.match(bridge,/V5 Firestore reload/);
 console.log("PASS F05 V5: caminhos, perdas, ponte desativada e Worker fail-closed.");
