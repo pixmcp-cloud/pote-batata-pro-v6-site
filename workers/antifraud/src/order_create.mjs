@@ -4,6 +4,7 @@
  */
 import {OperationalError,recordPath} from "./domain.mjs";
 import {serverPricePath,verifyServerPrice} from "./server_price.mjs";
+import {complexRecipeComponentLines,minimumApprovedPriceCents} from "./component_cost.mjs";
 const bad=(code,message,status=409)=>{throw new OperationalError(message,status,code)};
 const put=(path,data,prior)=>({path,data,precondition:prior?
  {updateTime:prior.updateTime}:{exists:false}});
@@ -79,7 +80,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   if(!rec||rec.group!=="recipes"||rec.id!==recipeId||
      rec.universe!==universe||!r||r.unavailable||r.archived)
    bad("recipe_missing","Receita indisponível",404);
-  if(r.serverPriceVersion!==1||!Number.isSafeInteger(r.serverSalePriceCents)||
+  if(![1,2].includes(r.serverPriceVersion)||!Number.isSafeInteger(r.serverSalePriceCents)||
      r.serverSalePriceCents<1||r.serverSalePriceCents>10000000)
    bad("price_review_required","Preço do servidor não homologado");
   const priceApproval=verifyServerPrice(approval,r,universe,recipeId);
@@ -94,7 +95,13 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    source.push({id:row.id,g:row.g,
     path:recordPath(uid,universe,"ingredients",row.id)});
   }
+  const complex=r.serverPriceVersion===2;
+  const extraLines=complex?complexRecipeComponentLines(r).filter(line=>line.kind!=="ingredient"):[];
+  const groupFor={packaging:"packaging",addon:"addons",beverage:"beverages"};
+  const extraSource=extraLines.map(line=>({...line,
+   path:recordPath(uid,universe,groupFor[line.kind],line.id)}));
   const ingDocs=await Promise.all(source.map(entry=>tx.get(entry.path)));
+  const extraDocs=await Promise.all(extraSource.map(entry=>tx.get(entry.path)));
   let materialCost=0;
   const reserveByIngredient=new Map();
   for(let i=0;i<source.length;i++){
@@ -117,6 +124,26 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
     String(item.name||part.id).slice(0,150),
     measureUnit:item.measureUnit||"g"});
   }
+  const extraReservations=new Map();
+  const extraRows={packaging:[],addon:[],beverage:[]};
+  for(let i=0;i<extraSource.length;i++){
+   const part=extraSource[i],prior=extraDocs[i],recExtra=prior?.data?.record,item=recExtra?.item;
+   if(!recExtra||recExtra.group!==groupFor[part.kind]||recExtra.id!==part.id||
+      recExtra.universe!==universe||!item||item.archived||item.measureUnit!==part.unit)
+    bad("missing_stock","Componente sem estoque ou unidade incompatível");
+   const yieldPct=Number(item.yield??100),onHand=Number(item.stock);
+   if(!Number.isFinite(yieldPct)||yieldPct<=0||yieldPct>100||
+      !Number.isFinite(onHand)||onHand<0)bad("invalid_stock","Estoque ou rendimento inválido");
+   const needed=part.quantity*qty/(yieldPct/100);
+   const key=part.kind+":"+part.id;
+   const previous=extraReservations.get(key);
+   if(previous)previous.needed+=needed;
+   else extraReservations.set(key,{kind:part.kind,id:part.id,path:part.path,
+    prior,item,onHand,needed});
+   materialCost+=part.quantity*costUnit(item)/(yieldPct/100);
+   extraRows[part.kind].push({id:part.id,quantity:part.quantity,
+    yieldPct,measureUnit:part.unit});
+  }
   const reservations=[];
   for(const [ingredientId,snapshot] of reserveByIngredient){
    const needed=Math.round(snapshot.needed*1e5)/1e5;
@@ -127,10 +154,18 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    if(after<0)bad("insufficient_stock","Saldo negativo bloqueado");
    reservations.push({ingredientId,...snapshot,needed,after});
   }
+  for(const entry of extraReservations.values()){
+   const needed=Math.round(entry.needed*1e5)/1e5;
+   if(!Number.isFinite(needed)||needed<=0||needed>1e9||
+      entry.onHand+0.00002<needed)bad("insufficient_stock","Estoque insuficiente");
+   const after=Math.round((entry.onHand-needed)*1e5)/1e5;
+   if(after<0)bad("insufficient_stock","Saldo negativo bloqueado");
+   reservations.push({ingredientId:entry.id,...entry,needed,after});
+  }
   if(!Number.isFinite(materialCost)||materialCost<=0)
    bad("cost_review_required","Custo da receita não está disponível");
   const minimum=priceApproval.minimumGainPct;
-  if(priceApproval.salePriceCents+0.00001<materialCost*(1+minimum/100)*100)
+  if(priceApproval.salePriceCents<minimumApprovedPriceCents(Math.ceil(materialCost*100-1e-9),minimum))
    bad("price_below_cost","Preço abaixo da margem mínima aprovada");
   const at=clock().toISOString(),price=priceApproval.salePriceCents/100;
   const method={pix:"Pix",cash:"Dinheiro",card:"Cartão",
@@ -139,12 +174,14 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
    qty,price,deliveryFee:0,cashSessionId,paymentMethod:method,
    paymentStatus:"pendente",status:"recebido",stockDeducted:true,
    createdAt:at,date:at.slice(0,10),channel:"direto",
-   items:rows,beverageItems:[],unitVariableCost:
+   items:rows,packagingItems:extraRows.packaging,
+   addonItems:extraRows.addon,
+   beverageItems:extraRows.beverage.map(x=>({id:x.id,qty:x.quantity})),unitVariableCost:
     Math.round(materialCost*100)/100,
    costSnapshot:{version:1,costKnown:true,estimated:false,
     totalMaterialCost:Math.round(materialCost*qty*100)/100,missingCosts:[]},
    priceSource:"server_recipe_snapshot",
-   serverPriceVersion:1,serverPriceRevision:priceApproval.revision,
+   serverPriceVersion:r.serverPriceVersion,serverPriceRevision:priceApproval.revision,
    stockReservationStatus:"reserved",bankReconciled:false};
   const movements=reservations.map((entry,index)=>{
    const id="cf-reserve-"+operationId+"-"+index;
