@@ -8,7 +8,7 @@ preview_urls = false
 [vars]
 FIREBASE_PROJECT_ID = "pote-batata-qa-worker"
 ALLOWED_ORIGINS = "http://localhost:8765"
-ENABLE_WRITES = "true"
+ENABLE_WRITES = "false"
 PRODUCTION_CUTOVER_APPROVED = "false"
 ASAAS_WEBHOOK_ENABLED = "false"
 ASAAS_MODE = "off"
