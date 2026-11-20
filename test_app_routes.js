@@ -344,6 +344,9 @@ console.log("PASS: Cardápio Digital preserva sabor, refrigerante 600 ml, dinhei
 const lossStateBefore=window.POTE_APP.snapshot().data;
 const toCancel=lossStateBefore.orders.find(o=>o.clientName==="Cliente vitrine");
 assert(toCancel&&toCancel.status==="recebido","Pedido do Cardápio deve estar recebido");
+assert(Number.isSafeInteger(toCancel.orderNumber)&&toCancel.orderNumber>0,
+ "Local fallback checkout must assign a lifetime #P number");
+const sequenceBeforeCancel=lossStateBefore.orderSequenceLast;
 vm.runInContext("produce("+JSON.stringify(toCancel.id)+")",sandbox);
 let afterProduction=window.POTE_APP.snapshot().data;
 assert.equal(afterProduction.orders.find(o=>o.id===toCancel.id).status,"em_producao");
@@ -356,6 +359,8 @@ const afterLostOrder=window.POTE_APP.snapshot().data;
 const lostOrder=afterLostOrder.orders.find(o=>o.id===toCancel.id);
 assert.equal(lostOrder.status,"cancelado");
 assert.equal(lostOrder.stockReturnDeclined,true);
+assert.equal(afterLostOrder.orderSequenceLast,sequenceBeforeCancel,
+ "Cancelled order must not reduce lifetime sequence");
 assert.equal(afterLostOrder.beverages.find(b=>b.id==="preset-cola-600").stock,
  colaAfterProduction.stock,"Cancelar com perda não pode baixar refrigerante novamente");
 const events=afterLostOrder.losses.filter(x=>x.orderId===toCancel.id&&!x.voidedAt);
