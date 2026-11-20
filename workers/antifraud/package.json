@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Cloudflare Worker para operações de estoque idempotentes do Potê Batata Pro; desativado até homologação",
+  "description": "Cloudflare Worker para operações de estoque idempotentes do Potê Batata Pro; V5 em homologação com escrita desativada",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "check": "node --check src/index.mjs && node --check src/firestore.mjs && node --check src/auth.mjs && node --check src/domain.mjs",
+    "check": "node --check src/index.mjs && node --check src/firestore.mjs && node --check src/auth.mjs && node --check src/domain.mjs && node --check src/stock_loss.mjs",
     "dev": "wrangler dev --local",
     "deploy": "wrangler deploy"
   },
