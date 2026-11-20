@@ -355,13 +355,14 @@ async function submitStockAuthoritative(){
  const universe=data().businessType||"batataria";
  try{
   const result=await window.POTE_WORKER.adjustStock({universe,group,itemId:id,delta:-base,
-   note:((reasons.find(r=>r[0]===reason)?.[1]||reason)+(note?" — "+note:"")).slice(0,350)});
+   lossReason:reason,note});
   if(typeof toast==="function")toast("Perda registrada no servidor e estoque sincronizado");
   return {ok:true,result};
  }catch(e){warn(e.message||"Falha ao registrar perda no servidor");return {ok:false,error:e.message}}
 }
 function submitStock(){
- if(window.POTE_WORKER?.enabled===true)return submitStockAuthoritative();
+ if(window.POTE_WORKER?.inventoryEnabled===true&&window.POTE_AUTH?.proActive===true)
+  return submitStockAuthoritative();
  const result=stockLoss({kind:$("lossStockKind")?.value,
   id:$("lossStockId")?.value,quantity:$("lossStockQty")?.value,
   unit:$("lossStockUnit")?.value,reason:$("lossStockReason")?.value,
