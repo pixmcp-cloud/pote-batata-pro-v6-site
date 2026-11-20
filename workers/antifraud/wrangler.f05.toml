@@ -7,7 +7,7 @@ preview_urls = false
 
 [vars]
 FIREBASE_PROJECT_ID = "potobatata-b71f3"
-ALLOWED_ORIGINS = "https://pdv.livresom.com,https://potobatata-b71f3.web.app"
+ALLOWED_ORIGINS = "https://pdv.livresom.com,https://potobatata-b71f3.web.app,http://localhost:8765"
 ENABLE_WRITES = "true"
 PRODUCTION_CUTOVER_APPROVED = "false"
 F05_ONLY = "true"
