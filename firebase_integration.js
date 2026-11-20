@@ -61,7 +61,7 @@ window.POTE_WORKER=createWorkerBridge({
  enabled:CLOUD_WORKER_ACTIVE,
  inventoryEnabled:F05_INVENTORY_WORKER_ACTIVE,
  endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev",
- inventoryEndpoint:"https://pote-batata-f05-production.pixmcp.workers.dev",
+ inventoryEndpoint:"https://pote-batata-f05-live.pixmcp.workers.dev",
  getSession:()=>({uid:active?.uid,user:auth.currentUser,ready:ready&&useV2,
   proActive:Boolean(window.POTE_AUTH?.proActive),
   syncBlocked:syncBlocked||saving}),
