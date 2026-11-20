@@ -55,7 +55,7 @@ try {
     $env:POTE_HARDENED_RULES="1"
     & firebase.cmd emulators:exec --only firestore --project demo-pote-hardening --config firebase.hardened.qa.json $refTests
     Check "Firestore Emulator candidato"
-    $workerRestTests="node test_f02_order_sequence_emulator.mjs && node test_f02_legacy_packaging_emulator.mjs && node test_f02_complex_orders_emulator.mjs && node test_f02_worker_http_emulator.mjs && node test_f05_worker_inventory_http_emulator.mjs && node test_f20_cash_worker_http_emulator.mjs && node test_f10_role_worker_http_emulator.mjs && node test_firestore_worker_emulator.cjs"
+    $workerRestTests="node test_f02_order_sequence_scan_emulator.mjs && node test_f02_order_sequence_emulator.mjs && node test_f02_legacy_packaging_emulator.mjs && node test_f02_complex_orders_emulator.mjs && node test_f02_worker_http_emulator.mjs && node test_f05_worker_inventory_http_emulator.mjs && node test_f20_cash_worker_http_emulator.mjs && node test_f10_role_worker_http_emulator.mjs && node test_firestore_worker_emulator.cjs"
     & firebase.cmd emulators:exec --only firestore --project demo-pote-hardening --config firebase.worker_cutover.qa.json $workerRestTests
     Check "Worker HTTP Firestore Emulator F02/F05/F20/F10"
   }
