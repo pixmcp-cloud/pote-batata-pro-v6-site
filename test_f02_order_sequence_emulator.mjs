@@ -76,6 +76,8 @@ try{
  const ob=(await read(rec("orders",orders[1]))).record.item;
  assert.deepEqual([oa.orderNumber,ob.orderNumber].sort((a,b)=>a-b),[121,122]);
  assert.equal((await read(seqPath)).last,122,"Control must persist both orders");
+ assert.equal((await read(root+"/appState/v2")).state.data.orderSequenceLast,122,
+  "V2 UI metadata must advance atomically with the server counter");
  const again=await create(0);
  assert.equal(again.status,200);const repeat=await again.json();
  assert.equal(repeat.alreadyApplied,true);
@@ -96,6 +98,8 @@ try{
  assert.equal(n.orderNumber,123);
  assert.equal((await read(rec("orders",orders[2]))).record.item.orderNumber,123);
  assert.equal((await read(seqPath)).last,123);
+ assert.equal((await read(root+"/appState/v2")).state.data.orderSequenceLast,123,
+  "UI metadata must retain number after cancel and new order");
  console.log("PASS F02 SEQUENCE ATOMIC: legacy #P0000120 -> 121/122 concurrent -> cancel -> 123; retries preserve number");
 }finally{for(const p of [...new Set(all)].reverse())
  await fetch(base+"/documents/"+p,{method:"DELETE",headers}).catch(()=>{})}
