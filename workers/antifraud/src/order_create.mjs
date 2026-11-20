@@ -191,7 +191,7 @@ export async function createSimpleOrder(body,{user,env,repository,clock,hasAcces
   const movements=reservations.map((entry,index)=>{
    const id="cf-reserve-"+operationId+"-"+index;
    return {path:recordPath(uid,universe,"stockMovements",id),id,
-    item:{id,at,ingredientId:entry.ingredientId,
+    item:{id,at,stockGroup:entry.kind==="packaging"?"packaging":entry.kind==="addon"?"addons":entry.kind==="beverage"?"beverages":"ingredients",ingredientId:entry.ingredientId,
      ingredientName:String(entry.item.name||entry.ingredientId).slice(0,180),
      quantity:-entry.needed,reason:"Reserva de pedido",
      referenceId:orderId,previousStock:entry.onHand,afterStock:entry.after,
