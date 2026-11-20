@@ -633,3 +633,32 @@ O proprietário determinou executar a próxima etapa de integração de reservas
 **Worker publicada após testes:** Cloudflare `brasil-inflaveis-api` versão **`1c5b2b1a-7184-410d-8bae-0bf8109d771e`**. Prévia `https://brasil-inflaveis-api.pixmcp.workers.dev/qa/console`: HTTP 200, bundle `/assets/index-Dcp2YmX8.js` HTTP 200 contém a sitekey pública real, não a de emulação. GET `/api/health`: `writeApi:false`, `checkoutRequests:false`, `checkoutConfigured:false`, `checkoutConfirmation:false`, `legacyPlaintextBookingCreate:false`; GET de `/api/admin/readiness`, `/api/customers` e `/api/orders` sem token retorna HTTP 401; POST `/api/public/checkout` retorna HTTP 503. O domínio principal `https://brasilinflaveis.com/` mantém o bundle Hostinger anterior `/assets/index-CJhFsF7F.js` e HTTP 200. Nada pago, nenhuma transação comercial ou dado fictício inserido em produção.
 
 **Restantes antes do lançamento comercial:** formalização e aprovação da privacidade, controle de recuperação independente de segredos, autenticação de dois usuários Google REAIS, cadastro de empresas/brinquedos/preços REAIS no D1 remoto e teste operacional com dados reais autorizados; ativar checkout só depois dessas verificações. Cobranças/pagamentos não estão implementados nem liberados. Não afirmar que o sistema já pode receber pedidos públicos.
+
+
+## 20/11/2026 — Próximo passo: completar a gestão do locador e superar o Brinque App
+
+**Status:** execução pendente. Referências: [recursos oficiais](https://sistema.brinqueapp.com.br/), [demonstração de catálogo e temporizador](https://www.youtube.com/watch?v=TGhmc8934QU), [tutorial de orçamento e gestão](https://www.youtube.com/watch?v=zOXPACC2Du0) e [versão iPhone](https://apps.apple.com/br/app/brinque-app-gest%C3%A3o/id6760870326). O APK Android analisado abre o sistema web do fornecedor. Os recursos atrás de login foram levantados pelas fontes oficiais e demonstrações.
+
+### P0 — Fechar o primeiro aluguel de ponta a ponta
+
+- [ ] **01. Consolidar a base.** Inventariar a versão Hostinger, Sites e o branch Cloudflare/D1 homologado. Reutilizar a sacola multiforncedor, o motor de preços, a consulta de disponibilidade, a proteção contra conflitos e os relatórios administrativos já preparados. Confirmar o estado de cada item com os testes e registrar a versão-base.
+- [ ] **02. Agenda e inventário do locador.** Criar calendário visual com contagem diária, detalhes rápidos, pesquisa de disponibilidade por data/hora e cadastro de equipamentos e serviços com fotos, medidas, unidades e categorias. Incluir decoração, mesas, cadeiras, tendas, recreação e espaços. Considerar montagem, retirada, transporte e manutenção no bloqueio. Testar concorrência por unidade e virada de dia.
+- [ ] **03. Orçamento com marca e link.** Gerar proposta com logo, fotos, valores, itens, sinal, validade e status. Compartilhar pelo WhatsApp e converter em reserva sem redigitar. Preservar a escolha de 1 a 24 horas na sacola, os períodos acima de 24 horas e as regras configuráveis por locador, além de frete e monitores opcionais.
+- [ ] **04. Contrato com assinatura por link.** Gerar a partir da reserva, congelar a versão do documento, registrar assinatura e histórico, permitir download das partes e acompanhar pendente, assinado ou expirado. Definir evidências e revisar o fluxo antes do uso comercial.
+- [ ] **05. Financeiro e recibos.** Registrar manualmente sinal, saldo, pagamentos parciais, estornos e despesas, com vencimento e forma de pagamento. Emitir recibo compartilhável para o valor efetivamente recebido, com histórico e prevenção de duplicidade. Mostrar caixa e pendências separados da rentabilidade estimada. Avaliar Pix/cartão depois da homologação, conforme autorização já prevista no log.
+- [ ] **06. Homologar o fluxo completo.** Rodar orçamento → reserva → assinatura → sinal/saldo → recibo com duas locadoras, desktop e celular, incluindo cancelamento, clique repetido, horários sobrepostos e isolamento. Conferir as pendências operacionais já registradas antes de liberar pedidos reais.
+
+### P1 — Completar o que o Brinque oferece
+
+- [ ] **07. Catálogo individual e WhatsApp.** Dar a cada locadora um link próprio com logo, fotos, categorias, cidades atendidas e solicitação de orçamento. Permitir compartilhar catálogo, orçamento e recibo com o WhatsApp do aparelho, começando sem API paga. Conectar a vitrine individual ao marketplace conforme escolha da locadora.
+- [ ] **08. Estatísticas por locadora.** Mostrar brinquedos mais alugados, ocupação, faturamento recebido e evolução por período. Acrescentar conversão de propostas e margem por evento. Manter visão da própria empresa para o locador e consolidado autorizado no painel administrativo. Disponibilizar exportação CSV.
+- [ ] **09. Temporizador de eventos.** Permitir iniciar, pausar e encerrar por equipamento, com alerta, sessões simultâneas e recuperação após recarregar. Validar o comportamento em segundo plano nos aparelhos suportados.
+- [ ] **10. Uso em vários aparelhos e suporte.** Validar sessão e sincronização entre celular, tablet e computador. Entregar web instalável como primeira opção, canal de suporte e guia rápido para locadores. Preparar distribuição Android e iPhone nas lojas após validar custo, requisitos e aprovação de publicação.
+
+### P2 — Melhorias para aumentar a margem e evitar perdas
+
+- [ ] **11. Precificação com margem real.** Reaproveitar o simulador para calcular preço mínimo por evento e margem com frete, equipe, limpeza, manutenção e taxas. Comparar estimativa com resultado real e destacar orçamentos abaixo da margem desejada.
+- [ ] **12. Logística e manutenção.** Criar checklist de saída e retorno com fotos e histórico de avarias, bloqueio de equipamento indisponível e cálculo do custo da entrega. Integrar essa janela de operação à agenda.
+- [ ] **13. Conversão no marketplace.** Permitir busca por cidade, data e medidas, comparar opções disponíveis e acompanhar cada locadora da sacola separadamente. Medir conversão de orçamento em reserva, tempo de confirmação e margem para decidir o que melhorar depois do piloto.
+
+**Primeira entrega para execução:** concluir os itens 01 a 03 e demonstrar, na homologação, a criação de uma proposta compartilhável que vira reserva sem redigitação nem conflito de horário. Em seguida, fechar assinatura, pagamentos manuais e recibo. Usar a infraestrutura atual e medir o custo antes de assumir despesas recorrentes.
