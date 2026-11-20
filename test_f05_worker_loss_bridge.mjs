@@ -49,3 +49,16 @@ const regular=createWorkerBridge({enabled:false,inventoryEnabled:true,inventoryC
 assert.equal(regular.inventoryEnabled,false,"Other tenants stay on existing flows");
 await assert.rejects(regular.adjustStock(payload),e=>e.code==="worker/disabled");
 console.log("PASS F05 owner-only inventory rollout, isolated endpoint, non-owner legacy safety");
+
+// A definitive insufficient-stock response never commits: do not trap the user in a pending retry.
+const deniedMap=new Map();
+const deniedStorage={getItem:k=>deniedMap.get(k)||null,setItem:(k,v)=>deniedMap.set(k,v),removeItem:k=>deniedMap.delete(k)};
+const deniedUser={uid:"owner",email:"pixmcp@gmail.com",getIdToken:async()=>"x".repeat(40)};
+const rejected=createWorkerBridge({enabled:false,inventoryEnabled:true,inventoryCanaryEmail:"pixmcp@gmail.com",
+ endpoint:"https://core.invalid",inventoryEndpoint:"https://stock.invalid",storage:deniedStorage,
+ getSession:()=>({uid:"owner",user:deniedUser,ready:true,proActive:true,syncBlocked:false}),
+ flush:async()=>true,refresh:async()=>{},uuid:()=>"f05-rejected-uuid-00000000001",
+ requestFetch:async()=>({ok:false,status:409,json:async()=>({error:"insufficient_stock",message:"Saldo insuficiente"})})});
+await assert.rejects(rejected.adjustStock(payload),e=>e.code==="insufficient_stock");
+assert.equal(deniedMap.size,0,"Definitively rejected stock adjustment must release pending ID");
+console.log("PASS F05 definitive server rejection retires pending ID without presuming a stock write");
