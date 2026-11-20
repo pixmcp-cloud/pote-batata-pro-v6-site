@@ -10,7 +10,7 @@ function error(message,code="worker/error"){
  const e=Error(message);e.code=code;return e;
 }
 export function createWorkerBridge({
- enabled=false,endpoint,getSession,flush,refresh,
+ enabled=false,inventoryEnabled=false,endpoint,getSession,flush,refresh,
  requestFetch=fetch,storage=globalThis.sessionStorage,
  uuid=()=>globalThis.crypto.randomUUID(),timeoutMs=12000
 }={}){
@@ -93,12 +93,14 @@ export function createWorkerBridge({
    return result;
   }finally{busy.delete(lock)}
  }
- async function adjustStock({universe,group,itemId,delta,note=""}={}){
-  if(!enabled)throw error("Worker desativado. Nenhuma perda enviada.","worker/disabled");
+ async function adjustStock({universe,group,itemId,delta,note="",lossReason="outro"}={}){
+  if(!enabled&&!inventoryEnabled)throw error("Worker desativado. Nenhuma perda enviada.","worker/disabled");
   if(!universePattern.test(universe)||!["ingredients","beverages","packaging","addons"].includes(group)||
      !idPattern.test(itemId)||!Number.isFinite(delta)||delta>=0||
      Math.abs(delta)>1000000||Math.abs(Math.round(delta*1e5)/1e5-delta)>1e-8||
-     typeof note!=="string"||note.length>350)
+     typeof note!=="string"||note.length>350||
+     !["vencimento","queda","higiene","preparo","deterioracao","avaria","outro"].includes(lossReason)||
+     (lossReason==="outro"&&!note.trim()))
    throw error("Dados de perda inválidos","worker/invalid");
   const before=getSession?.();
   if(!before?.uid||!before.user||before.user.uid!==before.uid||
@@ -119,7 +121,7 @@ export function createWorkerBridge({
    const key=readKey(before.uid,universe,"loss",group+":"+itemId);
    let pending;
    try{pending=JSON.parse(storage?.getItem(key)||"null")}catch{}
-   const payload={universe,group,itemId,delta,reason:"loss",note};
+   const payload={universe,group,itemId,delta,reason:"loss",lossReason,note};
    if(pending&&uuidPattern.test(pending.operationId)){
     if(JSON.stringify(pending.payload)!==JSON.stringify(payload))
      throw error("Existe uma perda anterior sem confirmação. Repita os mesmos valores antes de registrar outra.","worker/pending");
@@ -153,6 +155,7 @@ export function createWorkerBridge({
  }
  return Object.freeze({
   get enabled(){return enabled===true},
+  get inventoryEnabled(){return enabled===true||inventoryEnabled===true},
   adjustStock,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
   finish:(orderId,universe)=>transition("finish",{orderId,universe}),
