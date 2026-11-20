@@ -45,5 +45,10 @@ assert.doesNotMatch(domain,/\/records\//);
 assert.match(logic,/stockUnit/);
 assert.match(read("workers/antifraud/src/firestore.mjs"),/documents:batchGet/);
 assert.match(worker,/for\(let attempt=0;attempt<4;attempt\+\+\)/);
+const adminPermissions=read("admin_permissions.js");
+assert.match(adminPermissions,/\[\`accessPolicy\.\$\{listKind\}\`\]:policy\[listKind\]/,
+ "Painel ADM não pode apagar workerAuthoritative ao editar permissões");
+assert.doesNotMatch(adminPermissions,/updateDoc\(ref,\{accessPolicy:policy/,
+ "Sobrescrever accessPolicy completo revoga a autorização canário por acidente");
 assert.match(bridge,/V5 Firestore reload/);
 console.log("PASS F05 V5: caminhos, perdas, ponte desativada e Worker fail-closed.");
