@@ -1,7 +1,7 @@
 /* Optional bridge to Cloudflare Worker inventory API. Disabled by default.
  * IMPORTANT: Do not enable until service-account auth, Firestore rules and
  * production shadow tests are approved. No browser-triggered fallback.
- * The only source of truth after an accepted call is the V2 Firestore reload. */
+ * The only source of truth after an accepted call is the V5 Firestore reload. */
 const allowedAction=new Set(["produce","cancel"]);
 const uuidPattern=/^[a-zA-Z0-9_-]{20,80}$/;
 const idPattern=/^[a-zA-Z0-9_.:-]{1,180}$/;
