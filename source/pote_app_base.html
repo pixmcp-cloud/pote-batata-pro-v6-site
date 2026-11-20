@@ -642,6 +642,38 @@ function newOrder(){
  if(qty<1||qty>1000||!Number.isFinite(price)||price<=0||!Number.isFinite(deliveryFee)||deliveryFee<0){toast('Quantidade, valor unitário ou entrega inválidos.');return}
  const paymentDetails=window.POTE_PAYMENT?.validate?.();
  if(!paymentDetails)return;
+ // F02 migration gate: server is authoritative when the general Worker is on.
+ // Never create a local order or reserve stock after an uncertain server reply.
+ if(window.POTE_WORKER?.enabled===true){
+  const approvedCents=Number(q.recipe.serverSalePriceCents);
+  const approvedVersion=Number(q.recipe.serverPriceVersion);
+  const orderIsSupported=q.type==="recipe"&&!q.combo&&
+   !(q.addons||[]).length&&!(q.beverages||[]).length&&
+   !(q.removedIngredients||[]).length&&!(q.customAddons||[]).length&&
+   !packagingForRecipe(q.recipe).length&&
+   deliveryFee===0&&channel==="direto";
+  if(!orderIsSupported||![1,2].includes(approvedVersion)||
+     !Number.isSafeInteger(approvedCents)||approvedCents<1||
+     Math.round(price*100)!==approvedCents){
+   toast('Pedido com complemento, entrega ou preço sem homologação do servidor. Nenhum pedido foi registrado.', 'error');
+   return;
+  }
+  const method={pix:"pix",dinheiro:"cash",cartao:"card",entrega:"delivery"}[
+   document.getElementById('orderPayment')?.value];
+  const cashSessionId=window.POTE_PDV?.getSessionId?.();
+  if(!method||!cashSessionId||typeof window.POTE_WORKER.createOrder!=="function"){
+   toast('Não foi possível validar o caixa e a criação de pedidos no servidor. Nenhuma venda foi registrada.', 'error');
+   return;
+  }
+  window.POTE_WORKER.createOrder({
+   universe:state.data.businessType||"batataria",recipeId:q.recipe.id,
+   qty,cashSessionId,paymentMethod:method
+  }).then(()=>{
+   state.tab='orders';render();
+   toast('Pedido reservado no servidor. Estoque sincronizado.');
+  }).catch(error=>toast('Pedido não confirmado: '+String(error.message||error),'error'));
+  return;
+ }
   if(!window.POTE_ORDER?.checkBeforeRegister?.())return;
  const estimateActive=recipeCostIsEstimated(q.recipe)&&
   q.beverages.every(b=>b.costSource==='franchise-estimate-40'&&
