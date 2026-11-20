@@ -28,6 +28,11 @@ jobs:
         run: npm ci --prefix qa/firestore --ignore-scripts
       - name: Instalar dependências do Worker para testes transacionais
         run: npm ci --prefix workers/antifraud --ignore-scripts --no-audit --no-fund
+      - name: Testar Worker F05 V5 isolado — sem segredos nem escrita externa
+        run: |
+          npm run check --prefix workers/antifraud
+          npm test --prefix workers/antifraud
+          node test_f05_worker_staging_contract.cjs
       - name: Verificar regras, concorrência e restauração no projeto demo
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec

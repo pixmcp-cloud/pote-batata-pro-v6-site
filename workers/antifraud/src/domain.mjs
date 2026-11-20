@@ -10,7 +10,7 @@ export function keyFor(universe,group,id) {
  return btoa(raw).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 }
 export const recordPath=(uid,universe,group,id)=>
- "users/"+uid+"/records/"+keyFor(universe,group,id);
+ "users/"+uid+"/recordsV5/"+keyFor(universe,group,id);
 export const nearly=(a,b)=>Math.abs(a-b)<=0.00002;
 const round5=n=>Number(n.toFixed(5));
 const finite=(v,label,{min=0,max=1e9}={})=>{
