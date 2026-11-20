@@ -287,6 +287,9 @@ for(const [id,value] of Object.entries({
  orderClient:"",orderNote:"Combo com Bacon",orderWeight:"500"}))el(id).value=value;
 const comboAlerts=[];sandbox.alert=(m)=>{comboAlerts.push(String(m));console.error("COMBO_SUBMIT_ALERT:",m)};
 console.error("COMBO_PRECHECK:",JSON.stringify({quote:window.POTE_ORDER.calc(comboQuote,1),payment:window.POTE_PAYMENT?.validate?.(),drink:window.POTE_APP.snapshot().data.beverages.find(b=>b.id==="preset-cola-lata")}));
+console.error("COMBO_GATES:",vm.runInContext("JSON.stringify({ready:operationReady(),pro:pro(),item:document.getElementById(\'orderItem\').value,channel:document.getElementById(\'orderChannel\').value,q:optionQuote(document.getElementById(\'orderItem\').value,document.getElementById(\'orderChannel\').value,document.getElementById(\'orderExtraBev\').value,\'\'),corrected:window.POTE_ORDER_CUSTOM?.adjustQuote?.(optionQuote(document.getElementById(\'orderItem\').value,document.getElementById(\'orderChannel\').value,\'\',\'\'))})",sandbox));
+console.error("COMBO_CURRENT:",JSON.stringify(window.POTE_ORDER.currentQuote()));
+console.error("COMBO_REGISTER_CHECK:",window.POTE_ORDER.checkBeforeRegister());
 vm.runInContext("newOrder();",sandbox);
 console.error("COMBO_POSTCHECK:",JSON.stringify({alerts:comboAlerts,orders:window.POTE_APP.snapshot().data.orders.length}));
 let finalCombo=window.POTE_APP.snapshot().data.orders[0];
