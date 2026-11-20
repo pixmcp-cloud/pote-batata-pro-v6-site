@@ -355,7 +355,7 @@ async function submitStockAuthoritative(){
  const universe=data().businessType||"batataria";
  try{
   const result=await window.POTE_WORKER.adjustStock({universe,group,itemId:id,delta:-base,
-   note:(reasons.find(r=>r[0]===reason)?.[1]||reason)+(note?" — "+note:"")});
+   note:((reasons.find(r=>r[0]===reason)?.[1]||reason)+(note?" — "+note:"")).slice(0,350)});
   if(typeof toast==="function")toast("Perda registrada no servidor e estoque sincronizado");
   return {ok:true,result};
  }catch(e){warn(e.message||"Falha ao registrar perda no servidor");return {ok:false,error:e.message}}
