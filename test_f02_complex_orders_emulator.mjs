@@ -61,8 +61,7 @@ try{
  const oldRecord=decodeFields(before.fields).record;
  await seed(recipePath,{record:{...oldRecord,item:{...oldRecord.item,comboItems:[{id:"combo-unknown",qty:1}]}}});
  const comboApproval=await call("/v1/catalog/approve-price",{universe,recipeId,
-  operationId:"f02-complex-race-combo-approve-00001",salePriceCents:2000,
-  expectedRevision:1});
+  operationId:"f02-complex-race-combo-approve-00001",salePriceCents:2000});
  console.log("COMBO FAIL CLOSED",comboApproval.status,await comboApproval.clone().text());
  assert.equal(comboApproval.status,409,"unsupported combo must not be approved");
  const comboOrder=await call("/v1/orders/create",{...order(0),orderId:"combo-order",
