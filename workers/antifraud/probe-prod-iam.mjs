@@ -8,7 +8,8 @@ const config=require(path.join(root,"configstore.js")).configstore;
 const auth=require(path.join(root,"auth.js"));
 const account=auth.getGlobalDefaultAccount();
 if(account?.user?.email!=="pixmcp@gmail.com")throw Error("Expected project owner CLI account not available");
-const credential=await auth.getAccessToken();
+const scopes=require(path.join(root,"scopes.js"));
+const credential=await auth.getAccessToken(account.tokens.refresh_token,[scopes.CLOUD_PLATFORM]);
 if(typeof credential?.access_token!=="string")throw Error("Firebase CLI OAuth unavailable");
 const project="potobatata-b71f3";
 const urls=[
