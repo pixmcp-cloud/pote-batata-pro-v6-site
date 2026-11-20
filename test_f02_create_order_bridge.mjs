@@ -7,7 +7,7 @@ const input={universe:"batataria",recipeId:"recipe-1",qty:2,
  cashSessionId:"cash-open-1",paymentMethod:"pix"};
 let responses=0,refreshes=0,flushes=0,idNum=0;
 const ids=["f02-op-0000000000000000000001","f02-order-00000000000000001"];
-const fake=()=>ids[idNum++]??"unexpected";
+const fake=()=>ids[(idNum++)%ids.length];
 const make=(overrides={})=>createWorkerBridge({
  enabled:true,endpoint:"https://staging.example",storage,uuid:fake,
  getSession:()=>({uid,user,ready:true,proActive:true,syncBlocked:false}),
