@@ -734,3 +734,7 @@ Para cada etapa registrar: estado PENDENTE/EM EXECUCAO/HOMOLOGADA, commit, teste
 
 ### F02 EXECUCAO IMEDIATA: PREVIEW TRANSACIONAL / 19-11-2026 22H BRT
 A pedido do proprietario, automacao existente foi acionada para execucao imediata. Commits e879def e 0328c79 criam transactionComplexCostPreview, lendo ingredientes, embalagens, adicionais e bebidas dentro da mesma transacao, validando grupo/tenant/ID, rejeitando fichas ausentes/estimadas e calculando preco minimo autoritativo. Testes no PC DESKTOP-9481JM1: 78/78 PASS, 0 fail. Estado F02: EM EXECUCAO, NAO HOMOLOGADA. Funcao e preview interno sem endpoint; aprovacao/venda de receita complexa continuam bloqueadas. Proxima acao: integrar preview ao endpoint de aprovacao com snapshot completo e contrato de reserva de estoque, depois testar corrida real no Emulator. Nenhum deploy nem alteracao de producao.
+
+
+### F02 INTEGRIDADE DE SNAPSHOT COMPLEXO / 19-11-2026 22H BRT
+Commits 8e4e318 e 61636e4 acrescentam complexRecipeSnapshot e assertComplexRecipeSnapshot, payload canonico com tipo, ID, quantidade e unidade de cada ingrediente, adicional, embalagem e bebida. Teste verifica rejeicao de alteracao de qualquer componente, inclusive combo nao suportado. Regressao completa executada no PC: 79/79 PASS, 0 fail. Nao altera autorizacao de preco nem fluxo de venda. Estado F02 EM EXECUCAO, NAO HOMOLOGADA; proximo: ligar preview transacional + snapshot na aprovacao e reserva atomica, testar Emulator real. Sem deploy.
