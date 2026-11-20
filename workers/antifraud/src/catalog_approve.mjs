@@ -58,7 +58,8 @@ export async function approveRecipePrice(body,{user,env,repository,clock,hasAcce
    fail("recipe_missing","Receita não encontrada",404);
   const complex=Array.isArray(r.packagingItems)&&r.packagingItems.length>0||
     Array.isArray(r.addons)&&r.addons.length>0||
-    Array.isArray(r.beverages)&&r.beverages.length>0||\n    Array.isArray(r.comboItems)&&r.comboItems.length>0;
+    Array.isArray(r.beverages)&&r.beverages.length>0||
+    Array.isArray(r.comboItems)&&r.comboItems.length>0;
   if(!complex)assertSimpleRecipeScope(r);
   if(!Array.isArray(r.items)||r.items.length<1||r.items.length>32||
     r.packagingIngredientIds?.length||r.costEstimateMode==="estimated")
