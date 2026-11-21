@@ -26,6 +26,6 @@ const summary=demoSummary({cart,products:[salgado,bebida],fulfillment:"entrega",
 assert.match(summary,/NÃO É UM PEDIDO REAL/);
 assert.match(summary,/NÃO EFETUA VENDA/);
 assert.match(summary,/Entrega \(taxa não calculada\)/);
-assert.match(summary,/R\$ ?138,10/);
+assert.match(summary,/R\$\s138,10/);
 assert.ok(!summary.includes("PAGAMENTO APROVADO"));
 console.log("OK: preços em centavos, carrinho, adicionais e prévia sem transação");
