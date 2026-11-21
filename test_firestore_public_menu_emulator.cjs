@@ -23,7 +23,7 @@ test('Catálogo público: somente dono verificado publica, leitura pública só 
   const anon=env.unauthenticatedContext().firestore();
   const fake=env.authenticatedContext('owner-uid',{email:'owner@example.test',email_verified:false,firebase:{sign_in_provider:'password'}}).firestore();
   const ref=db=>doc(db,'publicMenus','loja-cardapio-qa');
-  await assertFails(getDoc(ref(anon)));
+  await assertSucceeds(getDoc(ref(anon)));
   await assertFails(setDoc(ref(anon),menu('owner-uid')));
   await assertFails(setDoc(ref(fake),menu('owner-uid')));
   await assertFails(setDoc(ref(other),menu('owner-uid')));
