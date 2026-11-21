@@ -20,7 +20,9 @@ export async function verifyStagingCredential(req,env,headers={},
  {token=serviceAccessToken,requestFetch=fetch}={}){
  if(env.FIREBASE_PROJECT_ID!==project||env.ENABLE_WRITES!=="false")
   return response({error:"disabled"},503,headers);
- const secret=String(env.F05_STAGING_PROBE_TOKEN||"");
+ // Wrangler secret put via PowerShell stdin can append a trailing line break.
+ // Remove only the transport line-ending, not whitespace within the token.
+ const secret=String(env.F05_STAGING_PROBE_TOKEN||"").replace(/\r?\n$/,"");
  const candidate=req.headers.get("X-F05-Staging-Probe-Token")||"";
  if(secret.length<43||candidate.length!==secret.length||!same(candidate,secret))
   return response({error:"not_authorized"},403,headers);
