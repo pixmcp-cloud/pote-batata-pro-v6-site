@@ -247,8 +247,8 @@ async function loadProfileAudit(){
 }
 
 function validModeratedName(value){
- const name=String(value??"").normalize("NFKC").replace(/\\s+/g," ").trim();
- if(name.length<2||name.length>65||/[\\u0000-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069]/u.test(name))
+ const name=String(value??"").normalize("NFKC").replace(/\s+/g," ").trim();
+ if(name.length<2||name.length>65||/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/u.test(name))
   throw Error("Use um nome legível, entre 2 e 65 caracteres, sem caracteres ocultos.");
  return name;
 }
