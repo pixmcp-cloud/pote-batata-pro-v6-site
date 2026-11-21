@@ -328,6 +328,7 @@ jobs:
           node test_operations_type.js
           node --check public/license_terms.mjs
           node --input-type=module --check < public/admin_console.js
+          node test_admin_feedback_popup.cjs
           node test_admin_profile_moderation.cjs
           node test_admin_licenses.mjs
           node test_manual_receipt.mjs
@@ -354,6 +355,7 @@ jobs:
           if [ -z "$CHROME_BIN" ]; then echo "Chrome não disponível no runner"; exit 1; fi
           export POTE_QA_PUPPETEER="$PWD/qa/mobile/node_modules/puppeteer-core"
           export POTE_QA_CHROME="$CHROME_BIN"
+          node test_admin_feedback_popup_browser.cjs
           node qa/mobile/test_mobile_matrix.cjs
           node qa/mobile/test_franchise_mobile.cjs
           node test_hardening_mobile_browser.cjs
