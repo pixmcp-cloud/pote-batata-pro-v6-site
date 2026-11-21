@@ -527,7 +527,7 @@ service cloud.firestore {
           && request.resource.data.items.size() <= 60
           && request.resource.data.updatedAt == request.time;
       }
-      allow get: if resource.data.published == true
+      allow get: if resource == null || resource.data.published == true
         || isOwner(resource.data.ownerUid) || isAdmin();
       allow list: if false;
       allow create: if googleVerified()
