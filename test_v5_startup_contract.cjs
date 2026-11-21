@@ -12,7 +12,8 @@ for(const name of ["admin_console.js","admin_permissions.js","franchise_sync.js"
  assert(!code.includes("getApp()"),name+" usa app sem inicialização");
  assert(builder.includes(name+"?v=firebase-order-v5-20261120"),"Cache desatualizado: "+name);
 }
-assert(builder.includes("firebase_integration.js?v=firebase-order-v5-20261120"),"Cache do login desatualizado");
+assert(builder.includes("firebase_integration.js?v=profile-uid-isolated-20261121"),"O login deve invalidar cache após isolamento por UID");
+assert(builder.includes("floating_menu.js?v=profile-uid-isolated-20261121"),"A tela de perfil deve invalidar cache após isolamento por UID");
 const manifest=JSON.parse(read(path.join("assets","brand","manifest.webmanifest")));
 assert.equal(manifest.start_url,"/","PWA deve abrir o PDV, nao /assets/brand/");
 assert.equal(manifest.scope,"/","PWA deve ser instalada no dominio inteiro");
