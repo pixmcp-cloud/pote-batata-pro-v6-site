@@ -38,7 +38,7 @@ const controller=js.slice(a,b);
     '<div id="poteAdmFeedback"></div></div></section>'+html[1]+'</div></body></html>');
    await page.addScriptTag({content:
     'const $=id=>document.getElementById(id); const overlay=$("poteAdmOverlay");'+
-    controller+' window.testPopup={status,hideActionPopup};'});
+    controller+' $("poteAdmActionDismiss").addEventListener("click",()=>hideActionPopup()); window.testPopup={status,hideActionPopup};'});
    await page.click("#trigger");
    await page.evaluate(()=>{
     const sc=document.querySelector(".pote-adm-scroll");sc.scrollTop=sc.scrollHeight;
