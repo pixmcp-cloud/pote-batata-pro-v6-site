@@ -24,6 +24,7 @@ wrap.innerHTML=`
    <div class="pote-profile-head"><div><small>CONFIGURAÇÕES</small><h2>Meu perfil</h2></div><button type="button" id="poteProfileClose" aria-label="Fechar">${closeIcon}</button></div>
    <label class="pote-photo-input"><span id="poteProfilePreview">${avatar}</span><span>Alterar foto de perfil<small>JPG, PNG ou WebP · até 5 MB</small></span><input id="poteProfilePhoto" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>
    <label class="pote-profile-label" for="poteProfileName">Nome de exibição<input id="poteProfileName" type="text" maxlength="65" placeholder="Como deseja aparecer no aplicativo" autocomplete="nickname"></label>
+   <p id="poteProfileNameProtection" hidden role="status" style="font-size:12px;color:#f7d599">Nome protegido pela administração. Você pode alterar sua foto, mas não o nome exibido.</p>
    <p id="poteProfileIdentity"></p>
    <section id="poteProfileLicense" class="pote-profile-license" data-state="free" aria-label="Licença da sua conta">
     <div class="pote-profile-license-top"><small>MEU PLANO</small><strong id="poteProfileLicenseType">FREE</strong></div>
@@ -41,7 +42,7 @@ function profile(){
  const uid=window.POTE_AUTH?.uid;
  const p=window.POTE_ACCOUNT_PROFILE;
  // Never read user identity from the mutable business-state snapshot.
- return uid&&p?.uid===uid?{name:p.displayName||"",photoData:p.photoURL||""}:{};
+ return uid&&p?.uid===uid?{name:p.displayName||"",photoData:p.photoURL||"",locked:Boolean(p.nameLocked)}:{};
 }
 function refresh(){
  const p=profile(),email=window.POTE_AUTH?.email||'';
@@ -106,11 +107,15 @@ function showProfile(open){
   setOpen(false);pendingPhoto=null;pendingPhotoUid=window.POTE_AUTH.uid;
   const p=profile();
   $('poteProfileName').value=p.name||'';
+  const locked=Boolean(p.locked)&&window.POTE_AUTH?.role!=='admin';
+  $('poteProfileName').readOnly=locked;
+  $('poteProfileName').setAttribute('aria-readonly',String(locked));
+  $('poteProfileNameProtection').hidden=!locked;
   $('poteProfilePreview').innerHTML=p.photoData?'<img src="'+safe(p.photoData)+'" alt="Foto atual">':avatar;
   $('poteProfileIdentity').textContent='Conta: '+(window.POTE_AUTH?.email||'Faça login para salvar o perfil');
   $('poteProfilePhoto').value='';
   refreshProfileLicense();
-  $('poteProfileName').focus();
+  if(!locked)$('poteProfileName').focus();
  }
 }
 $('poteFloatNavigation').innerHTML=nav.map(([tab,title])=>'<button type="button" data-tab="'+tab+'"><span>'+safe(title)+'</span><span>›</span></button>').join('');
@@ -184,6 +189,8 @@ window.addEventListener('pote:profile-updated',()=>{
 window.addEventListener('pote:user-logout',()=>{
  pendingPhoto=null;pendingPhotoUid=null;
  showProfile(false);setOpen(false);
+ $('poteProfileNameProtection').hidden=true;
+ $('poteProfileName').readOnly=false;
  $('poteProfileName').value='';
  $('poteProfilePreview').innerHTML=avatar;
  $('poteProfileIdentity').textContent='';
