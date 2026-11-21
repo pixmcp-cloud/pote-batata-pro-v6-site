@@ -256,6 +256,10 @@ service cloud.firestore {
         isOwner(userId)
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'photoURL', 'updatedAt'])
+        && (
+          !resource.data.get('nameLocked', false)
+          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName'])
+        )
       );
       allow delete: if isAdmin();
 
@@ -394,6 +398,49 @@ service cloud.firestore {
         && request.resource.data.brandId == 'potebatata'
         && request.resource.data.action in ['ativar', 'revogar']
         && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Histórico imutável de moderação da identidade pública. Somente ADM com
+    // Google verificado e custom claim pode alterar e consultar.
+    // A transação exige que o perfil e o evento concordem no mesmo commit.
+    match /profileAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromName', 'toName', 'fromLocked', 'toLocked', 'reason'
+        ])
+        && request.resource.data.keys().hasAll([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromName', 'toName', 'fromLocked', 'toLocked', 'reason'
+        ])
+        && request.resource.data.action == 'moderate_name'
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.at == request.time
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid.size() > 0
+        && request.resource.data.targetUid.size() <= 128
+        && request.resource.data.targetEmail is string
+        && request.resource.data.targetEmail.size() <= 320
+        && request.resource.data.fromName is string
+        && request.resource.data.fromName.size() <= 200
+        && request.resource.data.toName is string
+        && request.resource.data.toName.size() >= 2
+        && request.resource.data.toName.size() <= 65
+        && request.resource.data.fromLocked is bool
+        && request.resource.data.toLocked is bool
+        && request.resource.data.reason in ['nome_improprio','correcao','solicitacao','seguranca']
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+        && get(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.get('displayName', '') == request.resource.data.fromName
+        && get(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.get('nameLocked', false) == request.resource.data.fromLocked
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.displayName == request.resource.data.toName
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.nameLocked == request.resource.data.toLocked;
       allow update, delete: if false;
     }
 
