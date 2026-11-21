@@ -20,7 +20,7 @@ test("Staging IAM: segredo ausente, truncado ou adulterado não chama Google",as
 test("Staging IAM: quebra de linha do stdin Wrangler não altera segredo",async()=>{
  let calls=0;
  const r=await verifyStagingCredential(req(base.F05_STAGING_PROBE_TOKEN),
-  {...base,F05_STAGING_PROBE_TOKEN:base.F05_STAGING_PROBE_TOKEN+"\\r\\n"},{
+  {...base,F05_STAGING_PROBE_TOKEN:base.F05_STAGING_PROBE_TOKEN+String.fromCharCode(13,10)},{
   },{token:async()=>{calls++;return "test_token".repeat(5)},
    requestFetch:async()=>new Response("{}",{status:200})});
  assert.equal(r.status,200);
