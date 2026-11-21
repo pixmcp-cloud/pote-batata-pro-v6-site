@@ -68,7 +68,7 @@ test('F05 full canary: legacy → admin activation → server-only → rollback 
    verify:async(token)=>{if(token!=='fake-test-verified-google')throw Error('Bad QA token');
     return {uid:UID,email:UID+'@example.test',isAdmin:false}},
    repository:()=>createFirestoreRepository(config,{
-    accessToken:async()=> 'emulator-only',
+    accessToken:async()=> 'owner',
     apiBaseUrl:'http://'+process.env.FIRESTORE_EMULATOR_HOST+
      '/v1/projects/demo-pote-hardening/databases/(default)',
     requestFetch:fetch
@@ -93,7 +93,7 @@ test('F05 full canary: legacy → admin activation → server-only → rollback 
   await assertSucceeds(directStock(browser,UID,1900));
   let r=await call('/v1/orders/produce',{universe:U,orderId:'o1',
    operationId:'ec7a40ab-20da-46dc-8879-a43ea4ece315'});
-  assert.equal(r.status,403,'Worker without admin opt-in must refuse');
+  assert.equal(r.status,403,'Worker without admin opt-in must refuse: '+JSON.stringify(r));
   assert.equal(await readStock(UID),1900);
 
   // CUTOVER: admin enables one canary, bypassing direct SDK is forbidden.
