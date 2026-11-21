@@ -22,6 +22,13 @@ export function buildMenuCandidates(snapshot,{priceFor,allowed}={}){
   const data=snapshot?.data||{},items=[];
   const business=text(data.businessType||"batataria",32);
   const defaultImage=publicImage("./assets/generic/business-"+business+".svg");
+// Fotos privadas e URLs com tokens nunca são copiadas automaticamente.
+// O upload público de fotos exigirá consentimento e armazenamento autorizado.
+const ownImage=(src)=>{
+  const value=text(src,800);
+  return /^\\.?\\/?assets\\/(?:generic|recipes)\\/[A-Za-z0-9_\\-.]+\\.(?:svg|webp|png|jpg|jpeg)$/i.test(value)
+    ? publicImage(value,defaultImage):defaultImage;
+};
   const isAllowed=typeof allowed==="function"?allowed:()=>true;
   const calc=typeof priceFor==="function"?priceFor:()=>NaN;
   for(const r of Array.isArray(data.recipes)?data.recipes:[]){
@@ -29,7 +36,7 @@ export function buildMenuCandidates(snapshot,{priceFor,allowed}={}){
     const id=text(r.id,72),price=cents(calc(r));
     if(!price||!id||items.some(p=>p.id===id))continue;
     items.push({id,title:text(r.name,90),description:text(r.tagline||r.description,240),
-      category:safeCategory(r.category),priceCents:price,image:publicImage(r.photoUrl||r.photo||r.image,defaultImage),addons:[]});
+      category:safeCategory(r.category),priceCents:price,image:ownImage(r.photoUrl||r.photo||r.image),addons:[]});
   }
   for(const b of Array.isArray(data.beverages)?data.beverages:[]){
     if(!b?.id||!b?.name||b.unavailable===true||b.suspended===true)continue;
