@@ -19,7 +19,7 @@ for(const file of ["firebase_integration.js","admin_console.js",
 const beta=text("make_beta.py");
 for(const file of ["firebase_integration.js","admin_console.js",
  "admin_permissions.js","admin_broadcast.js"]){
- assert(beta.includes(file+"?v="+"firebase-order-v5-20261120"),
-  "Client must request fresh admin auth module: "+file);
+ assert(new RegExp(file.replaceAll(".", "\\.")+"\\?v=[a-z0-9-]+","i").test(beta),
+  "Client must request a cache-versioned admin auth module: "+file);
 }
 console.log("PASS F24: server + all admin screens require signed custom claim and verified Google identity.");

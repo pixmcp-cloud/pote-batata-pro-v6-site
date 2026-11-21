@@ -1,0 +1,26 @@
+name: QA - Isolamento de perfil e sessao
+on:
+  push:
+    branches:
+      - "fix/account-profile-isolation-*"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  session-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar sintaxe de autenticacao e perfil
+        run: |
+          node --check floating_menu.js
+          node --input-type=module --check < firebase_integration.js
+          python3 -m py_compile make_beta.py
+      - name: Testar isolamento de contas e permissoes
+        run: |
+          node test_profile_isolation.cjs
+          node test_auth_v5_integration.js
+          node test_admin_claim_contract.mjs

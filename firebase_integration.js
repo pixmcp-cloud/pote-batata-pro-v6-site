@@ -71,6 +71,45 @@ window.POTE_WORKER=createWorkerBridge({
  }
 });
 window.POTE_APP_READY=false;
+window.POTE_ACCOUNT_PROFILE=null;
+
+// User-visible identity is kept in users/{uid}; it is not part of business appState.
+function sessionMatches(uid,index=epoch){
+ return Boolean(uid&&index===epoch&&auth.currentUser?.uid===uid&&window.POTE_AUTH?.uid===uid);
+}
+function publishAccountProfile(user,documentData){
+ if(!sessionMatches(user?.uid))return;
+ const profile={
+  uid:user.uid,
+  displayName:String(documentData?.displayName||user.displayName||"").slice(0,65),
+  photoURL:String(documentData?.photoURL||user.photoURL||"")
+ };
+ window.POTE_ACCOUNT_PROFILE=profile;
+ window.dispatchEvent(new CustomEvent("pote:profile-updated",{detail:{uid:user.uid,profile}}));
+}
+window.POTE_PROFILE_API={
+ getCurrent(){const p=window.POTE_ACCOUNT_PROFILE;return p?.uid&&sessionMatches(p.uid)?{...p}:null},
+ async save({name,photoData}={}){
+  const user=auth.currentUser,uid=user?.uid,index=epoch;
+  if(!ready||!window.POTE_APP_READY||!sessionMatches(uid,index))
+   throw Error("A sessão mudou. Entre novamente na sua conta antes de editar o perfil.");
+  const displayName=String(name||"").trim();
+  if(!displayName||displayName.length>65)throw Error("Informe um nome de exibição de até 65 caracteres.");
+  const changes={displayName,updatedAt:serverTimestamp()};
+  if(photoData!==undefined){
+   if(typeof photoData!=="string"||
+    !(photoData.startsWith("https://")||/^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(photoData))||
+    photoData.length>250000)
+    throw Error("Formato ou tamanho da foto incompatível.");
+   changes.photoURL=photoData;
+  }
+  if(!sessionMatches(uid,index))throw Error("A conta mudou durante a edição.");
+  await withDeadline(setDoc(doc(db,"users",uid),changes,{merge:true}),15000,"salvamento do perfil");
+  if(!sessionMatches(uid,index))throw Error("A conta mudou durante o salvamento. Reabra o perfil.");
+  publishAccountProfile(user,{...window.POTE_ACCOUNT_PROFILE,...changes});
+  return window.POTE_ACCOUNT_PROFILE;
+ }
+};
 const embeddedBrowser = /; wv[);]|FBAN|FBAV|Instagram|ChatGPT|Line|Messenger/i.test(navigator.userAgent || "");
 function showBrowserHint() { if (browserHint) browserHint.hidden = false; }
 function withDeadline(promise, ms, label) {
@@ -314,6 +353,7 @@ function observeProfile(user, index) {
   const profileRef = doc(db, "users", user.uid);
   unsubscribeProfile = onSnapshot(profileRef, snapshot => {
     if (index !== epoch || auth.currentUser?.uid !== user.uid) return;
+    publishAccountProfile(user,snapshot.data()||{});
     rawUserLicense = snapshot.data()?.license || null;
     rawUserFranchise = snapshot.data()?.franchise || null;
     const previousPolicy=JSON.stringify(rawUserAccessPolicy||{});
@@ -409,6 +449,7 @@ async function loadUser(user, index) {
   ready = false;
   clearTimeout(timer);
   const claims = await withDeadline(getIdTokenResult(user, true), 15000, "verificação do Google");
+  if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
   const admin = user.email?.toLowerCase() === "pixmcp@gmail.com" &&
     claims.claims.potebatataAdmin === true &&
     claims.claims.email_verified === true &&
@@ -417,6 +458,7 @@ async function loadUser(user, index) {
   active = user;
   const profile = doc(db, "users", user.uid);
   const existing = await withDeadline(getDoc(profile), 15000, "consulta do perfil");
+  if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
   rawUserLicense = existing.exists() ? existing.data().license || null : null;
   rawUserFranchise = existing.exists() ? existing.data().franchise || null : null;
   rawUserAccessPolicy = existing.exists() ? existing.data().accessPolicy || {} : {};
@@ -429,7 +471,9 @@ async function loadUser(user, index) {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     }), 15000, "criação do perfil");
+    if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
   }
+  publishAccountProfile(user,existing.exists()?existing.data():{});
   if(useV5){
     v5Store?.dispose();
     v5Store=createV5Store({
@@ -571,6 +615,13 @@ exitBtn.addEventListener("click", async () => {
 });
 onAuthStateChanged(auth, async user => {
   const myEpoch = ++epoch;
+  ready=false;
+  active=null;
+  window.POTE_AUTH=null;
+  window.POTE_ACCOUNT_PROFILE=null;
+  window.POTE_LICENSE_STATUS=null;
+  if(logged)logged.textContent="";
+  window.dispatchEvent(new Event("pote:profile-updated"));
   if(v5Store){v5Store.dispose();v5Store=null}
   if (unsubscribeRemote) { unsubscribeRemote(); unsubscribeRemote = null; }
   if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
@@ -610,7 +661,10 @@ onAuthStateChanged(auth, async user => {
     if(oldMigration)oldMigration.hidden=true;
     await loadUser(user, myEpoch);
   } catch (e) {
+    if(myEpoch!==epoch||auth.currentUser?.uid!==user?.uid)return;
     ready = false;
+    window.POTE_AUTH=null;
+    window.POTE_ACCOUNT_PROFILE=null;
     setGate(true);
     loginBtn.disabled = false;
     showBrowserHint();
