@@ -155,3 +155,19 @@ A versão **Gestão + PDV** introduz módulo de caixa visível em contas PRO, AD
 - **Regra de edição:** somente GitHub; Floot/APK apenas por solicitação expressa; nenhuma ativação de serviço pago sem autorização.
 
 Registro solicitado pelo proprietário em 21/11/2026.
+
+## 21/11/2026 — Cardápio Digital V2: publicação pública por estabelecimento
+
+**Status: PUBLICADO no site oficial e TESTADO, com checkout real ainda DESATIVADO.**
+
+- **Código:** PR #21 integrado à branch `main`, merge `d4e86b84798c0c3aefbf534c7c0b2c7300cf7b44`.
+- **Funcionalidade:** botão para publicar na seção Cardápio Digital do PDV autenticado, selecionar quais receitas/bebidas serão públicas, obter preços calculados a partir da própria loja, gerar endereço por slug, atualizar e despublicar.
+- **Consulta pública:** `https://pdv.livresom.com/cardapio/?loja=<slug>`; loja inexistente, indisponível ou não publicada não recebe catálogo de demonstração ou de outra empresa.
+- **Isolamento:** Firestore coleção `publicMenus/{slug}` com somente campos comerciais autorizados; criação/atualização por titular Google verificado e leitura anônima somente de catálogo publicado; proibição de listagem irrestrita; regras publicadas com `firebase deploy --only firestore:rules --project potobatata-b71f3` após aprovação no emulador e comparação prévia da versão publicada com GitHub.
+- **Implantação Hosting:** release `sites/potobatata-b71f3/releases/1795293169453000`, versão `sites/potobatata-b71f3/versions/515b40b180039507`, em 21/11/2026 às 20:32:49 UTC. Versão anterior para rollback: `sites/potobatata-b71f3/versions/50d0f67ce4e22d3a`, release `sites/potobatata-b71f3/releases/1795291764874000`.
+- **Integridade:** dos 222 arquivos originais, 220 hashes preservados, só `/firebase_integration.js` e `/cardapio/cardapio.js` alterados, e 3 novos (`/public_menu_core.mjs`, `/public_menu_admin.mjs`, `/public_menu_admin.css`). 225 arquivos no total; configuração de cabeçalhos da hospedagem idêntica à anterior.
+- **QA:** testes de unidade `test_public_menu_core.mjs` aprovados, incluindo proteção contra custos/clientes/URLs de foto privada. Firestore Emulator, inclusive testes pré-existentes de concorrência e F05, aprovado na execução do GitHub Actions `44946345005` (branch de preparação); QA de perfis aprovado. Teste real Chrome mobile em `pdv.livresom.com`: página inicial 200, cardápio 200 com 10 itens de demonstração, modal/ficha abre, slug inexistente exibe indisponibilidade e 0 itens, script `POTE_PUBLIC_MENU` carregado e 0 erros de execução JavaScript.
+- **Ainda não realizado:** pedido público real, validação transacional de preço e saldo, reserva de estoque, aceite/cancelamento no PDV, baixa do caixa, integração Pix/cartão e configurações avançadas de marca/fotos. Não chamar esta etapa de checkout online concluído. O Worker atual permanece em STAGING e escritas críticas desativadas.
+- **Próximas prioridades:** backend autenticado da loja/checkout público com precificação no servidor, idempotência e proteção contra spam; entrada no mesmo pipeline V5 de reserva de estoque/pedidos; conciliação de pagamento e PDV; habilitar só após testes multitenant, duas contas simultâneas e homologação de canário. Avaliar bloqueio automático de publicação quando licença PRO expirar.
+- **Custos e limites:** nenhum serviço pago novo habilitado; usar cotas gratuitas e acompanhar leitura do Firestore conforme expansão.
+- **Desenvolvimento:** apenas GitHub; Floot e APK não foram modificados.
