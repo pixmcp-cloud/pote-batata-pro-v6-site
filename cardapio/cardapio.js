@@ -24,7 +24,7 @@ let catalogue = [
 const byId = new Map(catalogue.map(product => [product.id,product]));
 const requestedSlug = new URLSearchParams(location.search).get("loja");
 if(requestedSlug!==null){catalogue=[];byId.clear();}
-const STORAGE_KEY = "pote-cardapio-premium-preview-cart-v1";
+const STORAGE_KEY = requestedSlug===null ? "pote-cardapio-premium-preview-cart-v1" : "pote-public-menu-cart:"+requestedSlug;
 const $ = id => document.getElementById(id);
 const catTabs = $("categoryTabs"), grid = $("menuGrid"), productDialog = $("productDialog"), cartDialog = $("cartDialog");
 let cart = restoreCart(), category = "Todos", search = "", selected = null, quantity = 1;
@@ -248,6 +248,7 @@ async function loadPublicMenu(slug){
     const menu=snap.exists()?sanitizeReadMenu(snap.data(),slug):null;
     if(!menu)throw Error("Loja indisponível");
     catalogue=menu.items;
+    cart=restoreCart();
     byId.clear();for(const p of catalogue)byId.set(p.id,p);
     category="Todos";search="";$("searchInput").value="";
     document.title=menu.title+" • Cardápio Digital";
