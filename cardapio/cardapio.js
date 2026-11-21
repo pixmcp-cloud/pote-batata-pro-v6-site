@@ -1,9 +1,10 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
+import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Não assumir que preços/fotos/horários representam dados reais de qualquer loja.
 const IMG = "../assets/generic/business-batataria.svg";
-const catalogue = Object.freeze([
+let catalogue = [
   { id:"carne-cheddar",title:"Carne com Cheddar",category:"Salgados",description:"Uma combinação irresistível de carne suculenta, queijo cremoso e muito sabor.",priceCents:3850,tag:"Mais pedido",image:IMG,addons:["cheddar","bacon","requeijao"] },
   { id:"estrogonofe",title:"Estrogonofe de Frango",category:"Salgados",description:"Frango envolvido em molho cremoso, com aquele toque especial que conquista.",priceCents:3490,tag:"Queridinho",image:IMG,addons:["cheddar","bacon"] },
   { id:"pizza",title:"Sabor Pizza",category:"Salgados",description:"O clássico sabor de pizza em uma combinação surpreendente e generosa.",priceCents:3490,tag:"Imperdível",image:"https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=900&q=78",addons:["cheddar","requeijao"] },
@@ -19,9 +20,11 @@ const catalogue = Object.freeze([
   bacon:{id:"bacon",label:"Bacon crocante",priceCents:590},
   requeijao:{id:"requeijao",label:"Requeijão cremoso",priceCents:450},
   avela:{id:"avela",label:"Creme de avelã extra",priceCents:650}
-}[id])) })));
+}[id])) }));
 const byId = new Map(catalogue.map(product => [product.id,product]));
-const STORAGE_KEY = "pote-cardapio-premium-preview-cart-v1";
+const requestedSlug = new URLSearchParams(location.search).get("loja");
+if(requestedSlug!==null){catalogue=[];byId.clear();}
+const STORAGE_KEY = requestedSlug===null ? "pote-cardapio-premium-preview-cart-v1" : "pote-public-menu-cart:"+requestedSlug;
 const $ = id => document.getElementById(id);
 const catTabs = $("categoryTabs"), grid = $("menuGrid"), productDialog = $("productDialog"), cartDialog = $("cartDialog");
 let cart = restoreCart(), category = "Todos", search = "", selected = null, quantity = 1;
@@ -57,7 +60,7 @@ function toast(message){
   toast.timeout=setTimeout(()=>{node.hidden=true},3500);
 }
 function categories(){
-  const all=["Todos","Salgados","Doces","Bebidas","Combos"];
+  const all=["Todos",...new Set(catalogue.map(p=>p.category))];
   catTabs.replaceChildren();
   for(const cat of all){
     const button=el("button","category-button",cat);
@@ -226,4 +229,59 @@ for(const dialog of [productDialog,cartDialog]){
 window.addEventListener("storage",event=>{
   if(event.key===STORAGE_KEY){cart=restoreCart();renderCart();}
 });
+async function loadPublicMenu(slug){
+  if(!validSlug(slug)){
+    $("emptyState").textContent="Endereço de loja inválido.";
+    $("emptyState").hidden=false;
+    return;
+  }
+  $("emptyState").textContent="Carregando o cardápio da loja...";
+  $("emptyState").hidden=false;
+  try{
+    // Exclusivamente documentos comerciais; nenhum acesso a usuários, receitas,
+    // estoque ou registros privados. Regras Firestore devem estar homologadas.
+    const [{app},{getFirestore,doc,getDoc}]=await Promise.all([
+      import("../firebase_app.mjs"),
+      import("https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js")
+    ]);
+    const snap=await getDoc(doc(getFirestore(app),"publicMenus",slug));
+    const menu=snap.exists()?sanitizeReadMenu(snap.data(),slug):null;
+    if(!menu)throw Error("Loja indisponível");
+    catalogue=menu.items;
+    cart=restoreCart();
+    byId.clear();for(const p of catalogue)byId.set(p.id,p);
+    category="Todos";search="";$("searchInput").value="";
+    document.title=menu.title+" • Cardápio Digital";
+    const brand=document.querySelector(".brand-text strong");
+    if(brand)brand.textContent=menu.title;
+    const footer=document.querySelector(".site-footer strong");
+    if(footer)footer.textContent=menu.title;
+    const storeStatus=document.querySelector(".store-status");
+    if(storeStatus)storeStatus.textContent="Catálogo publicado • pedidos em breve";
+    const subtitle=document.querySelector(".brand-text small");
+    if(subtitle)subtitle.textContent=menu.subtitle||"CARDÁPIO DIGITAL";
+    const hero=document.getElementById("heroTitle");
+    if(hero)hero.textContent="Seu sabor, seu momento.";
+    const heroP=document.querySelector(".hero-content p");
+    if(heroP)heroP.textContent="Conheça os produtos e preços publicados por "+menu.title+".";
+    const heroTag=document.querySelector(".hero .eyebrow");
+    if(heroTag)heroTag.textContent="CARDÁPIO DA LOJA";
+    const footerCaption=document.querySelector(".site-footer small");
+    if(footerCaption)footerCaption.textContent="Catálogo público • checkout ainda não habilitado";
+    const logo=document.querySelector(".brand-mark img");
+    if(logo)logo.hidden=true;
+    const heroPic=document.querySelector(".hero-plate");
+    if(heroPic)heroPic.alt="Imagem ilustrativa da categoria gastronômica";
+    const reminder=document.querySelector(".demo-warning");
+    if(reminder)reminder.textContent="Catálogo público da loja. Esta versão permite somente montar uma simulação: não envia pedidos, não reserva estoque nem processa pagamentos.";
+    const strip=document.querySelector(".preview-strip");
+    if(strip)strip.textContent="CATÁLOGO PUBLICADO • PEDIDOS E PAGAMENTOS AINDA NÃO HABILITADOS";
+    categories();renderMenu();renderCart();
+  }catch(error){
+    console.warn("Cardápio público indisponível",error.code||error.message||error);
+    $("emptyState").textContent="Este cardápio não está disponível no momento. Solicite o endereço atualizado à loja.";
+    $("emptyState").hidden=false;
+  }
+}
 categories();renderMenu();renderCart();fulfill();
+if(requestedSlug!==null)loadPublicMenu(requestedSlug);

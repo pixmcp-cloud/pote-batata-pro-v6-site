@@ -14,6 +14,11 @@ jobs:
         run: |
           mkdir -p public
           cp -R cardapio public/cardapio
+          cp public_menu_core.mjs public/public_menu_core.mjs
+          cp public_menu_admin.mjs public/public_menu_admin.mjs
+          cp public_menu_admin.css public/public_menu_admin.css
+          node test_public_menu_core.mjs
+          node --check public/public_menu_admin.mjs
           node --check public/cardapio/cardapio.js
           node --check public/cardapio/cardapio-core.mjs
           node test_cardapio_core.mjs
