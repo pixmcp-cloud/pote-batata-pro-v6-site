@@ -10,7 +10,7 @@ const state={data:{
  businessType:"batataria",
  brand:{name:"Potê Batata",subtitle:"Batataria premium",bank:"123",accessToken:"dont-share"},
  recipes:[
-  {id:"r01",name:"Carne com cheddar",category:"Salgados",tagline:"Recheada",price:38.5,ingredients:[{name:"segredo"}],purchasePrice:19,clients:[{phone:"123"}]},
+  {id:"r01",name:"Carne com cheddar",category:"Salgados",tagline:"Recheada",price:38.5,photoUrl:"https://storage.example.test/image.jpg?token=PRIVATE_TOKEN",ingredients:[{name:"segredo"}],purchasePrice:19,clients:[{phone:"123"}]},
   {id:"r02",name:"Sem estoque",unavailable:true,price:30},
   {id:"r03",name:"Franquia bloqueada",franchiseLocked:true,price:30},
   {id:"r04",name:"Sem preço",price:0}
@@ -24,6 +24,7 @@ const priceFor=r=>r.price;
 const list=buildMenuCandidates(state,{priceFor});
 assert.deepEqual(list.map(x=>x.id),["r01","bev-agua"]);
 assert.equal(list[0].priceCents,3850);
+assert.equal(list[0].image,"../assets/generic/business-batataria.svg","foto privada deve ser descartada");
 assert.equal(list[1].priceCents,400);
 const doc=makePublicMenu(state,{ownerUid:"uid-owner",slug:"pote-batata-a1020",selectedIds:["r01","bev-agua"],priceFor});
 assert.equal(doc.published,true);
