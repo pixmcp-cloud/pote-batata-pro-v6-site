@@ -84,6 +84,14 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
     <section class="pote-adm-audit"><div class="pote-adm-section-head"><h3>Histórico de alterações</h3><button id="poteAdmAuditReload" type="button">Recarregar</button></div><div id="poteAdmAudit"></div></section>
    </div>
   </section>
+  <div id="poteAdmActionPopup" class="pote-adm-action-popup" hidden role="alertdialog" aria-modal="true" aria-labelledby="poteAdmActionTitle" aria-describedby="poteAdmActionMessage">
+   <div class="pote-adm-action-card" data-state="success">
+    <span id="poteAdmActionIcon" class="pote-adm-action-icon" aria-hidden="true">✓</span>
+    <h3 id="poteAdmActionTitle">Operação concluída</h3>
+    <p id="poteAdmActionMessage"></p>
+    <button id="poteAdmActionDismiss" type="button">Entendi</button>
+   </div>
+  </div>
  </div>`;
 document.body.insertAdjacentHTML("beforeend",markup);
 const overlay=$("poteAdmOverlay");
@@ -189,9 +197,30 @@ function render(){
  }).join(""):'<p class="pote-adm-empty">Nenhuma conta encontrada para este filtro.</p>';
  selectionReady();
 }
-function status(msg,isError=false){
+let popupReturnFocus=null;
+function hideActionPopup(restoreFocus=true){
+ const popup=$("poteAdmActionPopup");
+ if(popup.hidden)return;
+ popup.hidden=true;
+ if(restoreFocus&&popupReturnFocus?.isConnected&&typeof popupReturnFocus.focus==="function")
+  popupReturnFocus.focus();
+ popupReturnFocus=null;
+}
+function showActionPopup(message,isError=false){
+ if(overlay.hidden)return;
+ const popup=$("poteAdmActionPopup");
+ if(popup.hidden)popupReturnFocus=document.activeElement;
+ $("poteAdmActionMessage").textContent=String(message);
+ $("poteAdmActionTitle").textContent=isError?"Não foi possível concluir":"Operação concluída";
+ $("poteAdmActionIcon").textContent=isError?"!":"✓";
+ popup.querySelector(".pote-adm-action-card").dataset.state=isError?"error":"success";
+ popup.hidden=false;
+ $("poteAdmActionDismiss").focus();
+}
+function status(msg,isError=false,showPopup=false){
  $("poteAdmFeedback").textContent=msg;
  $("poteAdmFeedback").classList.toggle("error",isError);
+ if(showPopup)showActionPopup(msg,isError);
 }
 async function assertAdmin(){
  const user=auth.currentUser;
@@ -259,7 +288,7 @@ async function changeProfileModeration(){
  const locked=Boolean($("poteAdmNameLocked").checked),reason=$("poteAdmModerationReason").value;
  if(!["nome_improprio","correcao","solicitacao","seguranca"].includes(reason))throw Error("Motivo de moderação inválido");
  if(name===(selected.displayName||"")&&locked===Boolean(selected.nameLocked)){
-  status("Nenhuma alteração foi necessária.");return;
+  status("Nenhuma alteração foi necessária.",false,true);return;
  }
  if(!confirm("Alterar o nome da conta "+(selected.email||uid)+" para \""+name+"\"? "+
    (locked?"O titular NÃO poderá modificar o nome até o ADM desbloquear.":"O titular poderá alterar o nome depois.")+
@@ -289,8 +318,8 @@ async function changeProfileModeration(){
   if(auth.currentUser?.uid!==actor.uid)return;
   moderationSelectionUid=null;
   await Promise.all([loadUsers(),loadProfileAudit()]);
-  status("Nome e proteção da conta atualizados. Histórico de moderação registrado.");
- }catch(e){status("Moderação não concluída: "+(e.code||e.message),true)}
+  status("Nome e proteção da conta atualizados. Histórico de moderação registrado.",false,true);
+ }catch(e){status("Moderação não concluída: "+(e.code||e.message),true,true)}
  finally{setBusy(false)}
 }
 async function changeLicense(revoke=false){
@@ -298,14 +327,14 @@ async function changeLicense(revoke=false){
  if(busy)return;
  const term=revoke?"free":$("poteAdmTerm").value;
  const option=LICENSE_TERMS.find(x=>x.id===term);
- if(!revoke&&!option){status("Escolha um prazo válido.",true);return}
+ if(!revoke&&!option){status("Escolha um prazo válido.",true,true);return}
  let payment=null;
  if(!revoke&&["pro","lifetime"].includes(option?.kind)){
   try{payment=manualLicensePayment({mode:$("poteAdmPaymentMode").value,
    amount:$("poteAdmPaymentAmount").value,
    reference:$("poteAdmPaymentRef").value,
    confirmed:$("poteAdmPaymentVerified").checked});}
-  catch(e){status(String(e.message||e),true);return}
+  catch(e){status(String(e.message||e),true,true);return}
  }
  const previous=resolveLicense(u.license,today());
  const now=new Date();
@@ -334,9 +363,9 @@ async function changeLicense(revoke=false){
     ...(payment?{...payment,paymentConfirmedAt:serverTimestamp()}: {})});
   await batch.commit();
   resetPaymentForm();
-  status("Licença atualizada e registrada no histórico.");
+  status("Licença atualizada e registrada no histórico.",false,true);
   await Promise.all([loadUsers(),loadAudit()]);
- }catch(e){status("Alteração não foi concluída: "+(e.code||e.message),true)}
+ }catch(e){status("Alteração não foi concluída: "+(e.code||e.message),true,true)}
  finally{setBusy(false)}
 }
 async function loadFranchiseAudit(){
@@ -358,7 +387,7 @@ async function changeFranchise(enable){
  const selected=current(),actorId=auth.currentUser?.uid;
  if(!selected||!actorId||selected.uid===actorId||busy)return;
  const active=selected.franchise?.status==="active"&&selected.franchise?.brandId==="potebatata";
- if(enable===active){status(enable?"Esta conta já é franquia.":"Esta conta não tem franquia ativa.",true);return}
+ if(enable===active){status(enable?"Esta conta já é franquia.":"Esta conta não tem franquia ativa.",true,true);return}
  const name=selected.email||selected.uid;
  const prompt=enable?
   "Transformar "+name+" em FRANQUIA OFICIAL POTÊ BATATA? Isso libera logo, fotos oficiais, PRO e os novos sabores automáticos. Vendas, estoque e custos permanecem separados.":
@@ -386,11 +415,11 @@ async function changeFranchise(enable){
   });
   await batch.commit();
   status(enable?"Franquia ativada. A conta receberá automaticamente a marca e o catálogo ao sincronizar.":
-    "Franquia revogada. Os registros comerciais próprios foram preservados.");
+    "Franquia revogada. Os registros comerciais próprios foram preservados.",false,true);
   closeFranchiseFinance();
   window.POTE_FRANCHISE?.refresh?.();
   await Promise.all([loadUsers(),loadFranchiseAudit()]);
- }catch(e){status("Não foi possível alterar a franquia: "+(e.code||e.message),true)}
+ }catch(e){status("Não foi possível alterar a franquia: "+(e.code||e.message),true,true)}
  finally{setBusy(false)}
 }
 
@@ -489,6 +518,7 @@ async function open(){
  refreshCountdown();
 }
 function close(){
+ hideActionPopup(false);
  closeFranchiseFinance();
  overlay.hidden=true;
  document.documentElement.classList.remove("pote-admin-open");
@@ -498,11 +528,19 @@ function close(){
 btn.addEventListener("click",open);
 $("poteAdmClose").addEventListener("click",close);
 overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!overlay.hidden)close()});
+$("poteAdmActionDismiss").addEventListener("click",()=>hideActionPopup());
+$("poteAdmActionPopup").addEventListener("click",e=>{
+ if(e.target===$("poteAdmActionPopup"))hideActionPopup();
+});
+document.addEventListener("keydown",e=>{
+ if(e.key!=="Escape"||overlay.hidden)return;
+ if(!$("poteAdmActionPopup").hidden){e.stopImmediatePropagation?.();hideActionPopup();return}
+ close();
+});
 $("poteAdmReload").addEventListener("click",loadUsers);
 $("poteAdmAuditReload").addEventListener("click",loadAudit);
 $("poteAdmProfileAuditReload").addEventListener("click",loadProfileAudit);
-$("poteAdmModerationSave").addEventListener("click",()=>changeProfileModeration().catch(e=>status(e.message||String(e),true)));
+$("poteAdmModerationSave").addEventListener("click",()=>changeProfileModeration().catch(e=>status(e.message||String(e),true,true)));
  $("poteAdmFranchiseAuditReload").addEventListener("click",loadFranchiseAudit);
  $("poteAdmFranchiseReport").addEventListener("click",openFranchiseFinance);
  $("poteAdmFinancialClose").addEventListener("click",closeFranchiseFinance);
