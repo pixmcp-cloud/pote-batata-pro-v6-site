@@ -42,6 +42,10 @@ const server=http.createServer((req,res)=>{
         await page.$eval("#searchInput",e=>{e.value="";e.dispatchEvent(new Event("input",{bubbles:true}))});
         await page.click('button[aria-label="Escolher Carne com Cheddar"]');
         await page.waitForSelector("#productDialog[open]");
+        await page.click("#productFacts summary");
+        assert.equal(await page.$eval("#productFacts",e=>e.open),true);
+        assert.match(await page.$eval("#productFactFormat",e=>e.textContent),/500 g/);
+        assert.match(await page.$eval("#productFacts",e=>e.textContent),/A confirmar com o estabelecimento/);
         await page.click('#addonList input[value="cheddar"]');
         await page.click("#qtyPlus");
         assert.match(await page.$eval("#addPrice",e=>e.textContent),/86,80/);
