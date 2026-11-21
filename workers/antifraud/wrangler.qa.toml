@@ -1,0 +1,9 @@
+name = "pote-batata-guard-qa"
+main = "src/qa_probe.mjs"
+compatibility_date = "2026-11-20"
+workers_dev = true
+preview_urls = false
+
+[vars]
+FIREBASE_PROJECT_ID = "pote-batata-qa-worker"
+ENABLE_WRITES = "false"
