@@ -17,13 +17,15 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  "poteLoginMessage","poteBrowserHint","poteLoggedAs","poteAdminOpen","potePlanBadge","potePlanCountdown"])
   elements.set(name,{...el,classList:{toggle(){}},style:{}});
  const cloud=new Map();
- cloud.set("users/u",{email:"test@example.com"});
- cloud.set("users/new-user",{email:"new@example.com"});
+ cloud.set("users/u",{email:"test@example.com",displayName:"Canário F05",photoURL:"https://images.example/canario.jpg"});
+ cloud.set("users/new-user",{email:"new@example.com",displayName:"Conta Separada",photoURL:"https://images.example/outra.jpg"});
+ cloud.set("users/master",{email:"pixmcp@gmail.com",displayName:"Administrador",photoURL:"https://images.example/adm.jpg"});
  cloud.set("users/u/appState/main",{state:{data:{orders:[{id:"old-test-order"}]}},updatedAt:"LEGACY"});
  const snap=path=>({exists:()=>cloud.has(path),data:()=>cloud.has(path)?copy(cloud.get(path)):undefined,metadata:{hasPendingWrites:false}});
  const sdk={
   doc:(_,...parts)=>parts.join("/"),collection:(_,...parts)=>parts.join("/"),
   getDoc:async path=>snap(path),
+  setDoc:async(path,value,options)=>{cloud.set(path,{...(options?.merge?cloud.get(path)||{}:{}),...copy(value)});},
   getDocs:async path=>({docs:[...cloud.entries()].filter(([key])=>key.startsWith(path+"/")).map(([key,v])=>
     ({id:key.slice(path.length+1),data:()=>copy(v)}))}),
   serverTimestamp:()=>"SERVER",
@@ -54,7 +56,8 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
   document:{getElementById:key=>elements.get(key)||null,createElement:()=>({style:{},hidden:false,setAttribute(){},append(){},addEventListener(){},click(){},remove(){}}),
    body:{classList:{toggle(){}},appendChild(){}}},
   initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{setCustomParameters(){}},
-  getIdTokenResult:async()=>({claims:{email_verified:true,firebase:{sign_in_provider:"google.com"}}}),
+  getIdTokenResult:async user=>({claims:{email_verified:true,potebatataAdmin:user?.uid==="master",
+   firebase:{sign_in_provider:"google.com"}}}),
   resolveLicense:()=>({active:false,kind:"free",label:"FREE",expiresAt:null}),
   licenseCountdown:()=>({state:"inactive",expiresAt:null}),dateBR:()=>"",
   onAuthStateChanged:(a,callback)=>{login=callback},signInWithPopup:async()=>{},signOut:async()=>{},
@@ -72,12 +75,22 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  await login(auth.currentUser);
  assert.equal(ctx.window.POTE_APP_READY,true,"V5 deve abrir mesmo que haja V1 anterior");
  assert.equal(state.data.orders.length,0,"V1 nao deve ser importado");
+ assert.equal(ctx.window.POTE_ACCOUNT_PROFILE?.uid,"u","Perfil pertence ao UID autenticado");
+ assert.equal(ctx.window.POTE_PROFILE_API.getCurrent().displayName,"Canário F05");
+ await ctx.window.POTE_PROFILE_API.save({name:"Nome Editável"});
+ assert.equal(cloud.get("users/u").displayName,"Nome Editável","Nome salvo exclusivamente no documento do usuário");
+ assert.equal(cloud.get("users/u").photoURL,"https://images.example/canario.jpg","Edição de nome mantém foto atual");
  assert.equal(cloud.has("users/u/appState/v5"),true,"Conta V5 criada");
  assert.equal(cloud.get("users/u/appState/main").state.data.orders.length,1);
  auth.currentUser={uid:"new-user",email:"new@example.com"};
  await login(auth.currentUser);
  assert.equal(ctx.window.POTE_APP_READY,true);
  assert.equal(state.data.orders.length,0,"Uma conta nova deve iniciar sem pedidos");
+ assert.equal(ctx.window.POTE_ACCOUNT_PROFILE?.uid,"new-user","Não reutilizar UID do canário");
+ assert.equal(ctx.window.POTE_PROFILE_API.getCurrent().displayName,"Conta Separada","Nome da outra conta não pode ser herdado");
+ assert.equal(ctx.window.POTE_PROFILE_API.getCurrent().photoURL,"https://images.example/outra.jpg","Foto da outra conta não pode ser herdada");
+ assert.equal(ctx.window.POTE_AUTH.role,"free","Outra conta não herda a função ADM");
+ assert.equal(cloud.get("users/u").displayName,"Nome Editável","Troca de conta não altera perfil anterior");
  assert(cloud.has("users/new-user/appState/v5"));
  assert.deepEqual(cloud.get("users/u/appState/main").state.data.orders,[{id:"old-test-order"}],"Legacy data must be untouched");
  assert.equal(elements.get("poteAuthGate").hidden,true);
@@ -153,5 +166,16 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  assert.equal([...cloud.keys()].filter(x=>x.includes("/recordsV5/")).length,2);
  assert.equal(ctx.window.POTE_SYNC_GUARD.blocked,false);
  assert.equal(cloud.get("users/u/appState/main").state.data.orders[0].id,"old-test-order");
- console.log("PASS: login V5 integrado, conta nova vazia, gravação atômica e conta antiga preservada.");
+ auth.currentUser={uid:"master",email:"pixmcp@gmail.com",displayName:"Google ADM"};
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_AUTH.role,"admin","Só email Google mestre com claim assinada é ADM");
+ assert.equal(ctx.window.POTE_ACCOUNT_PROFILE.uid,"master");
+ assert.equal(ctx.window.POTE_ACCOUNT_PROFILE.displayName,"Administrador");
+ auth.currentUser={uid:"u",email:"test@example.com"};
+ await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_AUTH.role,"free","Após sair do ADM, canário não herda privilégios");
+ assert.equal(ctx.window.POTE_ACCOUNT_PROFILE.displayName,"Nome Editável");
+ assert.equal(ctx.window.POTE_ACCOUNT_PROFILE.photoURL,"https://images.example/canario.jpg");
+ assert.equal(cloud.get("users/master").displayName,"Administrador","Canário não contamina perfil ADM");
+ console.log("PASS: V5 sem estado cruzado; nome/foto isolados por UID; ADM apenas com claim.");
 })().catch(e=>{console.error(e);process.exitCode=1});
