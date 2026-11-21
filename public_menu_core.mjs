@@ -26,7 +26,7 @@ export function buildMenuCandidates(snapshot,{priceFor,allowed}={}){
 // O upload público de fotos exigirá consentimento e armazenamento autorizado.
 const ownImage=(src)=>{
   const value=text(src,800);
-  return /^\\.?\\/?assets\\/(?:generic|recipes)\\/[A-Za-z0-9_\\-.]+\\.(?:svg|webp|png|jpg|jpeg)$/i.test(value)
+  return /^\.?\/?assets\/(?:generic|recipes)\/[A-Za-z0-9_\-.]+\.(?:svg|webp|png|jpg|jpeg)$/i.test(value)
     ? publicImage(value,defaultImage):defaultImage;
 };
   const isAllowed=typeof allowed==="function"?allowed:()=>true;
