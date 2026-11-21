@@ -104,5 +104,5 @@ const business=read("business_setup.js");
 assert(business.includes("window.POTE_AUTH?.franchiseActive"));
 const html=read("public/index.html");
 assert(html.includes('franchise_sync.js?v=firebase-order-v5-20261120'));
-assert(html.includes('adm-franchise-20261115'));
+assert(html.includes('admin_console.css?v=moderation-20261121'), 'O painel administrativo deve carregar o CSS versionado da moderação');
 console.log("PASS: franquia com marca/fotos oficiais, novos sabores automáticos, custos e estoque exclusivos, revogação e auditoria ADM.");
