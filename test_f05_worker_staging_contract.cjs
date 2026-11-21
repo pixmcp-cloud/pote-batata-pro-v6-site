@@ -12,6 +12,15 @@ const integration=read("firebase_integration.js"),
 for(const file of ["workers/antifraud/wrangler.toml","workers/antifraud/wrangler.private.toml"])
  assert.match(read(file),/^ENABLE_WRITES\s*=\s*"false"/m,
   "Worker staging NUNCA ativa gravações sem revisão explícita");
+const qaWorker=read("workers/antifraud/src/qa_probe.mjs");
+const qaConfig=read("workers/antifraud/wrangler.qa.toml");
+assert.match(qaConfig,/name = "pote-batata-guard-qa"/);
+assert.match(qaConfig,/FIREBASE_PROJECT_ID = "pote-batata-qa-worker"/);
+assert.match(qaConfig,/ENABLE_WRITES = "false"/);
+assert.match(qaWorker,/env.FIREBASE_PROJECT_ID!==PROJECT/);
+assert.match(qaWorker,/env.ENABLE_WRITES!=="false"/);
+assert.match(qaWorker,/F05_QA_PROBE_TOKEN/);
+assert.doesNotMatch(qaWorker,/documents:commit/);
 assert.match(integration,/const CLOUD_WORKER_ACTIVE=false;/);
 assert.match(integration,/const F05_INVENTORY_WORKER_ACTIVE=false;/);
 assert.match(integration,/inventoryEndpoint:"https:\/\/pote-batata-guard-staging\.pixmcp\.workers\.dev"/);
