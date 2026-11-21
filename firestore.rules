@@ -483,17 +483,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Catálogos públicos criados sob ação explícita do próprio estabelecimento.
-    // Somente os campos comerciais são publicados: NUNCA estoque, custo, pedido
-    // histórico, pagamento, clientes, token Google ou dados privados da matriz.
+
+    // Publicacao voluntaria de cardapios comerciais. Nao expoe dados financeiros.
     match /publicMenus/{slug} {
       function safeMenuShape() {
-        return slug.matches('^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-)
+        return slug.matches('^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]$')
           && request.resource.data.keys().hasOnly([
             'schemaVersion','ownerUid','slug','published','title','subtitle',
             'businessType','color','items','updatedAt'
@@ -516,17 +510,13 @@ service cloud.firestore {
           && request.resource.data.businessType is string
           && request.resource.data.businessType.size() <= 32
           && request.resource.data.color is string
-          && request.resource.data.color.matches('^#[0-9a-fA-F]{6}    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-)
+          && request.resource.data.color.matches('^#[0-9a-fA-F]{6}$')
           && request.resource.data.items is list
           && request.resource.data.items.size() >= 1
           && request.resource.data.items.size() <= 60
           && request.resource.data.updatedAt == request.time;
       }
+      // Consulta inexistente nao revela dados, mas possibilita checar slug livre.
       allow get: if resource == null || resource.data.published == true
         || isOwner(resource.data.ownerUid) || isAdmin();
       allow list: if false;
