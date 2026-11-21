@@ -8,7 +8,6 @@ import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs
 import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
 import {planStockPurchase} from "./stock_purchase.mjs";
 import {planStockRecount} from "./stock_recount.mjs";
-import {verifyStagingCredential} from "./staging_credential_probe.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -346,8 +345,6 @@ export function createWorkerApp({
    if(req.method==="GET"&&route==="/health")
     return json({status:"ok",project:"pote-batata-pro",
      writesEnabled:env.ENABLE_WRITES==="true"},200,headers);
-   if(req.method==="POST"&&route==="/v1/internal/credential-probe")
-    return verifyStagingCredential(req,env,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
    try{
     // O SDK Firestore do navegador repete transações em conflito; o REST

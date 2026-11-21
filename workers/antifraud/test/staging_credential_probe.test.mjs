@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {verifyStagingCredential} from "../src/staging_credential_probe.mjs";
+import {createWorkerApp} from "../src/index.mjs";
 const base={FIREBASE_PROJECT_ID:"potobatata-b71f3",
  ENABLE_WRITES:"false",GCP_CLIENT_EMAIL:"pote-batata-f05-worker@potobatata-b71f3.iam.gserviceaccount.com",
  F05_STAGING_PROBE_TOKEN:"x".repeat(64)};
@@ -70,4 +71,17 @@ test("Staging IAM: falha Google fica opaca, sem token ou email no retorno",async
  });
  assert.equal(r.status,502);
  assert(!JSON.stringify(await r.json()).includes("SECRET"));
+});
+
+test("F05 staging: diagnóstico de credencial fica indisponível após homologação",async()=>{
+ const app=createWorkerApp({
+  verify:async()=>{throw Error("never verify for removed route")},
+  repository:()=>{throw Error("never query Firestore for removed route")}
+ });
+ const response=await app.fetch(new Request(
+  "https://staging.example/v1/internal/credential-probe",{
+   method:"POST",headers:{"X-F05-Staging-Probe-Token":"x".repeat(64)}
+  }),{...base,ALLOWED_ORIGINS:"",ENABLE_WRITES:"false"});
+ assert.equal(response.status,404);
+ assert.deepEqual(await response.json(),{error:"not_found"});
 });
