@@ -24,7 +24,9 @@ test('F05 full canary: legacy → admin activation → server-only → rollback 
    const db=ctx.firestore();
    for(const uid of [UID,OTHER]){
     const base='users/'+uid;
+    // O mesmo nome público em contas diferentes nunca pode conceder acesso por si só.
     await sdk.setDoc(sdk.doc(db,base),{email:uid+'@example.test',
+     displayName:'Potê Batata — Laboratório F05',
      license:{status:'active',kind:'lifetime',term:'lifetime'},
      accessPolicy:{workerAuthoritative:false}});
     await sdk.setDoc(sdk.doc(db,base+'/appState/v5'),{schemaVersion:5,
