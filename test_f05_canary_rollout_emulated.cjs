@@ -83,10 +83,14 @@ test('F05 full canary: legacy → admin activation → server-only → rollback 
    }),{...config,...opts});
    return {status:res.status,body:await res.json()};
   };
-  const readStock=async(uid)=>emulator.withSecurityRulesDisabled(async ctx=>
-   (await sdk.getDoc(sdk.doc(ctx.firestore(),path(uid,'ingredients','batata')))).data().record.item.stock);
-  const readRev=async(uid)=>emulator.withSecurityRulesDisabled(async ctx=>
-   (await sdk.getDoc(sdk.doc(ctx.firestore(),'users/'+uid+'/appState/v5InventoryGuard'))).data().revision);
+  const readStock=async(uid)=>{
+   const db=uid===UID?browser:legacy;
+   return (await sdk.getDoc(sdk.doc(db,path(uid,'ingredients','batata')))).data().record.item.stock;
+  };
+  const readRev=async(uid)=>{
+   const db=uid===UID?browser:legacy;
+   return (await sdk.getDoc(sdk.doc(db,'users/'+uid+'/appState/v5InventoryGuard'))).data().revision;
+  };
 
   // BEFORE: official V5 browser operations allowed; Worker still refuses
   // even with a matching canary UID secret, because admin flag is false.
