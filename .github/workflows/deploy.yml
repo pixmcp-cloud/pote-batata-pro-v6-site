@@ -13,6 +13,10 @@ jobs:
       - name: Preparar demonstracao e beta Firebase
         run: |
           mkdir -p public
+          cp -R cardapio public/cardapio
+          node --check public/cardapio/cardapio.js
+          node --check public/cardapio/cardapio-core.mjs
+          node test_cardapio_core.mjs
           cp source/pote_app_base.html public/index.html
           cp firebase-bridge.html public/firebase-bridge.html
           python3 sanitize_public.py public/index.html
@@ -360,6 +364,7 @@ jobs:
           node qa/mobile/test_franchise_mobile.cjs
           node test_hardening_mobile_browser.cjs
           node test_calc_shopping_browser.cjs
+          node test_cardapio_browser.cjs
           node test_pdv_auto_sale_browser.cjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
