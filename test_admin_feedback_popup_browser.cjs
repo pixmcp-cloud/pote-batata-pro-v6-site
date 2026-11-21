@@ -44,6 +44,8 @@ const controller=js.slice(a,b);
     const sc=document.querySelector(".pote-adm-scroll");sc.scrollTop=sc.scrollHeight;
     window.testPopup.status("Nome e proteção da conta atualizados. Histórico de moderação registrado.",false,true);
    });
+   // A animação premium entra com deslocamento de 12px: medir após ela terminar.
+   await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,240)));
    const loc=await page.evaluate(()=>{
     const popup=document.querySelector(".pote-adm-action-card");
     const r=popup.getBoundingClientRect();
