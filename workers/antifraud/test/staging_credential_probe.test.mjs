@@ -17,6 +17,15 @@ test("Staging IAM: segredo ausente, truncado ou adulterado não chama Google",as
   {...base,F05_STAGING_PROBE_TOKEN:""},{},deps)).status,403);
  assert.equal(calls,0);
 });
+test("Staging IAM: quebra de linha do stdin Wrangler não altera segredo",async()=>{
+ let calls=0;
+ const r=await verifyStagingCredential(req(base.F05_STAGING_PROBE_TOKEN),
+  {...base,F05_STAGING_PROBE_TOKEN:base.F05_STAGING_PROBE_TOKEN+"\\r\\n"},{
+  },{token:async()=>{calls++;return "test_token".repeat(5)},
+   requestFetch:async()=>new Response("{}",{status:200})});
+ assert.equal(r.status,200);
+ assert.equal(calls,1);
+});
 test("Staging IAM: recusar qualquer ambiente com gravação habilitada",async()=>{
  for(const config of [
   {...base,ENABLE_WRITES:"true"},
