@@ -328,6 +328,7 @@ jobs:
           node test_operations_type.js
           node --check public/license_terms.mjs
           node --input-type=module --check < public/admin_console.js
+          node test_admin_profile_moderation.cjs
           node test_admin_licenses.mjs
           node test_manual_receipt.mjs
           node test_admin_claim_contract.mjs

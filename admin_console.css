@@ -53,6 +53,22 @@ html.pote-admin-open{overflow:hidden}
 .pote-adm-selected small{display:block;color:#bdcddd;margin:5px 0 8px;font-size:11px}
 .pote-adm-selected span{color:#f4ce9a;font-size:11px}
 .pote-adm-label{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#f1dec4}
+.pote-adm-moderation{border:1px solid #b18e638c;border-radius:14px;background:linear-gradient(160deg,#1a2a3c,#1a2230);
+ padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.pote-adm-moderation h4{margin:0;color:#f8dcac;font-size:14px}
+.pote-adm-moderation p{color:#bdcee0;font-size:11px;line-height:1.5;margin:0}
+.pote-adm-moderation .pote-adm-label input,.pote-adm-moderation .pote-adm-label select{
+ width:100%;min-height:44px;box-sizing:border-box;background:#101e2e;color:#f8f1e8;border:1px solid #94aac178;
+ border-radius:10px;padding:10px 12px;font:inherit;font-size:13px}
+.pote-adm-moderation-check{display:flex;gap:9px;align-items:flex-start;color:#ffddad;font-size:12px;line-height:1.45}
+.pote-adm-moderation-check input{width:19px;height:19px;flex:none;accent-color:#e1ba76}
+#poteAdmModerationSave{min-height:45px;border:1px solid #e3c58d;border-radius:11px;
+ background:linear-gradient(145deg,#f2d59d,#b79050);font-weight:800;color:#1a1c23;cursor:pointer}
+#poteAdmModerationSave:disabled{opacity:.45;cursor:not-allowed}
+#poteAdmProfileAudit{display:grid;gap:6px;max-height:250px;overflow:auto}
+#poteAdmProfileAudit .pote-adm-event{grid-template-columns:115px minmax(110px,1fr) minmax(170px,1.5fr) minmax(110px,1fr)}
+@media(max-width:700px){#poteAdmProfileAudit .pote-adm-event{grid-template-columns:1fr;gap:4px}}
+
 .pote-adm-preview{font-size:11px;color:#b8cee3;min-height:32px;line-height:1.45;margin:11px 0}
 .pote-adm-payment{display:flex;flex-direction:column;gap:11px;margin:11px 0 16px;padding:13px;border:1px solid #d4aa7066;border-radius:12px;background:#131f2e}
 .pote-adm-payment[hidden]{display:none!important}

@@ -82,7 +82,8 @@ function publishAccountProfile(user,documentData){
  const profile={
   uid:user.uid,
   displayName:String(documentData?.displayName||user.displayName||"").slice(0,65),
-  photoURL:String(documentData?.photoURL||user.photoURL||"")
+  photoURL:String(documentData?.photoURL||user.photoURL||""),
+  nameLocked:Boolean(documentData?.nameLocked)
  };
  window.POTE_ACCOUNT_PROFILE=profile;
  window.dispatchEvent(new CustomEvent("pote:profile-updated",{detail:{uid:user.uid,profile}}));
@@ -95,7 +96,13 @@ window.POTE_PROFILE_API={
    throw Error("A sessão mudou. Entre novamente na sua conta antes de editar o perfil.");
   const displayName=String(name||"").trim();
   if(!displayName||displayName.length>65)throw Error("Informe um nome de exibição de até 65 caracteres.");
-  const changes={displayName,updatedAt:serverTimestamp()};
+  const locked=Boolean(window.POTE_ACCOUNT_PROFILE?.nameLocked)&&window.POTE_AUTH?.role!=="admin";
+  if(locked&&displayName!==window.POTE_ACCOUNT_PROFILE?.displayName)
+   throw Error("O administrador bloqueou a edição do nome nesta conta.");
+  if(locked&&photoData===undefined)
+   throw Error("O nome está protegido pelo administrador. Apenas a foto pode ser alterada.");
+  const changes={updatedAt:serverTimestamp()};
+  if(!locked)changes.displayName=displayName;
   if(photoData!==undefined){
    if(typeof photoData!=="string"||
     !(photoData.startsWith("https://")||/^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(photoData))||

@@ -1,6 +1,6 @@
 import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import {getFirestore,collection,doc,getDocs,getDoc,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit,where,startAfter} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {getFirestore,collection,doc,getDocs,getDoc,runTransaction,writeBatch,serverTimestamp,Timestamp,query,orderBy,limit,where,startAfter} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {LICENSE_TERMS,resolveLicense,expiryForTerm,dateBR,epochMillis,licenseCountdown} from "./license_terms.mjs?v=plans-20261115-years";
 import {computeFranchiseFinances} from "./franchise_financial_report.mjs?v=finance-brazil-20261118";
 import {manualLicensePayment} from "./manual_receipt.mjs?v=pilot-10-20261118";
@@ -12,13 +12,31 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const $=id=>document.getElementById(id);
 const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="poteAdmTitle">
   <section class="pote-adm-shell">
-   <header class="pote-adm-head"><div><small>CONTROLE EXCLUSIVO • CONTA MESTRE</small><h2 id="poteAdmTitle">Central Administrativa</h2><p>Cadastros Google, licenças, prazos e histórico de concessões.</p></div><button id="poteAdmClose" aria-label="Fechar administração" type="button">✕</button></header>
+   <header class="pote-adm-head"><div><small>CONTROLE EXCLUSIVO • CONTA MESTRE</small><h2 id="poteAdmTitle">Central Administrativa</h2><p>Cadastros Google, moderação de nomes, licenças e histórico de alterações.</p></div><button id="poteAdmClose" aria-label="Fechar administração" type="button">✕</button></header>
    <div class="pote-adm-scroll">
     <div class="pote-adm-stats" id="poteAdmStats" aria-live="polite"></div>
     <div class="pote-adm-toolbar"><input id="poteAdmSearch" type="search" placeholder="Buscar por e-mail, nome ou UID..." aria-label="Buscar usuários"><select id="poteAdmFilter" aria-label="Filtrar por plano"><option value="all">Todos os cadastros</option><option value="free">Somente FREE</option><option value="trial">Testes ativos</option><option value="pro">PRO ativos</option><option value="lifetime">Vitalícios</option><option value="franchise">Franquias</option><option value="expired">Vencidos</option></select><button id="poteAdmReload" type="button">Atualizar lista</button></div>
     <div class="pote-adm-columns">
      <section class="pote-adm-list"><div class="pote-adm-section-head"><h3>Contas cadastradas</h3><span id="poteAdmFound"></span></div><div id="poteAdmUsers" class="pote-adm-users" role="listbox" aria-label="Selecione uma conta"></div></section>
-     <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div><div id="poteAdmCountdown" class="pote-adm-countdown" data-state="free"><small id="poteAdmCountdownLabel">TEMPO PARA VOLTAR AO FREE</small><strong id="poteAdmCountdownTime" role="timer">--a --d --h --m --s</strong><span id="poteAdmCountdownHint">Selecione uma conta com licença ativa.</span></div>
+     <section class="pote-adm-editor"><h3>Promover ou renovar</h3><div id="poteAdmSelected" class="pote-adm-selected">Selecione uma conta na lista.</div>
+      <section class="pote-adm-moderation" aria-labelledby="poteAdmModerationTitle">
+       <h4 id="poteAdmModerationTitle">Moderação do nome público</h4>
+       <p>O ADM pode corrigir o nome exibido no PDV de qualquer conta. Isso não altera o nome Google nem o e-mail.</p>
+       <label class="pote-adm-label">Nome exibido no aplicativo
+        <input id="poteAdmModerationName" type="text" maxlength="65" autocomplete="off" placeholder="Selecione um cadastro" disabled>
+       </label>
+       <label class="pote-adm-moderation-check"><input id="poteAdmNameLocked" type="checkbox" disabled> Bloquear alteração do nome pelo titular</label>
+       <label class="pote-adm-label">Motivo da moderação
+        <select id="poteAdmModerationReason" disabled>
+         <option value="nome_improprio">Nome impróprio</option>
+         <option value="correcao">Correção administrativa</option>
+         <option value="solicitacao">Solicitação do titular</option>
+         <option value="seguranca">Segurança da conta</option>
+        </select>
+       </label>
+       <button id="poteAdmModerationSave" type="button" disabled>Salvar nome e proteção</button>
+      </section>
+      <div id="poteAdmCountdown" class="pote-adm-countdown" data-state="free"><small id="poteAdmCountdownLabel">TEMPO PARA VOLTAR AO FREE</small><strong id="poteAdmCountdownTime" role="timer">--a --d --h --m --s</strong><span id="poteAdmCountdownHint">Selecione uma conta com licença ativa.</span></div>
       <label class="pote-adm-label">Licença e duração<select id="poteAdmTerm" aria-label="Modalidade da licença">${LICENSE_TERMS.map(x=>`<option value="${x.id}">${esc(x.label)}</option>`).join("")}</select></label>
       <p id="poteAdmPreview" class="pote-adm-preview"></p>
       <section id="poteAdmPaymentPanel" class="pote-adm-payment" hidden>
@@ -61,6 +79,7 @@ const markup=`<div id="poteAdmOverlay" hidden role="dialog" aria-modal="true" ar
       <div id="poteAdmFeedback" role="status" aria-live="polite"></div>
      </section>
     </div>
+    <section class="pote-adm-audit"><div class="pote-adm-section-head"><h3>Histórico de nomes moderados</h3><button id="poteAdmProfileAuditReload" type="button">Recarregar</button></div><div id="poteAdmProfileAudit"></div></section>
     <section class="pote-adm-audit"><div class="pote-adm-section-head"><h3>Histórico de franquias</h3><button id="poteAdmFranchiseAuditReload" type="button">Recarregar</button></div><div id="poteAdmFranchiseAudit"></div></section>
     <section class="pote-adm-audit"><div class="pote-adm-section-head"><h3>Histórico de alterações</h3><button id="poteAdmAuditReload" type="button">Recarregar</button></div><div id="poteAdmAudit"></div></section>
    </div>
@@ -70,6 +89,7 @@ document.body.insertAdjacentHTML("beforeend",markup);
 const overlay=$("poteAdmOverlay");
 const today=()=>Date.now();
 let entries=[],selection=null,busy=false,loading=false,clockTimer=null,previousClockState=null;
+let moderationSelectionUid=null;
 let financialDays=7,financialUid=null,financialVersion=0,financialRecords=null;
 const current=()=>entries.find(x=>x.uid===selection);
 const expires=v=>{if(!v)return "Sem vencimento";return dateBR(v)};
@@ -85,6 +105,14 @@ function selectionReady(){
  $("poteAdmSelected").innerHTML=user?
   `<strong>${esc(user.displayName||user.email||"Sem nome")}</strong><small>${esc(user.email||user.uid)}</small><span>${esc(isFranchise?"FRANQUIA POTÊ BATATA":resolveLicense(user.license,today()).label)} · ${esc(user.license?.term||"free")}</span>`:
   "Selecione uma conta na lista.";
+ if(moderationSelectionUid!==user?.uid){
+  moderationSelectionUid=user?.uid||null;
+  $("poteAdmModerationName").value=user?.displayName||"";
+  $("poteAdmNameLocked").checked=Boolean(user?.nameLocked);
+  $("poteAdmModerationReason").value="nome_improprio";
+ }
+ for(const id of ["poteAdmModerationName","poteAdmNameLocked","poteAdmModerationReason","poteAdmModerationSave"])
+  $(id).disabled=!user||busy;
  preview();
  refreshCountdown();
  window.POTE_ADMIN_PERMISSIONS?.renderAccount?.(user);
@@ -172,12 +200,13 @@ async function assertAdmin(){
  if(token.claims.email_verified!==true||token.signInProvider!=="google.com"||token.claims.potebatataAdmin!==true)throw Error("Conta Google ou autorização administrativa não verificada");
  return user;
 }
-function setBusy(v){busy=v;selectionReady();$("poteAdmReload").disabled=v;$("poteAdmAuditReload").disabled=v;$("poteAdmFranchiseAuditReload").disabled=v;}
+function setBusy(v){busy=v;selectionReady();$("poteAdmReload").disabled=v;$("poteAdmAuditReload").disabled=v;$("poteAdmFranchiseAuditReload").disabled=v;$("poteAdmProfileAuditReload").disabled=v;}
 async function loadUsers(){
  if(loading)return;loading=true;status("Consultando cadastros...");$("poteAdmUsers").innerHTML='<p class="pote-adm-empty">Carregando contas do Firestore...</p>';
  try{
-  await assertAdmin();
+  const actor=await assertAdmin();
   const records=await getDocs(collection(db,"users"));
+  if(auth.currentUser?.uid!==actor.uid)throw Error("A sessão administrativa mudou");
   entries=records.docs.map(d=>({uid:d.id,...d.data()})).sort((a,b)=>(epochMillis(b.createdAt)||0)-(epochMillis(a.createdAt)||0));
   if(selection&&!entries.some(x=>x.uid===selection))selection=null;
   render();status("Lista atualizada. Exibindo cadastros que já acessaram o Firebase.");
@@ -196,6 +225,73 @@ async function loadAudit(){
    a.paymentMethod==="courtesy"?" · Cortesia (R$ 0,00) · "+String(a.paymentReference||""):
    " · Pagamento não informado no histórico anterior";return `<div class="pote-adm-event"><span>${esc(fmtDate(a.at))}</span><strong>${esc(a.targetEmail||a.targetUid)}</strong><span>${esc(a.fromTerm||"free")} → ${esc(a.toTerm||"free")}</span><small>${esc(a.action||"alteração")}${esc(receipt)}</small></div>`}).join("");
  }catch(e){$("poteAdmAudit").textContent="Histórico indisponível: "+(e.code||e.message)}
+}
+async function loadProfileAudit(){
+ $("poteAdmProfileAudit").textContent="Carregando histórico de moderação...";
+ try{
+  const actor=await assertAdmin();
+  const records=await getDocs(query(collection(db,"profileAudit"),orderBy("at","desc"),limit(30)));
+  if(auth.currentUser?.uid!==actor.uid)return;
+  const labels={nome_improprio:"Nome impróprio",correcao:"Correção administrativa",solicitacao:"Solicitação do titular",seguranca:"Segurança"};
+  $("poteAdmProfileAudit").innerHTML=records.empty?'<p class="pote-adm-empty">Nenhuma moderação registrada.</p>':
+   records.docs.map(d=>{
+    const a=d.data();
+    const before=String(a.fromName||"(sem nome)"),after=String(a.toName||"(sem nome)");
+    const edit=before===after?"Proteção do nome":"Nome corrigido";
+    return '<div class="pote-adm-event"><span>'+esc(fmtDate(a.at))+'</span><strong>'+
+     esc(a.targetEmail||a.targetUid)+'</strong><span>'+esc(edit+": "+before+" → "+after)+
+     '</span><small>'+esc((labels[a.reason]||"Moderação")+" · "+(a.toLocked?"Bloqueado":"Editável")+
+     " · ADM: "+String(a.actorEmail||""))+'</small></div>';
+   }).join("");
+ }catch(e){$("poteAdmProfileAudit").textContent="Histórico de moderação indisponível: "+(e.code||e.message)}
+}
+
+function validModeratedName(value){
+ const name=String(value??"").normalize("NFKC").replace(/\s+/g," ").trim();
+ if(name.length<2||name.length>65||/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/u.test(name))
+  throw Error("Use um nome legível, entre 2 e 65 caracteres, sem caracteres ocultos.");
+ return name;
+}
+async function changeProfileModeration(){
+ const selected=current();
+ if(!selected||busy)return;
+ const uid=selected.uid,name=validModeratedName($("poteAdmModerationName").value);
+ const locked=Boolean($("poteAdmNameLocked").checked),reason=$("poteAdmModerationReason").value;
+ if(!["nome_improprio","correcao","solicitacao","seguranca"].includes(reason))throw Error("Motivo de moderação inválido");
+ if(name===(selected.displayName||"")&&locked===Boolean(selected.nameLocked)){
+  status("Nenhuma alteração foi necessária.");return;
+ }
+ if(!confirm("Alterar o nome da conta "+(selected.email||uid)+" para \""+name+"\"? "+
+   (locked?"O titular NÃO poderá modificar o nome até o ADM desbloquear.":"O titular poderá alterar o nome depois.")+
+   " A alteração ficará registrada no histórico."))return;
+ setBusy(true);status("Validando a identidade do ADM e registrando a moderação...");
+ try{
+  const actor=await assertAdmin();
+  if(!auth.currentUser||auth.currentUser.uid!==actor.uid||selection!==uid||overlay.hidden)
+   throw Error("Sessão ou cadastro mudou durante a moderação");
+  const ref=doc(db,"users",uid),event=doc(collection(db,"profileAudit"));
+  await runTransaction(db,async transaction=>{
+   if(auth.currentUser?.uid!==actor.uid||selection!==uid||overlay.hidden)
+    throw Error("Sessão/cadastro alterado. Moderação interrompida");
+   const latest=await transaction.get(ref);
+   if(!latest.exists())throw Error("Cadastro não encontrado");
+   const before=latest.data();
+   if(String(before.displayName||"")!==String(selected.displayName||"")||
+      Boolean(before.nameLocked)!==Boolean(selected.nameLocked))
+    throw Error("Perfil alterado desde a consulta. Atualize a lista antes de salvar.");
+   const at=serverTimestamp();
+   transaction.update(ref,{displayName:name,nameLocked:locked,updatedAt:at});
+   transaction.set(event,{action:"moderate_name",at,actorUid:actor.uid,actorEmail:actor.email,
+    targetUid:uid,targetEmail:before.email||selected.email||"",
+    fromName:String(before.displayName||""),toName:name,fromLocked:Boolean(before.nameLocked),
+    toLocked:locked,reason});
+  });
+  if(auth.currentUser?.uid!==actor.uid)return;
+  moderationSelectionUid=null;
+  await Promise.all([loadUsers(),loadProfileAudit()]);
+  status("Nome e proteção da conta atualizados. Histórico de moderação registrado.");
+ }catch(e){status("Moderação não concluída: "+(e.code||e.message),true)}
+ finally{setBusy(false)}
 }
 async function changeLicense(revoke=false){
  const u=current();if(!u||u.uid===auth.currentUser?.uid)return;
@@ -387,7 +483,7 @@ async function open(){
  document.documentElement.classList.add("pote-admin-open");
  $("poteAdmSearch").value="";
  $("poteAdmFilter").value="all";
- await Promise.all([loadUsers(),loadAudit(),loadFranchiseAudit()]);
+ await Promise.all([loadUsers(),loadAudit(),loadFranchiseAudit(),loadProfileAudit()]);
  if(clockTimer!==null)clearInterval(clockTimer);
  clockTimer=setInterval(()=>{if(!overlay.hidden)refreshCountdown()},1000);
  refreshCountdown();
@@ -405,6 +501,8 @@ overlay.addEventListener("click",e=>{if(e.target===overlay)close()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!overlay.hidden)close()});
 $("poteAdmReload").addEventListener("click",loadUsers);
 $("poteAdmAuditReload").addEventListener("click",loadAudit);
+$("poteAdmProfileAuditReload").addEventListener("click",loadProfileAudit);
+$("poteAdmModerationSave").addEventListener("click",()=>changeProfileModeration().catch(e=>status(e.message||String(e),true)));
  $("poteAdmFranchiseAuditReload").addEventListener("click",loadFranchiseAudit);
  $("poteAdmFranchiseReport").addEventListener("click",openFranchiseFinance);
  $("poteAdmFinancialClose").addEventListener("click",closeFranchiseFinance);
@@ -426,4 +524,5 @@ $("poteAdmPaymentMode").addEventListener("change",()=>{
 });
 $("poteAdmGrant").addEventListener("click",()=>changeLicense(false));
 $("poteAdmRevoke").addEventListener("click",()=>changeLicense(true));
+window.addEventListener("pote:user-logout",()=>{close();entries=[];selection=null;moderationSelectionUid=null;});
 window.POTE_ADMIN={open};
