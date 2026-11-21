@@ -101,6 +101,14 @@ function openProduct(p){
   $("productTitle").textContent=p.title;
   $("productCategory").textContent=p.category.toUpperCase();
   $("productDescription").textContent=p.description;
+  $("productFactCategory").textContent=p.category;
+  $("productFactFormat").textContent=({
+    Salgados:"Pote salgado — referência de 500 g",
+    Doces:"Pote doce — referência de 250 g",
+    Bebidas:"Embalagem e volume a confirmar",
+    Combos:"Composição sujeita à configuração da loja"
+  })[p.category] || "A confirmar pela loja";
+  $("productFacts").open=false;
   $("productNote").value="";
   $("addonList").replaceChildren();
   $("addonFieldset").hidden=!p.addons.length;
