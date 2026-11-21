@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#100e0c">
+  <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
+  <title>Potê Batata • Cardápio Digital (Prévia)</title>
+  <link rel="stylesheet" href="./cardapio.css">
+  <script type="module" src="./cardapio.js"></script>
+</head>
+<body>
+  <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#inicio" aria-label="Potê Batata, início do cardápio">
+        <span class="brand-mark"><img src="../assets/pote-logo-original.jpg" alt="" loading="eager" onerror="this.hidden=true"></span>
+        <span class="brand-text"><strong>POTÊ BATATA</strong><small>BATATA RECHEADA NO POTE</small></span>
+      </a>
+      <div class="header-actions">
+        <span class="store-status"><i aria-hidden="true"></i> Loja demonstrativa</span>
+        <button type="button" class="icon-button" id="shareBtn" aria-label="Compartilhar cardápio" title="Compartilhar cardápio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.82-4M8 13a3 3 0 1 0-2.82-4M18 22a3 3 0 1 0-2.82-4M8 11l8-5M8 14l8 5"/></svg>
+        </button>
+        <button type="button" class="icon-button cart-top" id="cartTopBtn" aria-label="Abrir sacola de compras">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8ZM9 9V6a3 3 0 0 1 6 0v3"/></svg>
+          <span id="cartCount" class="cart-count" hidden>0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <section class="hero" aria-labelledby="heroTitle">
+      <div class="hero-content">
+        <span class="eyebrow"><span class="sparkle">✦</span> UMA EXPERIÊNCIA GOURMET</span>
+        <h1 id="heroTitle">Sabor que<br><em>surpreende.</em></h1>
+        <p>Seu momento favorito começa aqui. Escolha, personalize e prepare-se para se apaixonar por cada colherada.</p>
+        <div class="hero-actions">
+          <a href="#cardapio" class="button button-gold">Explorar cardápio <span aria-hidden="true">↗</span></a>
+          <span class="hero-trust">Feito com carinho, servido com sabor.</span>
+        </div>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="halo"></div>
+        <img src="../assets/generic/business-batataria.svg" alt="" class="hero-plate">
+        <span class="hero-stamp"><b>100%</b><small>FEITO COM<br>CARINHO</small></span>
+      </div>
+      <div class="hero-glow" aria-hidden="true"></div>
+    </section>
+
+    <section class="benefits" aria-label="Informações do cardápio">
+      <div><span class="benefit-icon">✳</span><span><strong>Escolha seu sabor</strong><small>Do clássico ao surpreendente</small></span></div>
+      <div><span class="benefit-icon">✦</span><span><strong>Monte do seu jeito</strong><small>Adicionais e personalização</small></span></div>
+      <div><span class="benefit-icon">♡</span><span><strong>Experiência especial</strong><small>Feita para você</small></span></div>
+    </section>
+
+    <section class="menu-section" id="cardapio" aria-labelledby="menuTitle">
+      <div class="section-intro">
+        <div><span class="eyebrow">ESCOLHAS IRRESISTÍVEIS</span><h2 id="menuTitle">Nosso <em>cardápio.</em></h2><p>Uma seleção especial para matar aquela vontade.</p></div>
+        <label class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+          <span class="sr-only">Buscar produtos</span><input type="search" id="searchInput" placeholder="Buscar um sabor..." autocomplete="off">
+        </label>
+      </div>
+      <div class="categories" id="categoryTabs" role="group" aria-label="Filtrar categorias"></div>
+      <div class="menu-grid" id="menuGrid" aria-live="polite"></div>
+      <p class="empty-state" id="emptyState" hidden>Nenhum produto encontrado. Experimente outro termo ou categoria.</p>
+    </section>
+    <section class="brand-quote" aria-label="Sobre a marca">
+      <span class="eyebrow">O NOSSO SEGREDO</span>
+      <h2>Um potê, infinitas<br><em>razões para sorrir.</em></h2>
+      <p>Mais que uma refeição, um momento para saborear.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer"><strong>POTÊ BATATA</strong><span>Uma colherada de felicidade.</span><small>Layout demonstrativo do Cardápio Digital Potê Batata Pro.</small></footer>
+
+  <button class="cart-floating" type="button" id="floatingCart" hidden><span><b id="floatingQty">0 itens</b><small>Ver minha sacola</small></span><strong id="floatingTotal">R$ 0,00</strong><span aria-hidden="true">→</span></button>
+
+  <dialog id="productDialog" class="app-dialog product-dialog" aria-labelledby="productTitle">
+    <div class="dialog-scroll">
+      <button type="button" class="dialog-close" id="closeProduct" aria-label="Fechar detalhes">×</button>
+      <div class="product-dialog-media"><img id="productImage" alt=""></div>
+      <div class="product-dialog-body">
+        <span class="eyebrow" id="productCategory"></span>
+        <h2 id="productTitle"></h2>
+        <p id="productDescription"></p>
+        <details class="product-facts" id="productFacts">
+          <summary>Ficha do produto <span>Ver detalhes e cuidados</span></summary>
+          <dl>
+            <div><dt>Categoria</dt><dd id="productFactCategory"></dd></div>
+            <div><dt>Apresentação</dt><dd id="productFactFormat"></dd></div>
+            <div><dt>Ingredientes e alergênicos</dt><dd>A confirmar com o estabelecimento</dd></div>
+          </dl>
+          <p>Ficha ilustrativa da prévia. As informações completas devem ser publicadas pela loja antes de aceitar pedidos reais.</p>
+        </details>
+        <fieldset id="addonFieldset" class="addons"><legend>Deixe ainda melhor</legend><div id="addonList"></div></fieldset>
+        <label class="note-field">Alguma observação?<textarea id="productNote" rows="2" maxlength="220" placeholder="Ex.: sem cebola"></textarea></label>
+        <div class="dialog-bottom">
+          <div class="qty-counter" aria-label="Quantidade"><button id="qtyMinus" type="button" aria-label="Diminuir quantidade">−</button><output id="productQty" aria-live="polite">1</output><button id="qtyPlus" type="button" aria-label="Aumentar quantidade">+</button></div>
+          <button id="addToCart" class="button button-gold" type="button">Adicionar <span id="addPrice"></span></button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="cartDialog" class="app-dialog cart-dialog" aria-labelledby="cartTitle">
+    <div class="cart-shell">
+      <div class="cart-head"><div><span class="eyebrow">SEU PEDIDO</span><h2 id="cartTitle">Minha sacola</h2></div><button type="button" id="closeCart" class="dialog-close" aria-label="Fechar sacola">×</button></div>
+      <div class="cart-items" id="cartItems"></div>
+      <div class="checkout-box">
+        <fieldset class="delivery-choice"><legend>Como prefere receber?</legend>
+          <label><input type="radio" name="fulfillment" value="retirada" checked> Retirada</label>
+          <label><input type="radio" name="fulfillment" value="entrega"> Entrega</label>
+        </fieldset>
+        <div class="form-grid">
+          <label>Seu nome <input id="customerName" autocomplete="name" placeholder="Como podemos chamar você?" maxlength="80"></label>
+          <label>Celular <input id="customerPhone" autocomplete="tel" type="tel" inputmode="tel" placeholder="(00) 00000-0000" maxlength="20"></label>
+        </div>
+        <label id="addressLabel" class="address-field" hidden>Endereço para entrega <input id="customerAddress" autocomplete="street-address" placeholder="Rua, número, bairro e referência" maxlength="220"></label>
+        <label>Forma de pagamento (simulação)
+          <select id="paymentMethod"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select>
+        </label>
+        <div class="cart-totals"><div><span>Subtotal</span><strong id="subtotal">R$ 0,00</strong></div><div><span>Entrega</span><span id="deliveryFee">A definir na loja</span></div><div class="grand-total"><span>Total dos produtos</span><strong id="total">R$ 0,00</strong></div></div>
+        <p class="demo-warning">Esta é uma prévia interativa. Nenhum pagamento será cobrado e nenhum pedido será registrado no PDV.</p>
+        <button type="button" class="button button-gold checkout-button" id="copyOrder">Copiar resumo demonstrativo</button>
+        <button type="button" class="button button-quiet" id="keepShopping">Continuar escolhendo</button>
+      </div>
+    </div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
