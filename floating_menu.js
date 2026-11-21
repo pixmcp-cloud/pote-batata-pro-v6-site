@@ -36,8 +36,13 @@ wrap.innerHTML=`
 </div>`;
 document.body.appendChild(wrap);
 const $=id=>document.getElementById(id);
-let opened=false,pendingPhoto=null;
-function profile(){return (typeof state!=="undefined"&&state.data?.profile)||{}}
+let opened=false,pendingPhoto=null,pendingPhotoUid=null,savingProfile=false;
+function profile(){
+ const uid=window.POTE_AUTH?.uid;
+ const p=window.POTE_ACCOUNT_PROFILE;
+ // Never read user identity from the mutable business-state snapshot.
+ return uid&&p?.uid===uid?{name:p.displayName||"",photoData:p.photoURL||""}:{};
+}
 function refresh(){
  const p=profile(),email=window.POTE_AUTH?.email||'';
  $('poteFloatName').textContent=p.name||'Meu perfil';
@@ -95,9 +100,11 @@ function setOpen(v){
  if(opened)refresh();
 }
 function showProfile(open){
+ if(open&&(!window.POTE_AUTH?.uid||!window.POTE_APP_READY))return;
  $('poteProfileOverlay').hidden=!open;
  if(open){
-  setOpen(false);pendingPhoto=null;const p=profile();
+  setOpen(false);pendingPhoto=null;pendingPhotoUid=window.POTE_AUTH.uid;
+  const p=profile();
   $('poteProfileName').value=p.name||'';
   $('poteProfilePreview').innerHTML=p.photoData?'<img src="'+safe(p.photoData)+'" alt="Foto atual">':avatar;
   $('poteProfileIdentity').textContent='Conta: '+(window.POTE_AUTH?.email||'Faça login para salvar o perfil');
@@ -126,6 +133,8 @@ $('poteProfileOverlay').addEventListener('click',e=>{if(e.target===$('poteProfil
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('poteProfileOverlay').hidden)showProfile(false);else if(opened)setOpen(false)}});
 $('poteProfilePhoto').addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
+ const uid=window.POTE_AUTH?.uid;
+ if(!uid||!window.POTE_APP_READY)return;
  if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>5*1024*1024){alert('Escolha uma imagem JPG, PNG ou WebP de até 5 MB.');return}
  try{
  const url=URL.createObjectURL(file);
@@ -136,24 +145,51 @@ $('poteProfilePhoto').addEventListener('change',async e=>{
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Editor de foto indisponível');
   const side=Math.min(img.naturalWidth,img.naturalHeight),sx=(img.naturalWidth-side)/2,sy=(img.naturalHeight-side)/2;
   ctx.drawImage(img,sx,sy,side,side,0,0,176,176);
+  if(uid!==window.POTE_AUTH?.uid||!window.POTE_APP_READY)return;
   pendingPhoto=canvas.toDataURL('image/jpeg',0.7);
-  $('poteProfilePreview').innerHTML='<img src="'+pendingPhoto+'" alt="Prévia da foto">';
+  pendingPhotoUid=uid;
+  $('poteProfilePreview').innerHTML='<img src="'+safe(pendingPhoto)+'" alt="Prévia da foto">';
  }finally{URL.revokeObjectURL(url)}
  }catch(err){alert('Não foi possível ler essa imagem. Escolha outra foto.')}
 });
-$('poteProfileForm').addEventListener('submit',e=>{
+$('poteProfileForm').addEventListener('submit',async e=>{
  e.preventDefault();
- if(!window.POTE_AUTH?.uid){alert('Entre com sua conta Google para salvar seu perfil.');return}
+ const uid=window.POTE_AUTH?.uid;
+ if(savingProfile)return;
+ if(!uid||!window.POTE_APP_READY||!window.POTE_PROFILE_API?.save){
+  alert('Entre com sua conta Google para salvar seu perfil.');return;
+ }
  const name=$('poteProfileName').value.trim();
  if(!name){$('poteProfileName').focus();return}
- const current=profile();
- state.data.profile={...current,name,photoData:pendingPhoto||current.photoData||''};
- if(typeof persist==='function')persist();
- window.dispatchEvent(new Event('pote:changed'));
- refresh();showProfile(false);
- if(typeof toast==='function')toast('Perfil atualizado na sua conta');
+ const photo=pendingPhotoUid===uid?pendingPhoto:null;
+ savingProfile=true;
+ $('poteProfileSave').disabled=true;
+ try{
+  await window.POTE_PROFILE_API.save(photo?{name,photoData:photo}:{name});
+  if(window.POTE_AUTH?.uid!==uid)return;
+  refresh();showProfile(false);
+  if(typeof toast==='function')toast('Perfil salvo na sua conta Google vinculada');
+ }catch(err){
+  if(window.POTE_AUTH?.uid===uid)alert('Não foi possível salvar o perfil: '+String(err?.message||err));
+ }finally{
+  savingProfile=false;
+  $('poteProfileSave').disabled=false;
+ }
 });
-window.addEventListener('pote:changed',refresh);
+window.addEventListener('pote:profile-updated',()=>{
+ refresh();
+ if(!$('poteProfileOverlay').hidden&&pendingPhotoUid!==window.POTE_AUTH?.uid)
+  showProfile(false);
+});
+window.addEventListener('pote:user-logout',()=>{
+ pendingPhoto=null;pendingPhotoUid=null;
+ showProfile(false);setOpen(false);
+ $('poteProfileName').value='';
+ $('poteProfilePreview').innerHTML=avatar;
+ $('poteProfileIdentity').textContent='';
+ refresh();refreshProfileLicense();
+});
+window.addEventListener('pote:user-ready',()=>{refresh();refreshProfileLicense()});
 window.addEventListener('pote:license-updated',e=>refreshProfileLicense(e.detail));
 const observer=new MutationObserver(()=>{if(!opened&&$('poteProfileOverlay').hidden)refresh()});
 const page=document.getElementById('page');if(page)observer.observe(page,{childList:true});
