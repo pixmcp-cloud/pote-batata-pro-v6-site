@@ -114,6 +114,15 @@ svg{width:22px;height:22px}
 .product-dialog-body{padding:26px 28px 28px}
 .product-dialog-body h2,.cart-head h2{font-family:"Playfair Display",Georgia,serif;font-size:33px;line-height:1.15;margin:10px 0}
 .product-dialog-body p{color:var(--muted);line-height:1.65;font-size:13px}
+.product-facts{border:1px solid #6d5234;border-radius:14px;background:#292117;margin-top:18px;padding:0 15px}
+.product-facts summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-weight:800;font-size:13px;color:var(--goldLight);padding:14px 0}
+.product-facts summary span{font-size:11px;font-weight:500;color:var(--muted)}
+.product-facts[open] summary{border-bottom:1px solid #55422c}
+.product-facts dl{margin:10px 0;display:grid;gap:9px}
+.product-facts dl div{display:flex;gap:15px;justify-content:space-between;font-size:12px}
+.product-facts dt{color:var(--muted)}
+.product-facts dd{margin:0;text-align:right;color:var(--cream);max-width:60%}
+.product-facts p{font-size:11px;line-height:1.5;color:#d8bf9b;margin:12px 0 14px}
 .addons{border:0;border-top:1px solid #4b3b29;padding:18px 0;margin:20px 0 0;min-width:0}
 .addons legend{font-weight:800;font-size:14px;padding:0 10px 0 0}
 .addon-option{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 0;border-bottom:1px solid #3e3327;color:#ead9c5;font-size:13px}
