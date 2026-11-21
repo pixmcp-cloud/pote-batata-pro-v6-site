@@ -865,3 +865,15 @@ O proprietário determinou executar a próxima etapa de integração de reservas
 - Preparado ZIP oficial para a Hostinger em `C:\\Users\\LIVRESOM\\Projects\\brasil-inflaveis-sites-import\\backups\\2026-11-21\\release-brasilinflaveis-consolidated-c4b10f4.zip`. SHA-256 `26F40C1052271FE75E32292C82256655B01EDD26B72E45C43E2B470F8797969D`.
 - **Domínio oficial Hostinger NÃO atualizado**: segue `index-CUs9GCTE.js`. Transferência FTPS bloqueada pela proteção de credenciais do conector; não contornar. Precisa publicação autorizada por canal autenticado seguro na raiz correta, backup anterior e validação online pós-upload.
 - Checkout, confirmação financeira e assinatura seguem desabilitados; nenhum serviço pago ativado. Detalhes locais: `RELEASE_CONSOLIDADO_20261121.md`.
+
+
+## 21/11/2026 — Contrato pré-preenchido automático e sinal personalizável (Brasil Infláveis)
+
+- Código principal Windows `sites-work-equipment-studio-20261120`, commit `cab9bf2` (implementação `1de91e7`). Backup e registro no documento `AUTO_CONTRATO_SINAL_20261121.md`.
+- Cliente monta sacola com data, horário, brinquedos, entrega e monitores e solicita os itens pendentes numa ação. Cada negociação gera um botão **Ver contrato pré-preenchido** imediato; rascunho autenticado sem novo cadastro e sem assinatura ou reserva.
+- Locador define sinal individual de 0% a 100% no cadastro do brinquedo e pode alterá-lo na proposta enviada. Sinal e saldo calculados em centavos no backend e exibidos no rascunho. Percentual capturado em cada pedido com a migração D1 aditiva `0025_quote_deposit_percentage.sql`.
+- QA: 54 integrações backend, 23 testes de regras, bateria `qa:autonomous` aprovada, navegador 390/1440 px com dois brinquedos/dois fornecedores em lote, e testes de depósito personalizado 45% aprovados. Nenhum cliente real usado na simulação.
+- Backup remoto D1 `backups/2026-11-21/d1-before-auto-contract-20261121.sql` e backup frontend `preview-assets-before-auto-contract-20261121.zip`, preservados antes da publicação.
+- Migração 0025 remota aplicada; prévia Cloudflare publicada, Worker `2e904862-d4ad-4e45-8ca6-832161fc6001`, JS `index-4HBRFini.js`. API comercial `writeApi=false`, `checkoutRequests=false`, `checkoutConfirmation=false`.
+- Pacote estático pronto para Hostinger: `backups/2026-11-21/release-brasilinflaveis-contrato-automatico-20261121.zip`, 31 arquivos, SHA256 `A05873DA0A1876D1A00EBFE84C5380D8741B7B5F8C3234A793ED57D97ECC9956`.
+- **Hostinger oficial ainda NÃO atualizado nesta etapa** (bundle observado `index-9uiMb0rW.js`); publicar somente com autenticação segura, backup online e validação pós-upload. Não habilitar pagamentos/assinaturas sem homologação.
