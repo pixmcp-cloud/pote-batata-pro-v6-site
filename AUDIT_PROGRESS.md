@@ -137,3 +137,21 @@ A versão **Gestão + PDV** introduz módulo de caixa visível em contas PRO, AD
 **Fiscal Santa Catarina**: o PDV **NÃO emite NFC-e/NF-e** e a comanda/recibo gerada indica expressamente que não é documento fiscal. A SEF/SC exige o credenciamento de fornecedor de PAF-NFC-e conforme Ato DIAT 54/2026. A [Nota Fiscal Fácil para MEI](https://www.sef.sc.gov.br/orientacoes/nff-nota-fiscal-facil-mei-microempreendedor-individual) é alternativa oficial sem mensalidade para MEI com IE em SC e Gov.br nível prata/ouro, quando elegível. Eventual integração com PAF credenciado ou adquirente dependerá de documentação, acesso autorizado, homologação e possíveis custos; não foi ativada.
 
 **Validação**: `test_pdv_cash_core.mjs`, `test_pdv_cash_ui.mjs` e `test_pdv_v2_storage.mjs` e teste manual automatizado no Chrome em ambiente isolado, além da suíte geral. Não foram testadas credenciais bancárias, emissão fiscal real, impressora física ou autenticação Google em dois caixas simultâneos.
+
+## 21/11/2026 — Cardápio Digital Premium V1 publicado no site oficial (prévia)
+
+**Status:** PUBLICADO COMO PRÉVIA DEMONSTRATIVA, sem vendas reais. Origem: PR #20 (branch `feat/cardapio-digital-premium-v1`), integrada à `main` no commit `eb3c6a06e2910022434a63139e24d8bf861dc41b`.
+
+- **URL oficial confirmada:** https://pdv.livresom.com/cardapio/
+- **URL GitHub Pages confirmada:** https://pixmcp-cloud.github.io/pote-batata-pro-v6-site/cardapio/
+- **Infraestrutura:** Firebase Hosting do projeto `potobatata-b71f3`; o subdomínio `pdv.livresom.com` aponta para `potobatata-b71f3.web.app`.
+- **Publicação:** 21/11/2026, 20:09:24 UTC, release `sites/potobatata-b71f3/releases/1795291764874000`, versão `sites/potobatata-b71f3/versions/50d0f67ce4e22d3a`.
+- **Proteção do sistema:** a versão anterior `sites/potobatata-b71f3/versions/858193a266591150` tinha 218 arquivos. Comparação dos hashes SHA identificou ZERO diferenças nos 218 arquivos existentes; foram adicionados exclusivamente `/cardapio/index.html`, `/cardapio/cardapio.css`, `/cardapio/cardapio.js`, `/cardapio/cardapio-core.mjs`. Total publicado: 222 arquivos. O hash de `/index.html` permaneceu inalterado. A ordem das propriedades da configuração retornada pela API variava, mas sua equivalência semântica foi verificada.
+- **Retorno seguro:** release anterior `sites/potobatata-b71f3/releases/1795239846256000`, versão `858193a266591150`, disponível como referência de rollback.
+- **Validação:** workflow de publicação do GitHub Actions concluído com sucesso, incluindo regressões de Chrome/mobile e demais testes; prévia testada em larguras 320, 375, 430, 834 e 1366 px. A URL oficial do cardápio, seu arquivo JS e a página principal do PDV responderam corretamente às consultas externas após o deploy.
+- **O que inclui:** layout preto e dourado, categorias, busca, imagens ilustrativas, ficha informativa do produto (formato e categoria; alergênicos a confirmar), adicionais, quantidades, observações, sacola local, opção retirada/entrega e cópia do resumo demonstrativo.
+- **Limites:** catálogo, preços e imagens são demonstrativos. Ainda não há envio de pedido real, cobrança Pix/cartão, cálculo de entrega, reserva/baixa de estoque, integração com banco/PDV nem personalização por loja nesta rota. Não divulgar como checkout funcional.
+- **Próximos passos:** catálogo público por estabelecimento com publicação controlada, backend com validação de preço e disponibilidade, pedidos transacionais/idempotentes, integração de estoque e caixa, pagamentos opcionais seguros, fotos próprias e homologação em aparelhos reais.
+- **Regra de edição:** somente GitHub; Floot/APK apenas por solicitação expressa; nenhuma ativação de serviço pago sem autorização.
+
+Registro solicitado pelo proprietário em 21/11/2026.
