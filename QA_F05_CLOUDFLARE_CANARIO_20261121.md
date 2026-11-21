@@ -50,3 +50,29 @@ Foi comprovada também a capacidade administrativa de gerenciamento de chaves. A
 - Habilitação progressiva de `ENABLE_WRITES` e das flags do frontend **apenas** após proteção contra bypass no Firestore. Não mudar essas condições automaticamente.
 
 Não ativar serviços pagos; preservar estabilidade do PDV oficial e não modificar Floot.
+
+
+## 6. Reteste após criação da conta canário — 21/11/2026
+
+**Identificador de apresentação informado pelo titular:** `Potê Batata — Laboratório F05.`
+
+**Importante:** o nome de exibição não é o UID Firebase assinado, nem prova que `CANARY_UIDS` esteja configurado no Worker. A conta real não foi usada para forjar requisições, produzir pedidos, descontar estoque ou alternar permissões.
+
+### Evidências verificadas agora
+
+- GitHub Actions, branch `main`, commit `f8c24eb6`: `44871193991` (Firestore e corte canário em Emulator, inclusive Worker REST) concluído **success**. `44871193993` (construção, QA web/Android e publicação GitHub Pages) concluído **success**.
+- `https://pote-batata-guard-staging.pixmcp.workers.dev/health` → HTTP **200**, `writesEnabled:false`. `POST` sem autenticação em `/v1/orders/produce`, `/v1/orders/cancel` e `/v1/inventory/adjust` → HTTP **423** para as três operações. Nenhum dado foi escrito.
+- `https://pote-batata-f05-live.pixmcp.workers.dev/health` → HTTP **200**, `writesEnabled:true`, `mode:"f05-inventory-only"`. Tentativa **sem Authorization** em `/v1/inventory/adjust` → HTTP **401**. Este Worker dedicado não é o Worker geral de produção/cancelamento.
+- `https://pote-batata-guard-qa.pixmcp.workers.dev/health` → HTTP **200**, `writesEnabled:false`, `mode:"qa-auth-readonly"`. `POST /v1/qa/oauth-probe` sem segredo → HTTP **403**.
+- Código público `firebase_integration.js`: `CLOUD_WORKER_ACTIVE=false` e `F05_INVENTORY_WORKER_ACTIVE=false`. `wrangler.toml` do staging também mantém `ENABLE_WRITES=false`.
+- O acesso ao computador administrativo e a conta Firebase CLI foram observados, mas **não** foi obtido nem utilizado token Firebase humano da conta canário. A consulta automatizada alternativa à identidade foi barrada por segurança e não foi contornada.
+
+### Decisão de homologação
+
+**Aprovado:** QA de emulador, regressões, rotas públicas de negação e integridade básica dos serviços, sem custo adicional nem escrita produtiva.
+
+**Não homologado e não ativado:** login real com token Firebase da conta canário, leitura verificada do UID e claims, comprovação dos Secrets Google da identidade comercial no Worker staging, operação real controlada F02/F05/F20, corte coordenado das regras, ensaio de reversão em produção. O nome exibido não permite substituir essas evidências.
+
+**Próximo gate técnico:** obter sessão Firebase legítima do canário e verificar UID/claims/entitlements sem exibir tokens; autenticar o Worker com identidade de serviço comercial corretamente instalada; validar leitura isolada e todas as rotas antes de ativar qualquer escrita. Não aplicar `ENABLE_WRITES=true`, `CANARY_UIDS`, `workerAuthoritative=true` ou regras de corte em produção somente com base neste reteste.
+
+**Estado da etapa:** teste técnico e segurança de negação **concluídos**, homologação de escrita **pendente**. Não alterar Floot nem estoque, caixa, vendas ou contas existentes.
