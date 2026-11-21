@@ -48,6 +48,15 @@ try{
   cleanupOK=res.status===200||res.status===204;
   console.log("F05_QA_FIRESTORE_TRANSACTION_CLEANUP="+
    (cleanupOK?"PASS":"FAIL_HTTP_"+res.status));
+  if(!cleanupOK)console.log("QA_CLEANUP_REQUIRED_PATH="+docPath);
+  if(cleanupOK){
+   const verify=await datastore.transaction();
+   try{
+    const removed=await verify.get(docPath);
+    assert.equal(removed,null,"Documento QA ainda presente após exclusão");
+    console.log("F05_QA_FIRESTORE_CLEANUP_VERIFIED=PASS");
+   }finally{await verify.rollback()}
+  }
  }
 }
 if(!created||!cleanupOK)process.exitCode=2;
