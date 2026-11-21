@@ -76,3 +76,21 @@ Não ativar serviços pagos; preservar estabilidade do PDV oficial e não modifi
 **Próximo gate técnico:** obter sessão Firebase legítima do canário e verificar UID/claims/entitlements sem exibir tokens; autenticar o Worker com identidade de serviço comercial corretamente instalada; validar leitura isolada e todas as rotas antes de ativar qualquer escrita. Não aplicar `ENABLE_WRITES=true`, `CANARY_UIDS`, `workerAuthoritative=true` ou regras de corte em produção somente com base neste reteste.
 
 **Estado da etapa:** teste técnico e segurança de negação **concluídos**, homologação de escrita **pendente**. Não alterar Floot nem estoque, caixa, vendas ou contas existentes.
+
+
+## 7. Homologação automatizada adicional e UX ADM — 21/11/2026
+
+**Canário informado:** `Potê Batata — Laboratório F05`. O teste integrado foi ampliado para criar **duas contas com o mesmo nome público**, com UIDs diferentes. O backend não deve usar o nome de exibição como fator de autorização.
+
+### Evidências desta execução
+- **55/55 testes unitários do Worker F05**, sem falhas, executados por Node no ambiente isolado do PC autorizado: autenticação, compra, perda, contagem física, estoque insuficiente, repetição idempotente, concorrência, bloqueio de FREE, origem inválida e fail-closed.
+- **GitHub Actions nº 44872057848: success**, com Firestore Emulator, Workers REST, corte canário, rollback e regras endurecidas. Nenhum documento comercial foi alterado pela suíte.
+- **POPUP ADM**: correção incorporada pela PR nº 19, commit `2753609bcbbf20bf000e523bb6d4bc500a56c9c7`. Comprovação no Chrome em 320, 375, 430, 844 e 1366 pixels após rolagem da área administrativa, com confirmação central e botão Entendi.
+- Firebase Hosting comercial: implantação da nova interface concluída e consulta HTTP da página oficial retornou 200, com `admin_console.js?v=adm-popup-20261121` e CSS correspondentes. Não foi realizado deploy das regras do Firestore nem do Cloudflare nesta execução.
+
+### Resultado e limite
+**Concluído:** testes F05 que podem ser feitos com emulação, tratamento de concorrência/idempotência/rollback e correção da confirmação visual. Não há necessidade de o usuário realizar outro teste manual para validar esses cenários automatizados.
+
+**Pendente para chamar de antifraude comercial plenamente ativo:** verificação autorizada do UID Firebase e token da conta canário real, comprovação das credenciais da identidade de serviço comercial dentro da Cloudflare e implantação coordenada de cliente/regras/Worker com monitoramento. Nome público não é credencial. As flags do Worker geral no PDV permanecem `false`; o staging permanece com `ENABLE_WRITES=false`. Não houve ativação forçada nem bypass de segurança, e não se pode concluir que compras/produção/cancelamentos produtivos estejam roteados ao Worker.
+
+**Custos:** nenhum serviço pago novo ativado. **Ambientes:** somente GitHub e Firebase Hosting foram alterados; não mexer no Floot.
