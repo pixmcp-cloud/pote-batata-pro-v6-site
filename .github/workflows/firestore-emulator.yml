@@ -44,7 +44,7 @@ jobs:
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-pote-hardening --config firebase.f05-cutover.qa.json
-          "node --test --test-concurrency=1 test_firestore_f05_cutover.cjs test_firestore_worker_v5_rest_e2e.cjs"
+          "node --test --test-concurrency=1 test_firestore_f05_cutover.cjs test_firestore_worker_v5_rest_e2e.cjs test_f05_canary_rollout_emulated.cjs"
       - name: Verificar regras candidatas e cotas no projeto demo
         env:
           POTE_HARDENED_RULES: '1'
