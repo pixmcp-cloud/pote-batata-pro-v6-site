@@ -240,6 +240,7 @@ jobs:
           node --check public/gallery_policy.mjs
           node --check public/gallery_config.mjs
           node --check public/floating_menu.js
+          node test_profile_isolation.cjs
           node test_gallery_42h.mjs
           node --check public/business_setup.js
           node test_business_setup.js
