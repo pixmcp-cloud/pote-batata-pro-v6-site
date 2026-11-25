@@ -25,6 +25,16 @@ export function priceCredits(text,{providerMicroBrlPer1000,creditMicroBrl}){
  if(value>BigInt(Number.MAX_SAFE_INTEGER))throw Error('Orçamento fora do limite.');
  return Math.max(1,Number(value));
 }
+// Fixed public tariff by requested duration; character budget is a pilot estimate, not an audio-duration guarantee.
+export const VOICE_DURATION_TIERS=Object.freeze([15,30,45,60,75]);
+export function durationQuote(text,seconds,config){
+ const clean=validateText(text);
+ if(!VOICE_DURATION_TIERS.includes(seconds))throw Error('Escolha 15, 30, 45, 60 ou 75 segundos.');
+ const credits=seconds/15,maxChars=credits*150;
+ if(clean.length>maxChars)throw Error('Texto excede o limite de '+maxChars+' caracteres desta modalidade.');
+ if(priceCredits(clean,config)>credits)throw Error('Custo do provedor incompatível com esta tarifa. Serviço temporariamente indisponível para este texto.');
+ return {seconds,credits,maxChars};
+}
 export function commercialReady(subscription,config){
  return config?.commercialApproved===true&&Array.isArray(config?.licensedTiers)&&config.licensedTiers.length>0&&
  typeof subscription?.tier==='string'&&subscription.tier!=='free'&&subscription.tier!=='free_tier'&&config.licensedTiers.includes(subscription.tier)&&
