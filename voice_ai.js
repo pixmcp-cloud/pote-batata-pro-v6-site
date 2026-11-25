@@ -151,10 +151,45 @@ const coin=(tier,prefix='pack'+tier)=>{
 u('iauWalletArt').innerHTML=coin(3,'wallet');
 u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>'<article class="iau-pack" data-tier="'+i+'"><div class="iau-coins">'+coin(i)+'</div><div class="iau-amount"><strong>'+amount+'</strong> <span>IA COIN</span></div><b>'+brl(cents)+'</b><button type="button" data-package="'+i+'"><span aria-hidden="true">＋</span> Comprar</button></article>').join('');
 u('iauBuyScroll').addEventListener('click',()=>{if(permitted())u('iauStore').scrollIntoView({block:'start'});});
+const isOwnAdmin=()=>{const p=window.POTE_AUTH,user=auth.currentUser;return !!user&&p?.uid===user.uid&&p.role==='admin'&&user.email?.toLowerCase()==='pixmcp@gmail.com';};
+const creditDialog=document.createElement('dialog');
+creditDialog.id='iauAdminCredit';creditDialog.setAttribute('aria-labelledby','iauAdminCreditTitle');
+creditDialog.innerHTML='<h2 id="iauAdminCreditTitle">Adicionar IA COIN</h2><p id="iauCreditPrompt"></p><p id="iauCreditStatus" role="status" aria-live="polite"></p><div class="iau-credit-actions"><button type="button" id="iauCreditCancel">Cancelar</button><button type="button" id="iauCreditConfirm">Adicionar saldo</button></div>';
+document.body.append(creditDialog);
+const cd=id=>creditDialog.querySelector('#'+id);
+let selectedCredit=null,creditBusy=false;
+function closeCredit(){if(creditBusy)return;if(creditDialog.open)creditDialog.close();selectedCredit=null;}
+cd('iauCreditCancel').addEventListener('click',closeCredit);
+creditDialog.addEventListener('cancel',e=>{if(creditBusy)e.preventDefault();else selectedCredit=null;});
+function showCredit(amount){
+ if(creditBusy||!isOwnAdmin())return;
+ selectedCredit={amount,uid:auth.currentUser.uid,eventId:crypto.randomUUID()};
+ cd('iauCreditPrompt').textContent='Adicionar '+amount+' IA COIN à sua própria conta ADM? Sem cobrança real.';
+ cd('iauCreditStatus').textContent='';cd('iauCreditConfirm').disabled=false;cd('iauCreditConfirm').textContent='Adicionar saldo';cd('iauCreditCancel').disabled=false;cd('iauCreditCancel').textContent='Cancelar';
+ if(!creditDialog.open)creditDialog.showModal();
+}
+cd('iauCreditConfirm').addEventListener('click',async()=>{
+ const selected=selectedCredit;if(creditBusy||!selected||!isOwnAdmin()||auth.currentUser?.uid!==selected.uid)return;
+ creditBusy=true;cd('iauCreditConfirm').disabled=true;cd('iauCreditCancel').disabled=true;cd('iauCreditStatus').textContent='Registrando saldo…';
+ try{
+  const api=window.POTE_ADMIN_PERMISSIONS;if(!api?.addOwnWalletPackage)throw Error('Módulo ADM indisponível. Atualize a página.');
+  const next=await api.addOwnWalletPackage(selected.amount,selected.eventId,selected.uid);
+  if(auth.currentUser?.uid!==selected.uid||!isOwnAdmin())return;
+  cd('iauCreditStatus').textContent='Adicionado com sucesso! Novo saldo: '+next.toLocaleString('pt-BR')+' IA COIN.';
+  cd('iauCreditCancel').textContent='Fechar';selectedCredit=null;
+  if(universe.open)await universeRefresh();
+  void refreshWallet();
+ }catch(e){
+  if(auth.currentUser?.uid===selected.uid&&isOwnAdmin()){
+   cd('iauCreditStatus').textContent=e.code==='permission-denied'?'O Firebase recusou o ajuste. Verifique as permissões da carteira e a autorização ADM. Nenhum saldo foi confirmado.':'Não foi possível confirmar o ajuste: '+(e.code||e.message)+'. Você pode tentar novamente sem duplicar o crédito.';
+   cd('iauCreditConfirm').disabled=false;cd('iauCreditConfirm').textContent='Tentar novamente';
+  }
+ }finally{creditBusy=false;cd('iauCreditCancel').disabled=false;if(auth.currentUser?.uid!==selected.uid)closeCredit();}
+});
 let universeSeq=0;
 async function universeRefresh(){
  const seq=++universeSeq,user=auth.currentUser;
- const allowed=permitted();u('iauContent').hidden=!allowed;u('iauGate').hidden=allowed;
+ const allowed=permitted();u('iauPackages').querySelectorAll('[data-package]').forEach(b=>{b.textContent=isOwnAdmin()?'+ Adicionar':'+ Comprar';});u('iauContent').hidden=!allowed;u('iauGate').hidden=allowed;
  u('iauGate').textContent=allowed?'':'Acesso exclusivo aos planos PRO ativo, Vitalício e Franquia. FREE e teste gratuito não compram nem utilizam IA. Seu saldo anterior permanece preservado.';
  u('iauBalance').textContent='—';u('iauHistory').replaceChildren();u('iauHistory').hidden=true;u('iauPurchase').hidden=true;
  if(!allowed||!user)return;
@@ -177,6 +212,7 @@ u('iauRefresh').addEventListener('click',universeRefresh);
 u('iauPackages').addEventListener('click',e=>{
  const b=e.target.closest('[data-package]');if(!b||!permitted())return;
  const pack=packages[Number(b.dataset.package)];if(!pack)return;
+ if(isOwnAdmin()){showCredit(pack[0]);return;}
  const panel=u('iauPurchase');panel.hidden=false;panel.textContent=pack[0]+' IA COIN por '+brl(pack[1])+'. Checkout PIX ainda não homologado. Nenhum pagamento ou crédito foi registrado.';panel.scrollIntoView({block:'nearest'});
 });
 u('iauHistoryBtn').addEventListener('click',async()=>{
@@ -193,6 +229,6 @@ u('iauHistoryBtn').addEventListener('click',async()=>{
 });
 u('iauVoice').addEventListener('click',()=>{if(!permitted())return;closeUniverse();if(typeof go==='function'){go('creative');requestAnimationFrame(()=>document.getElementById('csVoiceStudio')?.scrollIntoView({block:'start'}));}});
 window.POTE_IA_UNIVERSE={open:openUniverse,close:closeUniverse,isOpen:()=>universe.open};
-window.addEventListener('pote:user-logout',closeUniverse);
+window.addEventListener('pote:user-logout',()=>{if(creditDialog.open)creditDialog.close();selectedCredit=null;closeUniverse();});
 for(const name of ['pote:license-updated','pote:profile-updated'])window.addEventListener(name,()=>{if(universe.open)void universeRefresh();});
 window.dispatchEvent(new Event('pote:ia-universe-ready'));
