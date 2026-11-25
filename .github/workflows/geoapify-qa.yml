@@ -1,0 +1,41 @@
+name: Geoapify V6 - teste de credencial no Brasil (sem deploy)
+on:
+  push:
+    branches: [feat/v6-geoapify-qa-20261125]
+    paths: ['.github/workflows/geoapify-qa.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    if: github.ref == 'refs/heads/feat/v6-geoapify-qa-20261125'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Validar quatro APIs com pontos públicos de Caxias do Sul
+        env:
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          const key = process.env.GEOAPIFY_API_KEY;
+          if (!key) { console.error('Segredo GEOAPIFY_API_KEY ausente'); process.exit(1); }
+          const tests = [
+            ['Geocoding', 'geocode/search', {text:'Caxias do Sul, Rio Grande do Sul, Brasil',filter:'countrycode:br',lang:'pt',limit:'1'}, f => f.properties.country_code === 'br'],
+            ['Autocomplete', 'geocode/autocomplete', {text:'Caxias do Sul',filter:'countrycode:br',lang:'pt',limit:'3'}, f => f.properties.country_code === 'br'],
+            ['Reverse Geocoding', 'geocode/reverse', {lat:'-29.168',lon:'-51.179',lang:'pt'}, f => f.properties.country_code === 'br'],
+            ['Routing', 'routing', {waypoints:'-29.168,-51.179|-29.18,-51.19',mode:'drive',units:'metric',lang:'pt'}, f => Number.isFinite(f.properties.distance) && f.properties.distance > 0 && f.properties.time > 0 && f.geometry?.type === 'MultiLineString']
+          ];
+          let failed = 0;
+          for (const [name,path,params,valid] of tests) {
+            try {
+              const url = new URL('https://api.geoapify.com/v1/'+path);
+              url.search = new URLSearchParams({...params,apiKey:key});
+              const res = await fetch(url,{signal:AbortSignal.timeout(15000),redirect:'error'});
+              if (!res.ok) { console.error(name+': HTTP '+res.status); failed++; continue; }
+              const data = await res.json();
+              if (!Array.isArray(data.features) || !data.features.some(valid)) { console.error(name+': resposta inesperada'); failed++; continue; }
+              console.log(name+': APROVADO');
+            } catch { console.error(name+': falha na consulta'); failed++; }
+          }
+          if (failed) process.exitCode = 1;
+          JS

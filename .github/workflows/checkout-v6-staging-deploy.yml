@@ -1,0 +1,118 @@
+name: V6 Checkout - atualizar staging isolado bloqueado
+on:
+  push:
+    branches: [feat/v6-geoapify-qa-20261125]
+    paths: ['.github/workflows/checkout-v6-staging-deploy.yml']
+permissions:
+  contents: read
+concurrency:
+  group: checkout-v6-staging-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'pixmcp-cloud/pote-batata-pro-v6-site' && github.ref == 'refs/heads/feat/v6-geoapify-qa-20261125'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: workers/antifraud
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verificar código e configuração desligada
+        run: |
+          node --test test/auth.test.mjs test/firestore.test.mjs test/checkout_worker.test.mjs test/delivery_policy.test.mjs test/public_checkout_core.test.mjs
+          grep -Fx 'name = "pote-batata-checkout-v6-staging"' wrangler.checkout-v6.qa.toml
+          grep -Fx 'REQUIRE_LEGAL_TERMS = "true"' wrangler.checkout-v6.qa.toml
+          grep -Fx 'ENABLE_CHECKOUT = "false"' wrangler.checkout-v6.qa.toml
+          grep -Fx 'ENABLE_TRACKING = "false"' wrangler.checkout-v6.qa.toml
+          grep -Fx 'CHECKOUT_CANARY_UIDS = ""' wrangler.checkout-v6.qa.toml
+          grep -Fx 'script_name = "pote-batata-geo-staging"' wrangler.checkout-v6.qa.toml
+          npx --no-install wrangler deploy --config wrangler.checkout-v6.qa.toml --dry-run --outdir .wrangler/checkout-staging
+      - name: Confirmar destino existente bloqueado e staging geográfico protegido
+        run: |
+          node --input-type=module <<'NODE'
+          const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+process.env.CLOUDFLARE_ACCOUNT_ID+"/workers/scripts",{headers:{Authorization:"Bearer "+process.env.CLOUDFLARE_API_TOKEN},redirect:"error",signal:AbortSignal.timeout(12000)});
+          const b=await r.json();if(!r.ok||!b.success||!Array.isArray(b.result)||!b.result.some(x=>x.id==="pote-batata-checkout-v6-staging"||x.name==="pote-batata-checkout-v6-staging"))throw Error("Staging esperado não localizado; não criar outro");
+          const checkout=await fetch("https://pote-batata-checkout-v6-staging.pixmcp.workers.dev/health",{redirect:"error",signal:AbortSignal.timeout(12000)});
+          const c=await checkout.json();if(!checkout.ok||c.status!=="ok"||c.checkoutEnabled!==false||c.trackingEnabled!==false)throw Error("Checkout staging não está bloqueado");
+          const geo=await fetch("https://pote-batata-geo-staging.pixmcp.workers.dev/health",{redirect:"error",signal:AbortSignal.timeout(12000)});
+          const g=await geo.json();if(!geo.ok||g.enabled!==false||g.checkoutEnabled!==false)throw Error("Geo staging inesperado");
+          console.log("CHECKOUT_EXISTING_TARGET_GEO_LOCKED");
+          NODE
+      - name: Verificar ausência de credenciais inesperadas no staging
+        run: |
+          npx --no-install wrangler secret list --config wrangler.checkout-v6.qa.toml > "$RUNNER_TEMP/checkout-secrets.json"
+          node --input-type=module -e 'import fs from "node:fs"; const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/checkout-secrets.json","utf8")); if(!Array.isArray(a)||a.length!==0)throw Error("Credenciais existentes: revisão antes de atualizar");console.log("CHECKOUT_STAGING_NO_SERVICE_SECRETS");'
+      - name: Atualizar exclusivamente o Worker staging bloqueado
+        run: npx --no-install wrangler deploy --config wrangler.checkout-v6.qa.toml
+      - name: Homologar superfície HTTP sem acesso ao banco
+        run: |
+          node --input-type=module <<'NODE'
+          const base="https://pote-batata-checkout-v6-staging.pixmcp.workers.dev";
+          const req=(p,opts={})=>fetch(base+p,{...opts,redirect:"error",signal:AbortSignal.timeout(12000)});
+          const routes=["orders/create","orders/read","orders/assign","orders/transition","orders/resolve","orders/confirm-payment","orders/invite","orders/accept-invite","orders/safety-alert","orders/safety-location","tracking/start","tracking/publish","tracking/read","tracking/clear","tracking/merchant-read","tracking/merchant-consent"];
+          let ready=false;
+          for(let i=0;i<10;i++){
+            const r=await req("/health"),b=await r.json().catch(()=>({}));
+            if(!r.ok||b.status!=="ok"||b.checkoutEnabled!==false||b.trackingEnabled!==false)throw Error("Staging não bloqueado");
+            if(b.apiRevision!=="v6-commercial-qa-20261125"){await new Promise(resolve=>setTimeout(resolve,5000));continue;}
+            let pending=false;
+            for(const p of routes){
+              const q=await req("/v1/"+p,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+              if(q.status===404){pending=true;continue;}
+              if(q.status!==423||(await q.json()).error!=="checkout_disabled")throw Error("Resposta inesperada: "+p+" HTTP "+q.status);
+            }
+            if(!pending){ready=true;break;}
+            await new Promise(resolve=>setTimeout(resolve,5000));
+          }
+          if(!ready)throw Error("Versão ou rotas não propagadas; checkout não homologado");
+          if((await req("/health",{headers:{Origin:"https://evil.example"}})).status!==403)throw Error("CORS indevido");
+          const cors=await req("/v1/orders/create",{method:"OPTIONS",headers:{Origin:"https://pdv.livresom.com","Access-Control-Request-Method":"POST"}});
+          if(cors.status!==204||cors.headers.get("Access-Control-Allow-Origin")!=="https://pdv.livresom.com")throw Error("Preflight inválido");
+          console.log("CHECKOUT_STAGING_HEALTHY_16_ROUTES_LOCKED_CORS_OK");
+          NODE
+      - name: Diagnóstico Firebase somente leitura (sem instalar segredos)
+        env:
+          GCP_CLIENT_EMAIL: ${{ secrets.GCP_CLIENT_EMAIL }}
+          GCP_PRIVATE_KEY: ${{ secrets.GCP_PRIVATE_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {serviceAccessToken} from "./src/auth.mjs";
+          import fs from "node:fs";
+          if(!process.env.GCP_CLIENT_EMAIL||!process.env.GCP_PRIVATE_KEY){console.log("FIREBASE_SERVICE_CREDENTIALS_NOT_AVAILABLE");process.exit(0);}
+          const project="potobatata-b71f3";
+          let token;
+          try{token=await serviceAccessToken(process.env);console.log("FIREBASE_OAUTH_OK");}
+          catch{console.log("FIREBASE_OAUTH_NOT_VERIFIED");process.exit(0);}
+          const get=path=>fetch("https://firestore.googleapis.com/v1/projects/"+project+"/databases/(default)"+path,{headers:{Authorization:"Bearer "+token},redirect:"error",signal:AbortSignal.timeout(12000)});
+          try{
+            const r=await get("/documents/legalPolicy/current");
+            console.log("FIREBASE_POLICY_READ_HTTP_"+r.status);
+            if(r.ok){const p=await r.json();console.log(p.fields?.active?.booleanValue===true?"FIREBASE_LEGAL_POLICY_ACTIVE":"FIREBASE_LEGAL_POLICY_INACTIVE");}
+            else if(r.status===404)console.log("FIREBASE_LEGAL_POLICY_MISSING");
+          }catch{console.log("FIREBASE_READ_NOT_VERIFIED");}
+          try{
+            const expected=JSON.parse(fs.readFileSync("../../firestore.checkout-v6.indexes.json","utf8")).indexes;
+            let ready=0,unknown=0;
+            for(const group of [...new Set(expected.map(x=>x.collectionGroup))]){
+              let page="",all=[];
+              do{
+                const r=await get("/collectionGroups/"+group+"/indexes?pageSize=100"+(page?"&pageToken="+encodeURIComponent(page):""));
+                if(!r.ok){unknown+=expected.filter(x=>x.collectionGroup===group).length;break;}
+                const b=await r.json();all.push(...(b.indexes||[]));page=b.nextPageToken||"";
+              }while(page);
+              for(const idx of expected.filter(x=>x.collectionGroup===group)){
+                if(all.some(x=>x.state==="READY"&&x.queryScope===idx.queryScope&&JSON.stringify((x.fields||[]).filter(f=>f.fieldPath!=="__name__").map(f=>({fieldPath:f.fieldPath,order:f.order})))===JSON.stringify(idx.fields)))ready++;
+              }
+            }
+            console.log("FIREBASE_INDEXES_READY_"+ready+"_OF_"+expected.length+"_UNKNOWN_"+unknown);
+          }catch{console.log("FIREBASE_INDEXES_NOT_VERIFIED");}
+          NODE

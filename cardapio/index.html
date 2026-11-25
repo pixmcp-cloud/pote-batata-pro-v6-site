@@ -6,8 +6,10 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?release=lojista10">
-  <script type="module" src="./cardapio.js?release=lojista10"></script>
+  <link rel="stylesheet" href="./cardapio.css?release=geo-v6-qa">
+  <link rel="stylesheet" href="./order-live-status.css">
+  <link rel="stylesheet" href="./customer-orders.css">
+  <script type="module" src="./cardapio.js?release=geo-v6-qa"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -23,6 +25,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.82-4M8 13a3 3 0 1 0-2.82-4M18 22a3 3 0 1 0-2.82-4M8 11l8-5M8 14l8 5"/></svg>
         </button>
         <button type="button" class="icon-button" id="settingsBtn" aria-label="Configurações do lojista" title="Configurações do lojista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4l.6 3 2 .9 2.6-1.6 2.8 2.8-1.6 2.6.9 2 3 .6v4l-3 .6-.9 2 1.6 2.6-2.8 2.8-2.6-1.6-2 .9-.6 3h-4l-.6-3-2-.9-2.6 1.6-2.8-2.8 1.6-2.6-.9-2-3-.6v-4l3-.6.9-2-1.6-2.6 2.8-2.8L7.4 6l2-.9z" transform="translate(2 0) scale(.83)"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="icon-button" id="historyBtn" hidden aria-label="Meus pedidos" title="Meus pedidos">🧾</button>
         <button type="button" class="icon-button cart-top" id="cartTopBtn" aria-label="Abrir sacola de compras">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8ZM9 9V6a3 3 0 0 1 6 0v3"/></svg>
           <span id="cartCount" class="cart-count" hidden>0</span>
@@ -125,7 +128,7 @@
         <label>Forma de pagamento (simulação)
           <select id="paymentMethod"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select>
         </label>
-        <div class="cart-totals"><div><span>Subtotal</span><strong id="subtotal">R$ 0,00</strong></div><div><span>Entrega</span><span id="deliveryFee">A definir na loja</span></div><div class="grand-total"><span>Total dos produtos</span><strong id="total">R$ 0,00</strong></div></div>
+        <div class="cart-totals"><div><span>Subtotal</span><strong id="subtotal">R$ 0,00</strong></div><div><span>Entrega</span><span id="deliveryFee">A definir na loja</span></div><div class="grand-total"><span id="totalLabel">Total dos produtos</span><strong id="total">R$ 0,00</strong></div></div>
         <p class="demo-warning">Esta é uma prévia interativa. Nenhum pagamento será cobrado e nenhum pedido será registrado no PDV.</p>
         <button type="button" class="button button-gold checkout-button" id="copyOrder">Copiar resumo demonstrativo</button>
         <button type="button" class="button button-quiet" id="keepShopping">Continuar escolhendo</button>

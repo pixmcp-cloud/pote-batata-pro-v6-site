@@ -25,7 +25,7 @@ jobs:
           set -e
           mkdir -p public/assets
           cp -R cardapio public/cardapio
-          cp public_menu_core.mjs public/
+          cp public_menu_core.mjs legal_core.mjs legal_ui.mjs public/
           cp assets/pote-logo-original.jpg public/assets/
           cp -R assets/recipes assets/generic public/assets/
           npm ci --prefix qa/mobile --ignore-scripts --no-audit --no-fund

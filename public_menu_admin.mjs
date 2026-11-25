@@ -1,6 +1,7 @@
 /* Publicador de catálogo de loja, carregado só no PDV autenticado.
    Um clique explícito é obrigatório. A sincronização privada V5 é independente. */
 import {app} from "./firebase_app.mjs";
+import {mountMerchantDelivery} from "./cardapio/delivery-client.mjs";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp,runTransaction} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto} from "./public_menu_core.mjs?lojas=8";
@@ -239,6 +240,7 @@ function createDialog(){
   publishBtn.addEventListener("click",publish);
   unpubBtn.addEventListener("click",unpublish);
   actions.append(refreshBtn,unpubBtn,publishBtn);shell.append(actions);
+  mountMerchantDelivery({host:shell,slugFor:()=>published?.ownerUid===owner()?published.slug:null,ownerFor:owner,token:()=>auth.currentUser?.getIdToken()});
   dialog.append(shell);document.body.append(dialog);
 }
 async function openFromMenu(){

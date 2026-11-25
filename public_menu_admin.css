@@ -43,3 +43,5 @@
 .public-menu-field{margin-bottom:10px}.public-menu-products+.public-menu-actions{margin-top:8px;margin-bottom:12px}.public-menu-choice:has(input:not(:checked)){opacity:.68}.public-menu-choice:has(input:checked){background:#3d2d1b;border-radius:8px}
 
 #poteViewMyMenu{border-color:#ad8550;color:#f4d59c;background:#252017}
+
+.public-menu-shell .geo-delivery-panel{display:grid;gap:8px;border:1px solid #846334;border-radius:12px;padding:12px;margin-top:12px}.public-menu-shell .geo-delivery-panel[open]>summary{margin-bottom:12px}.public-menu-shell .geo-delivery-panel label{display:grid;gap:5px;margin:8px 0}.public-menu-shell .geo-delivery-panel button{margin:5px 0;padding:8px 12px;border-radius:8px;white-space:normal}.public-menu-shell .geo-delivery-panel input:not([type=checkbox]),.public-menu-shell .geo-delivery-panel select{width:100%;box-sizing:border-box}

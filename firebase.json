@@ -5,7 +5,7 @@
   "auth": {
     "providers": {
       "googleSignIn": {
-        "oAuthBrandDisplayName": "Pote Batata Pro",
+        "oAuthBrandDisplayName": "PDV MULTIVERSAL",
         "supportEmail": "pixmcp@gmail.com",
         "authorizedRedirectUris": [
           "https://potobatata-b71f3.firebaseapp.com/__/auth/handler"

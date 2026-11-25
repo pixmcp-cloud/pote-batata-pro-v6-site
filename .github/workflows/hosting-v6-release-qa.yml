@@ -1,0 +1,395 @@
+name: V6 Hosting - revalidar candidato oficial
+on:
+  push:
+    branches: [feat/v6-geoapify-qa-20261125]
+    paths: ['.github/workflows/hosting-v6-release-qa.yml']
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar demonstracao e beta Firebase
+        run: |
+          mkdir -p public
+          cp -R cardapio public/cardapio
+          cp public_menu_core.mjs public/public_menu_core.mjs
+          cp public_menu_admin.mjs public/public_menu_admin.mjs
+          cp public_menu_admin.css public/public_menu_admin.css
+          node test_public_menu_core.mjs
+          node --check public/public_menu_admin.mjs
+          node --check public/cardapio/cardapio.js
+          node --check public/cardapio/cardapio-core.mjs
+          node test_cardapio_core.mjs
+          cp source/pote_app_base.html public/index.html
+          cp firebase-bridge.html public/firebase-bridge.html
+          python3 sanitize_public.py public/index.html
+          python3 add_contacts.py public/index.html
+          cp creative_studio.js public/creative_studio.js
+          cp creative_studio.css public/creative_studio.css
+          cp creative_prompt.js public/creative_prompt.js
+          cp public/index.html public/beta.html
+          python3 make_beta.py public/beta.html
+          cp public/beta.html public/index.html
+          mkdir -p public/assets
+          cp assets/pote-logo-original.jpg public/assets/pote-logo-original.jpg
+          cp -R assets/generic public/assets/generic
+          cp -R assets/brand public/assets/brand
+          cp firebase_app.mjs public/firebase_app.mjs
+          cp firebase_integration.js public/firebase_integration.js
+          cp legal_core.mjs public/legal_core.mjs
+          cp legal_ui.mjs public/legal_ui.mjs
+          cp sync_guard.mjs public/sync_guard.mjs
+          cp v5_store_core.mjs public/v5_store_core.mjs
+          cp v5_storage.mjs public/v5_storage.mjs
+          cp inventory_integrity.mjs public/inventory_integrity.mjs
+          cp v5_batch_planner.mjs public/v5_batch_planner.mjs
+          cp franchise_financial_report.mjs public/franchise_financial_report.mjs
+          cp operation_integrity.mjs public/operation_integrity.mjs
+          cp worker_bridge.mjs public/worker_bridge.mjs
+          cp free_limits.mjs public/free_limits.mjs
+          cp free_id_policy.mjs public/free_id_policy.mjs
+          cp finance_core.js public/finance_core.js
+          cp cost_history.js public/cost_history.js
+          cp module_health.js public/module_health.js
+          cp pdv_cash_core.mjs public/pdv_cash_core.mjs
+          cp pdv_cash_ui.mjs public/pdv_cash_ui.mjs
+          cp pdv_cash_summary.mjs public/pdv_cash_summary.mjs
+          cp pdv_cash.css public/pdv_cash.css
+          cp numeric_keyboard.js public/numeric_keyboard.js
+          cp supplier_integration.js public/supplier_integration.js
+          cp supplier_directory.js public/supplier_directory.js
+          cp supplier_directory.css public/supplier_directory.css
+          cp garimpo.js public/garimpo.js
+          python3 -m pip install -q requests beautifulsoup4 cairosvg Pillow
+          python3 render_multiversal_brand.py public/assets/brand
+          python3 build_price_catalog.py
+          cp garimpo.css public/garimpo.css
+          cp pote_notice.js public/pote_notice.js
+          cp pote_notice.css public/pote_notice.css
+          cp simulation_panel.js public/simulation_panel.js
+          cp simulation_panel.css public/simulation_panel.css
+          cp mobile.css public/mobile.css
+          cp floating_menu.css public/floating_menu.css
+          cp image_responsive.css public/image_responsive.css
+          cp admin_console.css public/admin_console.css
+          cp admin_console.js public/admin_console.js
+          cp manual_receipt.mjs public/manual_receipt.mjs
+          cp gallery.js public/gallery.js
+          cp gallery.css public/gallery.css
+          cp gallery_policy.mjs public/gallery_policy.mjs
+          cp gallery_config.mjs public/gallery_config.mjs
+          cp license_terms.mjs public/license_terms.mjs
+          cp floating_menu.js public/floating_menu.js
+          cp business_setup.js public/business_setup.js
+          cp universe_templates.js public/universe_templates.js
+          cp pastelaria_templates.js public/pastelaria_templates.js
+          cp access_control.js public/access_control.js
+          cp admin_permissions.js public/admin_permissions.js
+          cp universe_core.js public/universe_core.js
+          cp stock_math.js public/stock_math.js
+          cp stock_ui.js public/stock_ui.js
+          cp stock_update_modal.js public/stock_update_modal.js
+          cp stock_update_modal.css public/stock_update_modal.css
+          cp cancel_order_flow.js public/cancel_order_flow.js
+          cp cancel_order_flow.css public/cancel_order_flow.css
+          cp app_audit.js public/app_audit.js
+          cp app_audit.css public/app_audit.css
+          cp losses.js public/losses.js
+          cp motoboy.js public/motoboy.js
+          cp motoboy_core.mjs public/motoboy_core.mjs
+          cp motoboy.css public/motoboy.css
+          cp delivery_hub.js public/delivery_hub.js
+          cp delivery_hub_core.mjs public/delivery_hub_core.mjs
+          cp maisdelivery_payload.mjs public/maisdelivery_payload.mjs
+          cp maisdelivery_ui.mjs public/maisdelivery_ui.mjs
+          cp delivery_hub.css public/delivery_hub.css
+          cp notifications.js public/notifications.js
+          cp notifications.css public/notifications.css
+          cp admin_broadcast.js public/admin_broadcast.js
+          cp admin_broadcast.css public/admin_broadcast.css
+          cp notification_core.mjs public/notification_core.mjs
+          cp kitchen_inventory.js public/kitchen_inventory.js
+          cp kitchen_inventory.css public/kitchen_inventory.css
+          cp losses.css public/losses.css
+          cp stock_ui.css public/stock_ui.css
+          cp order_guard.js public/order_guard.js
+          cp exit_guard.js public/exit_guard.js
+          cp recipe_photo.js public/recipe_photo.js
+          cp order_ui.css public/order_ui.css
+          cp order_customization.js public/order_customization.js
+          cp order_customization.css public/order_customization.css
+          cp receipt_enhanced.js public/receipt_enhanced.js
+          cp receipt_enhanced.css public/receipt_enhanced.css
+          cp pricing_explainer.js public/pricing_explainer.js
+          cp pricing_explainer.css public/pricing_explainer.css
+          cp beverage_catalog.js public/beverage_catalog.js
+          cp payment_flow.js public/payment_flow.js
+          cp stock_inventory.js public/stock_inventory.js
+          cp stock_delete.js public/stock_delete.js
+          cp stock_ext.js public/stock_ext.js
+          cp commerce_update.css public/commerce_update.css
+          cp stock_status.js public/stock_status.js
+          cp stock_triage.css public/stock_triage.css
+          cp release_news.js public/release_news.js
+          cp release_news.css public/release_news.css
+          cp pro_offer.js public/pro_offer.js
+          cp pro_offer.css public/pro_offer.css
+          cp business_setup.css public/business_setup.css
+          cp franchise_sync.js public/franchise_sync.js
+          cp franchise_catalog.mjs public/franchise_catalog.mjs
+          cp franchise_stock_core.mjs public/franchise_stock_core.mjs
+          cp franchise_cost_estimates.mjs public/franchise_cost_estimates.mjs
+          cp franchise_shopping_list.mjs public/franchise_shopping_list.mjs
+          cp franchise_shopping_list.css public/franchise_shopping_list.css
+          cp visual_refresh.css public/visual_refresh.css
+          cp dashboard_charts.js public/dashboard_charts.js
+          cp recipe_images.js public/recipe_images.js
+          cp -R assets/recipes public/assets/recipes
+          cp -R assets/operations public/assets/operations
+          cp -R assets/integrations public/assets/integrations
+          cp pote_calc_quantum_99_fullscreen.html public/pote_calc_quantum_99_fullscreen.html
+          cp pote_calc_launcher.js public/pote_calc_launcher.js
+          cp pote_calc_launcher.css public/pote_calc_launcher.css
+          cp tablet_layout.css public/tablet_layout.css
+          cp tablet_layout.js public/tablet_layout.js
+          cp compact_account_header.js public/compact_account_header.js
+          cp compact_account_header.css public/compact_account_header.css
+          cp top_navigation.js public/top_navigation.js
+          cp top_navigation.css public/top_navigation.css
+          cp company_pdv_polish.css public/company_pdv_polish.css
+          cp premium_motion.css public/premium_motion.css
+          cp premium_motion.js public/premium_motion.js
+          node --check public/premium_motion.js
+          node test_premium_motion.js
+          node test_pdv_brand.cjs
+          node test_company_pdv_polish.js
+          node --check public/top_navigation.js
+          node test_top_navigation.js
+          node --check public/creative_studio.js
+          node --check public/creative_prompt.js
+          node test_creative_prompt.cjs
+          node test_creative_studio.cjs
+          node --check public/compact_account_header.js
+          node test_compact_account_header.js
+          node --check public/pote_calc_launcher.js
+          node test_pote_calc_launcher.js
+          node --check public/tablet_layout.js
+          node test_tablet_layout.js
+          python3 -c 'import pathlib,re; s=pathlib.Path("public/index.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
+          node --check app-check.js
+          python3 -c 'import pathlib,re; s=pathlib.Path("public/beta.html").read_text(); scripts=[x for x in re.findall(r"<script[^>]*>(.*?)</script>",s,re.I|re.S) if x.strip()]; assert len(scripts)>=2; pathlib.Path("app-check.js").write_text(scripts[-1])'
+          node --check app-check.js
+          node --check public/firebase_app.mjs
+          node --input-type=module --check < public/firebase_integration.js
+          node --check public/sync_guard.mjs
+          node test_sync_guard.mjs
+          node test_inventory_integrity.mjs
+          node test_operation_integrity.mjs
+          node test_worker_bridge.mjs
+          node test_f05_worker_staging_contract.cjs
+          node test_franchise_financial_report.mjs
+          node test_legacy_migration.mjs
+          node test_v2_batch_planner.mjs
+          node test_v2_large_batch.mjs
+          node --check public/inventory_integrity.mjs
+          node --check public/v5_batch_planner.mjs
+          node test_v2_store.mjs
+          node test_hardening_v2_rank.mjs
+          node test_v2_active_archive_regression.mjs
+          node test_v2_storage.mjs
+          node test_v5_storage.mjs
+          node test_hardening_concurrent_clients.mjs
+          node test_auth_v5_integration.js
+          node test_pro_offer.cjs
+          node test_v5_startup_contract.cjs
+          node test_v5_stress.mjs
+          node test_finance_core.js
+          node test_hardening_wave1.cjs
+          node test_hardening_render_events.cjs
+          node test_cost_history.js
+          node test_pdv_cash_core.mjs
+          node test_pdv_auto_sale_completion.mjs
+          node test_v3_cash_reconciliation.mjs
+          node test_v3_rank_persistence.mjs
+          node test_v3_universe_financial_isolation.js
+          node test_pdv_cash_ui.mjs
+          node test_pdv_cash_summary.mjs
+          node test_pdv_visible_contract.cjs
+          node test_pdv_accordion_contract.cjs
+          node test_numeric_keyboard.js
+          node --check public/numeric_keyboard.js
+          node test_pdv_v2_storage.mjs
+          node --check public/pdv_cash_core.mjs
+          node --check public/pdv_cash_ui.mjs
+          node test_module_health.js
+          node test_average_cost.js
+          node --check public/finance_core.js
+          node --check public/v5_store_core.mjs
+          node --check public/free_id_policy.mjs
+          node --check public/v5_storage.mjs
+          node --check public/operation_integrity.mjs
+          node --check public/franchise_financial_report.mjs
+          node test_free_limits.mjs
+          node test_migration_preview.mjs
+          node test_commercial_date.js
+          node test_reset_guard.js
+          node test_import_guard.js
+          node test_v5_security_contract.js
+          node --check public/supplier_integration.js
+          node test_suppliers.js
+          node --check public/supplier_directory.js
+          node test_supplier_directory.js
+          node --check public/garimpo.js
+          node --check public/pote_notice.js
+          node test_garimpo.js
+          node test_garimpo_online.js
+          node test_garimpo_national.js
+          node --check public/simulation_panel.js
+          node --check public/dashboard_charts.js
+          node test_dashboard_charts.js
+          node test_clean_accounts.js
+          node test_responsive_images.js
+          node --input-type=module --check < public/gallery.js
+          node --check public/gallery_policy.mjs
+          node --check public/gallery_config.mjs
+          node --check public/floating_menu.js
+          node test_profile_isolation.cjs
+          node test_gallery_42h.mjs
+          node --check public/business_setup.js
+          node test_business_setup.js
+          node --check public/universe_templates.js
+          node --check public/pastelaria_templates.js
+          node test_pastelaria_catalog.js
+          test -f public/assets/recipes/pastelaria-cardapio.jpg
+          node --check public/access_control.js
+          node --input-type=module --check < public/admin_permissions.js
+          node --check public/universe_core.js
+          node test_business_universes.js
+          node test_v3_universe_financial_isolation.js
+          node --check public/stock_math.js
+          node --check public/stock_ui.js
+          node --check public/stock_update_modal.js
+          node test_stock_update_modal.js
+          node --check public/cancel_order_flow.js
+          node --check public/app_audit.js
+          node test_cancel_order_audit.js
+          node test_app_audit.js
+          node --check public/losses.js
+          node --check public/motoboy.js
+          node test_motoboy_core.mjs
+          node test_delivery_hub_core.mjs
+          node test_maisdelivery_payload.mjs
+          node test_maisdelivery_ui.mjs
+          node --check public/maisdelivery_ui.mjs
+          node --check public/maisdelivery_payload.mjs
+          node test_notification_core.mjs
+          node test_notifications_ui.mjs
+          node test_notification_inline_message.mjs
+          node test_mobile_header_layout.mjs
+          node test_admin_broadcast_ui.mjs
+          node test_notification_integration.js
+          node test_hub_official_logos.js
+          node --input-type=module --check < public/notifications.js
+          node --input-type=module --check < public/admin_broadcast.js
+          node --check public/notification_core.mjs
+          node test_delivery_hub_persistence.mjs
+          node test_delivery_hub_ui.mjs
+          node --check public/delivery_hub.js
+          test -f public/assets/operations/delivery-hub.svg
+          node test_motoboy_ui.mjs
+          node --check public/kitchen_inventory.js
+          node test_kitchen_inventory.js
+          node test_losses.js
+          node test_stock_manager.js
+          node --check public/order_guard.js
+          node --check public/exit_guard.js
+          node --check public/recipe_photo.js
+          node test_order_guards.js
+          node test_android_recipe_contract.cjs
+          node --check public/order_customization.js
+          node --check public/receipt_enhanced.js
+          node test_custom_receipts.js
+          node --check public/pricing_explainer.js
+          node test_pricing_explainer.js
+          node --check public/beverage_catalog.js
+          node --check public/payment_flow.js
+          node --check public/stock_inventory.js
+          node --check public/stock_delete.js
+          node test_stock_delete_priority.js
+          node --check public/stock_ext.js
+          node test_commerce_v2.js
+          node test_beverage_profit.js
+          node --check public/stock_status.js
+          node --check public/release_news.js
+          node test_stock_alert_release.js
+          node test_app_routes.js
+          test -f public/assets/generic/business-hotdog.svg
+          node --check public/franchise_catalog.mjs
+          node --input-type=module --check < public/franchise_sync.js
+          node test_franchise_catalog.mjs
+          node test_franchise_stock.mjs
+          node test_franchise_cost_estimates.mjs
+          node test_franchise_source_syntax.js
+          node --check public/franchise_cost_estimates.mjs
+          node test_franchise_shopping_ui.mjs
+          node --check public/franchise_stock_core.mjs
+          node --check public/franchise_shopping_list.mjs
+          test -f public/assets/generic/business-neutral.svg
+          test -f public/assets/generic/business-batataria.svg
+          test -f public/assets/operations/motoboy.svg
+          test -f public/assets/generic/recipe-r26.svg
+          node test_operations_type.js
+          node --check public/license_terms.mjs
+          node --input-type=module --check < public/admin_console.js
+          node test_admin_feedback_popup.cjs
+          node test_admin_profile_moderation.cjs
+          node test_admin_licenses.mjs
+          node test_manual_receipt.mjs
+          node test_admin_claim_contract.mjs
+          grep -q 'supplier_integration.js' public/index.html
+          grep -q 'simulation_panel.js' public/index.html
+          grep -q 'simulation_panel.css' public/index.html
+          grep -q 'poteFreshAccount' public/index.html
+          grep -q 'mobile.css' public/index.html
+          grep -q 'id="poteSyncStatus"' public/index.html
+          rm -f app-check.js
+          test ! -e public/setup.html
+          grep -q "poteAuthGate" public/beta.html
+          grep -q "poteAuthGate" public/index.html
+          test -f public/assets/pote-logo-original.jpg
+          grep -q "firebase_integration.js" public/beta.html
+      # Reutiliza o mesmo runner do deploy: sem segundo servidor, serviço pago
+      # ou espera manual. Falhas na emulação impedem publicação.
+      - name: Emular 8 telas Android Chrome, PDV, backup e franquias
+        run: |
+          set -e
+          npm ci --prefix qa/mobile --ignore-scripts --no-audit --no-fund
+          export CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          if [ -z "$CHROME_BIN" ]; then echo "Chrome não disponível no runner"; exit 1; fi
+          export POTE_QA_PUPPETEER="$PWD/qa/mobile/node_modules/puppeteer-core"
+          export POTE_QA_CHROME="$CHROME_BIN"
+          node test_admin_feedback_popup_browser.cjs
+          node qa/mobile/test_mobile_matrix.cjs
+          node qa/mobile/test_franchise_mobile.cjs
+          node test_hardening_mobile_browser.cjs
+          node test_calc_shopping_browser.cjs
+          node test_cardapio_browser.cjs
+          node test_pdv_auto_sale_browser.cjs
+      - name: Verificar travas, manifestos e arquivos publicados
+        run: |
+          grep -Fx 'export const CHECKOUT_ENDPOINT = "";' public/cardapio/checkout-config.mjs
+          grep -Fx 'export const GEO_ENDPOINT = "";' public/cardapio/geo-config.mjs
+          grep -Fx 'export const LEGAL_REGISTRATION_ENABLED=false;' public/legal_ui.mjs
+          test -f public/cardapio/checkout-api.mjs
+          test -f public/cardapio/order-live-status.mjs
+          test -f public/legal_core.mjs
+          printf '{"revision":"%s","checkoutEnabled":false,"trackingEnabled":false,"legalRegistrationEnabled":false}\n' "$GITHUB_SHA" > public/release-v6.json
+          echo V6_HOSTING_RELEASE_BUILD_AND_QA_PASS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v6-hosting-candidate
+          path: public
+          retention-days: 5

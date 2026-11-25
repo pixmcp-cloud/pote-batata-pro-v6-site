@@ -1,0 +1,22 @@
+name = "pote-batata-checkout-v6-staging"
+main = "src/checkout_worker.mjs"
+compatibility_date = "2026-11-20"
+workers_dev = true
+preview_urls = false
+[vars]
+FIREBASE_PROJECT_ID = "potobatata-b71f3"
+ALLOWED_ORIGINS = "https://pdv.livresom.com,https://potobatata-b71f3.web.app"
+ENABLE_CHECKOUT = "false"
+REQUIRE_LEGAL_TERMS = "true"
+ENABLE_TRACKING = "false"
+CHECKOUT_CANARY_UIDS = ""
+[[durable_objects.bindings]]
+name = "TRACKING_GATE"
+class_name = "DeliveryTrackingGate"
+[[durable_objects.bindings]]
+name = "GEO_GATE"
+class_name = "GeoGate"
+script_name = "pote-batata-geo-staging"
+[[migrations]]
+tag = "delivery-v1"
+new_sqlite_classes = ["DeliveryTrackingGate"]

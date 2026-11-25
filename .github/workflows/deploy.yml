@@ -38,6 +38,8 @@ jobs:
           cp -R assets/brand public/assets/brand
           cp firebase_app.mjs public/firebase_app.mjs
           cp firebase_integration.js public/firebase_integration.js
+          cp legal_core.mjs public/legal_core.mjs
+          cp legal_ui.mjs public/legal_ui.mjs
           cp sync_guard.mjs public/sync_guard.mjs
           cp v5_store_core.mjs public/v5_store_core.mjs
           cp v5_storage.mjs public/v5_storage.mjs
