@@ -21,7 +21,7 @@ assert(rules.includes("match /profileAudit/{eventId}"));
 assert(rules.includes("getAfter(/databases/$(database)/documents/users/$(request.resource.data.targetUid))"));
 assert(rules.includes("!resource.data.get('nameLocked', false)"));
 for(const file of ['firebase_integration.js','floating_menu.js','admin_console.js','admin_console.css'])
- assert(builder.includes(file+'?v='+(file.startsWith('admin_console')?'adm-popup-20261121':file==='floating_menu.js'?'ia-coin-neon-20261125':'moderation-20261121')),'Invalidar cache: '+file);
+ assert(builder.includes(file+'?v='+(file.startsWith('admin_console')?'adm-popup-20261121':file==='floating_menu.js'?'menu-restaurado-20261125':'moderation-20261121')),'Invalidar cache: '+file);
 const code=admin.slice(admin.indexOf('function validModeratedName(value){'),admin.indexOf('async function changeProfileModeration(){'));
 assert(code.includes('function validModeratedName('));
 const validate=vm.runInNewContext(code+';validModeratedName');
