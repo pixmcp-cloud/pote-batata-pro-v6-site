@@ -21,6 +21,11 @@ assert(rules.includes("request.resource.data.diff(resource.data).affectedKeys()"
 assert(rules.includes("allow update, delete: if false"),"Immutable audit events required");
 assert(rules.includes("match /{document=**}")&&rules.includes("allow read, write: if false"),"Default deny required");
 assert(!/allow\s+(read|write|create|update|delete)\s*:\s*if\s+true\s*;/.test(rules),"Broad access policy forbidden");
+for(const marker of ["match /aiWallet/{walletId}","validWalletAdjustment(oldBalance)","!exists(p) && existsAfter(p)","e.before == oldBalance","e.delta == v.balance - oldBalance","request.resource.data.actorUid == request.auth.uid","allow get: if walletId == 'main' && canAccess(userId)"])assert(rules.includes(marker),"Contrato da carteira: "+marker);
+const walletAdmin=fs.readFileSync("admin_permissions.js","utf8"),walletUi=fs.readFileSync("voice_ai.js","utf8");
+assert(walletAdmin.includes("tx.set(walletRef")&&walletAdmin.includes("tx.set(eventRef"),"Carteira ADM e evento devem compartilhar transação");
+assert(walletUi.includes('p.plan==="pro"')&&walletUi.includes('p.plan==="lifetime"'),"IA exige plano pago ativo");
+assert(!walletUi.includes("updateDoc(")&&!walletUi.includes("setDoc("),"Cliente não pode editar saldo");
 const config=fs.readFileSync("gallery_config.mjs","utf8");
 assert(config.includes("GALLERY_CLOUD_ENABLED=false"),"Cloud gallery must stay disabled without deployed storage rules");
 console.log("PASS: regras versionadas com isolamento por UID, eventos imutáveis, fallback deny e galeria cloud desativada (sem validar produção).");
