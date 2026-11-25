@@ -2,6 +2,7 @@ import {CHECKOUT_ENDPOINT} from "./checkout-config.mjs";
 import {createCheckoutApi,signInForOrder} from "./checkout-api.mjs";
 import {observeStop,distanceMeters} from "./courier-stop.mjs";
 const $=id=>document.getElementById(id),id=new URLSearchParams(location.search).get("pedido"),say=t=>{$("courierStatus").textContent=t};
+const inviteToken=new URLSearchParams(location.hash.slice(1)).get("convite");
 let api,identity,auth,watch=null,lastSent=0,lastPoint=null,requesting=false,epoch=0,view=null,stopState=null,stopTimer=null,lastFixAt=0,fixPending=false;
 let stopNotice=null;
 function dismissStopNotice(){if(stopNotice){stopNotice.remove();stopNotice=null;}}
@@ -37,8 +38,15 @@ $("courierLogin").onclick=async()=>{
  if(!CHECKOUT_ENDPOINT||!id||!/^[a-f0-9]{64}$/.test(id)){say("Área de entregas ainda em homologação ou link inválido.");return;}
  try{const a=await signInForOrder();auth=a.auth;identity=auth.currentUser?.uid;api=createCheckoutApi({token:()=>auth.currentUser?.getIdToken()});
   a.sdk.onAuthStateChanged(auth,u=>{if(u?.uid!==identity){void stop({clear:false});view=null;controls();say("Sessão encerrada.");}});
+  if(inviteToken&&/^[a-f0-9]{64}$/.test(inviteToken)){
+   try{await api.request("orders/accept-invite",{id,token:inviteToken});}catch(e){
+    // A previous response can have been lost: read the order only if this Google account is already assigned.
+    const existing=await api.request("orders/read",{id}).catch(()=>null);if(existing?.role!=="courier")throw e;
+   }
+   history.replaceState(null,"",location.pathname+location.search);
+  }
   await refresh();
- }catch{say("Entrega indisponível para esta conta.");}
+ }catch{say("Entrega ou convite indisponível para esta conta. Confira o e-mail Google indicado pela loja.");}
 };
 $("courierStart").onclick=async()=>{
  if(!active()||!$("courierConsentCheck").checked||!navigator.geolocation){say("Autorize o GPS desta entrega primeiro.");return;}

@@ -29,6 +29,14 @@ export async function openMerchantOrder({order,ownerUid,onChanged,notify}){
   if(v.status==="em_producao")add("Finalizar preparo",transition("finalizado"));
   if(v.status==="finalizado"&&v.fulfillment==="retirada")add("Confirmar retirada",transition("entregue"));
   if(v.fulfillment==="entrega"&&!["saiu_entrega","entregue","cancelado"].includes(v.status)){
+   const email=el("input");email.type="email";email.placeholder="E-mail Google do motoboy";email.maxLength=254;actions.append(email);
+   const invitation=el("input");invitation.readOnly=true;invitation.hidden=true;invitation.setAttribute("aria-label","Link privado de convite");actions.append(invitation);
+   const generate=add("Gerar convite privado (30 min)",async()=>{if(busy||!email.value.trim()||!email.checkValidity()||auth.currentUser?.uid!==ownerUid)return;busy=true;generate.disabled=true;
+    try{const result=await api.request("orders/invite",{id,email:email.value.trim()});if(!alive||auth.currentUser?.uid!==ownerUid)return;if(!result.ok||!/^\\w{64}$/.test(result.token||""))throw Error("invalid invite");
+     const url=new URL("./entrega.html?pedido="+encodeURIComponent(id),import.meta.url);url.hash="convite="+result.token;invitation.value=url.href;invitation.hidden=false;invitation.select();
+     try{await navigator.clipboard.writeText(url.href);notify("Convite copiado. Envie apenas ao motoboy indicado.");}catch{notify("Convite gerado. Copie o link e envie apenas ao motoboy indicado.");}
+    }catch{if(alive)status.textContent="Não foi possível gerar o convite.";}finally{busy=false;generate.disabled=false;}});
+   add("Atualizar vínculo do motoboy",()=>void load().catch(()=>notify("Não foi possível atualizar.")));
    const input=el("input");input.placeholder="UID Google do motoboy já vinculado";input.maxLength=128;actions.append(input);
    add(v.courierAssigned?"Alterar motoboy":"Atribuir motoboy",()=>{if(input.value.trim())void send("orders/assign",{courierUid:input.value.trim()});});
   }

@@ -13,7 +13,7 @@ const paid=o=>Boolean(o.paymentConfirmedAt)||["pago","confirmado","pago em dinhe
 const clone=o=>structuredClone(o);
 // Unbiased random 4-digit code; private receipt only, never in PDV or event logs.
 function newDeliveryCode(){const n=new Uint16Array(1);do{crypto.getRandomValues(n)}while(n[0]>=60000);return String(n[0]%10000).padStart(4,"0");}
-function canonical(receipt,doc){
+export function canonical(receipt,doc){
  const r=doc?.data?.record;
  if(!r||r.group!=="orders"||r.universe!==receipt.businessType||r.id!==receipt.pdvOrderId||r.item?.publicCheckoutV6!==true||r.item?.publicCheckoutId!==receipt.id)fail("order_inconsistent");
  if(r.item.deliveryStatus!==receipt.deliveryStatus||r.item.status!==receipt.status)fail("order_out_of_sync");
@@ -62,7 +62,7 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
    if(!owner||receipt.fulfillment!=="entrega"||terminal(receipt)||receipt.deliveryStatus==="saiu_entrega"||!uidOk(courierUid)||courierUid===receipt.buyerUid)fail("invalid_assignment");
    const linked=await tx.get(root+"/deliveryCouriersV6/"+courierUid);
    if(linked?.data?.uid!==courierUid||linked.data.active!==true||linked.data.accepted!==true)fail("courier_not_verified");
-   r.courierUid=courierUid;o.deliveryCourierUid=courierUid;
+   r.courierUid=courierUid;o.deliveryCourierUid=courierUid;delete r.deliveryInvite;
   }else if(action==="confirm_payment"){
    if(!owner||receipt.deliveryStatus==="cancelado"||paid(o)||typeof reference!=="string"||!reference.trim()||reference.length>120)fail("payment_confirmation_invalid");
    // Existing open shift only; never auto-open a shift or create a bank charge.
@@ -73,7 +73,7 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
    r.paymentStatus="confirmed";r.paymentConfirmedAt=at;
   }else{
    r=transitionDelivery(receipt,next,{actorUid,now});
-   if(receipt.fulfillment==="entrega"&&next==="saiu_entrega"){r.deliveryProof={code:newDeliveryCode(),attempts:0,lockedUntil:0};}
+   if(receipt.fulfillment==="entrega"&&next==="saiu_entrega"){r.deliveryProof={code:newDeliveryCode(),attempts:0,lockedUntil:0};delete r.deliveryInvite;}
    if(receipt.fulfillment==="entrega"&&next==="entregue"){
     const proof=receipt.deliveryProof;
     if(!proof||!/^\d{4}$/.test(proof.code||""))fail("delivery_code_unavailable");
@@ -118,7 +118,7 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
    if(next==="cancelado")o.clockStoppedAt=at;
    if(next==="entregue")o.clockStoppedAt=at;
    o.deliveryStatus=next;o.deliveryUpdatedAt=at;r.status=o.status;
-   if(terminal(r)){delete r.destination;delete r.deliveryProof;} // exact coordinates no longer needed
+   if(terminal(r)){delete r.destination;delete r.deliveryProof;delete r.deliveryInvite;} // exact coordinates no longer needed
   }
   r.deliveryRevision=receipt.deliveryRevision+1;o.deliveryRevision=r.deliveryRevision;
   if(!Number.isSafeInteger(r.deliveryRevision))fail("revision_overflow");

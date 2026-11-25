@@ -8,6 +8,7 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
  if(!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||''))throw Error('Local emulator required');
  const {commitPublicCheckout,resolvePublicCheckout}=await import('./workers/antifraud/src/checkout_transaction.mjs');
  const {mutateDeliveryOrder,readDeliveryOrder}=await import('./workers/antifraud/src/delivery_transaction.mjs');
+ const {issueCourierInvite,acceptCourierInvite}=await import('./workers/antifraud/src/courier_invitation.mjs');
  const {createFirestoreRepository}=await import('./workers/antifraud/src/firestore.mjs');
  const {recordPath,quantities}=await import('./workers/antifraud/src/domain.mjs');
  const {confirmPaymentOnSaleCompletion,orderAmountCents}=await import('./pdv_cash_core.mjs');
@@ -79,14 +80,21 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
   // Authoritative delivery lifecycle uses the same order record, receipt and guard.
   await env.withSecurityRulesDisabled(async ctx=>{
    const db=ctx.firestore();
-   await sdk.setDoc(sdk.doc(db,root+'/deliveryCouriersV6/courier-a'),{uid:'courier-a',active:true,accepted:true});
    await sdk.setDoc(sdk.doc(db,rp('cashSessions','shift-a')),{record:{universe,group:'cashSessions',id:'shift-a',item:{id:'shift-a',status:'open',openingCash:0,openedAt:new Date(now).toISOString()},rank:0},updatedAt:sdk.serverTimestamp()});
   });
   let sequence=0;
   const mutate=(actorUid,action,extra={},delta=0,op)=>mutateDeliveryOrder({repository,actorUid,id:first.id,action,operationId:op||'delivery-op-'+String(++sequence).padStart(20,'0'),now:now+delta,...extra});
   await assert.rejects(()=>mutate('buyer-a','transition',{next:'em_producao'},1000),/order_unavailable/);
   await assert.rejects(()=>mutate(uid,'assign',{courierUid:'unknown'},1000),/courier_not_verified/);
-  assert.equal((await mutate(uid,'assign',{courierUid:'courier-a'},1000)).revision,1);
+  const issued=await issueCourierInvite({repository,actorUid:uid,id:first.id,email:'courier@example.test',now:now+1000});
+  const accept=(actorUid,verifiedEmail,token=issued.token,at=now+1500)=>acceptCourierInvite({repository,actorUid,verifiedEmail,id:first.id,token,now:at});
+  await assert.rejects(()=>accept('courier-b','other@example.test'),/invitation_unavailable/);
+  await assert.rejects(()=>accept('courier-a','courier@example.test',issued.token,issued.expiresAt),/invitation_unavailable/);
+  await assert.rejects(()=>accept('buyer-a','courier@example.test'),/invitation_unavailable/);
+  assert.equal((await accept('courier-a','courier@example.test')).revision,1);
+  await assert.rejects(()=>accept('courier-b','courier@example.test'),/invitation_unavailable/);
+  await env.withSecurityRulesDisabled(async ctx=>{const db=ctx.firestore(),receipt=(await sdk.getDoc(sdk.doc(db,'publicOrderReceipts/'+first.id))).data();assert.equal(receipt.deliveryInvite,undefined);assert.equal(receipt.courierUid,'courier-a');});
+  console.log('D02_COURIER_INVITE_TARGETED_ONE_TIME_PASS');
   await assert.rejects(()=>readDeliveryOrder({repository,actorUid:'buyer-b',id:first.id,now}),/order_unavailable/);
   assert.equal((await readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now})).destination,undefined);
   const produceOp='delivery-produce-00000000000001';
