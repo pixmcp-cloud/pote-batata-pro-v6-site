@@ -73,7 +73,7 @@ async function api(path,body){
 // Dedicated studio opens independently of commercial provider availability.
 const voiceConsole=document.createElement('dialog');
 voiceConsole.id='poteVoiceConsole';voiceConsole.setAttribute('aria-labelledby','pvTitle');
-voiceConsole.innerHTML=`<div class="pv-shell"><header class="pv-header"><button id="pvBack" type="button" aria-label="Voltar">‹</button><div><small>PDV MULTIVERSAL · AUDIO LAB</small><strong>VOICE STUDIO</strong></div><button id="pvWallet" type="button" aria-label="Abrir carteira IA COIN"><span id="pvBalance">—</span> IA COIN</button></header><section class="pv-intro"><small>ESTÚDIO PROFISSIONAL</small><h1 id="pvTitle">Sua marca. Sua voz.</h1><p>Produza chamadas, ofertas e anúncios falados com ElevenLabs.</p><div id="pvStatus" role="status" aria-live="polite"></div></section><div id="csVoiceForm" class="pv-layout"><main class="pv-editor"><div class="pv-panel"><div class="pv-line"><h2>01 · Roteiro</h2><button id="pvImport" type="button" class="pv-secondary">Importar criativo</button></div><textarea id="csVoiceText" maxlength="750" rows="9" placeholder="Digite o anúncio que será narrado..."></textarea><div class="pv-line"><small id="csVoiceChars">0 / 150 caracteres</small><button id="pvClear" type="button" class="pv-secondary">Limpar</button></div><p class="pv-hint">A pontuação e as quebras de frase ajudam a definir o ritmo. A duração é estimada.</p></div><div class="pv-panel"><h2>02 · Duração e orçamento</h2><div class="pv-tiers" id="pvTiers"></div><label class="pv-sr">Duração estimada<select id="csVoiceDuration"><option value="15">15 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option><option value="60">60 segundos</option><option value="75">75 segundos</option></select></label><p id="csVoiceQuote" aria-live="polite">Selecione a duração e escreva o roteiro.</p></div></main><aside class="pv-panel pv-settings"><h2>03 · Configuração da voz</h2><label>Voz<select id="csVoiceSelect"></select></label><div class="pv-voice-meta"><strong id="pvVoiceName"></strong><p id="pvVoiceDescription"></p><small id="pvVoiceAvailability"></small><audio id="pvVoiceSample" controls preload="none" hidden></audio><a href="https://elevenlabs.io/pt/voice-library" target="_blank" rel="noopener noreferrer">Ouvir e explorar vozes na biblioteca oficial ↗</a></div><label>Modelo<select id="pvModel"><option value="eleven_flash_v2_5">Eleven Flash v2.5 · econômico</option></select></label><label>Idioma<select id="pvLanguage"><option value="pt">Português</option><option value="">Detecção automática</option><option value="en">Inglês</option><option value="es">Espanhol</option></select></label><div class="pv-presets"><small>Presets de configuração</small><div><button type="button" data-pv-preset="natural">Natural</button><button type="button" data-pv-preset="commercial">Comercial</button><button type="button" data-pv-preset="calm">Suave</button></div></div><div id="pvSliders"></div><label class="pv-check"><input type="checkbox" id="pvBoost" checked> Reforço de similaridade do locutor (Speaker Boost)</label><button class="pv-secondary" id="pvReset" type="button">Restaurar padrão</button><p class="pv-hint">Apenas opções do modelo configurado. Vozes e modelos adicionais dependem da licença e do catálogo autorizado.</p></aside><section class="pv-panel pv-output"><div class="pv-line"><h2>04 · Áudio final</h2><span>MP3 · 44,1 kHz / 128 kbps</span></div><div id="pvWave" aria-hidden="true"></div><p id="pvOutputHint">O áudio aparecerá aqui após geração confirmada.</p><audio id="csVoiceAudio" controls hidden></audio><a id="csVoiceDownload" download="locucao-pdv.mp3" hidden>Baixar MP3</a></section></div><footer class="pv-footer"><div><small>Custo da modalidade</small><strong id="pvCost">1 IA COIN</strong></div><button type="button" id="csVoicePrice" disabled>Validar orçamento</button><button type="button" id="csVoiceGenerate" disabled>Gerar áudio</button></footer></div>`;
+voiceConsole.innerHTML=`<div class="pv-shell"><header class="pv-header"><button id="pvBack" type="button" aria-label="Voltar">‹</button><div><small>PDV MULTIVERSAL · AUDIO LAB</small><strong>VOICE STUDIO</strong></div><button id="pvWallet" type="button" aria-label="Abrir carteira IA COIN"><span id="pvBalance">—</span> IA COIN</button></header><section class="pv-intro"><small>ESTÚDIO PROFISSIONAL</small><h1 id="pvTitle">Sua marca. Sua voz.</h1><p>Produza chamadas, ofertas e anúncios falados com ElevenLabs.</p><div id="pvStatus" role="status" aria-live="polite"></div></section><div id="csVoiceForm" class="pv-layout"><main class="pv-editor"><div class="pv-panel"><div class="pv-line"><h2>01 · Roteiro</h2><button id="pvImport" type="button" class="pv-secondary">Importar criativo</button></div><textarea id="csVoiceText" maxlength="750" rows="9" placeholder="Digite o anúncio que será narrado..."></textarea><div class="pv-line"><small id="csVoiceChars">0 / 150 caracteres</small><button id="pvClear" type="button" class="pv-secondary">Limpar</button></div><p class="pv-hint">A pontuação e as quebras de frase ajudam a definir o ritmo. A duração é estimada.</p></div><div class="pv-panel"><h2>02 · Duração e orçamento</h2><div class="pv-tiers" id="pvTiers"></div><label class="pv-sr">Duração estimada<select id="csVoiceDuration"><option value="15">15 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option><option value="60">60 segundos</option><option value="75">75 segundos</option></select></label><p id="csVoiceQuote" aria-live="polite">Selecione a duração e escreva o roteiro.</p></div></main><aside class="pv-panel pv-settings"><h2>03 · Configuração da voz</h2><label>Voz<select id="csVoiceSelect"></select></label><div class="pv-voice-meta"><strong id="pvVoiceName"></strong><p id="pvVoiceDescription"></p><small id="pvVoiceAvailability"></small><audio id="pvVoiceSample" controls preload="none" hidden></audio><a href="https://elevenlabs.io/pt/voice-library" target="_blank" rel="noopener noreferrer">Ouvir e explorar vozes na biblioteca oficial ↗</a></div><label>Modelo<select id="pvModel"><option value="eleven_flash_v2_5">Eleven Flash v2.5 · econômico</option></select></label><label>Idioma<select id="pvLanguage"><option value="pt">Português</option><option value="">Detecção automática</option><option value="en">Inglês</option><option value="es">Espanhol</option></select></label><div class="pv-presets"><small>Presets de configuração</small><div><button type="button" data-pv-preset="natural">Natural</button><button type="button" data-pv-preset="commercial">Comercial</button><button type="button" data-pv-preset="calm">Suave</button></div></div><div id="pvSliders"></div><label class="pv-check"><input type="checkbox" id="pvBoost" checked> Reforço de similaridade do locutor (Speaker Boost)</label><button class="pv-secondary" id="pvReset" type="button">Restaurar padrão</button><p class="pv-hint">Apenas opções do modelo configurado. Vozes e modelos adicionais dependem da licença e do catálogo autorizado.</p></aside><section class="pv-panel pv-clone" id="pvCloneAdmin" hidden><div class="pv-line"><h2>Vozes oficiais · ADM</h2><span>Exclusivo ADM</span></div><p class="pv-hint">Crie um clone autorizado e publique no catálogo do PDV. Os clientes elegíveis apenas utilizam a voz na locução.</p><label>Nome comercial<input id="pvCloneName" maxlength="65" placeholder="Ex.: Locutor oficial 01"></label><label>Descrição<input id="pvCloneDescription" maxlength="250" placeholder="Ex.: Voz brasileira para ofertas"></label><label>Amostra de voz (MP3 ou WAV, até 8 MB)<input id="pvCloneFile" type="file" accept=".mp3,.wav,audio/mpeg,audio/wav"></label><audio id="pvCloneSample" controls hidden></audio><p class="pv-hint">Recomendado: 1 a 2 minutos de fala limpa, uma pessoa, sem música.</p><label>Referência da autorização<input id="pvCloneConsentRef" maxlength="180" placeholder="Identificador do termo de autorização"></label><label class="pv-check"><input id="pvCloneConsent" type="checkbox"> Confirmo autorização expressa para clonagem e uso comercial da voz por clientes do PDV.</label><button id="pvCloneCreate" type="button" disabled>Criar clone oficial</button><p id="pvCloneStatus" role="status" aria-live="polite"></p><div class="pv-line"><h2>Biblioteca de vozes oficiais</h2><button type="button" class="pv-secondary" id="pvCloneReload">Atualizar</button></div><div id="pvCloneList"></div></section><section class="pv-panel pv-output"><div class="pv-line"><h2>04 · Áudio final</h2><span>MP3 · 44,1 kHz / 128 kbps</span></div><div id="pvWave" aria-hidden="true"></div><p id="pvOutputHint">O áudio aparecerá aqui após geração confirmada.</p><audio id="csVoiceAudio" controls hidden></audio><a id="csVoiceDownload" download="locucao-pdv.mp3" hidden>Baixar MP3</a></section></div><footer class="pv-footer"><div><small>Custo da modalidade</small><strong id="pvCost">1 IA COIN</strong></div><button type="button" id="csVoicePrice" disabled>Validar orçamento</button><button type="button" id="csVoiceGenerate" disabled>Gerar áudio</button></footer></div>`;
 document.body.append(voiceConsole);
 const voiceSettingsSpec=[['stability','Estabilidade',0,1,.01,.5,'Menor: mais variação · maior: mais constante'],['similarity_boost','Similaridade',0,1,.01,.75,'Fidelidade à voz original'],['style','Exagero de estilo',0,1,.01,0,'Intensidade da interpretação'],['speed','Velocidade',.7,1.2,.01,1,'Mais lenta ou mais rápida']];
 $('pvSliders').innerHTML=voiceSettingsSpec.map(([key,label,min,max,step,value,hint])=>'<label class="pv-slider"><span>'+label+' <output id="pvOut_'+key+'">'+value.toFixed(2)+'</output></span><input id="pv_'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+value+'"><small>'+hint+'</small></label>').join('');
@@ -110,6 +110,62 @@ function loadVoiceCatalog(live=[]){
  renderSelectedVoice();
 }
 let consoleReady=false,consoleSeq=0,draftOwner=null;
+let cloneBusy=false,cloneSampleUrl=null,cloneRequestId=null,cloneEpoch=0;
+const cloneAdmin=()=>isOwnAdmin()&&permitted();
+function cloneStatus(message){$('pvCloneStatus').textContent=message;}
+function resetCloneDraft(){
+ ++cloneEpoch;cloneRequestId=null;
+ if(cloneSampleUrl)URL.revokeObjectURL(cloneSampleUrl);cloneSampleUrl=null;
+ const player=$('pvCloneSample');player.pause();player.removeAttribute('src');player.hidden=true;
+ for(const id of ['pvCloneName','pvCloneDescription','pvCloneFile','pvCloneConsentRef'])$(id).value='';
+ $('pvCloneConsent').checked=false;$('pvCloneList').replaceChildren();cloneStatus('');
+}
+async function refreshClones(){
+ const epoch=cloneEpoch,actor=auth.currentUser?.uid;
+ $('pvCloneAdmin').hidden=!cloneAdmin();$('pvCloneCreate').disabled=true;
+ if(!cloneAdmin())return;
+ if(!endpoint()){cloneStatus('Área preparada. A clonagem e publicação dependem do servidor e do plano comercial ElevenLabs.');return;}
+ try{
+  const result=await(await api('/admin/clone/list',{})).json();
+  if(epoch!==cloneEpoch||auth.currentUser?.uid!==actor||!cloneAdmin())return;
+  $('pvCloneList').replaceChildren();
+  for(const v of result.voices||[]){
+   const row=document.createElement('div');row.className='pv-clone-row';
+   const label=document.createElement('div');label.textContent=v.name+' · '+({published:'Publicada',draft:'Rascunho',verification_required:'Verificação pendente'}[v.state]||v.state);
+   const btn=document.createElement('button');btn.type='button';btn.textContent=v.state==='published'?'Retirar do catálogo':'Publicar para clientes';
+   btn.disabled=v.state==='verification_required'||(v.state!=='published'&&!result.sharedCloneApproved);
+   btn.onclick=async()=>{if(cloneBusy||!cloneAdmin()||!confirm(btn.textContent+' — '+v.name+'?'))return;cloneBusy=true;btn.disabled=true;try{await api('/admin/clone/publish',{voiceId:v.id,publish:v.state!=='published'});if(epoch===cloneEpoch)cloneStatus('Catálogo atualizado. Reabra o estúdio para sincronizar.');}catch(e){if(epoch===cloneEpoch)cloneStatus(e.message);}finally{cloneBusy=false;if(epoch===cloneEpoch)void refreshClones();}};
+   row.append(label,btn);$('pvCloneList').append(row);
+  }
+  $('pvCloneCreate').disabled=!result.cloneApproved||cloneBusy;
+  if(!result.cloneApproved)cloneStatus('Clonagem comercial ainda não habilitada.');
+ }catch(e){if(epoch===cloneEpoch)cloneStatus(e.message);}
+}
+$('pvCloneFile').addEventListener('change',()=>{
+ if(cloneSampleUrl)URL.revokeObjectURL(cloneSampleUrl);cloneSampleUrl=null;cloneRequestId=null;
+ const file=$('pvCloneFile').files?.[0],player=$('pvCloneSample');player.pause();player.hidden=true;player.removeAttribute('src');
+ if(file&&file.size<=8*1024*1024&&/\.(mp3|wav)$/i.test(file.name)){cloneSampleUrl=URL.createObjectURL(file);player.src=cloneSampleUrl;player.hidden=false;}else if(file)cloneStatus('Selecione MP3 ou WAV de até 8 MB.');
+});
+for(const id of ['pvCloneName','pvCloneDescription','pvCloneConsentRef','pvCloneConsent'])$(id).addEventListener('input',()=>{if(!cloneBusy)cloneRequestId=null;});
+$('pvCloneReload').onclick=refreshClones;
+$('pvCloneCreate').onclick=async()=>{
+ if(cloneBusy||!cloneAdmin()||!endpoint())return;
+ const file=$('pvCloneFile').files?.[0],name=$('pvCloneName').value.trim(),description=$('pvCloneDescription').value.trim(),consentRef=$('pvCloneConsentRef').value.trim();
+ if(!file||file.size>8*1024*1024||!/\.(mp3|wav)$/i.test(file.name)||name.length<3||consentRef.length<5||!$('pvCloneConsent').checked)return cloneStatus('Preencha nome, arquivo e autorização expressa.');
+ if(!confirm('Criar clone oficial? A amostra será enviada à ElevenLabs. Nenhuma publicação automática.'))return;
+ const epoch=cloneEpoch,actor=auth.currentUser.uid;
+ cloneBusy=true;cloneRequestId=cloneRequestId||crypto.randomUUID();$('pvCloneCreate').disabled=true;
+ for(const id of ['pvCloneName','pvCloneDescription','pvCloneFile','pvCloneConsentRef','pvCloneConsent'])$(id).disabled=true;
+ try{
+  const encoded=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});
+  if(epoch!==cloneEpoch||auth.currentUser?.uid!==actor||!cloneAdmin())return;
+  const result=await(await api('/admin/clone/create',{requestId:cloneRequestId,name,description,consentRef,consent:true,mime:/\.wav$/i.test(file.name)?'audio/wav':'audio/mpeg',audio:encoded})).json();
+  if(epoch!==cloneEpoch||auth.currentUser?.uid!==actor)return;
+  resetCloneDraft();cloneStatus(result.state==='verification_required'?'Clone exige verificação no provedor; não será publicado.':'Clone criado em rascunho. Publique quando estiver autorizado.');
+ }catch(e){if(epoch===cloneEpoch)cloneStatus('Não foi possível confirmar a clonagem. Consulte o histórico antes de repetir. '+(e.message||''));}
+ finally{cloneBusy=false;for(const id of ['pvCloneName','pvCloneDescription','pvCloneFile','pvCloneConsentRef','pvCloneConsent'])$(id).disabled=false;if(auth.currentUser?.uid===actor&&cloneAdmin())void refreshClones();}
+};
+
 function studioStatus(message){$('pvStatus').textContent=message;state(message);}
 function settings(){return Object.fromEntries([...voiceSettingsSpec.map(([key])=>[key,Number($('pv_'+key).value)]),['use_speaker_boost',$('pvBoost').checked]]);}
 function options(){return {modelId:$('pvModel').value,languageCode:$('pvLanguage').value||null,voiceSettings:settings()};}
@@ -133,7 +189,7 @@ async function open(){
  const user=auth.currentUser,seq=++consoleSeq;consoleReady=false;quote=null;uid=user.uid;
  if(draftOwner!==uid){clear();uid=user.uid;draftOwner=uid;$('pvOutputHint').textContent='O áudio aparecerá aqui após geração confirmada.';importCreative();applyPreset({});}
  $('csVoiceForm').hidden=false;$('pvBalance').textContent='—';loadVoiceCatalog();
- if(!voiceConsole.open)voiceConsole.showModal();invalidate();void consoleBalance(user,seq);void refreshWallet();
+ if(!voiceConsole.open)voiceConsole.showModal();invalidate();void consoleBalance(user,seq);void refreshWallet();void refreshClones();
  if(!endpoint()){studioStatus('Modo preparação · editor disponível. As vozes Infinity são referências oficiais. A síntese e o orçamento final aguardam servidor e licença comercial ElevenLabs. Nenhuma IA COIN será debitada.');return;}
  studioStatus('Consultando serviço autorizado…');
  try{
@@ -177,8 +233,8 @@ async function generate(){
  }catch(e){if(seq===consoleSeq&&auth.currentUser?.uid===actor)studioStatus(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false;if(seq===consoleSeq)invalidate();}
 }
 window.POTE_VOICE_AI={open,shop,history};
-window.addEventListener("pote:profile-updated",()=>{if(!permitted()){consoleReady=false;draftOwner=null;++consoleSeq;if(voiceConsole.open)voiceConsole.close();$("csVoiceText").value="";clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
-window.addEventListener("pote:user-logout",()=>{draftOwner=null;consoleReady=false;++consoleSeq;if(voiceConsole.open)voiceConsole.close();$("csVoiceText").value="";clear();});
+window.addEventListener("pote:profile-updated",()=>{if(!permitted()){consoleReady=false;draftOwner=null;resetCloneDraft();++consoleSeq;if(voiceConsole.open)voiceConsole.close();$("csVoiceText").value="";clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
+window.addEventListener("pote:user-logout",()=>{draftOwner=null;consoleReady=false;resetCloneDraft();++consoleSeq;if(voiceConsole.open)voiceConsole.close();$("csVoiceText").value="";clear();});
 
 /* IA Universe: isolated full-screen wallet, no simulated credit or payment. */
 const universe=document.createElement('dialog');
