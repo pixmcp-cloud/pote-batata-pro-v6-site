@@ -642,7 +642,7 @@ onAuthStateChanged(auth, async user => {
   pendingThisSession=false;
   window.POTE_UNIVERSE_MIGRATED=false;
   window.POTE_APP_READY=false;
-  window.dispatchEvent(new Event("pote:user-logout"));
+  window.dispatchEvent(new CustomEvent("pote:user-logout",{detail:{signedOut:!user,nextUid:user?.uid||null}}));
   window.POTE_BRAND_MIGRATED=false;
   if (adminOpen) adminOpen.hidden = true;
   if (planBadge) planBadge.hidden = true;

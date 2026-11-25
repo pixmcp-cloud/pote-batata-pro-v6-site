@@ -117,6 +117,7 @@ HEAD_ASSETS = (
     '<link rel="stylesheet" href="./cancel_order_flow.css?v=cancel-audit-20261115">'
     '<link rel="stylesheet" href="./app_audit.css?v=audit-20261115">'
     '<link rel="stylesheet" href="./release_news.css?v=news-20261115-06">'
+    '<link rel="stylesheet" href="./pro_offer.css?v=free-offer-1">'
     '<script src="./dashboard_charts.js?v=ops-20261115"></script>'
     '<script src="./recipe_images.js?v=recipes-20261115"></script>'
 )
@@ -325,7 +326,8 @@ BODY_ASSETS = (
     '<script src="./pote_notice.js?v=aviso-20261116"></script>'
     '<script src="./floating_menu.js?v=moderation-20261121"></script>'
     '<script src="./release_news.js?v=pdv-20261116"></script>'
-    '<script type="module" src="./firebase_integration.js?v=moderation-20261121"></script>'
+    '<script src="./pro_offer.js?v=free-offer-1"></script>'
+    '<script type="module" src="./firebase_integration.js?v=free-offer-1"></script>'
     '<script type="module" src="./admin_console.js?v=adm-popup-20261121"></script>'
     '<script type="module" src="./admin_permissions.js?v=firebase-order-v5-20261120"></script>'
     '<script type="module" src="./gallery.js?v=galeria-42h"></script>'
