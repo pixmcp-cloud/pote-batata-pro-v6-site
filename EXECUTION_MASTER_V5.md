@@ -188,3 +188,5 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 
 ### V6 — Letreiro LED: cores aprovadas (25/11/2026)
 - Fundo preto; recebido vermelho #ff4747, em produção laranja #ff9f32, concluído amarelo #ffdf40, saiu para entrega verde #55ff80, entregue branco #ffffff. Cancelado cinza neutro, distinto de recebido. Cronômetro sempre branco, sem brilho colorido; bolinha verde apenas em conexão ativa, terminal mantém tempo registrado. Transição suave de cor, respeita movimento reduzido. Cache versionado. Teste Chrome verifica cores CSS efetivas em cada etapa e relógio branco, incluindo evento de despacho simulado. Sem alterar estados, tempos, regras, dados ou produção. CI pendente.
+
+- Regressão 45566725916 bloqueou salvamento do frete: regex de decimal foi escapada duas vezes na edição anterior. Corrigida para aceitar dígitos e separador decimal, mantendo precisão e limites; teste agora informa mensagem de rejeição em caso de falha. Outros quatro workflows do commit anterior aprovados. Nova CI pendente.

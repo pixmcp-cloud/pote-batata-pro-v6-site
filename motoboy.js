@@ -78,7 +78,7 @@ function addZone(){
 function decimal(raw,scale,optional=false){
  const text=String(raw??"").trim();
  if(!text&&optional)return null;
- if(!/^\\d+(?:[.,]\\d{1,3})?$/.test(text))throw Error("Informe valores numéricos válidos.");
+ if(!/^\d+(?:[.,]\d{1,3})?$/.test(text))throw Error("Informe valores numéricos válidos.");
  const v=Number(text.replace(",","."));
  const result=Math.round(v*scale);
  if(!Number.isSafeInteger(result)||Math.abs(v*scale-result)>1e-6)throw Error("Precisão inválida.");
