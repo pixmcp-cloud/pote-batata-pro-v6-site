@@ -115,6 +115,11 @@ test("Motoboy Connect: invite email binding, customer privacy, GPS throttle, cha
  assert.equal((await c("courier",{action:"accept",id,name:"Entregador QA",position:gps})).status,200);
  assert.equal(x.get("motoboyConnectProfiles/qa-courier").name,"Entregador QA");
  assert.equal((await c("customer",{action:"view",id})).body.job.courierEmail,undefined);
+ const mapConfig={ENABLE_GOOGLE_MAPS_EMBED:"true",GOOGLE_MAPS_EMBED_KEY:"AIza"+"A".repeat(35)};
+ assert.equal((await c("courier",{action:"view",id})).body.job.mapsEmbedKey,undefined);
+ assert.equal((await c("courier",{action:"view",id},mapConfig)).body.job.mapsEmbedKey,mapConfig.GOOGLE_MAPS_EMBED_KEY);
+ assert.equal((await c("outsider",{action:"view",id},mapConfig)).status,404);
+ assert.equal(x.get("motoboyConnectJobs/"+id).mapsEmbedKey,undefined);
  assert.equal((await c("courier",{action:"position",id,position:{lat:-29,lng:-49,accuracy:10}})).status,403);
  assert.equal((await c("customer",{action:"start",id})).status,403);
  assert.equal((await c("courier",{action:"start",id})).body.error,"gps_required");

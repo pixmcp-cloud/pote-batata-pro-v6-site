@@ -34,4 +34,5 @@ jobs:
           npm ci --prefix qa/mobile --ignore-scripts --no-audit --no-fund
           export CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           test -n "$CHROME_BIN"
+          node test_connect_maps.mjs
           node test_cardapio_browser.cjs

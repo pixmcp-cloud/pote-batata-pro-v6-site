@@ -48,19 +48,19 @@ async function tapProduct(page,selector){
        return req.abort();
       });
       await page.goto("http://127.0.0.1:"+server.address().port+"/cardapio/",{waitUntil:"domcontentloaded"});
-      await page.evaluate(async()=>{document.querySelectorAll("dialog[open]").forEach(d=>d.close());const {makeConnectPanel}=await import("/motoboy-connect/connect-client.mjs?v=4");const css=document.createElement("link");css.rel="stylesheet";css.href="/motoboy-connect/panel.css";document.head.append(css);await new Promise(resolve=>{css.onload=resolve;css.onerror=resolve});const parent=document.createElement("dialog");parent.id="qa-connect";parent.style.cssText="width:calc(100% - 16px);max-width:650px;padding:12px;box-sizing:border-box";const holder=document.createElement("div");parent.append(holder);document.body.append(parent);parent.showModal();window.qaConnect=makeConnectPanel({role:"customer",token:async()=>"mock",id:"qa",container:holder})});
+      await page.evaluate(async()=>{document.querySelectorAll("dialog[open]").forEach(d=>d.close());const {makeConnectPanel}=await import("/motoboy-connect/connect-client.mjs?v=5");const css=document.createElement("link");css.rel="stylesheet";css.href="/motoboy-connect/panel.css";document.head.append(css);await new Promise(resolve=>{css.onload=resolve;css.onerror=resolve});const parent=document.createElement("dialog");parent.id="qa-connect";parent.style.cssText="width:calc(100% - 16px);max-width:650px;padding:12px;box-sizing:border-box";const holder=document.createElement("div");parent.append(holder);document.body.append(parent);parent.showModal();window.qaConnect=makeConnectPanel({role:"customer",token:async()=>"mock",id:"qa",container:holder})});
       await page.waitForSelector(".connect-map-controls button",{visible:true});
       await page.click(".connect-map-controls button:first-child");await page.waitForSelector(".connect-map-stage iframe",{visible:true});
       const square=await page.$eval(".connect-map-stage",e=>{const r=e.getBoundingClientRect();return r.width/r.height});assert(Math.abs(square-1)<.03,"mapa 1:1 celular");
       await page.click(".connect-map-expand");await page.waitForSelector(".connect-map-fullscreen[open]",{visible:true});
       assert(await page.$eval(".connect-map-fullscreen",e=>{const r=e.getBoundingClientRect();return Math.abs(r.width-innerWidth)<3&&Math.abs(r.height-innerHeight)<3}));
-      assert.equal(await page.$eval(".connect-map-stage iframe",e=>e.length),1);
+      assert.equal(await page.$$eval(".connect-map-stage iframe",e=>e.length),1);
       await page.click(".connect-map-close");assert.equal(await page.$eval(".connect-map-fullscreen",e=>e.open),false);
       assert(await page.$eval(".connect-map>.connect-map-stage",e=>!e.hidden));
-      await page.click(".connect-map-expand");pos={...pos,lat:-29.124,at:"2026-11-25T10:00:20Z"};await page.evaluate(()=>window.qaConnect.refresh());
+      await page.click(".connect-map-expand");await page.waitForSelector(".connect-map-fullscreen[open]",{visible:true});pos={...pos,lat:-29.124,at:"2026-11-25T10:00:20Z"};await page.evaluate(()=>window.qaConnect.refresh());
       assert(await page.$eval(".connect-map-fullscreen iframe",e=>e.src.includes("-29.124")));
-      pos=null;await page.evaluate(()=>window.qaConnect.refresh());assert.equal(await page.$eval(".connect-map-fullscreen",e=>e.open),false);assert.equal(await page.$eval(".connect-map-stage iframe",e=>e.length),0);
-      await page.evaluate(()=>window.qaConnect.close());assert.equal(await page.$eval(".connect-map-fullscreen",e=>e.length),0);
+      pos=null;await page.evaluate(()=>window.qaConnect.refresh());assert.equal(await page.$eval(".connect-map-fullscreen",e=>e.open),false);assert.equal(await page.$$eval(".connect-map-stage iframe",e=>e.length),0);
+      await page.evaluate(()=>window.qaConnect.close());assert.equal(await page.$$eval(".connect-map-fullscreen",e=>e.length),0);
       assert.deepEqual(errors,[]);await page.close();console.log("PASS GPS Motoboy: 1:1, tela cheia, X, atualizacao, encerramento seguro.");
     }
     for(const width of [320,375,430,834,1366]){

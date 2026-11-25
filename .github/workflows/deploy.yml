@@ -389,6 +389,7 @@ jobs:
           node qa/mobile/test_franchise_mobile.cjs
           node test_hardening_mobile_browser.cjs
           node test_calc_shopping_browser.cjs
+          node test_connect_maps.mjs
           node test_cardapio_browser.cjs
           node test_pdv_auto_sale_browser.cjs
       - uses: actions/upload-pages-artifact@v3

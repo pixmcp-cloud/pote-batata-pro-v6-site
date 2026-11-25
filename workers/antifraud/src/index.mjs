@@ -384,7 +384,13 @@ export function createWorkerApp({
      if(!input||typeof input!=="object"||Array.isArray(input))return json({error:"invalid_connect"},400,headers);
      const merchantAllowed=async(tx,claims,universe)=>canaryPermitted(env,claims.uid)&&hasAccess((await tx.get("users/"+claims.uid))?.data,claims,universe);
      for(let attempt=0;attempt<4;attempt++){
-      try{return json(await connectOperation({input,user,env,repository,at:clock(),merchantAllowed}),200,headers)}
+      try{
+       const result=await connectOperation({input,user,env,repository,at:clock(),merchantAllowed});
+       // Browser-restricted Maps Embed key only. Never expose a server key,
+       // never persist it in order records, and keep map API opt-in.
+       if(result.job?.active&&["courier","customer","merchant"].includes(result.job.role)&&env.ENABLE_GOOGLE_MAPS_EMBED==="true"&&typeof env.GOOGLE_MAPS_EMBED_KEY==="string"&&/^AIza[A-Za-z0-9_-]{35}$/.test(env.GOOGLE_MAPS_EMBED_KEY))result.job.mapsEmbedKey=env.GOOGLE_MAPS_EMBED_KEY;
+       return json(result,200,headers);
+      }
       catch(e){if(!(e instanceof FirestoreError)||![409,412].includes(e.status)||attempt===3)throw e;}
      }
     }

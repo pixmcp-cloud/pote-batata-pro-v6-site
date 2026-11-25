@@ -7,7 +7,16 @@ export async function connectCall(token,input){
  return result.job;
 }
 export function mapLink(position){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(position.lat+","+position.lng)}
-export function navigationLink(address){return "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(address)+"&travelmode=driving"}
+// The canonical CEP address may include a private complement. Do not send it to the map provider.
+export function mapDestination(address){return String(address||"").replace(/(· CEP \d{8})(?: · .*)$/,"$1").replaceAll(" · ",", ").trim()}
+export function navigationLink(address){return "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(mapDestination(address))+"&travelmode=driving&dir_action=navigate"}
+export function googleEmbedUrl({key,position,address}){
+ if(typeof key!=="string"||!/^AIza[A-Za-z0-9_-]{35}$/.test(key)||!position||!Number.isFinite(position.lat)||!Number.isFinite(position.lng)||Math.abs(position.lat)>90||Math.abs(position.lng)>180)return null;
+ const coordinates=position.lat.toFixed(5)+","+position.lng.toFixed(5);
+ const q=new URLSearchParams({key,language:"pt-BR",region:"BR"});
+ if(address){q.set("origin",coordinates);q.set("destination",mapDestination(address));q.set("mode","driving");return "https://www.google.com/maps/embed/v1/directions?"+q}
+ q.set("q",coordinates);q.set("zoom","16");return "https://www.google.com/maps/embed/v1/place?"+q
+}
 export function inviteLink(id){const url=new URL("../motoboy-connect/",import.meta.url);url.hash=id;return url.href}
 const el=(tag,text)=>{const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x};
 const link=(label,url)=>{const a=el("a",label);a.href=url;a.target="_blank";a.rel="noopener noreferrer";return a};
@@ -33,33 +42,46 @@ export function makeConnectPanel({role,token,id,onClose,container}){
   gpsEnable.hidden=valid;
   chat.hidden=actions.hidden=active&&!valid;
   details.hidden=active&&!valid;
+  if(!valid)paintMap(null);else if(job?.role==="courier"&&job.address)paintMap(gpsSample);
   if(!active){chat.hidden=false;actions.hidden=false;details.hidden=false;}
  }
- let renderSignature="",mapSignature="",mapEnabled=false,frame=null,position=null;
+ let renderSignature="",mapSignature="",mapEnabled=false,frame=null,position=null,lastRouteAt=0,lastRouteKey="";
  const mapStage=el("div"),mapInfo=el("p"),mapControls=el("div");
  mapStage.className="connect-map-stage";mapControls.className="connect-map-controls";mapInfo.className="connect-map-info";
- const fullscreen=el("dialog");fullscreen.className="connect-map-fullscreen";fullscreen.setAttribute("aria-label","Mapa do motoboy em tela cheia");
- const fullHead=el("header"),fullTitle=el("strong","Trajeto do motoboy"),fullInfo=el("span");
+ const fullscreen=el("dialog");fullscreen.className="connect-map-fullscreen";fullscreen.setAttribute("aria-label",riderMode?"Rota até o cliente em tela cheia":"Mapa do motoboy em tela cheia");
+ const fullHead=el("header"),fullTitle=el("strong",riderMode?"Rota até o cliente":"Trajeto do motoboy"),fullInfo=el("span");
  const fullClose=btn("×",()=>collapseMap());fullClose.setAttribute("aria-label","Fechar mapa em tela cheia");fullClose.className="connect-map-close";
- fullHead.append(fullTitle,fullInfo,fullClose);fullscreen.append(fullHead);if(!riderMode)document.body.append(fullscreen);
+ fullHead.append(fullTitle,fullInfo,fullClose);fullscreen.append(fullHead);document.body.append(fullscreen);
  const expand=btn("⛶ Tela cheia",()=>{if(!position||!frame||closed||fullscreen.open)return;fullscreen.showModal();moveStage(fullscreen);fullClose.focus()});expand.className="connect-map-expand";
- const enable=btn("Visualizar mapa nesta janela",()=>{mapEnabled=true;paintMap(position)});
- const outside=link("Abrir localização no mapa","#");
+ const enable=btn(riderMode?"Visualizar rota nesta janela":"Visualizar mapa nesta janela",()=>{mapEnabled=true;paintMap(position)});
+ const outside=link(riderMode?"Iniciar navegação Google Maps":"Abrir localização no mapa","#");
  const moveStage=parent=>{if(mapStage.parentNode===parent)return;if(typeof parent.moveBefore==="function"){try{parent.moveBefore(mapStage,null);return}catch{}}parent.append(mapStage)};
  function collapseMap(){if(fullscreen.open)fullscreen.close();moveStage(map);if(expand.isConnected&&!expand.hidden)expand.focus({preventScroll:true})}
  fullscreen.addEventListener("cancel",event=>{event.preventDefault();collapseMap()});
  fullscreen.addEventListener("close",()=>{if(!closed&&!fullscreen.open)moveStage(map)});
  map.append(mapInfo,mapControls,mapStage);mapControls.append(enable,expand,outside);
  function paintMap(p){
-  if(riderMode){map.hidden=true;return}
+  const address=riderMode&&job?.role==="courier"&&job?.active&&gpsFresh()?job.address:"";
+  if(riderMode&&!address)p=null;
   position=p;
-  if(!p){if(fullscreen.open)collapseMap();frame?.remove();frame=null;mapStage.hidden=true;mapControls.hidden=true;mapInfo.textContent="Sem localização recente. O GPS depende da autorização e da página aberta do motoboy.";fullInfo.textContent="";return}
-  mapControls.hidden=false;mapInfo.textContent="Última localização: "+new Date(p.at).toLocaleTimeString("pt-BR")+" · precisão "+p.accuracy+" m";fullInfo.textContent=mapInfo.textContent;
-  outside.href=mapLink(p);enable.hidden=mapEnabled;expand.hidden=!mapEnabled;mapStage.hidden=!mapEnabled;
+  map.hidden=riderMode&&!address;
+  if(!p){if(fullscreen.open)collapseMap();frame?.remove();frame=null;lastRouteKey="";lastRouteAt=0;mapStage.hidden=true;mapControls.hidden=true;mapInfo.textContent="Sem localização recente. O GPS depende da autorização e da página aberta do motoboy.";fullInfo.textContent="";return}
+  const google=googleEmbedUrl({key:job?.mapsEmbedKey,position:p,address});
+  const embedded=Boolean(google)||!riderMode;
+  mapControls.hidden=false;
+  mapInfo.textContent=riderMode?(google?"Google Maps · rota até o endereço do cliente.":"Navegação Google Maps disponível. Mapa interno aguarda configuração da API."):"Última localização: "+new Date(p.at).toLocaleTimeString("pt-BR")+" · precisão "+p.accuracy+" m";
+  fullInfo.textContent=mapInfo.textContent;
+  outside.href=riderMode?navigationLink(address):mapLink(p);
+  enable.hidden=mapEnabled||!embedded;expand.hidden=!mapEnabled||!embedded;mapStage.hidden=!mapEnabled||!embedded;
+  if(!embedded){if(fullscreen.open)collapseMap();frame?.remove();frame=null;return}
   if(!mapEnabled)return;
-  if(!frame){frame=el("iframe");frame.title="Posição mais recente do motoboy";frame.loading="lazy";frame.referrerPolicy="no-referrer";mapStage.append(frame)}
-  const delta=.009,url="https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent([p.lng-delta,p.lat-delta,p.lng+delta,p.lat+delta].join(","))+"&layer=mapnik&marker="+encodeURIComponent(p.lat+","+p.lng);
-  if(frame.getAttribute("src")!==url)frame.src=url;
+  if(!frame){frame=el("iframe");frame.title=riderMode?"Rota Google Maps até o cliente":"Posição mais recente do motoboy";frame.loading="lazy";mapStage.append(frame)}
+  frame.referrerPolicy=google?"strict-origin-when-cross-origin":"no-referrer";
+  const delta=.009,url=google||"https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent([p.lng-delta,p.lat-delta,p.lng+delta,p.lat+delta].join(","))+"&layer=mapnik&marker="+encodeURIComponent(p.lat+","+p.lng);
+  // Recalculate the rider route at most once per 30s, unless destination/key changes.
+  const routeKey=String(job?.mapsEmbedKey||"")+"|"+address;
+  if(riderMode&&lastRouteKey===routeKey&&Date.now()-lastRouteAt<30000&&frame.getAttribute("src"))return;
+  if(frame.getAttribute("src")!==url){frame.src=url;lastRouteAt=Date.now();lastRouteKey=routeKey;}
  }
  paintMap(null);
  const stopGPS=()=>{gpsGeneration++;if(watch!==null){navigator.geolocation?.clearWatch(watch);watch=null}gpsSample=null;gpsAt=0};
@@ -105,7 +127,7 @@ export function makeConnectPanel({role,token,id,onClose,container}){
   details.textContent=job.storeTitle+(job.courierName?" · "+job.courierName:"")+(job.address?" · "+job.address:"")+(job.instructions?" · "+job.instructions:"");
   if(!job.active)stopGPS();else if(riderMode&&gpsConsent&&watch===null)startGPS();
   updateGate();
-  const ms=JSON.stringify(job.position);if(ms!==mapSignature){mapSignature=ms;paintMap(job.active&&job.status==="saiu_entrega"?job.position:null);}
+  if(!riderMode){const ms=JSON.stringify([job.position,job.mapsEmbedKey,job.active,job.status]);if(ms!==mapSignature){mapSignature=ms;paintMap(job.active&&job.status==="saiu_entrega"?job.position:null);}}
   const signature=JSON.stringify([job.role,job.active,job.status,job.accepted,job.messages]);
   if(signature===renderSignature)return;renderSignature=signature;
   const draft=chat.querySelector("textarea")?.value||"";
@@ -118,7 +140,7 @@ export function makeConnectPanel({role,token,id,onClose,container}){
   }
   if(job.active&&job.role==="invitee"){const name=el("input");name.placeholder="Seu nome completo";name.maxLength=80;actions.append(name,btn("Cadastrar e aceitar entrega",()=>send("accept",{name:name.value})));}
   if(job.active&&job.role==="courier"){
-   if(job.address)actions.append(link("Abrir navegação GPS",navigationLink(job.address)));
+   if(job.address)actions.append(link("Navegar com Google Maps",navigationLink(job.address)));
    if(job.status==="finalizado")actions.append(btn("Iniciar entrega",()=>{if(confirm("Confirma a retirada do pedido e início do percurso?"))void send("start")}));
    if(job.status==="saiu_entrega")actions.append(btn("Confirmar entrega",()=>{if(confirm("Confirma que o cliente recebeu o pedido?"))void send("deliver")}));
   }
