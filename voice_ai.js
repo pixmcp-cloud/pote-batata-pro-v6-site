@@ -126,21 +126,31 @@ universe.id='poteAiUniverse';
 universe.setAttribute('aria-labelledby','poteAiUniverseTitle');
 universe.innerHTML=`
  <div class="iau-shell">
-  <header class="iau-header"><button class="iau-back" type="button" data-iau-close aria-label="Voltar ao PDV">‹</button><span class="iau-brand">PDV MULTIVERSAL / IA</span><button class="iau-back" type="button" data-iau-close aria-label="Fechar carteira">×</button></header>
-  <section class="iau-hero"><div><small>INTELIGÊNCIA ARTIFICIAL · PREMIUM</small><h1 id="poteAiUniverseTitle">IA <span>UNIVERSE</span></h1><p>Seu universo de inteligência artificial começa aqui.</p></div><div class="iau-core" aria-hidden="true">IA</div></section>
+  <header class="iau-header"><button class="iau-back iau-orb" type="button" data-iau-close aria-label="Voltar ao PDV"><span>IA</span></button><span class="iau-brand"><strong>PDV</strong><small>MULTIVERSAL</small></span><button class="iau-back iau-close" type="button" data-iau-close aria-label="Fechar carteira">×</button></header>
+  <section class="iau-hero"><h1 id="poteAiUniverseTitle"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 9V7l15-5 2 6M4 9h18a3 3 0 0 1 3 3v12H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Zm21 5h-7a3 3 0 0 0 0 6h7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg> Carteira <span>IA</span></h1><p>Seus créditos para usar os recursos de IA</p></section>
   <div id="iauGate" role="status"></div>
   <div id="iauContent" hidden>
-   <section class="iau-wallet"><div><small>CARTEIRA DIGITAL · SALDO REAL</small><strong id="iauBalance">—</strong><span>Moedas IA disponíveis</span><p>Créditos adquiridos não expiram. Cotas de franquia são contabilizadas separadamente.</p></div><div class="iau-wallet-actions"><button type="button" id="iauHistoryBtn">Extrato</button><button type="button" id="iauRefresh">Atualizar saldo</button></div></section>
+   <section class="iau-wallet"><div id="iauWalletArt" aria-hidden="true"></div><div class="iau-wallet-info"><small>Saldo disponível</small><div class="iau-balance-line"><strong id="iauBalance">—</strong><span>créditos IA</span></div><div class="iau-wallet-actions"><button type="button" id="iauBuyScroll">Comprar créditos</button><button type="button" id="iauHistoryBtn">Histórico</button><button type="button" id="iauRefresh" class="iau-refresh" aria-label="Atualizar saldo">↻</button></div></div></section><section class="iau-rules"><strong>ⓘ FREE não usa IA</strong><span>Acesso à IA disponível para <b>PRO, Vitalício e Franquia</b></span></section>
    <section id="iauHistory" hidden aria-label="Extrato de créditos"></section>
-   <section class="iau-store"><div class="iau-section-label">LOJA DE CRÉDITOS</div><h2>Escolha seu pacote</h2><p>Selecione a quantidade ideal para suas campanhas.</p><div class="iau-grid" id="iauPackages"></div><div id="iauPurchase" role="status" hidden></div></section>
+   <section class="iau-store" id="iauStore"><h2><span aria-hidden="true">▱</span> Loja de créditos</h2><p>Escolha um pacote e adicione créditos à sua Carteira IA</p><div class="iau-grid" id="iauPackages"></div><div id="iauPurchase" role="status" hidden></div></section>
    <section class="iau-services"><h2>Seu poder criativo</h2><button type="button" id="iauVoice">Locução profissional <span>›</span></button><p>Chef IA e imagens: integração de consumo em preparação.</p></section>
   </div>
   <footer class="iau-footer">Moedas de uso interno · Não transferíveis · Sem conversão em dinheiro</footer>
  </div>`;
 document.body.append(universe);
 const u=id=>universe.querySelector('#'+id);
-const coin=(i)=>'<div class="iau-coins" aria-hidden="true">'+Array.from({length:[1,3,5,7,9,12][i]},(_,j)=>'<i style="--x:'+((j%3-1)*28)+'px;--y:'+(21-Math.floor(j/3)*10)+'px">IA</i>').join('')+'</div>';
-u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>`<article class="iau-pack" data-tier="${i}"><small>${["INICIAL","IMPULSO","CRIADOR","PRODUÇÃO","ESTÚDIO","MÁXIMA ECONOMIA"][i]}</small>${coin(i)}<strong>${amount}</strong><span>MOEDAS IA</span><b>${brl(cents)}</b><button type="button" data-package="${i}">Comprar</button></article>`).join('');
+// Original vector artwork: ridged gold edge, holographic face and stacked coins.
+const coin=(tier,prefix='pack'+tier)=>{
+ const n=[1,2,3,5,7,10][tier],id='iau-'+prefix;
+ const stack=Array.from({length:n-1},(_,j)=>{
+  const x=47+(j%3)*34,y=104-Math.floor(j/3)*13;
+  return '<g transform="translate('+x+' '+y+')"><ellipse cy="7" rx="27" ry="10" fill="url(#'+id+'-edge)" stroke="#d9a34b"/><rect x="-27" y="0" width="54" height="8" fill="url(#'+id+'-edge)"/><ellipse rx="27" ry="10" fill="url(#'+id+'-face)" stroke="#ffe2a2" stroke-width="1.8"/><ellipse rx="21" ry="7" fill="none" stroke="#e078ff" opacity=".75"/></g>';
+ }).join('');
+ return '<svg class="iau-coin-art" viewBox="0 0 180 132" aria-hidden="true"><defs><linearGradient id="'+id+'-edge"><stop stop-color="#663507"/><stop offset=".23" stop-color="#f4cb73"/><stop offset=".43" stop-color="#7f420e"/><stop offset=".65" stop-color="#ffdc83"/><stop offset="1" stop-color="#7b3c19"/></linearGradient><radialGradient id="'+id+'-face" cx=".28" cy=".22" r=".86"><stop stop-color="#765df4"/><stop offset=".42" stop-color="#251651"/><stop offset=".8" stop-color="#130c2d"/><stop offset="1" stop-color="#30267b"/></radialGradient><linearGradient id="'+id+'-rim" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#00e8ff"/><stop offset=".35" stop-color="#9868ff"/><stop offset=".65" stop-color="#f853ed"/><stop offset="1" stop-color="#ffd789"/></linearGradient></defs><ellipse cx="90" cy="116" rx="69" ry="9" fill="none" stroke="#00deff" opacity=".52"/>'+stack+'<g transform="translate('+ (n===1?90:109)+' 63) rotate(-17)"><ellipse cx="5" cy="5" rx="38" ry="48" fill="url(#'+id+'-edge)" stroke="#f8d27b" stroke-width="2"/><ellipse rx="38" ry="48" fill="url(#'+id+'-face)" stroke="#ffe19a" stroke-width="3"/><ellipse rx="33" ry="43" fill="none" stroke="url(#'+id+'-rim)" stroke-width="5"/><ellipse rx="28" ry="37" fill="none" stroke="#b79dff" stroke-dasharray="1 5" stroke-width="2"/><ellipse rx="23" ry="31" fill="none" stroke="#9774e2" opacity=".5"/><text y="9" text-anchor="middle" fill="#f7d8ff" stroke="#c490ff" stroke-width=".6" font-family="system-ui,sans-serif" font-size="29" font-weight="900">IA</text><path d="M-24 -31Q-10 -45 6 -43" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></g></svg>';
+};
+u('iauWalletArt').innerHTML=coin(3,'wallet');
+u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>'<article class="iau-pack" data-tier="'+i+'"><div class="iau-coins">'+coin(i)+'</div><div class="iau-amount"><strong>'+amount+'</strong> <span>créditos</span></div><b>'+brl(cents)+'</b><button type="button" data-package="'+i+'"><span aria-hidden="true">＋</span> Comprar</button></article>').join('');
+u('iauBuyScroll').addEventListener('click',()=>{if(permitted())u('iauStore').scrollIntoView({block:'start'});});
 let universeSeq=0;
 async function universeRefresh(){
  const seq=++universeSeq,user=auth.currentUser;
