@@ -20,6 +20,18 @@ const server=http.createServer((req,res)=>{
     res.end(data);
   });
 });
+// Exercise a genuine pointer click, with the target centered clear of fixed bars.
+async function tapProduct(page,selector){
+  await page.waitForSelector(selector,{visible:true});
+  await page.$eval(selector,e=>e.scrollIntoView({block:"center",inline:"nearest",behavior:"instant"}));
+  await page.waitForFunction(selector=>{
+    const e=document.querySelector(selector);if(!e)return false;
+    const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+    return hit&&(hit===e||e.contains(hit));
+  },{timeout:5000},selector);
+  await page.click(selector);
+  await page.waitForSelector("#productDialog[open]",{timeout:5000});
+}
 (async()=>{
   await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
   const browser=await puppeteer.launch({headless:true,executablePath:chrome,args:["--no-sandbox","--disable-dev-shm-usage","--disable-gpu"]});
@@ -60,8 +72,7 @@ const server=http.createServer((req,res)=>{
         assert.equal(await page.$$eval(".product-card",items=>items.length),1);
         await page.click(".category-button:first-child");
         await page.$eval("#searchInput",e=>{e.value="";e.dispatchEvent(new Event("input",{bubbles:true}))});
-        await page.click('button[aria-label="Escolher Carne com Cheddar"]');
-        await page.waitForSelector("#productDialog[open]");
+        await tapProduct(page,'button[aria-label="Escolher Carne com Cheddar"]');
         assert.deepEqual(await page.$$eval("#productIngredients li",nodes=>nodes.map(n=>n.textContent)),["Batata","Carne desfiada","Cheddar"]);
         assert.equal(await page.$eval("#productFacts",e=>e.open),false);
         assert.equal(await page.$eval("#productIngredients",e=>e.getClientRects().length>0),false);
@@ -81,8 +92,8 @@ const server=http.createServer((req,res)=>{
         assert.equal(await page.$eval("#addressLabel",e=>e.hidden),false);
         assert.match(await page.$eval(".demo-warning",e=>e.textContent),/Nenhum pagamento será cobrado/);
         await page.click("#closeCart");
-        await page.click('button[aria-label="Escolher Sabor Pizza"]');
-        await page.waitForSelector("#productDialog[open]");
+        await page.waitForSelector("#cartDialog[open]",{hidden:true});
+        await tapProduct(page,'button[aria-label="Escolher Sabor Pizza"]');
         assert.equal(await page.$eval("#productFacts",e=>e.open),false);
         assert.equal(await page.$eval("#productIngredients",e=>e.getClientRects().length>0),false);
         await page.click("#productFacts summary");
@@ -92,8 +103,8 @@ const server=http.createServer((req,res)=>{
         assert(pizzaIngredients.includes("Presunto")&&pizzaIngredients.includes("Muçarela")&&pizzaIngredients.includes("Orégano"));
         assert(!pizzaIngredients.includes("Carne desfiada"));
         await page.click("#closeProduct");
-        await page.click('button[aria-label="Escolher Refrigerante Lata"]');
-        await page.waitForSelector("#productDialog[open]");
+        await page.waitForSelector("#productDialog[open]",{hidden:true});
+        await tapProduct(page,'button[aria-label="Escolher Refrigerante Lata"]');
         assert.equal(await page.$eval("#productIngredientHeading",e=>e.textContent),"Sabores");
         assert.match(await page.$eval("#productNote",e=>e.placeholder),/gelado/);
         assert.match(await page.$eval("#productFactFormat",e=>e.textContent),/350 ml/);
@@ -102,10 +113,12 @@ const server=http.createServer((req,res)=>{
         assert.equal(await page.$eval("#productFacts",e=>e.open),true);
         assert.deepEqual(await page.$$eval('input[name="drinkFlavor"]',nodes=>nodes.map(n=>n.value)),["Cola","Guaraná","Laranja"]);
         await page.click('input[name="drinkFlavor"][value="Guaraná"]');
-        await page.select("#drinkTemperature","Gelado");
+        assert.deepEqual(await page.$$eval("#drinkTemperature option",nodes=>nodes.map(n=>n.value)),["Gelado","Fora do gelo"]);
+        assert.equal(await page.$eval("#drinkTemperature",e=>e.value),"Gelado");
+        await page.select("#drinkTemperature","Fora do gelo");
         await page.click("#addToCart");
         await page.click("#floatingCart");
-        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Temperatura: Gelado/);
+        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Temperatura: Fora do gelo/);
         await page.click("#closeCart");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);
