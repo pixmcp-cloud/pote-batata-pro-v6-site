@@ -126,3 +126,17 @@ Identidade aprovada: PDV MULTIVERSAL — Todos os segmentos. Uma única platafor
 
 ### V6 — correção de publicação MULTIVERSAL (25/11/2026)
 PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contrato visual que exigia a URL literal do PNG antigo. O teste de marca, ícones e metadados passou. Atualizado contrato para exigir o SVG MULTIVERSAL versionado no código-fonte e HTML gerado e verificar o texto da arte, preservando as demais assertivas de PDV, acesso, relatórios e PNG PWA. Sem remoção de testes ou alteração operacional. Nova publicação a conferir.
+
+## V6 — Ordem mestre de entregas e checkout (25/11/2026)
+Autorização do proprietário: executar em cascata, sem novas confirmações operacionais, preservando produção e sem contratação de serviços pagos. Base: PR #47. Geoapify: 15/15 verificações reais aprovadas no workflow 45589641100, atualização staging 45589938293 aprovada; identidades e catálogo simulados. Limite global preventivo 2500 créditos/dia.
+
+| ID | Prioridade | Aceite obrigatório |
+|---|---|---|
+| D01 | Checkout transacional integrado a estoque e PDV | Preço do servidor, reserva incluindo pedidos do balcão, concorrência, idempotência, cotação de uso único, pagamento pendente, cancelamento e pulse/guard atômicos; teste Firestore Emulator e compatibilidade PDV multi-item. |
+| D02 | GPS exclusivo a motoboy e cliente da entrega | Google verificado, vínculo ao pedido, motoboy atribuído, cliente só lê próprio pedido, localização do cliente somente ao solicitar; consentimento e interrupção automática. |
+| D03 | Rastreamento econômico | Coordenada sem consulta Geoapify recorrente; intervalo adaptativo, deslocamento mínimo, TTL, limites de tamanho e frequência; nenhum histórico de coordenadas pessoais por padrão. |
+| D04 | Letreiro LED | Rodapé fino preto, verde-claro, bolinha discreta e indicação ao vivo só quando conectado; estados reais recebido/em preparo/finalizado/saiu para entrega/entregue/cancelado; acessibilidade e redução de movimento. |
+| D05 | Cronômetro, históricos e impressão | Horários do servidor, encerramento imutável, registro em ambas as visões, recibo sem credenciais ou custos privados; pagamento pendente até confirmação. |
+| D06 | FREE/PRO | GPS operacional do cliente e motoboy para entrega ativa; recursos avançados PRO; cotas por lojista no servidor, sem confundir cliente final com licença do lojista. 10/600 entregas mensais são propostas, não decisão explícita final; manter configuráveis e validar licença antes de ativar. |
+
+Não substituir segurança do Firestore por flags do cliente. Sem deploy comercial ou Floot; rotacionar credenciais expostas antes de produção. A homologação de cada item deve distinguir código, testes unitários, emulador e serviço real.
