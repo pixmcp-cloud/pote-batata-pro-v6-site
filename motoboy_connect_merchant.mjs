@@ -1,4 +1,4 @@
-import {connectCall,makeConnectPanel} from "./motoboy-connect/connect-client.mjs?v=1";
+import {connectCall,makeConnectPanel} from "./motoboy-connect/connect-client.mjs?v=2";
 let panel=null,modal=null;
 const token=()=>window.POTE_CONNECT_TOKEN();
 function open(){

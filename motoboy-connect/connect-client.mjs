@@ -18,14 +18,14 @@ export function makeConnectPanel({role,token,id,onClose,container}){
  status.setAttribute("role","status");notice.setAttribute("role","status");map.className="connect-map";chat.className="connect-chat";actions.className="connect-actions";
  root.replaceChildren(title,status,details,map,chat,actions,notice);
  const btn=(label,fn)=>{const b=el("button",label);b.type="button";b.onclick=fn;return b};
- let renderSignature="",mapSignature="";
+ let renderSignature="",mapSignature="",mapEnabled=false;
  const stopGPS=()=>{if(watch!==null){navigator.geolocation?.clearWatch(watch);watch=null}};
  const end=()=>{closed=true;generation++;clearInterval(timer);stopGPS();root.replaceChildren();onClose?.()};
  const call=async(action,extra={})=>{const t=await token();if(closed)throw Error("Sessão encerrada.");return connectCall(t,{action,id:currentId,...extra})};
  async function send(action,extra={}){
   if(busy||closed)return;
-  busy=true;notice.textContent="Confirmando…";
-  try{const next=await call(action,extra);if(closed)return;job=next;notice.textContent="";paint()}
+  busy=true;generation++;notice.textContent="Confirmando…";
+  try{const next=await call(action,extra);if(closed)return;job=next;if(action==="message"&&role==="customer"){const field=chat.querySelector("textarea");if(field)field.value="";}notice.textContent="";paint()}
   catch(e){if(!closed)notice.textContent=e.message}
   finally{busy=false}
  }
@@ -47,7 +47,8 @@ export function makeConnectPanel({role,token,id,onClose,container}){
   if(ms!==mapSignature){mapSignature=ms;map.replaceChildren();
    if(job.position){const p=job.position;map.append(el("p","Última localização: "+new Date(p.at).toLocaleTimeString("pt-BR")+" · precisão "+p.accuracy+" m"),link("Abrir localização no mapa",mapLink(p)));
     // Map is loaded only after explicit user action: the map service sees coordinates.
-    const show=btn("Visualizar mapa nesta janela",()=>{const frame=el("iframe");frame.title="Posição mais recente do motoboy";frame.loading="lazy";frame.referrerPolicy="no-referrer";const delta=.009;frame.src="https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent([p.lng-delta,p.lat-delta,p.lng+delta,p.lat+delta].join(","))+"&layer=mapnik&marker="+encodeURIComponent(p.lat+","+p.lng);map.append(frame);show.remove()});map.append(show);
+    const draw=()=>{const frame=el("iframe");frame.title="Posição mais recente do motoboy";frame.loading="lazy";frame.referrerPolicy="no-referrer";const delta=.009;frame.src="https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent([p.lng-delta,p.lat-delta,p.lng+delta,p.lat+delta].join(","))+"&layer=mapnik&marker="+encodeURIComponent(p.lat+","+p.lng);map.append(frame)};
+    if(mapEnabled)draw();else {const show=btn("Visualizar mapa nesta janela",()=>{mapEnabled=true;show.remove();draw()});map.append(show);}
    }else map.append(el("p","Sem localização recente. O GPS depende da autorização e da página aberta do motoboy."));
   }
   const signature=JSON.stringify([job.role,job.active,job.status,job.accepted,job.messages]);
@@ -67,12 +68,12 @@ export function makeConnectPanel({role,token,id,onClose,container}){
    if(job.status==="saiu_entrega")actions.append(btn("Compartilhar minha localização",startGPS),btn("Confirmar entrega",()=>{if(confirm("Confirma que o cliente recebeu o pedido?"))void send("deliver")}));
   }
   if(job.active&&job.role==="merchant")actions.append(link("Compartilhar convite pelo WhatsApp","https://wa.me/?text="+encodeURIComponent("Convite individual Motoboy Connect: "+inviteLink(job.id))),btn("Copiar link",()=>navigator.clipboard.writeText(inviteLink(job.id)).catch(()=>prompt("Copie o link",inviteLink(job.id)))),btn("Revogar convite",()=>{if(confirm("Revogar o acesso deste motoboy?"))void send("revoke")}));
-  if(!job.active)clearInterval(timer);
+  if(!job.active){clearInterval(timer);stopGPS();}
  }
  async function refresh(){
   if(closed||polling||busy||document.hidden)return;polling=true;const g=++generation;
   try{const next=await call("view");if(closed||g!==generation)return;job=next;paint()}
-  catch(e){if(!closed){notice.textContent=e.message;stopGPS();map.replaceChildren(el("p","Localização indisponível."));mapSignature="";}}
+  catch(e){if(!closed&&g===generation){notice.textContent=e.message;stopGPS();job=null;status.textContent="Conexão indisponível. Tentando atualizar.";details.textContent="";chat.replaceChildren();actions.replaceChildren();renderSignature="";map.replaceChildren(el("p","Localização indisponível."));mapSignature="";}}
   finally{polling=false}
  }
  timer=setInterval(refresh,20000);void refresh();return {root,close:end,refresh};

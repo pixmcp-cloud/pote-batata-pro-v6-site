@@ -27,6 +27,7 @@ jobs:
           set -e
           mkdir -p public/assets
           cp -R cardapio public/cardapio
+          cp -R motoboy-connect public/motoboy-connect
           cp public_menu_core.mjs public/
           cp assets/pote-logo-original.jpg public/assets/
           cp -R assets/recipes assets/generic public/assets/

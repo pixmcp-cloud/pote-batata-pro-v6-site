@@ -76,6 +76,7 @@ export async function connectOperation({input,user,env,repository,at,merchantAll
   const order=orderDoc?.data;
   if(!order||order.connectJobId!==job.id)deny("Convite indisponível.","connect_missing",404);
   if(action==="view")return {ok:true,job:projectJob(job,order,role,now)};
+  if(action==="deliver"&&role==="courier"&&order.status==="entregue"&&job.completedAt)return {ok:true,job:projectJob(job,order,role,now)};
   if(!jobLive(job,order,now))deny("Entrega encerrada ou convite expirado.","connect_closed",409);
   if(action==="revoke"){
    if(role!=="merchant"||!await merchantAllowed(tx,user,job.universe))deny("Somente a loja pode revogar.");
@@ -95,7 +96,7 @@ export async function connectOperation({input,user,env,repository,at,merchantAll
    job={...job,position:{...position,at:iso}};
   }else if(action==="message"){
    if(!["courier","customer"].includes(role)||order.status!=="saiu_entrega")deny("Conversa disponível somente durante a entrega.");
-   const message=role==="courier"?QUICK_MESSAGES[input.template]:str(input.text,300);
+   const message=role==="courier"?(Object.hasOwn(QUICK_MESSAGES,input.template)?QUICK_MESSAGES[input.template]:""):str(input.text,300);
    if(typeof message!=="string"||!message||!uuid(input.messageId))deny("Mensagem inválida.","invalid_connect",400);
    const messages=job.messages||[];
    if(messages.some(m=>m.id===input.messageId&&m.sender===role))return {ok:true,job:projectJob(job,order,role,now)};

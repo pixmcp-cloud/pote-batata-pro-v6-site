@@ -8,6 +8,7 @@ const op1="11111111-1111-4111-8111-111111111111",op2="22222222-2222-4222-8222-22
 const env={ENABLE_WRITES:"true",ENABLE_PUBLIC_CHECKOUT:"true",CANARY_UIDS:uid,ALLOWED_ORIGINS:"https://qa.test"};
 const payload=(operationId=op1,extra={})=>({slug,operationId,items:[{id:"r01",quantity:2,note:""},{id:"bev-suco",quantity:1,note:"Gelado"}],expectedTotalCents:6500,customerName:"Cliente QA",customerPhone:"48999990000",payment:"pix",challenge:"qa-token",...extra});
 function setup(){
+ let now=Date.parse("2026-11-25T13:00:00Z");
  const docs=new Map();let n=0;
  const seed=(p,data)=>docs.set(p,{data:structuredClone(data),updateTime:String(++n)});
  const get=p=>docs.get(p)?.data;
@@ -25,9 +26,9 @@ function setup(){
  record("expenses","f",{enabled:true,mode:"mensal",amount:100,repeat:1});
  record("orders","manual",{status:"recebido",qty:1,items:[{id:"batata",g:100,yieldPct:100}],beverageItems:[],orderNumber:7});
  const database={async transaction(){return {async get(p){return docs.has(p)?structuredClone(docs.get(p)):null},async receivedOrders(){return [...docs.values()].filter(x=>x.data.record?.item?.status==="recebido").map(x=>structuredClone(x))},async expenses(){return [...docs.values()].filter(x=>x.data.record?.group==="expenses").map(x=>structuredClone(x))},async commit(writes){for(const w of writes){const old=docs.get(w.path);if(w.precondition.exists===false&&old||w.precondition.updateTime&&old?.updateTime!==w.precondition.updateTime)throw new FirestoreError(409,"conflict")}for(const w of writes)seed(w.path,w.data)},async rollback(){}}}};
- const app=createWorkerApp({repository:()=>database,checkoutChallenge:async token=>token==="qa-token",postalLookup:async cep=>({cep:cep.slice(0,5)+"-"+cep.slice(5),logradouro:"Rua QA",bairro:"Centro",localidade:"Sombrio",uf:"SC"}),clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async token=>({uid:token==="customer"?"qa-consumer":uid,isAdmin:false})});
- const call=async(body,override={},route="/v1/checkout")=>{const resp=await app.fetch(new Request("https://worker.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer "+(route.startsWith("/v1/checkout")?"customer":"qa")},body:JSON.stringify(body)}),{...env,...override});return {status:resp.status,body:await resp.json()}};
- return {docs,seed,get,record,call};
+ const app=createWorkerApp({repository:()=>database,checkoutChallenge:async token=>token==="qa-token",postalLookup:async cep=>({cep:cep.slice(0,5)+"-"+cep.slice(5),logradouro:"Rua QA",bairro:"Centro",localidade:"Sombrio",uf:"SC"}),clock:()=>new Date(now),verify:async token=>({uid:({customer:"qa-consumer",courier:"qa-courier",outsider:"qa-outsider"}[token]||uid),email:({customer:"customer@example.test",courier:"courier@example.test",outsider:"outsider@example.test"}[token]||"merchant@example.test"),isAdmin:false})});
+ const call=async(body,override={},route="/v1/checkout",actor=route.startsWith("/v1/checkout")?"customer":"qa")=>{const resp=await app.fetch(new Request("https://worker.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer "+actor},body:JSON.stringify(body)}),{...env,...override});return {status:resp.status,body:await resp.json()}};
+ return {docs,seed,get,record,call,advance:ms=>{now+=ms}};
 }
 test("checkout atomic: existing POS hold, recipe + packaging + drink, idempotency, no fake paid",async()=>{
  const x=setup(),first=await x.call(payload());assert.equal(first.status,201,JSON.stringify(first));
@@ -84,4 +85,56 @@ test("delivery quote and checkout: server verified CEP, one fee and cost, lifecy
  const tracking=x.get("consumerOrders/qa-consumer/orders/"+op1);assert.equal(tracking.status,"saiu_entrega");assert.equal(tracking.totalCents,7000);
  assert.equal((await transition("deliver",ids[0],"8")).status,200);
  assert.equal(x.get("consumerOrders/qa-consumer/orders/"+op1).status,"entregue");assert.equal(x.get("consumerOrders/qa-consumer/orders/"+op1).totalCents,7000);
+});
+
+test("Motoboy Connect: invite email binding, customer privacy, GPS throttle, chat and atomic completion",async()=>{
+ const x=setup(),config={ENABLE_PUBLIC_DELIVERY:"true",ENABLE_MOTOBOY_CONNECT:"true"};
+ const meta=x.get(root+"/appState/v5");
+ Object.assign(meta.state.data.settings,{deliveryCity:"Sombrio",deliveryUF:"SC",deliveryCostPerOrder:4.5,deliveryPolicy:{enabled:true,mode:"fixed",perKmCents:50,minFeeCents:0,maxDistanceMeters:null,freeAboveCents:null,neighborhoods:[{id:"centro",name:"Centro",feeCents:500,enabled:true}]}});
+ x.seed(root+"/appState/v5",meta);x.seed("publicMenus/"+slug,{...x.get("publicMenus/"+slug),title:"Loja QA",deliveryEnabled:true});
+ const delivery={cep:"88960001",number:"10",complement:"Apto 2",expectedFeeCents:0,expectedAddress:""};
+ const q=await x.call(payload(op1,{delivery}),config,"/v1/checkout/quote");
+ assert.equal(q.status,200,JSON.stringify(q));
+ assert.equal((await x.call(payload(op1,{delivery:{...delivery,expectedFeeCents:500,expectedAddress:q.body.address},expectedTotalCents:7000}),config)).status,201);
+ const ids=[0,1].map(i=>"web-"+op1+"-"+i);
+ const transition=(action,id,n)=>x.call({universe:u,orderId:id,operationId:n+"3333333-3333-4333-8333-333333333333"},config,"/v1/orders/"+action);
+ assert.equal((await transition("produce",ids[0],"4")).status,200);
+ assert.equal((await transition("produce",ids[1],"5")).status,200);
+ assert.equal((await transition("ready",ids[0],"6")).status,200);
+ const c=(actor,body,override={})=>x.call(body,{...config,...override},"/v1/motoboy-connect",actor);
+ const invite={action:"invite",checkoutId:op1,universe:u,email:"courier@example.test",instructions:"Portaria"};
+ assert.equal((await c("qa",invite,{ENABLE_MOTOBOY_CONNECT:"false"})).status,423);
+ assert.equal((await c("outsider",invite)).status,403);
+ const created=await c("qa",invite);assert.equal(created.status,200,JSON.stringify(created));const id=created.body.job.id;
+ assert.equal((await c("qa",invite)).body.job.id,id);
+ assert.equal((await c("outsider",{action:"view",id})).status,404);
+ const before=await c("courier",{action:"view",id});assert.equal(before.body.job.role,"invitee");assert.equal(before.body.job.address,undefined);
+ assert.equal((await c("customer",{action:"accept",id,name:"Impostor"})).status,403);
+ assert.equal((await c("courier",{action:"accept",id,name:"Entregador QA"})).status,200);
+ assert.equal(x.get("motoboyConnectProfiles/qa-courier").name,"Entregador QA");
+ assert.equal((await c("customer",{action:"view",id})).body.job.courierEmail,undefined);
+ assert.equal((await c("courier",{action:"position",id,position:{lat:-29,lng:-49,accuracy:10}})).status,403);
+ assert.equal((await c("customer",{action:"start",id})).status,403);
+ assert.equal((await c("courier",{action:"start",id})).body.job.status,"saiu_entrega");
+ assert.equal((await c("customer",{action:"position",id,position:{lat:0,lng:0,accuracy:10}})).status,403);
+ assert.equal((await c("courier",{action:"position",id,position:{lat:100,lng:0,accuracy:10}})).status,400);
+ const first=await c("courier",{action:"position",id,position:{lat:-29.123456,lng:-49.123456,accuracy:15}});
+ assert.equal(first.status,200,JSON.stringify(first));
+ assert.equal((await c("customer",{action:"view",id})).body.job.position.lat,-29.12346);
+ await c("courier",{action:"position",id,position:{lat:0,lng:0,accuracy:10}});
+ assert.equal((await c("customer",{action:"view",id})).body.job.position.lat,-29.12346);
+ const messageId="12345678-1234-4123-8123-123456789012";
+ assert.equal((await c("courier",{action:"message",id,template:"fake",messageId})).status,400);
+ const message=await c("courier",{action:"message",id,template:"reference",messageId});
+ assert.equal(message.status,200,JSON.stringify(message));assert.match(message.body.job.messages[0].text,/referência/);
+ await c("courier",{action:"message",id,template:"reference",messageId});assert.equal(x.get("motoboyConnectJobs/"+id).messages.length,1);
+ const reply=await c("customer",{action:"message",id,text:"Casa azul",messageId:"22345678-1234-4123-8123-123456789012"});assert.equal(reply.body.job.messages[1].text,"Casa azul");
+ x.advance(100000);
+ assert.equal((await c("customer",{action:"view",id})).body.job.position,null);
+ const delivered=await c("courier",{action:"deliver",id});assert.equal(delivered.status,200,JSON.stringify(delivered));assert.equal(delivered.body.job.status,"entregue");
+ assert.equal((await c("courier",{action:"deliver",id})).status,200);
+ const final=x.get("consumerOrders/qa-consumer/orders/"+op1);assert.equal(final.durationSeconds,100);assert.equal(final.totalCents,7000);
+ assert.equal(x.get("motoboyConnectJobs/"+id).position,null);assert.deepEqual(x.get("motoboyConnectJobs/"+id).messages,[]);
+ assert(ids.every(id=>x.get(recordPath(uid,u,"orders",id)).record.item.paymentStatus==="Pendente"));
+ assert.equal((await c("customer",{action:"view",id})).body.job.active,false);
 });

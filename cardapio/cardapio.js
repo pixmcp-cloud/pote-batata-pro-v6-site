@@ -1,5 +1,5 @@
 import {createCheckoutClient} from "./checkout-client.mjs?v=2";
-import {createConsumerUI} from "./consumer-ui.mjs?v=5";
+import {createConsumerUI} from "./consumer-ui.mjs?v=6";
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary, whatsappOrder } from "./cardapio-core.mjs?v=whatsapp12";
 import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=14";
 

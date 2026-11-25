@@ -282,3 +282,5 @@ html{scroll-padding-bottom:120px}.menu-section{padding-bottom:130px}.add-button{
 .live-order-bar[data-status="cancelado"]{--live-status-color:#bcbcbc}
 .live-order-bar #liveTimer{color:#fff;text-shadow:none}
 @media(prefers-reduced-motion:reduce){.live-track span{transition:none}}
+
+#consumerTrackCourier[hidden]{display:none!important}#consumerTrackCourier{max-width:calc(100vw - 24px);white-space:normal;text-align:center}.has-live-order:has(#consumerTrackCourier:not([hidden])) .cart-floating{bottom:calc(138px + env(safe-area-inset-bottom))}
