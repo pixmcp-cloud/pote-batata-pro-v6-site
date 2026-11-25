@@ -7,7 +7,17 @@ const auth=getAuth(app),$=id=>document.getElementById(id);
 let quote=null,busy=false,url=null,uid=null;
 const endpoint=()=>null; // configuração versionada somente após homologação de servidor comercial
 function state(message){if($("csVoiceState"))$("csVoiceState").textContent=message;}
-function clear(){quote=null;uid=null;if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
+function renderQuota(q){
+ const panel=$("csVoiceQuota");if(!panel)return;panel.hidden=!q;if(!q)return;
+ const fmt=x=>Number(x).toLocaleString("pt-BR");
+ $("csVoiceLimit").textContent=fmt(q.share);
+ $("csVoiceRemaining").textContent=fmt(q.remaining);
+ $("csVoiceUsed").textContent=fmt(q.used);
+ $("csVoiceProgress").max=Math.max(1,q.share);$("csVoiceProgress").value=Math.min(q.share,q.used);
+ $("csVoiceShare").textContent=q.count+" franquia(s) ativa(s) · "+(20/q.count).toLocaleString("pt-BR",{maximumFractionDigits:3})+"% da cota total por franquia. Limite coletivo: 20%.";
+}
+function renderChars(){if($("csVoiceChars")&&$("csVoiceText"))$("csVoiceChars").textContent=$("csVoiceText").value.length+" / 777 caracteres";}
+function clear(){quote=null;uid=null;renderQuota(null);if($("csVoiceAudio")){$("csVoiceAudio").pause();$("csVoiceAudio").removeAttribute("src");$("csVoiceAudio").hidden=true;}if($("csVoiceDownload")){$("csVoiceDownload").removeAttribute("href");$("csVoiceDownload").hidden=true;}if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
 const permitted=()=>{const p=window.POTE_AUTH,flag=p?.accessPolicy?.voiceAiEnabled;return !!auth.currentUser&&p?.uid===auth.currentUser.uid&&(flag===true||(flag!==false&&p?.franchiseActive===true));};
 async function api(path,body){
  const user=auth.currentUser,root=endpoint();
@@ -28,7 +38,7 @@ async function open(){
   uid=auth.currentUser.uid;
   const select=$("csVoiceSelect");select.replaceChildren(...data.voices.map(v=>new Option(v.name,v.id)));
   $("csVoiceText").value=["creativeHeadline","creativeBody","creativeCta"].map(id=>$(id)?.value||"").filter(Boolean).join(". ").slice(0,777);
-  $("csVoiceForm").hidden=false;
+  $("csVoiceForm").hidden=false;renderQuota(data.franchiseAllocation);renderChars();
   state("Saldo de IA: "+data.balance+" créditos. "+allocationText(data.franchiseAllocation)+" Confira o orçamento antes de gerar.");
   $("csVoicePrice").onclick=price;
   $("csVoiceGenerate").onclick=generate;
@@ -42,7 +52,7 @@ async function price(){
   const text=$("csVoiceText").value.trim(),voiceId=$("csVoiceSelect").value;
   const data=await(await api("/quote",{text,voiceId})).json();
   if(!Number.isSafeInteger(data.credits)||data.credits<1||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
-  quote={id:data.quoteId,credits:data.credits,text,voiceId};
+  quote={id:data.quoteId,credits:data.credits,text,voiceId};renderQuota(data.franchiseAllocation);
   $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+allocationText(data.franchiseAllocation);
   $("csVoiceGenerate").disabled=data.balance<data.credits;
  }catch(e){state(e.message)}finally{busy=false}
@@ -57,7 +67,7 @@ async function generate(){
   if(!res.headers.get("content-type")?.startsWith("audio/mpeg"))throw Error("Resposta não contém MP3.");
   if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(await res.blob());
   $("csVoiceAudio").src=url;$("csVoiceAudio").hidden=false;$("csVoiceDownload").href=url;$("csVoiceDownload").hidden=false;
-  state("Locução pronta. Consulte novamente o saldo antes de outra geração.");
+  state("Locução pronta. Consulte novamente o saldo antes de outra geração.");renderQuota(null);
  }catch(e){state(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false}
 }
 window.POTE_VOICE_AI={open};
