@@ -177,6 +177,42 @@ async function tapProduct(page,selector){
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);
       await page.close();
     }
+    // Public menu test is isolated: Firebase SDK and menu document are fixtures;
+    // window.open is captured instead of contacting WhatsApp.
+    for(const enabled of [true,false]){
+      const page=await browser.newPage(),errors=[];
+      page.on("pageerror",e=>errors.push(e.message));
+      await page.setViewport({width:375,height:800,isMobile:true,hasTouch:true});
+      await page.evaluateOnNewDocument(()=>{window.__orderLink=null;window.open=url=>{window.__orderLink=String(url);return null;};});
+      const slug=enabled?"qa-comercial":"qa-consulta";
+      const data={schemaVersion:1,slug,published:true,title:"Loja QA",subtitle:"Teste isolado",items:[{id:"qa-recipe",title:"Receita QA",description:"Teste",category:"Salgados",priceCents:1250,image:"",addons:[]}],...(enabled?{whatsapp:"5548999951729"}:{})};
+      await page.setRequestInterception(true);
+      page.on("request",req=>{
+        const url=new URL(req.url());
+        if(url.pathname.endsWith("/firebase_app.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"export const app={};"});
+        if(url.hostname==="www.gstatic.com"&&url.pathname.endsWith("/firebase-firestore.js"))return req.respond({status:200,headers:{"Access-Control-Allow-Origin":"*"},contentType:"text/javascript",body:"export const getFirestore=()=>({});export const doc=(...a)=>a;export const getDoc=async()=>({exists:()=>true,data:()=>("+JSON.stringify(data)+")});"});
+        if(url.hostname!=="127.0.0.1")return req.abort();
+        return req.continue();
+      });
+      await page.goto("http://127.0.0.1:"+server.address().port+"/cardapio/?loja="+slug,{waitUntil:"domcontentloaded"});
+      await tapProduct(page,'button[aria-label="Escolher Receita QA"]');
+      await page.click("#confirmProduct");
+      await page.waitForSelector("#productDialog[open]",{hidden:true});
+      await page.click("#floatingCart");
+      assert.equal(await page.$eval("#copyOrder",e=>e.disabled),!enabled);
+      if(enabled){
+        await page.type("#customerName","Cliente QA");
+        await page.$eval("#copyOrder",e=>e.scrollIntoView({block:"center"}));
+        await page.click("#copyOrder");
+        const link=new URL(await page.evaluate(()=>window.__orderLink));
+        assert.equal(link.hostname,"wa.me");assert.equal(link.pathname,"/5548999951729");
+        assert.match(link.searchParams.get("text"),/Receita QA/);
+        assert.match(link.searchParams.get("text"),/12,50/);
+        assert.match(link.searchParams.get("text"),/Aguardo confirmação/);
+      }else assert.equal(await page.evaluate(()=>window.__orderLink),null);
+      assert.deepEqual(errors,[]);await page.close();
+    }
+    console.log("PASS: cardápio público com/sem WhatsApp, fluxo de solicitação no Chrome; nenhum envio externo.");
     console.log("PASS: Cardápio responsive (320/375/430/834/1366); busca, adicionais, carrinho, entrega e nenhum checkout real.");
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>server.close());

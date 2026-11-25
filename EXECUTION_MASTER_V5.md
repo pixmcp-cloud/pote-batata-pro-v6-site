@@ -148,3 +148,5 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 
 - Firestore 45561625041: sucesso no F10, moderação, regras e canário. Build 45561624977: falha em mais um contrato textual legado (test_admin_licenses.mjs), ajustado sem liberar licença. Preservação de arquivo testada com sucesso na rodada anterior.
 - Central de planos FREE/PRO da PR 38 reconciliada: acesso no cabeçalho, perfil e oferta, consulta/renovação via contato oficial, sem preços inventados, sem liberar licença ou cobrança; teste de sessão/planos e CSS. Versões de módulos atualizadas. QA final pendente.
+
+- QA comercial adicional: teste Chrome de cardápio público com documentos Firebase simulados e window.open capturado, cobrindo loja com/sem WhatsApp; nenhum pedido enviado, nenhum dado real utilizado. CI pendente.
