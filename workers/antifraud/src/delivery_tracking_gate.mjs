@@ -10,12 +10,11 @@ export class DeliveryTrackingGate {
  constructor(state){this.storage=state.storage}
  async alarm(){
   const next=await this.storage.transaction(async tx=>{
-   const p=await tx.get("latest"),s=await tx.get("session"),closed=await tx.get("closed");
+   const s=await tx.get("session"),closed=await tx.get("closed");
    const now=Date.now();
-   if(p&&p.expiresAt<=now)await tx.delete("latest");
-   if(s&&s.expiresAt<=now){await tx.delete("latest");await tx.delete("session");}
+   if(!s||s.expiresAt<=now){await tx.delete("latest");await tx.delete("session");}
    if(closed&&closed.until<=now)await tx.delete("closed");
-   const due=[p?.expiresAt,s?.expiresAt,closed?.until].filter(v=>Number.isFinite(v)&&v>now);
+   const due=[s?.expiresAt,closed?.until].filter(v=>Number.isFinite(v)&&v>now);
    return due.length?Math.min(...due):null;
   });
   if(next)await this.storage.setAlarm(next);
@@ -43,8 +42,7 @@ export class DeliveryTrackingGate {
      if(expiresAt<=now)fail("tracking_expired",410);
      if(session&&(session.id!==b.id||session.buyerUid!==o.buyerUid||session.courierUid!==o.courierUid||session.deliveryRevision>o.deliveryRevision))fail("tracking_scope_changed",409);
      await tx.put("session",{id:b.id,buyerUid:o.buyerUid,courierUid:o.courierUid,fulfillment:"entrega",deliveryStatus:"saiu_entrega",deliveryUpdatedAt:o.deliveryUpdatedAt,deliveryRevision:o.deliveryRevision,expiresAt});
-     const p=await tx.get("latest");
-     return {opened:true,alarmAt:p?.expiresAt>now?Math.min(p.expiresAt,expiresAt):expiresAt};
+     return {opened:true,alarmAt:expiresAt};
     }
     if(!session||session.id!==b.id||session.expiresAt<=now)fail("tracking_inactive",410);
     if(!uidOk(b.actorUid))fail("tracking_forbidden");
@@ -54,8 +52,8 @@ export class DeliveryTrackingGate {
     }
     const previous=await tx.get("latest");
     if(action==="publish"){
-     const plan=nextTrackingPoint({order:session,actorUid:b.actorUid,point:b.point,previous:previous?.expiresAt>now?previous:null,consent:b.consent,now});
-     if(plan.accepted){await tx.put("latest",plan.point);return {accepted:true,alarmAt:Math.min(plan.point.expiresAt,session.expiresAt)};}
+     const plan=nextTrackingPoint({order:session,actorUid:b.actorUid,point:b.point,previous:previous||null,consent:b.consent,now});
+     if(plan.accepted){await tx.put("latest",plan.point);return {accepted:true,alarmAt:session.expiresAt};}
      return {accepted:false,retryAfterMs:plan.retryAfterMs};
     }
     if(action==="read")return {point:visibleTrackingPoint({order:session,actorUid:b.actorUid,point:previous,now})};

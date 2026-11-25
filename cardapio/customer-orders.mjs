@@ -67,7 +67,9 @@ export function mountCustomerOrders({slug,checkoutButton,historyButton,getCart,g
    try{
     const b=await api.request("tracking/read",{id});if(stamp!==trackingEpoch)return;
     tracking.replaceChildren(el("strong","Localização do motoboy"));
-    if(b.point){tracking.append(el("p","Última atualização: "+new Date(b.point.at).toLocaleTimeString("pt-BR")));
+    if(b.point){const statusLabels={live:"Ao vivo — última posição conhecida",unstable:"Conexão instável",stale:"Localização desatualizada",lost:"Sinal perdido — última posição conhecida"};
+     const status=el("strong",statusLabels[b.point.freshness]||"Última posição conhecida");status.style.color=({live:"#16a34a",unstable:"#ca8a04",stale:"#ea580c",lost:"#dc2626"})[b.point.freshness]||"inherit";tracking.append(status);
+     tracking.append(el("p","Última atualização: "+new Date(b.point.at).toLocaleTimeString("pt-BR")+" (há "+Math.floor((b.point.ageSeconds||0)/60)+" min)"));
      const link=el("a","Abrir posição no mapa");link.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(b.point.lat+","+b.point.lon);link.target="_blank";link.rel="noopener noreferrer";tracking.append(link);}
     else tracking.append(el("p","Aguardando localização atualizada."));
    }catch{if(stamp!==trackingEpoch)return;tracking.replaceChildren(el("p","Localização indisponível ou entrega encerrada."));}

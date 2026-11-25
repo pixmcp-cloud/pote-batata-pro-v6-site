@@ -36,13 +36,15 @@ export function nextTrackingPoint({order,actorUid,previous,point,now=Date.now(),
   const age=now-previous.at,distance=airMeters(previous,point);
   if(age<15000||distance<30&&age<60000)return {accepted:false,retryAfterMs:Math.max(1000,age<15000?15000-age:60000-age)};
  }
- // Latest point only; stale positions are never returned. No Geoapify call.
- return {accepted:true,point:{lat:point.lat,lon:point.lon,accuracy:Math.ceil(point.accuracy),at:now,expiresAt:now+120000}};
+ // Latest point only. Freshness is presentation, not retention. No Geoapify call.
+ return {accepted:true,point:{lat:point.lat,lon:point.lon,accuracy:Math.ceil(point.accuracy),at:now}};
 }
 export function visibleTrackingPoint({order,actorUid,point,now=Date.now()}){
  if(!trackingAccess(order,actorUid,"read"))fail("tracking_forbidden");
- if(!point||!brPoint(point)||!integer(point.at,0,now)||!integer(point.expiresAt,0,Number.MAX_SAFE_INTEGER)||point.expiresAt<=now)return null;
- return {lat:point.lat,lon:point.lon,accuracy:point.accuracy,at:point.at};
+ if(!point||!brPoint(point)||!integer(point.at,0,now)||!Number.isFinite(point.accuracy)||point.accuracy<0||point.accuracy>100)return null;
+ const ageMs=now-point.at;
+ const freshness=ageMs<=180000?"live":ageMs<=300000?"unstable":ageMs<=900000?"stale":"lost";
+ return {lat:point.lat,lon:point.lon,accuracy:point.accuracy,at:point.at,ageSeconds:Math.floor(ageMs/1000),freshness};
 }
 export function buyerDestination({order,actorUid,point,consent}){
  if(!uidOk(actorUid)||actorUid!==order?.buyerUid||order.fulfillment!=="entrega"||order.deliveryStatus!=="recebido"||consent!==true||!brPoint(point))fail("destination_forbidden");

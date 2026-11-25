@@ -23,7 +23,9 @@ test("GPS only assigned courier writes and own customer reads; stops at terminal
  assert.equal(nextTrackingPoint({order,actorUid:"courier",previous:a.point,point,now:now+20000,consent:true}).accepted,false);
  assert.equal(nextTrackingPoint({order,actorUid:"courier",previous:a.point,point,now:now+60000,consent:true}).accepted,true);
  assert.ok(visibleTrackingPoint({order,actorUid:"buyer",point:a.point,now:now+1000}));
- assert.equal(visibleTrackingPoint({order,actorUid:"buyer",point:a.point,now:now+120000}),null);
+ for(const [age,freshness] of [[120000,"live"],[180000,"live"],[180001,"unstable"],[300000,"unstable"],[300001,"stale"],[900000,"stale"],[900001,"lost"],[3600000,"lost"]]){
+  const v=visibleTrackingPoint({order,actorUid:"buyer",point:a.point,now:now+age});assert.equal(v.freshness,freshness);assert.equal(v.lat,point.lat);assert.equal(v.ageSeconds,Math.floor(age/1000));
+ }
  assert.throws(()=>visibleTrackingPoint({order:{...order,deliveryStatus:"entregue"},actorUid:"buyer",point:a.point,now}),/tracking_forbidden/);
  assert.throws(()=>buyerDestination({order,actorUid:"buyer",point,consent:true}),/destination_forbidden/);
  assert.deepEqual(buyerDestination({order:{...order,deliveryStatus:"recebido"},actorUid:"buyer",point,consent:true}),{lat:point.lat,lon:point.lon});

@@ -7,7 +7,7 @@ function gateHarness(){
  const map=new Map(),alarms=[];
  const tx={get:async k=>map.get(k),put:async(k,v)=>map.set(k,structuredClone(v)),delete:async k=>map.delete(k)};
  const gate=new DeliveryTrackingGate({storage:{...tx,transaction:async f=>f(tx),setAlarm:async at=>alarms.push(at)}});
- return {map,alarms,call:async(action,body={})=>{const r=await gate.fetch(new Request("https://internal/"+action,{method:"POST",body:JSON.stringify({id,...body})}));return {status:r.status,body:await r.json()}}};
+ return {map,alarms,alarm:()=>gate.alarm(),call:async(action,body={})=>{const r=await gate.fetch(new Request("https://internal/"+action,{method:"POST",body:JSON.stringify({id,...body})}));return {status:r.status,body:await r.json()}}};
 }
 test("tracking storage only assigned courier and buyer, latest point only, terminal denies",async()=>{
  const h=gateHarness(),order={id,buyerUid:"buyer",courierUid:"courier",deliveryStatus:"saiu_entrega",fulfillment:"entrega",deliveryUpdatedAt:new Date(now-10000).toISOString(),deliveryRevision:3};
@@ -20,6 +20,13 @@ test("tracking storage only assigned courier and buyer, latest point only, termi
  assert.equal((await h.call("read",{actorUid:"owner"})).status,403);
  assert.equal((await h.call("read",{actorUid:"buyer"})).body.point.lat,point.lat);
  assert.deepEqual([...h.map.keys()].sort(),["latest","session"]);
+ // Simulate an old persisted point, including legacy expiresAt, and a legacy alarm.
+ h.map.set("latest",{...h.map.get("latest"),at:Date.now()-20*60000,expiresAt:Date.now()-1000});
+ await h.alarm();
+ const old=(await h.call("read",{actorUid:"buyer"})).body.point;
+ assert.equal(old.freshness,"lost");assert.equal(old.lat,point.lat);
+ assert.equal((await h.call("publish",{actorUid:"courier",point,consent:true})).body.accepted,true);
+ assert.equal((await h.call("read",{actorUid:"buyer"})).body.point.freshness,"live");
  assert.equal((await h.call("close",{revision:4})).status,200);
  assert.equal((await h.call("read",{actorUid:"buyer"})).status,410);
  assert.equal((await h.call("open",{order})).status,410);
