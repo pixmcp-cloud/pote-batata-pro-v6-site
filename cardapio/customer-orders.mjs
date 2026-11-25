@@ -1,5 +1,5 @@
 import {CHECKOUT_ENDPOINT} from "./checkout-config.mjs";
-import {createCheckoutApi,signInForOrder,checkoutIdentity,checkoutRequest} from "./checkout-api.mjs";
+import {createCheckoutApi,signInForOrder,checkoutIdentity,checkoutRequest,pendingCheckout} from "./checkout-api.mjs";
 import {mountOrderLiveStatus,statusPresentation} from "./order-live-status.mjs";
 import {money} from "./cardapio-core.mjs";
 const el=(tag,text,cls)=>{const x=document.createElement(tag);if(text!==undefined)x.textContent=text;if(cls)x.className=cls;return x};
@@ -25,12 +25,23 @@ export function mountCustomerOrders({slug,checkoutButton,historyButton,getCart,g
  const dialog=el("dialog",undefined,"app-dialog customer-order-history");
  const header=el("header",undefined,"customer-history-header"),close=btn("Fechar"),title=el("h2","Meus pedidos");
  const list=el("div",undefined,"customer-history-list"),tracking=el("section",undefined,"customer-tracking-box");
- header.append(title,close);dialog.append(header,list,tracking);document.body.append(dialog);
+ const resolveButton=btn("Verificar tentativa pendente");
+ header.append(title,close);dialog.append(header,resolveButton,list,tracking);document.body.append(dialog);
  historyButton.hidden=false;checkoutButton.textContent="Confirmar pedido (homologação)";
  const sync=()=>{checkoutButton.disabled=busy||!getCart().length};
  const stopTracking=()=>{trackingEpoch++;trackingId=null;clearTimeout(trackingTimer);trackingTimer=null;tracking.replaceChildren()};
  const reset=()=>{epoch++;off?.();off=null;uid=null;views=[];selected=null;stopTracking();footer.update(null);list.replaceChildren();};
  close.addEventListener("click",()=>dialog.close());dialog.addEventListener("close",stopTracking);
+ resolveButton.onclick=async()=>{
+  if(busy)return;busy=true;sync();
+  try{const user=await ensure(),pending=pendingCheckout(localStorage,user.uid,slug);
+   if(!pending){toast("Nenhuma tentativa pendente neste navegador.");return;}
+   const result=await api.request("orders/resolve",{slug,operationId:pending.operationId});
+   if(result.resolved!==true)throw Error("unresolved");
+   pending.clear();if(result.accepted){selected=result.result.id;toast("Pedido já confirmado: "+result.result.code+". Confira o histórico antes de pedir novamente.");}
+   else toast("Tentativa anterior encerrada sem pedido. Você pode fazer novo pedido.");
+  }catch{toast("Não foi possível resolver a tentativa. Nenhum novo pedido foi iniciado.");}finally{busy=false;sync();}
+ };
  function render(online){
   list.replaceChildren();const active=views.find(x=>x.id===selected)||views.find(x=>!terminal(x))||views[0];
   selected=active?.id||null;footer.update(active||null,{online});

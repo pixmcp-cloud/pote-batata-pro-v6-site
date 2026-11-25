@@ -113,7 +113,7 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
    put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"delivery-"+opHash,previousEventId:pulse.data.eventId,origin:"cloudflare-delivery-v6",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
    put(eventPath,{fingerprint,result,actorUid,id,action},null));
-  if(terminal(r)&&!terminal(receipt)&&beforeClose)await beforeClose({id,revision:r.deliveryRevision});
+  if(terminal(r)&&!terminal(receipt)&&receipt.fulfillment==="entrega"&&beforeClose)await beforeClose({id,revision:r.deliveryRevision});
   await tx.commit(writes);return {...result,alreadyApplied:false};
  }finally{await tx.rollback()}
 }

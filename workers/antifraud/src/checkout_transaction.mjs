@@ -66,6 +66,7 @@ export async function commitPublicCheckout({repository,buyerUid,request,quote=nu
  try{
   const existing=await tx.get(eventPath);
   if(existing){
+   if(existing.data.abandoned===true)fail("operation_aborted");
    if(existing.data.fingerprint!==fingerprint||existing.data.buyerUid!==buyerUid)fail("idempotency_conflict");
    return {...existing.data.result,alreadyApplied:true};
   }
@@ -149,5 +150,23 @@ export async function commitPublicCheckout({repository,buyerUid,request,quote=nu
    put(counterPath,{count:used+1,month:monthInBrazil(now)},counter));
   await tx.commit(writes);
   return {...result,alreadyApplied:false};
+ }finally{await tx.rollback()}
+}
+
+/* Resolve uncertain network outcome atomically with the same event key.
+ * An absent event is tombstoned, not merely checked, so a late checkout
+ * transaction cannot commit after the client begins another order. */
+export async function resolvePublicCheckout({repository,buyerUid,slug,operationId}){
+ if(!uidOk(buyerUid)||!slugOk(slug)||!opOk(operationId))fail("invalid_checkout");
+ const hash=await digest([buyerUid,slug,operationId]),path="publicCheckoutEvents/"+hash;
+ const tx=await repository.transaction();
+ try{
+  const existing=await tx.get(path);
+  if(existing){
+   if(existing.data.buyerUid!==buyerUid)fail("idempotency_conflict");
+   return existing.data.abandoned===true?{resolved:true,accepted:false}:{resolved:true,accepted:true,result:existing.data.result};
+  }
+  await tx.commit([put(path,{buyerUid,abandoned:true},null)]);
+  return {resolved:true,accepted:false};
  }finally{await tx.rollback()}
 }

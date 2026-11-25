@@ -1,5 +1,5 @@
 import {CHECKOUT_ENDPOINT} from "./checkout-config.mjs";
-const routes=["orders/create","orders/read","orders/assign","orders/transition","orders/confirm-payment","tracking/start","tracking/publish","tracking/read","tracking/clear"];
+const routes=["orders/create","orders/resolve","orders/read","orders/assign","orders/transition","orders/confirm-payment","tracking/start","tracking/publish","tracking/read","tracking/clear"];
 export function createCheckoutApi({endpoint=CHECKOUT_ENDPOINT,token,requestFetch=fetch}={}){
  let base;try{const u=new URL(endpoint);if(u.protocol!=="https:"||u.username||u.password||u.pathname!=="/"||u.search||u.hash)throw Error();base=u.origin}catch{}
  return {enabled:!!base,async request(route,data){
@@ -32,4 +32,11 @@ export function checkoutRequest({slug,cart,form,subtotalCents,quote,uid}){
  if(!["entrega","retirada"].includes(form.fulfillment)||!["pix","cartao","dinheiro"].includes(form.payment)||!Array.isArray(cart)||!cart.length||!Number.isSafeInteger(subtotalCents)||subtotalCents<=0)throw Error("invalid_checkout");
  if(delivery&&(!quote||quote.identity!==uid||quote.slug!==slug||quote.expiresAt<=Date.now()||!Number.isSafeInteger(quote.feeCents)))throw Object.assign(Error("quote required"),{code:"delivery_quote_invalid"});
  return {slug,lines:cart.map(x=>({id:x.id,quantity:x.quantity,addonIds:x.addonIds||[],note:String(x.note||"")})),fulfillment:form.fulfillment,payment:form.payment,customerName:String(form.customerName||"").trim(),customerPhone:String(form.customerPhone||"").trim(),quoteId:delivery?quote.quoteId:null,expectedTotalCents:subtotalCents+(delivery?quote.feeCents:0)};
+}
+
+export function pendingCheckout(storage,uid,slug){
+ const key="pote-web-pending:"+uid+":"+slug;
+ let record;try{record=JSON.parse(storage.getItem(key)||"null")}catch{return null}
+ if(!record||typeof record.operationId!=="string")return null;
+ return {operationId:record.operationId,clear(){const current=JSON.parse(storage.getItem(key)||"null");if(current?.operationId===record.operationId)storage.removeItem(key);}};
 }
