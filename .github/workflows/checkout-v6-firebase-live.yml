@@ -39,8 +39,7 @@ jobs:
           grep -Fx 'ENABLE_CHECKOUT = "false"' wrangler.checkout-v6.qa.toml
           grep -Fx 'ENABLE_TRACKING = "false"' wrangler.checkout-v6.qa.toml
           grep -Fx 'CHECKOUT_CANARY_UIDS = ""' wrangler.checkout-v6.qa.toml
-      - name: Implantar diagnóstico temporário protegido por desafio e expiração
-        id: deploy
+      - name: Gerar desafio temporário para a próxima etapa
         run: |
           node --input-type=module <<'NODE'
           import {randomBytes,createHash} from "node:crypto";
@@ -50,8 +49,21 @@ jobs:
           writeFileSync(process.env.RUNNER_TEMP+"/firebase-probe-proof",proof,{mode:0o600});
           appendFileSync(process.env.GITHUB_ENV,"PROBE_HASH="+createHash("sha256").update(proof).digest("hex")+"\nPROBE_EXPIRES="+(Date.now()+540000)+"\n");
           NODE
+      - name: Implantar diagnóstico temporário protegido por desafio e expiração
+        id: deploy
+        run: |
+          [[ "$PROBE_HASH" =~ ^[a-f0-9]{64}$ ]] && [[ "$PROBE_EXPIRES" =~ ^[0-9]{13}$ ]] || exit 1
           echo "attempted=true" >> "$GITHUB_OUTPUT"
           npx --no-install wrangler deploy --config wrangler.checkout-v6.qa.toml --var "FIREBASE_PROBE_HASH:$PROBE_HASH" --var "FIREBASE_PROBE_EXPIRES:$PROBE_EXPIRES"
+      - name: Confirmar publicação do desafio por metadados sem revelar valores
+        run: |
+          node --input-type=module <<'NODE'
+          const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+process.env.CLOUDFLARE_ACCOUNT_ID+"/workers/scripts/pote-batata-checkout-v6-staging/settings",{headers:{Authorization:"Bearer "+process.env.CLOUDFLARE_API_TOKEN},redirect:"error",signal:AbortSignal.timeout(15000)});
+          const b=await r.json(),a=b.result?.bindings;
+          if(!r.ok||!b.success||!Array.isArray(a))throw Error("SETTINGS_UNKNOWN");
+          if(!a.some(x=>x.name==="FIREBASE_PROBE_HASH"&&x.text===process.env.PROBE_HASH)||!a.some(x=>x.name==="FIREBASE_PROBE_EXPIRES"&&String(x.text)===process.env.PROBE_EXPIRES))throw Error("PROBE_BINDINGS_MISMATCH");
+          console.log("PROBE_BINDINGS_VERIFIED");
+          NODE
       - name: Testar OAuth e cinco índices no Worker real
         run: |
           node --input-type=module <<'NODE'

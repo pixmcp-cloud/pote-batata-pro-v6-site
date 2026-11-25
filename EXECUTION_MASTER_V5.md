@@ -211,3 +211,6 @@ Solicitada verificação somente leitura via API Cloudflare de GCP_CLIENT_EMAIL 
 
 ### C04 — teste real de conexão Firebase
 Conferência 45610633412 aprovada: ambos os segredos presentes e checkout bloqueado. Rotina temporária no Worker dedicado com desafio SHA-256 aleatório, expiração máxima 10 minutos, flags fechadas, validação de identidade exata e apenas GET de metadados/política/índices. Workflow remove as variáveis do diagnóstico após execução e confirma preservação de segredos. Nenhuma escrita Firestore. Resultado depende da execução.
+
+### C04 — correção do diagnóstico real
+Run 45612539382 não chegou ao OAuth: desafio indisponível, cleanup aprovado e segredos preservados. Causa identificada no workflow: GITHUB_ENV só é carregado em etapas subsequentes, mas implantação ocorria na mesma etapa de geração. Separadas as etapas, adicionada validação de formato e comparação das duas variáveis por metadados antes da chamada autenticada. Sem alteração de credencial nem banco. Reteste obrigatório.
