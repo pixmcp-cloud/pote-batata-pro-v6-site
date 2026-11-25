@@ -9,6 +9,7 @@ import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
 import {planStockPurchase} from "./stock_purchase.mjs";
 import {planStockRecount} from "./stock_recount.mjs";
 import {checkoutRequest,verifyCheckoutChallenge,submitCheckout} from "./checkout.mjs";
+import {loadTracking,updateTracking,lifecycleRows} from "./tracking.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -202,7 +203,8 @@ export function createWorkerApp({
   const route=new URL(req.url).pathname;
   if(route==="/v1/inventory/adjust")return performStockAdjust(req,env,headers);
   const action=route==="/v1/orders/produce"?"produce":
-   route==="/v1/orders/cancel"?"cancel":null;
+   route==="/v1/orders/cancel"?"cancel":
+   route==="/v1/orders/ready"?"ready":route==="/v1/orders/dispatch"?"dispatch":route==="/v1/orders/deliver"?"deliver":null;
   if(!action)return json({error:"not_found"},404,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
@@ -230,7 +232,7 @@ export function createWorkerApp({
     !valueOk(body.operationId,/^[a-zA-Z0-9_-]{20,80}$/)||
     Object.keys(body).some(k=>!["universe","orderId","operationId","decision"].includes(k))||
     (action==="cancel"&&!["return","loss"].includes(body.decision))||
-    (action==="produce"&&body.decision!==undefined))
+    (action!=="cancel"&&body.decision!==undefined))
    return json({error:"invalid_operation_request"},400,headers);
   const {uid}=user,{universe,orderId,operationId,decision}=body;
   const orderPath=recordPath(uid,universe,"orders",orderId);
@@ -264,6 +266,20 @@ export function createWorkerApp({
       ordered.data.record.id!==orderId||ordered.data.record.universe!==universe)
     throw new OperationalError("Pedido não encontrado nesta unidade",404,"order_missing");
    const original=ordered.data.record;
+   const tracking=await loadTracking(tx,uid,original.item);
+   const at=clock().toISOString();
+   if(["ready","dispatch","deliver"].includes(action)){
+    if(!tracking)throw new OperationalError("Pedido não possui acompanhamento online",409,"tracking_invalid");
+    const group=await lifecycleRows(tx,uid,universe,tracking,action,at);
+    const changed=group.map(r=>r.path.split("/").at(-1));
+    const next=updateTracking(tracking.doc.data,group.map(r=>r.next),at);
+    const writes=group.map(r=>put(r.path,{record:persisted("orders",r.next.id,r.next,universe,r.doc)},r.doc));
+    writes.push(put(tracking.path,next,tracking.doc),put(guardPath,{revision:guard.data.revision+1},guard),
+     put(pulsePath,{eventId:"cf-"+operationId,previousEventId:pulse.data.eventId,origin:"cloudflare-worker",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
+     put(eventPath,{action,decision:null,universe,orderId,operationId,resultStatus:next.status,actorUid:uid},null));
+    await tx.commit(writes);
+    return json({ok:true,orderId,operationId,status:next.status,alreadyApplied:false},200,headers);
+   }
    const counts=action==="cancel"&&original.item.stockDeducted!==true?
     new Map():quantities(original.item);
    // Don't trust any item or quantity supplied by the browser.
@@ -288,7 +304,6 @@ export function createWorkerApp({
      stock.set(item.key,doc.data.record.item);
     }
    }
-   const at=clock().toISOString();
    const planned=planOperation({
     action,decision,order:original.item,stock,universe,operationId,at
    });
@@ -312,6 +327,7 @@ export function createWorkerApp({
      changed.push(path.split("/").at(-1));
     }
    }
+   if(tracking)writes.push(put(tracking.path,updateTracking(tracking.doc.data,[planned.order],at),tracking.doc));
    // Firestore V5 listeners depend on guard revision and pulse changes.
    // These must be committed with the operational documents, never later.
    const oldGuard=guard.data.revision,previousPulse=pulse.data.eventId;
@@ -353,10 +369,14 @@ export function createWorkerApp({
      // anti-abuse token once, not on each transaction retry.
      if(env.ENABLE_WRITES!=="true"||env.ENABLE_PUBLIC_CHECKOUT!=="true")return json({error:"checkout_disabled"},423,headers);
      if(!origin||req.headers.get("Content-Type")?.split(";")[0]!=="application/json")return json({error:"invalid_checkout"},400,headers);
+     const authorization=req.headers.get("Authorization")||"";
+     if(!/^Bearer [^\s]+$/.test(authorization))return json({error:"authentication_required"},401,headers);
+     let consumer;try{consumer=await verify(authorization.slice(7),env.FIREBASE_PROJECT_ID)}catch{return json({error:"invalid_firebase_token"},401,headers)}
+     if(!consumer?.uid||!valueOk(consumer.uid,/^[a-zA-Z0-9:_-]{1,128}$/))return json({error:"invalid_identity"},401,headers);
      const input=await checkoutRequest(req);
      if(!await checkoutChallenge(input.challenge,env,input.operationId))return json({error:"challenge_required"},403,headers);
      for(let attempt=0;attempt<4;attempt++){
-      try{const result=await submitCheckout({input,env,repository,at:clock()});return json(result,result.alreadyApplied?200:201,headers)}
+      try{const result=await submitCheckout({input,env,repository,at:clock(),consumerUid:consumer.uid});return json(result,result.alreadyApplied?200:201,headers)}
       catch(e){if(!(e instanceof FirestoreError)||![409,412].includes(e.status)||attempt===3)throw e;
        await new Promise(resolve=>setTimeout(resolve,60*(attempt+1)+Math.floor(Math.random()*160)));
       }

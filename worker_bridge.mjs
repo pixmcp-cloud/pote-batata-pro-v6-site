@@ -2,7 +2,7 @@
  * IMPORTANT: Do not enable until service-account auth, Firestore rules and
  * production shadow tests are approved. No browser-triggered fallback.
  * The only source of truth after an accepted call is the V5 Firestore reload. */
-const allowedAction=new Set(["produce","cancel"]);
+const allowedAction=new Set(["produce","cancel","ready","dispatch","deliver"]);
 const uuidPattern=/^[a-zA-Z0-9_-]{20,80}$/;
 const idPattern=/^[a-zA-Z0-9_.:-]{1,180}$/;
 const universePattern=/^[a-z0-9_-]{1,64}$/;
@@ -36,7 +36,7 @@ export function createWorkerBridge({
   if(!orderGate())throw error("Worker desativado. Nenhum dado foi alterado.","worker/disabled");
   if(!allowedAction.has(action)||!idPattern.test(orderId)||!universePattern.test(universe)||
     (action==="cancel"&&!["return","loss"].includes(decision))||
-    (action==="produce"&&decision!==undefined))
+    (action!=="cancel"&&decision!==undefined))
    throw error("Parâmetros de operação inválidos","worker/invalid");
   const before=getSession?.();
   if(!before?.uid||!before?.user||before.user.uid!==before.uid||before.ready!==true||
@@ -327,6 +327,9 @@ export function createWorkerBridge({
   get inventoryEnabled(){return stockGate()},
   adjustStock,purchaseStock,recountStock,
   produce:(orderId,universe)=>transition("produce",{orderId,universe}),
+  ready:(orderId,universe)=>transition("ready",{orderId,universe}),
+  dispatch:(orderId,universe)=>transition("dispatch",{orderId,universe}),
+  deliver:(orderId,universe)=>transition("deliver",{orderId,universe}),
   cancel:(orderId,universe,decision)=>transition("cancel",{orderId,universe,decision}),
   // Kept strictly private; no client-side switch to enable writes.
  });

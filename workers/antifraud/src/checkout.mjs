@@ -2,6 +2,7 @@
  * all lines, reservation via native received orders, no physical debit/payment.
  * The browser supplies product IDs, quantities and expected total ONLY. */
 import {OperationalError,quantities,recordPath,resolveRecord} from "./domain.mjs";
+import {trackingPath,initialTracking} from "./tracking.mjs";
 const fail=(message,code="invalid_checkout",status=400)=>{throw new OperationalError(message,status,code)};
 const isObject=x=>x&&typeof x==="object"&&!Array.isArray(x);
 const exact=(x,keys)=>isObject(x)&&Object.keys(x).every(k=>keys.includes(k))&&keys.every(k=>Object.hasOwn(x,k));
@@ -81,7 +82,8 @@ function record(doc,group,universe,id){
  return r.item;
 }
 const dateBR=at=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(at);
-export async function submitCheckout({input,env,repository,at}){
+export async function submitCheckout({input,env,repository,at,consumerUid}){
+ if(typeof consumerUid!=="string"||!/^[A-Za-z0-9:_-]{1,128}$/.test(consumerUid))fail("Entre com Google para confirmar.","authentication_required",401);
  if(env.ENABLE_WRITES!=="true"||env.ENABLE_PUBLIC_CHECKOUT!=="true")fail("Checkout em homologação.","checkout_disabled",423);
  const tx=await repository(env).transaction();
  try{
@@ -93,12 +95,14 @@ export async function submitCheckout({input,env,repository,at}){
   const profile=(await tx.get(root))?.data;
   if(!permit(profile,env,uid,universe,input.slug,at))fail("Loja indisponível para pedidos automáticos.","checkout_disabled",423);
   const eventPath=root+"/publicCheckoutEvents/"+input.operationId;
-  const {challenge,...intent}=input,fingerprint=await sha256(JSON.stringify(intent));
+  const {challenge,...intent}=input,fingerprint=await sha256(JSON.stringify({consumerUid,...intent}));
   const previous=await tx.get(eventPath);
   if(previous){
-   if(previous.data.fingerprint!==fingerprint)fail("Identificador já utilizado em outro pedido.","idempotency_conflict",409);
+   if(previous.data.consumerUid!==consumerUid||previous.data.fingerprint!==fingerprint)fail("Identificador já utilizado em outro pedido.","idempotency_conflict",409);
    return {...previous.data.result,alreadyApplied:true};
   }
+  const consumerPath=trackingPath(consumerUid,input.operationId);
+  if(await tx.get(consumerPath))fail("Identificador já utilizado.","idempotency_conflict",409);
   const metaPath=root+"/appState/v5",guardPath=root+"/appState/v5InventoryGuard",pulsePath=root+"/appState/v5Pulse";
   const [meta,guard,pulse]=await Promise.all([tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath)]);
   const state=meta?.data?.state?.data;
@@ -135,7 +139,7 @@ export async function submitCheckout({input,env,repository,at}){
    const o=r.item;
    if(o.stockDeducted!==true)addNeeds(reserved,o);
    if(Number.isSafeInteger(o.orderNumber))sequence=Math.max(sequence,o.orderNumber);
-   if(o.checkoutId&&o.clientPhone===input.customerPhone)customerPending.add(o.checkoutId);
+   if(o.checkoutId&&(o.consumerUid===consumerUid||o.clientPhone===input.customerPhone))customerPending.add(o.checkoutId);
   }
   if(customerPending.size>=3)fail("Você já tem pedidos aguardando preparo. Fale com a loja.","queue_full",409);
   const expenseDocs=await tx.expenses(uid,201);
@@ -182,7 +186,7 @@ export async function submitCheckout({input,env,repository,at}){
    // Do not accept stale posted prices that would sell below variable cost.
    if(!Number.isFinite(contribution)||contribution<=0)fail("Preço indisponível. A loja precisa revisar os custos.","price_changed",409);
    if(sequence>=Number.MAX_SAFE_INTEGER-20)fail("Sequência inválida.","not_ready",409);
-   const order={id:keyForOrder(input.operationId,rows.length),orderNumber:++sequence,checkoutId:input.operationId,source:"public-checkout",
+   const order={id:keyForOrder(input.operationId,rows.length),orderNumber:++sequence,checkoutId:input.operationId,source:"public-checkout",consumerUid,
     name:String(p.title).slice(0,90),recipeId:isBev?"":source.id,comboId:"",qty:line.quantity,price,deliveryFee:0,deliveryCost:0,
     profit:contribution-fixed,unitContribution:contribution,unitVariableCost:variable,feePct:fees,
     clientId:"",clientName:input.customerName,clientPhone:input.customerPhone,clientAddress:"",deliveryType:"Retirada",
@@ -211,7 +215,8 @@ export async function submitCheckout({input,env,repository,at}){
   const result={ok:true,checkoutId:input.operationId,totalCents:total,orderNumbers:rows.map(o=>o.orderNumber),status:"recebido",paymentStatus:"pendente",alreadyApplied:false};
   writes.push(put(metaPath,{...meta.data,state:nextState},meta),put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"web-"+input.operationId,previousEventId:pulse.data.eventId,origin:"public-checkout",affected:changed.length,changedKeys:changed,metaChanged:true,sensitive:true},pulse),
-   put(eventPath,{fingerprint,result,createdAt:at.toISOString()},null));
+   put(eventPath,{fingerprint,result,consumerUid,createdAt:at.toISOString()},null),
+   put(consumerPath,initialTracking({rows,slug:input.slug,title:menu.title,total,at:at.toISOString(),checkoutId:input.operationId}),null));
   await tx.commit(writes);
   return result;
  }finally{await tx.rollback()}

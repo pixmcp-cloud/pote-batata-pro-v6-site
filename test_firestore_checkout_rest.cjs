@@ -23,14 +23,19 @@ test("checkout V6: real REST + Firestore transaction + race + retry",{timeout:90
    await rec("orders","manual",{status:"recebido",qty:1,items:[{id:"batata",g:100,yieldPct:100}],beverageItems:[],orderNumber:1});
   });
   const config={FIREBASE_PROJECT_ID:project,ENABLE_WRITES:"true",ENABLE_PUBLIC_CHECKOUT:"true",CANARY_UIDS:uid,ALLOWED_ORIGINS:"https://qa.test"};
-  const app=createWorkerApp({repository:()=>createFirestoreRepository(config,{accessToken:async()=>"owner",apiBaseUrl:"http://"+process.env.FIRESTORE_EMULATOR_HOST+"/v1/projects/"+project+"/databases/(default)"}),checkoutChallenge:async token=>token==="qa",clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async()=>({uid,isAdmin:false})});
+  const app=createWorkerApp({repository:()=>createFirestoreRepository(config,{accessToken:async()=>"owner",apiBaseUrl:"http://"+process.env.FIRESTORE_EMULATOR_HOST+"/v1/projects/"+project+"/databases/(default)"}),checkoutChallenge:async token=>token==="qa",clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async token=>({uid:token==="customer"?"qa-consumer":uid,isAdmin:false})});
   const ids=["11111111-1111-4111-8111-111111111111","22222222-2222-4222-8222-222222222222"];
   const input=operationId=>({slug,operationId,items:[{id:"r1",quantity:2,note:""},{id:"bev-suco",quantity:1,note:"Gelado"}],expectedTotalCents:6500,customerName:"Cliente QA",customerPhone:"48999990000",payment:"pix",challenge:"qa"});
-  const call=async(body,route="/v1/checkout")=>{const r=await app.fetch(new Request("https://qa.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer qa"},body:JSON.stringify(body)}),config);return {status:r.status,body:await r.json()}};
+  const call=async(body,route="/v1/checkout")=>{const r=await app.fetch(new Request("https://qa.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer "+(route==="/v1/checkout"?"customer":"qa")},body:JSON.stringify(body)}),config);return {status:r.status,body:await r.json()}};
   const race=await Promise.all(ids.map(id=>call(input(id))));assert.deepEqual(race.map(r=>r.status).sort(),[201,409],JSON.stringify(race));
   const win=race.find(r=>r.status===201).body;
   assert.deepEqual(win.orderNumbers,[2,3]);assert.equal((await call(input(win.checkoutId))).body.alreadyApplied,true);
   const anon=env.unauthenticatedContext().firestore();
+  const customer=env.authenticatedContext("qa-consumer",{email:"customer@example.test",email_verified:true,firebase:{sign_in_provider:"google.com"}}).firestore();
+  const other=env.authenticatedContext("qa-other",{email:"other@example.test",email_verified:true,firebase:{sign_in_provider:"google.com"}}).firestore();
+  const trackingPath="consumerOrders/qa-consumer/orders/"+win.checkoutId;
+  assert.equal((await sdk.getDoc(sdk.doc(customer,trackingPath))).data().status,"recebido");
+  await assertFails(sdk.getDoc(sdk.doc(other,trackingPath)));await assertFails(sdk.getDoc(sdk.doc(anon,trackingPath)));await assertFails(sdk.updateDoc(sdk.doc(customer,trackingPath),{status:"entregue"}));
   await assertFails(sdk.getDoc(sdk.doc(anon,root+"/publicCheckoutEvents/"+win.checkoutId)));
   await assertFails(sdk.setDoc(sdk.doc(anon,recordPath(uid,u,"orders","forged")),{record:{id:"forged"}}));
   await env.withSecurityRulesDisabled(async ctx=>{
@@ -41,8 +46,17 @@ test("checkout V6: real REST + Firestore transaction + race + retry",{timeout:90
    assert.equal((await get(recordPath(uid,u,"orders","web-"+win.checkoutId+"-0"))).record.item.paymentStatus,"Pendente");
   });
   const prod=await call({universe:u,orderId:"web-"+win.checkoutId+"-0",operationId:"33333333-3333-4333-8333-333333333333"},"/v1/orders/produce");assert.equal(prod.status,200,JSON.stringify(prod));
+  assert.equal((await sdk.getDoc(sdk.doc(customer,trackingPath))).data().status,"em_preparo");
   const cancel=await call({universe:u,orderId:"web-"+win.checkoutId+"-0",operationId:"44444444-4444-4444-8444-444444444444",decision:"return"},"/v1/orders/cancel");assert.equal(cancel.status,200,JSON.stringify(cancel));
   await env.withSecurityRulesDisabled(async ctx=>{const db=ctx.firestore();assert.equal((await sdk.getDoc(sdk.doc(db,recordPath(uid,u,"ingredients","batata")))).data().record.item.stock,300)});
+  const bevOrder="web-"+win.checkoutId+"-1";
+  const transition=async(action,id)=>call({universe:u,orderId:bevOrder,operationId:id},"/v1/orders/"+action);
+  assert.equal((await transition("produce","55555555-5555-4555-8555-555555555555")).status,200);
+  assert.equal((await transition("ready","66666666-6666-4666-8666-666666666666")).status,200);
+  assert.equal((await sdk.getDoc(sdk.doc(customer,trackingPath))).data().status,"finalizado");
+  assert.equal((await transition("deliver","77777777-7777-4777-8777-777777777777")).status,200);
+  const final=(await sdk.getDoc(sdk.doc(customer,trackingPath))).data();assert.equal(final.status,"entregue");assert.equal(final.durationSeconds,0);assert.equal(final.totalCents,500);
+  console.log("PASS consumer: own history, private tracking, ready and delivered timestamps.");
   console.log("PASS checkout REST: reserva conjunta, concorrência com PDV, pagamento pendente, produção e estorno, nenhuma escrita externa");
  }finally{await env.cleanup()}
 });

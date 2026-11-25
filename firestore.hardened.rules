@@ -316,9 +316,13 @@ service cloud.firestore {
       }
       // V5: um documento por entidade, com isolamento por conta e negócio.
       match /recordsV5/{recordId} {
+        function isTracked(record) {
+          return record.group == 'orders' && record.item.get('source', '') == 'public-checkout';
+        }
         function validCreate(document) {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
+            && !isTracked(record)
             && canWriteOperationalRecord(userId, recordId, record)
             && (record.group != 'cashSessions' || record.item.status == 'open')
             // Pedidos, movimentos, compras e perdas não podem ser criados fora
@@ -330,6 +334,7 @@ service cloud.firestore {
           let record = document.get('record', null);
           let oldRecord = oldDocument.record;
           return validRecordDocument(document, record)
+            && (isTracked(oldRecord) ? isTracked(record) && record.item.diff(oldRecord.item).affectedKeys().hasOnly(['cashSessionId','paymentMethod','paymentStatus','paidAmount','changeGiven','paymentConfirmedAt','paymentConfirmationReference','paymentConfirmationSource']) : !isTracked(record))
             && canWriteOperationalRecord(userId, recordId, record)
             && preservesRecordIdentity(userId, recordId, record, oldRecord)
             && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
@@ -342,6 +347,7 @@ service cloud.firestore {
         allow create: if canAccess(userId) && validCreate(request.resource.data);
         allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
+          && !isTracked(resource.data.record)
           && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
@@ -505,6 +511,11 @@ service cloud.firestore {
     }
 
     // Deny everything not explicitly listed.
+    // Consumer projection: no access to merchant inventory, costs or other customers.
+    match /consumerOrders/{consumerUid}/orders/{checkoutId} {
+      allow get, list: if googleVerified() && request.auth.uid == consumerUid;
+      allow create, update, delete: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

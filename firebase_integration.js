@@ -6,7 +6,7 @@ import {createV5Store} from "./v5_storage.mjs?v=v5-clean-20261120-f10";
 import {stableJson,jsonBytes,MAX_APPSTATE_BYTES,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
 const pendingKey=uid=>"pote-sync-pending-v5:"+String(uid||"");
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
-import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120";
+import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120-tracking";
 
 const auth = getAuth(app);
 const db = getFirestore(app);

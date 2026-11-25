@@ -25,8 +25,8 @@ function setup(){
  record("expenses","f",{enabled:true,mode:"mensal",amount:100,repeat:1});
  record("orders","manual",{status:"recebido",qty:1,items:[{id:"batata",g:100,yieldPct:100}],beverageItems:[],orderNumber:7});
  const database={async transaction(){return {async get(p){return docs.has(p)?structuredClone(docs.get(p)):null},async receivedOrders(){return [...docs.values()].filter(x=>x.data.record?.item?.status==="recebido").map(x=>structuredClone(x))},async expenses(){return [...docs.values()].filter(x=>x.data.record?.group==="expenses").map(x=>structuredClone(x))},async commit(writes){for(const w of writes){const old=docs.get(w.path);if(w.precondition.exists===false&&old||w.precondition.updateTime&&old?.updateTime!==w.precondition.updateTime)throw new FirestoreError(409,"conflict")}for(const w of writes)seed(w.path,w.data)},async rollback(){}}}};
- const app=createWorkerApp({repository:()=>database,checkoutChallenge:async token=>token==="qa-token",clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async()=>({uid,isAdmin:false})});
- const call=async(body,override={},route="/v1/checkout")=>{const resp=await app.fetch(new Request("https://worker.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer qa"},body:JSON.stringify(body)}),{...env,...override});return {status:resp.status,body:await resp.json()}};
+ const app=createWorkerApp({repository:()=>database,checkoutChallenge:async token=>token==="qa-token",clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async token=>({uid:token==="customer"?"qa-consumer":uid,isAdmin:false})});
+ const call=async(body,override={},route="/v1/checkout")=>{const resp=await app.fetch(new Request("https://worker.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer "+(route==="/v1/checkout"?"customer":"qa")},body:JSON.stringify(body)}),{...env,...override});return {status:resp.status,body:await resp.json()}};
  return {docs,seed,get,record,call};
 }
 test("checkout atomic: existing POS hold, recipe + packaging + drink, idempotency, no fake paid",async()=>{
