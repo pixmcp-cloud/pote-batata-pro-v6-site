@@ -117,6 +117,7 @@ function imageFor(recipe){
   const normalize=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
   const brand=window.POTE_APP?.snapshot?.()?.data?.brand?.name;
   if(normalize(brand)!=="potebatata")return null;
+  if(["carnecomcheddar","carneecheddar","carnecheddar"].includes(normalize(recipe.name)))return window.POTE_RECIPE_ALTERNATES?.["carne-cheddar"]||null;
   if(normalize(recipe.name)!==normalize(window.POTE_RECIPE_LABELS?.[recipe.id]))return null;
   const alt={r23:"ninho-nutella",r24:"brigadeiro",r25:"morango-preto",r26:"morango-branco"}[recipe.id];
   return (alt&&window.POTE_RECIPE_ALTERNATES?.[alt])||window.POTE_RECIPE_IMAGES?.[recipe.id]||null;
