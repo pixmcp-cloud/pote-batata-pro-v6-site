@@ -108,3 +108,9 @@ assert(iaSource.includes('creditBusy||!selected')&&iaSource.includes('crypto.ran
 console.log('PASS: confirmação ADM e bloqueio de cliques duplicados');
 
 assert(iaSource.includes('iauCreditMinus')&&iaSource.includes('iauCreditPlus')&&iaSource.includes('brl(s.cents*q)')&&iaSource.includes('q*s.amount'));
+
+assert(html.includes('aria-controls="poteVoiceConsole"')&&!html.includes('id="csVoiceForm"'),'CTA points to independent dialog');
+assert(iaSource.includes("voiceConsole.showModal();invalidate()")&&iaSource.indexOf("voiceConsole.showModal();invalidate()")<iaSource.indexOf("if(!endpoint()){studioStatus"),"Editor opens before provider availability check");
+for(const marker of ['pvSliders','pvLanguage','pvModel','pvBoost','pvTiers','pvImport','pvWallet','pvOutputHint','csVoiceDownload','voiceSettings:settings()','...opts','JSON.stringify(q.opts)'])assert(iaSource.includes(marker),'Voice Studio: '+marker);
+assert(iaCss.includes('#poteVoiceConsole{position:fixed;inset:0'),'Full-screen dedicated editor');
+console.log('PASS: Voice Studio opens independently; advanced settings bound to quote');
