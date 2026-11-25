@@ -23,3 +23,6 @@ Testes unitários atualizados para elegibilidade de planos, divisão igualitári
 
 ### Tarifa fixa de locução
 15 s = 1 IA; 30 s = 2 IA; 45 s = 3 IA; 60 s = 4 IA; 75 s = 5 IA. Modalidade escolhida antes da geração e registrada na cotação. Limite piloto de 150 caracteres por 15 segundos (até 750); duração estimada, dependente da voz e ritmo. O preço não aumenta sem nova cotação e confirmação. O servidor recusa a modalidade se a tarifa não cobrir o dobro do custo configurado do provedor. Não promete duração exata; testar duração real dos MP3 antes da ativação comercial. A geração continua desativada até homologação.
+
+### Voice Studio
+Interface independente disponível para contas elegíveis mesmo sem endpoint. Roteiro e configuração locais não debitam saldo. Catálogo real de vozes, orçamento e síntese exigem licença comercial e endpoint homologado. O servidor valida modelo Flash v2.5, idioma automático/pt/en/es, estabilidade, similaridade, estilo, velocidade 0.7–1.2 e Speaker Boost; armazena a configuração na cotação imutável e envia os parâmetros à API. Outros modelos permanecem desabilitados até aferição de custos. MP3 44.1 kHz/128 kbps; duração estimada. Presets são configurações internas do PDV, não perfis oficiais ElevenLabs.
