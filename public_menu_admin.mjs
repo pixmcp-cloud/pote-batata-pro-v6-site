@@ -12,13 +12,18 @@ const node=(tag,cls,text)=>{
   if(text!==undefined)el.textContent=text;
   return el;
 };
-let dialog=null,initialized=false,candidates=[],published=null,selected=new Set(),busy=false,activeUid=null,generation=0;
+let dialog=null,initialized=false,candidates=[],published=null,selected=new Set(),busy=false,activeUid=null,activeType=null,generation=0;
 const entry=new URLSearchParams(location.search);let deepLinkHandled=false;
 const entrySlug=entry.get("gerenciar-cardapio"),entryOption=entry.get("opcao");
 const $=id=>document.getElementById(id);
 const owner=()=>window.POTE_APP_READY&&auth.currentUser?.uid===window.POTE_AUTH?.uid
   ?auth.currentUser.uid:null;
-const localKey=uid=>"pote-public-menu-slug:"+uid;
+const businessType=()=>window.POTE_APP?.snapshot?.()?.data?.businessType||"batataria";
+const legacyKey=uid=>"pote-public-menu-slug:"+uid;
+const localKey=(uid,type=businessType())=>legacyKey(uid)+":"+type;
+const defaultSlug=(uid,name)=> (slugify(name).slice(0,25)||"loja")+"-"+uid.slice(0,8).toLowerCase();
+function rememberedSlugs(uid,type,name){try{return [...new Set([localStorage.getItem(localKey(uid,type)),localStorage.getItem(legacyKey(uid)),defaultSlug(uid,name)].filter(validSlug))];}catch{return [defaultSlug(uid,name)];}}
+async function findOwnMenu(uid,type,name,epoch){for(const slug of rememberedSlugs(uid,type,name)){try{const menu=await loadExisting(slug,uid);if(!validSession(uid,epoch))return null;if(menu?.businessType===type){try{localStorage.setItem(localKey(uid,type),slug)}catch{}return menu;}}catch(error){if(!validSession(uid,epoch))return null;if(error.message!=="Endereço indisponível: usado por outra loja."&&error.code!=="permission-denied")throw error;}}return null;}
 const visible=()=>{
   return Boolean(owner()&&$("poteCardapioManager"));
 };
@@ -29,13 +34,14 @@ const liveLink=slug=>{
 };
 function buttonVisibility(){
   const uid=owner();
-  if(uid!==activeUid){
-    generation++;activeUid=uid;busy=false;published=null;candidates=[];selected=new Set();
+  const type=uid?businessType():null;
+  if(uid!==activeUid||type!==activeType){
+    generation++;activeUid=uid;activeType=type;busy=false;published=null;candidates=[];selected=new Set();
     if(dialog){if(dialog.open)dialog.close();dialog.remove();dialog=null;}
   }
   if(dialog?.open&&!visible())dialog.close();
 }
-const validSession=(uid,epoch)=>owner()===uid&&generation===epoch;
+const validSession=(uid,epoch)=>owner()===uid&&generation===epoch&&businessType()===activeType;
 function init(){
   if(initialized||!document.body)return;
   initialized=true;
@@ -180,14 +186,12 @@ async function refresh({load=true}={}){
     candidates=buildMenuCandidates(current,{priceFor,allowed,imageFor,includeIngredientNames:true});
     const name=current.data?.brand?.name||"meu-negocio";
     let slug=$("publicMenuSlug").value.trim().toLowerCase();
-    if(!slug){
-      try{slug=localStorage.getItem(localKey(uid))||"";}catch{}
-    }
-    if(!slug)slug=(slugify(name).slice(0,25)||"loja")+"-"+uid.slice(0,8).toLowerCase();
+    if(!slug){const own=await findOwnMenu(uid,businessType(),name,epoch);if(!validSession(uid,epoch))return;slug=own?.slug||defaultSlug(uid,name);}
     $("publicMenuSlug").value=slug;
     if(load){
       const existing=await loadExisting(slug,uid);
       if(!validSession(uid,epoch))return;
+      if(existing&&existing.businessType!==businessType())throw Error("Este link pertence a outro segmento da sua conta. Escolha um endereço diferente.");
       published=existing;
       selected=new Set(published?.items?.map(p=>p.id)||[]);
       $("publicMenuIncludeIngredients").checked=Boolean(published?.items?.some(p=>Array.isArray(p.ingredientNames)&&p.ingredientNames.length));
@@ -267,6 +271,7 @@ async function publish(){
     const current=await loadExisting(slug,uid);
     if(!validSession(uid,epoch))return;
     const oldSlug=published?.slug&&published.slug!==slug?published.slug:null;
+    if(current&&current.businessType!==businessType())throw Error("Este endereço pertence a outro segmento. Use um link diferente.");
     if(oldSlug&&current)throw Error("O novo endereço já existe. Escolha outro endereço livre.");
     const ids=currentSelected();
     const {photos,skipped}=await photosForPublication(state,ids,uid,epoch);
@@ -307,7 +312,7 @@ async function unpublish(){
     const slug=published?.slug||$("publicMenuSlug").value.trim().toLowerCase();
     const current=await loadExisting(slug,uid);
     if(!validSession(uid,epoch))return;
-    if(!current)throw Error("Não há cardápio público neste endereço.");
+    if(!current||current.businessType!==businessType())throw Error("Não há cardápio público deste segmento neste endereço.");
     if(!current.published){setMessage("Este cardápio já está fora do ar.");return;}
     if(!confirm("Retirar sua loja do ar? O endereço ficará indisponível para clientes."))return;
     if(!validSession(uid,epoch))return;
@@ -321,6 +326,13 @@ async function unpublish(){
   }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha ao retirar cardápio.",true);}
   finally{if(validSession(uid,epoch))setBusy(false);}
 }
-window.POTE_PUBLIC_MENU={open,getCurrentLink:()=>owner()&&published?.ownerUid===owner()&&published?.published===true&&!busy?liveLink(published.slug):null};
+async function viewOwn(){
+ buttonVisibility();const uid=owner();if(!uid||busy)return;const epoch=generation,type=businessType();
+ try{const name=snapshot().data?.brand?.name||"meu-negocio";const menu=await findOwnMenu(uid,type,name,epoch);if(!validSession(uid,epoch))return;
+ if(menu?.published===true){location.assign(liveLink(menu.slug));return;}
+ alert("Seu cardápio deste segmento ainda não está publicado neste endereço. Publique ou informe o link personalizado em Gerenciar cardápio.");await open();
+ }catch(error){if(validSession(uid,epoch))alert("Não foi possível consultar seu cardápio: "+(error.message||"verifique a conexão"));}
+}
+window.POTE_PUBLIC_MENU={open,viewOwn,getCurrentLink:()=>owner()&&published?.ownerUid===owner()&&published?.published===true&&!busy?liveLink(published.slug):null};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
 else init();
