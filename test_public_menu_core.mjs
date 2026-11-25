@@ -47,3 +47,13 @@ assert.equal(buildMenuCandidates(state,{priceFor})[0].image,"../assets/generic/b
 const menuWithPhoto=makePublicMenu(state,{ownerUid:"uid-owner",slug:"pote-batata-a1020",selectedIds:["r01"],priceFor,imageFor:()=>"./assets/recipes/r05.webp"});
 assert.equal(sanitizeReadMenu(menuWithPhoto,menuWithPhoto.slug).items[0].image,"../assets/recipes/r05.webp","caminho publicado deve sobreviver à leitura pública");
 assert.equal(publicImage("../../assets/recipes/r05.webp"),"../assets/generic/business-batataria.svg");
+
+const withIngredients=structuredClone(state);withIngredients.data.ingredients=[{id:"a",name:"Batata",cost:5,stock:100},{id:"b",name:"Muçarela",cost:99},{id:"c",name:"Pote",category:"Embalagem"}];withIngredients.data.recipes[0].items=[{id:"a",g:500},{id:"b",g:40},{id:"a",g:5},{id:"c",g:1},{id:"unknown",g:7}];
+const options={slug:"loja-teste",ownerUid:"uid-owner",selectedIds:["r01"],priceFor};
+assert(!("ingredientNames" in makePublicMenu(withIngredients,options).items[0]));
+const approved=makePublicMenu(withIngredients,{...options,includeIngredientNames:true});
+assert.deepEqual(approved.items[0].ingredientNames,["Batata","Muçarela"]);
+assert.deepEqual(sanitizeReadMenu(approved,approved.slug).items[0].ingredientNames,["Batata","Muçarela"]);
+assert(!JSON.stringify(approved.items[0].ingredientNames).includes("500"));
+assert.deepEqual(sanitizeReadMenu({...approved,items:[{...approved.items[0],ingredientNames:[{name:"privado"}, "Batata", "Batata"]}]},approved.slug).items[0].ingredientNames,["Batata"]);
+console.log("PASS: nomes de ingredientes somente por opção explícita, sem quantidades, embalagem ou custos");

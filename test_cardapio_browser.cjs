@@ -45,7 +45,7 @@ const server=http.createServer((req,res)=>{
         await page.$eval("#searchInput",e=>{e.value="";e.dispatchEvent(new Event("input",{bubbles:true}))});
         await page.click('button[aria-label="Escolher Carne com Cheddar"]');
         await page.waitForSelector("#productDialog[open]");
-        await page.click("#productFacts summary");
+        assert.deepEqual(await page.$$eval("#productIngredients li",nodes=>nodes.map(n=>n.textContent)),["Batata","Carne desfiada","Cheddar"]);
         assert.equal(await page.$eval("#productFacts",e=>e.open),true);
         assert.match(await page.$eval("#productFactFormat",e=>e.textContent),/500 g/);
         assert.match(await page.$eval("#productFacts",e=>e.textContent),/A confirmar com o estabelecimento/);
@@ -60,6 +60,13 @@ const server=http.createServer((req,res)=>{
         assert.equal(await page.$eval("#addressLabel",e=>e.hidden),false);
         assert.match(await page.$eval(".demo-warning",e=>e.textContent),/Nenhum pagamento será cobrado/);
         await page.click("#closeCart");
+        await page.click('button[aria-label="Escolher Sabor Pizza"]');
+        await page.waitForSelector("#productDialog[open]");
+        assert.equal(await page.$eval("#productFacts",e=>e.open),true);
+        const pizzaIngredients=await page.$$eval("#productIngredients li",nodes=>nodes.map(n=>n.textContent));
+        assert(pizzaIngredients.includes("Presunto")&&pizzaIngredients.includes("Muçarela")&&pizzaIngredients.includes("Orégano"));
+        assert(!pizzaIngredients.includes("Carne desfiada"));
+        await page.click("#closeProduct");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);
       await page.close();

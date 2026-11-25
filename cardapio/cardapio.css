@@ -207,3 +207,5 @@ svg{width:22px;height:22px}
  .cart-head,.cart-items,.checkout-box{padding-left:16px;padding-right:16px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
+
+.product-ingredient-heading{font:800 13px/1.5 inherit;font-size:13px;font-weight:800;color:var(--goldLight);margin:14px 0 8px}.product-ingredients{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:0 0 10px}.product-ingredients li{border:1px solid #70583b;border-radius:8px;padding:5px 8px;color:var(--cream);font-size:12px;line-height:1.45;overflow-wrap:anywhere;max-width:100%}#productIngredientsEmpty[hidden]{display:none}
