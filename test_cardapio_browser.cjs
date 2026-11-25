@@ -42,11 +42,11 @@ async function tapProduct(page,selector){
       const errs=[];page.on("pageerror",e=>errs.push(e.message));
       await page.goto("http://127.0.0.1:"+server.address().port+"/cardapio/",{waitUntil:"domcontentloaded"});
       await page.waitForSelector(".product-card",{timeout:10000});
-      assert.equal(await page.$$eval(".product-card",nodes=>nodes.length),10);
+      assert.equal(await page.$$eval(".product-card",nodes=>nodes.length),11);
       assert.deepEqual(await page.$$eval(".category-button",nodes=>nodes.map(n=>n.textContent)),["Todos","Salgados","Doces","Bebidas"]);
       assert.equal(await page.$$eval(".product-card",nodes=>nodes.some(n=>n.textContent.includes("Combo do Sabor"))),false);
       const officialImages=await page.$$eval(".product-media img",nodes=>nodes.filter(n=>n.getAttribute("src").includes("/assets/recipes/")).map(n=>n.getAttribute("src")));
-      assert.equal(officialImages.length,10);
+      assert.equal(officialImages.length,11);
       if(width===375){for(const url of officialImages){const response=await page.evaluate(async url=>(await fetch(url)).ok,url);assert(response,"Foto ausente: "+url);}}
       const hero=await page.$eval("#menuHero",e=>{const r=e.getBoundingClientRect();return {ratio:r.width/r.height,slides:[...e.querySelectorAll(".menu-hero-slide")].map(s=>s.dataset.kind),active:e.querySelector(".is-active").dataset.kind}});
       assert(Math.abs(hero.ratio-16/9)<.03,"capa 16:9");
@@ -131,6 +131,23 @@ async function tapProduct(page,selector){
         await page.click("#addToCart");
         await page.click("#floatingCart");
         assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Versão: Normal.*Temperatura: Fora do gelo/);
+        await page.click("#closeCart");
+        await page.waitForSelector("#cartDialog[open]",{hidden:true});
+        await tapProduct(page,'button[aria-label="Escolher Refrigerante 600 ml"]');
+        assert.match(await page.$eval("#productFactFormat",e=>e.textContent),/600 ml/);
+        assert.equal(await page.$eval("#addonFieldset",e=>e.hidden),true);
+        await page.click("#productFacts summary");
+        await page.click('input[name="drinkFlavor"][value="Cola"]');
+        assert.match(await page.$eval("#addPrice",e=>e.textContent),/9,00/);
+        await page.click('label.drink-option:has(input[name="drinkType"][value="Zero"])');
+        assert.match(await page.$eval("#addPrice",e=>e.textContent),/10,00/);
+        await page.click('input[name="drinkFlavor"][value="Soda"]');
+        assert.equal(await page.$eval('input[name="drinkType"][value="Zero"]',e=>e.disabled),true);
+        await page.click('input[name="drinkFlavor"][value="Cola"]');
+        await page.click('label.drink-option:has(input[name="drinkType"][value="Zero"])');
+        await page.click("#addToCart");
+        await page.click("#floatingCart");
+        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Refrigerante Cola Zero Açúcar.*Sabor: Cola.*Versão: Zero.*Temperatura: Gelado.*10,00/s);
         await page.click("#closeCart");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);

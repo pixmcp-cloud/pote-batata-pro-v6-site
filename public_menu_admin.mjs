@@ -3,7 +3,7 @@
 import {app} from "./firebase_app.mjs";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto} from "./public_menu_core.mjs?lojas=5";
+import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto} from "./public_menu_core.mjs?lojas=6";
 
 const auth=getAuth(app),db=getFirestore(app);
 const node=(tag,cls,text)=>{
@@ -118,6 +118,7 @@ function imageFor(recipe){
   const normalize=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
   const brand=window.POTE_APP?.snapshot?.()?.data?.brand?.name;
   if(normalize(brand)!=="potebatata")return null;
+  if(/refrigerante|soda/i.test(recipe.name||"")){if(/600\s*ml/i.test(recipe.size||""))return "./assets/recipes/refrigerante-600.webp";if(/350\s*ml|lata/i.test(recipe.size||""))return "./assets/recipes/refrigerante-lata.webp";}
   if(["carnecomcheddar","carneecheddar","carnecheddar"].includes(normalize(recipe.name)))return window.POTE_RECIPE_ALTERNATES?.["carne-cheddar"]||null;
   if(normalize(recipe.name)!==normalize(window.POTE_RECIPE_LABELS?.[recipe.id]))return null;
   const alt={r23:"ninho-nutella",r24:"brigadeiro",r25:"morango-preto",r26:"morango-branco"}[recipe.id];

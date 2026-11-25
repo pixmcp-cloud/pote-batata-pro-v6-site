@@ -47,7 +47,7 @@ export function groupDrinkProducts(products){
     let g=groups.get(key);
     if(!g){g={...p,id:"soda-group-"+key,title:/lata/i.test(v.pack)?"Refrigerante Lata":"Refrigerante "+v.pack,description:"Escolha o sabor e a versão.",flavors:SODA_FLAVORS,drinkVariants:[],priceCents:p.priceCents,addons:[]};groups.set(key,g);result.push(g);}
     g.drinkVariants.push({id:p.id,flavor:v.flavor,type:v.type,available:p.available===true,priceCents:p.priceCents});
-    if(p.available===true&&p.priceCents<g.priceCents)g.priceCents=p.priceCents;
+    const enabled=g.drinkVariants.filter(v=>v.available);if(enabled.length)g.priceCents=Math.min(...enabled.map(v=>v.priceCents));
   }
   return result;
 }
@@ -81,7 +81,7 @@ const ownImage=(src,id)=>{
     const id="bev-"+text(b.id,68),price=cents(b.sellPrice);
     if(!price||items.some(p=>p.id===id))continue;
     items.push({id,title:text(b.name,80),description:text(b.size,60),
-      category:"Bebidas",priceCents:price,...(variant?{available:b.unavailable!==true&&b.suspended!==true&&Number(b.stock)>0}:{}),image:ownImage(b.imageUrl||b.photoUrl||b.photo||b.image,id),size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
+      category:"Bebidas",priceCents:price,...(variant?{available:b.unavailable!==true&&b.suspended!==true&&Number(b.stock)>0}:{}),image:isPublishedPhoto(publishedPhotos?.get?.(id))?publishedPhotos.get(id):((typeof imageFor==="function"&&/^\.?\/?assets\/recipes\/refrigerante-(?:lata|600)\.webp$/i.test(String(imageFor(b)||"")))?publicImage(imageFor(b),defaultImage):ownImage(b.imageUrl||b.photoUrl||b.photo||b.image,id)),size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
   }
   return items.slice(0, MENU_MAX_ITEMS);
 }
