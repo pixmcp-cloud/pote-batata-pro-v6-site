@@ -224,7 +224,7 @@ async function tapProduct(page,selector){
       const slug="qa-checkout-web",data={schemaVersion:1,slug,published:true,title:"Loja QA",subtitle:"Teste",checkoutEnabled:true,checkoutSiteKey:"qa-public-site-key",items:[{id:"qa-recipe",title:"Receita QA",description:"Teste",category:"Salgados",priceCents:1250,image:"",addons:[]}]};
       await page.setRequestInterception(true);
       page.on("request",req=>{
-        const url=new URL(req.url()),cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type","Access-Control-Allow-Methods":"POST, OPTIONS"};
+        const url=new URL(req.url()),cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"POST, OPTIONS"};
         if(url.pathname.endsWith("/consumer-session.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"const u={uid:'qa-consumer'};let cb;export const observe=f=>{cb=f;f(null);return()=>{}};export const login=async()=>{window.__qaLogins=(window.__qaLogins||0)+1;cb(u);return u};export const token=async()=> 'qa-google-token';export const logout=async()=>cb(null);export const listen=(u,f)=>{f([],true);return()=>{}};export const history=async()=>[];export const watchOrder=(u,id,f)=>{window.__qaTrack=(status,seconds)=>f({checkoutId:id,slug:'qa-checkout-web',createdAt:new Date(Date.now()-5000).toISOString(),status,durationSeconds:seconds,lines:[{orderNumber:12}]},true);return()=>{}};"});
         if(url.pathname.endsWith("/firebase_app.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"export const app={};"});
         if(url.hostname==="www.gstatic.com"&&url.pathname.endsWith("/firebase-firestore.js"))return req.respond({status:200,headers:cors,contentType:"text/javascript",body:"export const getFirestore=()=>({});export const doc=(...a)=>a;export const getDoc=async()=>({exists:()=>true,data:()=>("+JSON.stringify(data)+")});"});
@@ -250,7 +250,7 @@ async function tapProduct(page,selector){
       assert.equal(await page.$eval("#cartCount",e=>e.textContent),"1");
       await page.waitForFunction(()=>!document.getElementById("copyOrder").disabled);
       await page.click("#copyOrder");
-      await page.waitForFunction(()=>document.getElementById("checkoutResult").textContent.includes("#P0000012"));
+      await page.waitForFunction(()=>document.getElementById("checkoutResult").textContent.includes("#P0000012")).catch(async e=>{throw Error(e.message+" checkoutResult="+await page.$eval("#checkoutResult",el=>el.textContent)+" requests="+requests.length+" errors="+errors.join(";"))});
       assert.equal(requests.length,2);assert.equal(requests[0].operationId,requests[1].operationId);assert.equal(requests[1].expectedTotalCents,1250);assert.equal(requests[1].payment,"pix");
       assert.equal(await page.$eval("#cartCount",e=>e.textContent),"0");assert.equal(await page.evaluate(()=>window.__orderLink),null);
       await page.click("#closeCart");

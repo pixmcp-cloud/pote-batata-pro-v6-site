@@ -172,3 +172,5 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 - Ajustes do cronômetro: resposta checkout inclui createdAt do servidor (sem início presumido), histórico consumidor mostra recebido/entregue e permite imprimir comprovante individual sem expor outros pedidos; estilo de impressão isolado; referência de cache de recibo mantém contrato legado. Regressão em andamento.
 
 - Ajuste F05 após regressão: regras reaproveitam o perfil já lido para calcular premium e usam diff como fast-path para entradas de pedido inalteradas, mantendo a validação anterior quando há diferenças; reduz custo de expressões no Firestore sem ampliar permissões. Regressão completa pendente.
+
+- Correção QA Chrome: mock de CORS agora permite Authorization, assim como Worker real; confirma segundo POST com token após falha de rede e inclui diagnóstico em timeout. Nenhum ajuste na segurança do servidor.
