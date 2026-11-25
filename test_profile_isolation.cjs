@@ -32,6 +32,21 @@ const ctx={
  Event:class{constructor(type){this.type=type}}
 };
 vm.createContext(ctx);vm.runInContext(source,ctx);
+let walletOpens=0;
+window.POTE_IA_UNIVERSE={open(){walletOpens++;},isOpen(){return false;}};
+const tap={preventDefault(){},stopImmediatePropagation(){}};
+assert.equal(element("poteHeadLogo").dataset.headerMenu,"true");
+assert.match(decodeURIComponent(element("poteHeadLogo").src),/M10 12h20M10 20h20M10 28h20/);
+events.get("poteHeadLogo:click")(tap);
+assert.equal(element("poteFloatBackdrop").hidden,false,"Menu à esquerda");
+assert.equal(walletOpens,0);
+events.get("poteHeadLogo:click")(tap);
+assert.equal(element("poteFloatBackdrop").hidden,true);
+events.get("poteFloatToggle:click")(tap);
+assert.equal(walletOpens,1,"Esfera original à direita abre só a carteira");
+assert.equal(element("poteFloatBackdrop").hidden,true);
+assert(!source.includes('id="poteIaCoinToggle"'),"Sem botão extra");
+assert(!source.includes('["ia-wallet",'),"Sem atalho adicional no menu");
 assert.equal(element("poteFloatName").textContent,"Canário Certo","A identidade vem do documento associado ao UID");
 assert.match(element("poteFloatAvatar").innerHTML,/canary.png/);
 assert.doesNotMatch(element("poteFloatAvatar").innerHTML,/wrong.png/);

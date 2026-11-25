@@ -11,7 +11,7 @@ const closeIcon='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="tr
 const wrap=document.createElement('div');
 wrap.id='poteFloatingRoot';
 wrap.innerHTML=`
-<button id="poteFloatToggle" type="button" aria-label="Abrir menu de opções" aria-expanded="false" aria-controls="poteFloatDrawer">${icon}</button>
+<button id="poteFloatToggle" class="pote-ai-orb" type="button" aria-label="Abrir carteira IA COIN" aria-expanded="false" aria-controls="poteAiUniverse"><span>IA</span></button>
 <div id="poteFloatBackdrop" hidden></div>
 <aside id="poteFloatDrawer" aria-label="Menu de navegação" aria-hidden="true" inert>
  <div class="pote-float-head"><div><small id="poteFloatBrand">PDV MULTIVERSAL</small><strong>Menu de Operações</strong></div><button id="poteFloatClose" type="button" aria-label="Fechar menu">${closeIcon}</button></div>
@@ -95,9 +95,7 @@ function setOpen(v){
  $('poteFloatDrawer').inert=!opened;
  $('poteFloatDrawer').setAttribute('aria-hidden',String(!opened));
  $('poteFloatBackdrop').hidden=!opened;
- $('poteFloatToggle').setAttribute('aria-expanded',String(opened));
- $('poteFloatToggle').setAttribute('aria-label',opened?'Fechar menu':'Abrir menu de opções');
- syncAiOrb();
+ const left=$('poteHeadLogo');if(left)left.setAttribute('aria-expanded',String(opened));
  if(opened)refresh();
 }
 function showProfile(open){
@@ -119,23 +117,31 @@ function showProfile(open){
  }
 }
 $('poteFloatNavigation').innerHTML=nav.map(([tab,title])=>'<button type="button" data-tab="'+tab+'"><span>'+safe(title)+'</span><span>›</span></button>').join('');
-// The original button keeps its fixed header position. The brand logo opens the navigation.
+// Exactly two existing controls: left company image becomes menu; right button becomes IA COIN.
 const logo=document.getElementById('poteHeadLogo'),orb=$('poteFloatToggle');
 function syncAiOrb(){
- if(!logo||!window.POTE_IA_UNIVERSE){orb.innerHTML=opened?closeIcon:icon;return;}
- orb.classList.add('pote-ai-orb');orb.innerHTML='<span>IA</span>';
- orb.setAttribute('aria-label','Abrir carteira IA COIN');orb.setAttribute('aria-controls','poteAiUniverse');
- orb.setAttribute('aria-expanded',String(window.POTE_IA_UNIVERSE.isOpen()));
+ orb.setAttribute('aria-expanded',String(!!window.POTE_IA_UNIVERSE?.isOpen()));
+}
+function toggleOperationsMenu(event){
+ if(event){event.preventDefault();event.stopImmediatePropagation();}
+ setOpen(!opened);
 }
 if(logo){
- logo.setAttribute('role','button');logo.tabIndex=0;logo.setAttribute('aria-label','Abrir menu de operações');logo.title='Menu de operações';
- logo.addEventListener('click',()=>setOpen(!opened));
- logo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(!opened)}});
+ logo.dataset.headerMenu='true';
+ logo.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="20" fill="#243449"/><path d="M10 12h20M10 20h20M10 28h20" fill="none" stroke="#ffdfa6" stroke-width="2.7" stroke-linecap="round"/></svg>');
+ logo.alt='Menu de operações';
+ logo.setAttribute('role','button');logo.tabIndex=0;logo.setAttribute('aria-label','Abrir menu de operações');logo.setAttribute('aria-controls','poteFloatDrawer');logo.setAttribute('aria-expanded','false');logo.title='Menu de operações';
+ logo.addEventListener('click',toggleOperationsMenu,true);
+ logo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')toggleOperationsMenu(e)},true);
 }
-orb.addEventListener('click',()=>{
- if(window.POTE_IA_UNIVERSE&&logo){setOpen(false);window.POTE_IA_UNIVERSE.open();syncAiOrb();}
- else setOpen(!opened);
-});
+orb.addEventListener('click',event=>{
+ event.preventDefault();event.stopImmediatePropagation();
+ if(!window.POTE_APP_READY||!window.POTE_AUTH?.uid)return;
+ setOpen(false);
+ if(window.POTE_IA_UNIVERSE)window.POTE_IA_UNIVERSE.open();
+ else if(typeof toast==='function')toast('Carteira IA COIN indisponível. Atualize a página.');
+ syncAiOrb();
+},true);
 window.addEventListener('pote:ia-universe-ready',syncAiOrb);
 window.addEventListener('pote:ia-universe-state',syncAiOrb);
 syncAiOrb();

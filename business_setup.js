@@ -112,7 +112,7 @@ function refreshIdentity(){
  const isBranded=(on&&current()==="batataria")||!!window.POTE_AUTH?.franchiseActive;
  const brand=(typeof state!=="undefined"&&state.data?.brand)||neutralBrand();
  const topLogo=$("poteHeadLogo"),topName=$("poteHeadName"),topSub=$("poteHeadSubtitle");
- if(topLogo)topLogo.src=isBranded?"./assets/pote-logo-original.jpg":(brand.logoUrl||GENERIC_LOGO);
+ if(topLogo&&topLogo.dataset?.headerMenu!=="true")topLogo.src=isBranded?"./assets/pote-logo-original.jpg":(brand.logoUrl||GENERIC_LOGO);
  const favicon=document.querySelector('link[rel="icon"]');
  if(favicon)favicon.href="./assets/brand/pdv-icon.svg?v=multiversal-20261125";
  const registeredCompany=String(brand.name||"").trim();
