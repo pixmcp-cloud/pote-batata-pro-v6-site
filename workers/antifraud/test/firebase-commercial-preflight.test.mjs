@@ -25,3 +25,5 @@ test("permission denied does not get misreported as missing index",async()=>{
 });
 
 test("a complete empty inventory marks missing, not permission or transport failures",async()=>{const r=await auditFirebase({token:"synthetic",expected,requestFetch:async()=>Response.json({})});assert(r.indexes.every(x=>x.state==="MISSING"));});
+
+test("explicit opposite document-name ordering must not be confused with required index",async()=>{const r=await auditFirebase({token:"synthetic",expected:[expected[0]],requestFetch:async()=>Response.json({indexes:[{name:"projects/potobatata-b71f3/databases/(default)/collectionGroups/publicOrderViews/indexes/wrong",queryScope:"COLLECTION",fields:[...fields,{fieldPath:"__name__",order:"ASCENDING"}],state:"READY"}]})});assert.equal(r.indexes[0].state,"MISSING");assert.equal(r.relatedIndexInventory[0].id,"wrong");});

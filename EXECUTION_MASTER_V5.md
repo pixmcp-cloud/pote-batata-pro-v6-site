@@ -226,3 +226,6 @@ Run 45613126538: OAuth aprovado, metadados do banco READABLE, legalPolicy/curren
 
 ### C08 — índices ausentes confirmados e instalação aditiva preparada
 Run 45613810691: OAuth PASS, banco READABLE, listagem HTTP 200 e cinco índices MISSING; legalPolicy/current MISSING; segredos e travas preservados. Script de instalação aditiva com inventário prévio, escopo explícito potobatata-b71f3/(default), --check/--apply e nenhuma exclusão. Requer execução sob identidade humana com permissão de criação; não promover a conta do Worker. Gate de homologação comercial documentado. Ainda não foram solicitadas criações no banco real.
+
+### C08 — instalação pelo navegador autorizado (25/11)
+Sessão Google secundária conectada. Relatórios TinyFish 3dd6c1b2-7f65-48db-baa5-be0906f88dea, a71988cf-a7fa-40e8-97fd-9be37f1bbfa6 e 4de80071-9f90-4599-876b-03d3d76b79ad: criação inicial incluiu definições extras incorretas; dois reparos e solicitação de índice orderNumber DESC executados. Relato contraditório do histórico publicOrderViews exige validação independente. Auditoria agora verifica inclusive direção implícita de __name__ e retorna inventário limitado aos dois grupos e IDs. Não excluir índices automaticamente; não modificar dados, IAM, regras, faturamento ou liberar checkout. Aguardar resultado da verificação antes de afirmar instalação.

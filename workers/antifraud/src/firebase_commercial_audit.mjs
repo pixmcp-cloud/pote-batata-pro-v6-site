@@ -1,6 +1,6 @@
 const PROJECT="potobatata-b71f3";
 const base="https://firestore.googleapis.com/v1/projects/"+PROJECT+"/databases/(default)";
-const normal=fields=>JSON.stringify((fields||[]).filter(x=>x.fieldPath!=="__name__").map(x=>({fieldPath:x.fieldPath,order:x.order})));
+const normal=fields=>{const list=(fields||[]).map(x=>({fieldPath:x.fieldPath,order:x.order}));if(list.length&&!list.some(x=>x.fieldPath==="__name__"))list.push({fieldPath:"__name__",order:list.at(-1).order});return JSON.stringify(list);};
 export async function auditFirebase({token,expected,requestFetch=(...args)=>fetch(...args)}){
  if(typeof token!=="string"||!token)throw Error("missing_token");
  const get=async path=>requestFetch(base+path,{method:"GET",headers:{Authorization:"Bearer "+token},redirect:"manual",signal:AbortSignal.timeout(15000)});
@@ -39,8 +39,9 @@ export async function auditFirebase({token,expected,requestFetch=(...args)=>fetc
   for(const i of expected.filter(x=>x.collectionGroup===group)){
    const matches=all.filter(x=>typeof x.name==="string"&&x.name.startsWith("projects/"+PROJECT+"/databases/(default)/collectionGroups/"+group+"/indexes/")&&x.queryScope===i.queryScope&&normal(x.fields)===normal(i.fields));
    const state=matches.some(x=>x.state==="READY")?"READY":matches.some(x=>x.state==="CREATING")?"CREATING":matches.length?"NOT_READY":complete?"MISSING":"UNKNOWN";
-   report.indexes.push({collectionGroup:group,fields:i.fields,state});
+   report.indexes.push({collectionGroup:group,fields:i.fields,state,matchingIds:matches.map(x=>x.name.split("/").at(-1))});
   }
  }
+ report.relatedIndexInventory=all.filter(x=>typeof x.name==="string"&&expected.some(i=>x.name.startsWith("projects/"+PROJECT+"/databases/(default)/collectionGroups/"+i.collectionGroup+"/indexes/"))).map(x=>({id:x.name.split("/").at(-1),collectionGroup:x.name.split("/").at(-3),queryScope:x.queryScope,fields:(x.fields||[]).map(f=>({fieldPath:f.fieldPath,order:f.order})),state:x.state}));
  return report;
 }
