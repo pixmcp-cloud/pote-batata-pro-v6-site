@@ -95,6 +95,8 @@ async function tapProduct(page,selector){
         await page.click("#qtyPlus");
         assert.match(await page.$eval("#addPrice",e=>e.textContent),/86,80/);
         await page.click("#addToCart");
+        assert.equal(await page.$eval("#productDialog",e=>e.open),true);
+        await page.click("#confirmProduct");
         assert.match(await page.$eval("#floatingTotal",e=>e.textContent),/86,80/);
         await page.click("#floatingCart");
         assert.equal(await page.$eval("#cartDialog",e=>e.open),true);
@@ -129,6 +131,7 @@ async function tapProduct(page,selector){
         assert.equal(await page.$eval("#drinkTemperature",e=>e.value),"Gelado");
         await page.select("#drinkTemperature","Fora do gelo");
         await page.click("#addToCart");
+        await page.click("#confirmProduct");
         await page.click("#floatingCart");
         assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Versão: Normal.*Temperatura: Fora do gelo/);
         await page.click("#closeCart");
@@ -136,7 +139,6 @@ async function tapProduct(page,selector){
         await tapProduct(page,'button[aria-label="Escolher Refrigerante 600 ml"]');
         assert.match(await page.$eval("#productFactFormat",e=>e.textContent),/600 ml/);
         assert.equal(await page.$eval("#addonFieldset",e=>e.hidden),true);
-        await page.click("#productFacts summary");
         await page.click('input[name="drinkFlavor"][value="Cola"]');
         assert.match(await page.$eval("#addPrice",e=>e.textContent),/9,00/);
         await page.click('label.drink-option:has(input[name="drinkType"][value="Zero"])');
@@ -145,10 +147,25 @@ async function tapProduct(page,selector){
         assert.equal(await page.$eval('input[name="drinkType"][value="Zero"]',e=>e.disabled),true);
         await page.click('input[name="drinkFlavor"][value="Cola"]');
         await page.click('label.drink-option:has(input[name="drinkType"][value="Zero"])');
-        await page.click("#addToCart");
+        await page.click("#confirmProduct");
         await page.click("#floatingCart");
         assert.match(await page.$eval("#cartItems",e=>e.textContent),/Refrigerante Cola Zero Açúcar.*Sabor: Cola.*Versão: Zero.*Temperatura: Gelado.*10,00/s);
         await page.click("#closeCart");
+        await page.waitForSelector("#cartDialog[open]",{hidden:true});
+        await tapProduct(page,'button[aria-label="Escolher Água Mineral"]');
+        assert.match(await page.$eval("#addPrice",e=>e.textContent),/4,00/);
+        await page.click('label:has(input[name="waterType"][value="Com gás"])');
+        assert.match(await page.$eval("#addPrice",e=>e.textContent),/5,00/);
+        await page.click("#qtyPlus");assert.match(await page.$eval("#addPrice",e=>e.textContent),/10,00/);
+        const before=await page.$eval("#floatingTotal",e=>e.textContent);
+        await page.click("#addToCart");await page.click("#closeProduct");
+        await page.waitForSelector("#productDialog[open]",{hidden:true});
+        assert.equal(await page.$eval("#floatingTotal",e=>e.textContent),before,"X cancela sem modificar a sacola");
+        await tapProduct(page,'button[aria-label="Escolher Água Mineral"]');
+        await page.click('label:has(input[name="waterType"][value="Com gás"])');
+        await page.click("#qtyPlus");await page.click("#confirmProduct");
+        await page.waitForSelector("#productDialog[open]",{hidden:true});
+        await page.click("#floatingCart");assert.match(await page.$eval("#cartItems",e=>e.textContent),/2x Água Mineral com gás.*10,00/s);await page.click("#closeCart");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);
       await page.close();

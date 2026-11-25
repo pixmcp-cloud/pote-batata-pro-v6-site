@@ -1,5 +1,5 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
-import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=6";
+import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=8";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -87,7 +87,8 @@ let catalogue = [
   { id:"chocolate-morango-branco",title:"Chocolate Branco com Morango",category:"Doces",description:"Chocolate branco e morango em camadas cremosas.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-branco.webp",addons:["avela"] },
   { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",size:"Lata 350 ml",flavors:["Cola","Guaraná","Laranja","Soda"],drinkVariants:["Cola","Guaraná","Laranja","Soda"].map(flavor=>({id:"refrigerante",flavor,type:"Normal",available:true,priceCents:700})),description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"../assets/recipes/refrigerante-lata.webp",addons:[] },
   ...["Cola","Guaraná","Laranja","Soda"].flatMap((flavor,index)=>["Normal","Zero"].filter(type=>type==="Normal"||flavor!=="Soda").map(type=>({id:"refri600-"+index+"-"+type.toLowerCase(),title:"Refrigerante "+flavor+(type==="Zero"?" Zero Açúcar":""),category:"Bebidas",size:"600 ml",description:"Refrigerante 600 ml.",priceCents:type==="Zero"?1000:900,available:true,tag:"Para refrescar",image:"../assets/recipes/refrigerante-600.webp",addons:[]}))),
-  { id:"agua",title:"Água Mineral",category:"Bebidas",size:"Garrafa 500 ml",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"../assets/recipes/agua-mineral.webp",addons:[] }
+  { id:"agua",title:"Água Mineral sem gás",category:"Bebidas",size:"Garrafa 500 ml",description:"Água mineral sem gás, 500 ml.",priceCents:400,available:true,tag:"Para refrescar",image:"../assets/recipes/agua-mineral.webp",addons:[] },
+  { id:"agua-gas",title:"Água Mineral com gás",category:"Bebidas",size:"Garrafa 500 ml",description:"Água mineral com gás, 500 ml.",priceCents:500,available:true,tag:"Para refrescar",image:"../assets/recipes/agua-mineral.webp",addons:[] }
 ].map(product => ({ ...product, ingredientNames:DEMO_INGREDIENTS[product.id]||[], addons:product.addons.map(id => ({
   cheddar:{id:"cheddar",label:"Cheddar extra",priceCents:490},
   bacon:{id:"bacon",label:"Bacon crocante",priceCents:590},
@@ -102,6 +103,7 @@ const $ = id => document.getElementById(id);
 const catTabs = $("categoryTabs"), grid = $("menuGrid"), productDialog = $("productDialog"), cartDialog = $("cartDialog");
 let cart = restoreCart(), category = "Todos", search = "", selected = null, quantity = 1;
 const chosenExtras = new Set();
+let pendingProduct=[];let pendingDirty=false;
 
 function restoreCart(){
   try { return normalizeCart(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"),catalogue); }
@@ -237,7 +239,7 @@ function safeShow(dialog){
   if(!dialog.open)dialog.showModal();
 }
 function openProduct(p){
-  selected=p; quantity=1;chosenExtras.clear();
+  selected=p; quantity=1;chosenExtras.clear();pendingProduct=[];pendingDirty=false;updatePendingStatus();
   $("productImage").src=p.image || IMG;
   $("productImage").alt=p.title;
   $("productImage").onerror=()=>{ $("productImage").onerror=null; $("productImage").src=IMG; };
@@ -254,10 +256,15 @@ function openProduct(p){
   const flavors=isDrink&&Array.isArray(p.flavors)?p.flavors:[];
   const hasFlavors=flavors.length>0;
   const variants=Array.isArray(p.drinkVariants)?p.drinkVariants:[];
+  const waters=Array.isArray(p.waterVariants)?p.waterVariants:[];
+  $("waterTypeGroup").hidden=!waters.length;
+  const waterInputs=[...$("waterTypeGroup").querySelectorAll("input")];
+  for(const input of waterInputs){input.checked=false;input.disabled=!waters.some(v=>v.type===input.value&&v.available);}
+  const firstWater=waterInputs.find(e=>!e.disabled);if(firstWater)firstWater.checked=true;
   $("drinkTypeGroup").hidden=true;
   $("drinkTypeGroup").querySelectorAll("input").forEach(e=>{e.checked=false;e.disabled=true;});
   $("productFactFormat").textContent=isDrink?(p.size||"Embalagem e volume a confirmar"):$("productFactFormat").textContent;
-  $("productIngredientHeading").textContent=isDrink?"Sabores":"Ingredientes";
+  $("productIngredientHeading").textContent=waters.length?"Água mineral":isDrink?"Sabores":"Ingredientes";
   $("productIngredients").hidden=isDrink;
   $("productFlavors").hidden=!hasFlavors;
   $("productFlavors").replaceChildren();
@@ -271,13 +278,14 @@ function openProduct(p){
   const list=$("productIngredients");
   list.replaceChildren();
   for(const name of names)list.append(el("li","",name));
-  $("productIngredientsEmpty").hidden=isDrink?hasFlavors:names.length>0;
+  $("productIngredientsEmpty").hidden=isDrink?(hasFlavors||waters.length>0):names.length>0;
   $("productIngredientsEmpty").textContent=isDrink?(p.id==="agua"?"Água mineral sem gás.":"Consulte a loja sobre os sabores disponíveis."):"Ingredientes ainda não informados. Consulte a loja.";
   $("productIngredientNote").textContent=requestedSlug===null
     ?(p.id==="carne-cheddar"?"Ingredientes principais; ficha completa ainda precisa ser revisada pela loja.":"Ingredientes da receita de referência; confirmar composição final com a loja.")
     :"Ingredientes informados pelo estabelecimento. Confirme composição e alergênicos antes de consumir.";
   if(isDrink)$("productIngredientNote").textContent="Confira a composição e os alergênicos no rótulo da bebida.";
   $("productFacts").open=false;
+  if(isDrink)$("productFacts").open=true;
   $("productNote").value="";
   $("addonList").replaceChildren();
   $("addonFieldset").hidden=!p.addons.length;
@@ -292,8 +300,10 @@ function openProduct(p){
   }
   updateProductTotal();
   safeShow(productDialog);
+  productDialog.querySelector(".dialog-scroll").scrollTop=0;
 }
 function chosenDrinkVariant(){
+  if(selected?.waterVariants?.length){const type=document.querySelector('input[name="waterType"]:checked')?.value;return selected.waterVariants.find(v=>v.type===type&&v.available); }
   const flavor=document.querySelector('input[name="drinkFlavor"]:checked')?.value;
   const type=document.querySelector('input[name="drinkType"]:checked')?.value;
   return selected?.drinkVariants?.find(v=>v.flavor===flavor&&v.type===type&&v.available);
@@ -306,6 +316,7 @@ function syncDrinkType(){
   updateProductTotal();
 }
 $("drinkTypeGroup").addEventListener("change",updateProductTotal);
+$("waterTypeGroup").addEventListener("change",updateProductTotal);
 function updateProductTotal(){
   if(!selected)return;
   $("productQty").textContent=String(quantity);
@@ -314,8 +325,8 @@ function updateProductTotal(){
   const variant=chosenDrinkVariant();
   $("addPrice").textContent=money((variant?variant.priceCents:itemUnitCents(selected,[...chosenExtras]))*quantity);
 }
-function addCurrentProduct(){
-  if(!selected)return;
+function currentProductLine(){
+  if(!selected)return null;
   const isDrink=selected.category==="Bebidas";
   const flavor=document.querySelector('input[name="drinkFlavor"]:checked')?.value||"";
   const variant=chosenDrinkVariant();
@@ -324,12 +335,30 @@ function addCurrentProduct(){
     $("productFlavors").querySelector("input:not(:disabled)")?.focus();
     toast("Escolha o sabor do refrigerante.");return;
   }
+  if(selected.waterVariants?.length&&!variant){$("productFacts").open=true;toast("Escolha um tipo de água disponível.");return null;}
   const temperature=isDrink?$("drinkTemperature").value:"";
-  const note=[flavor?"Sabor: "+flavor:"",variant?"Versão: "+variant.type:"",temperature?"Temperatura: "+temperature:"",$("productNote").value.trim()].filter(Boolean).join(" • ");
+  const note=[flavor?"Sabor: "+flavor:"",variant?(selected.waterVariants?.length?"Tipo: ":"Versão: ")+variant.type:"",temperature?"Temperatura: "+temperature:"",$("productNote").value.trim()].filter(Boolean).join(" • ");
   const actual=variant?byId.get(variant.id):selected;
   if(!actual||actual.available===false){toast("Bebida indisponível.");return;}
-  cart=addLine(cart,makeLine(actual,quantity,[...chosenExtras],note),catalogue);
-  saveCart();renderCart();productDialog.close();toast("Adicionado à sacola.");
+  return makeLine(actual,quantity,[...chosenExtras],note);
+}
+function updatePendingStatus(){
+ const totals=cartTotals(pendingProduct,catalogue);
+ $("pendingProductStatus").hidden=!totals.count;
+ $("pendingProductStatus").textContent=totals.count+" item(ns) aguardando confirmação · "+money(totals.subtotalCents);
+}
+function addCurrentProduct(){
+ const line=currentProductLine();if(!line)return;
+ pendingProduct=addLine(pendingProduct,line,catalogue);pendingDirty=false;updatePendingStatus();
+ toast("Item preparado. Confirme para incluir na sacola.");
+}
+function confirmProduct(){
+ // If no staged item, confirm the current selection. If edited after adding,
+ // explicitly stage the new selection with Adicionar instead of silently duplicating.
+ if(!pendingProduct.length){const line=currentProductLine();if(!line)return;pendingProduct=addLine([],line,catalogue);}
+ for(const line of pendingProduct)cart=addLine(cart,line,catalogue);
+ saveCart();renderCart();pendingProduct=[];updatePendingStatus();productDialog.close();toast("Confirmado na sacola.");
+
 }
 function renderCart(){
   cart=normalizeCart(cart,catalogue);
@@ -405,6 +434,8 @@ $("searchInput").addEventListener("input",event=>{search=event.target.value.trim
 $("qtyMinus").addEventListener("click",()=>{quantity=Math.max(1,quantity-1);updateProductTotal();});
 $("qtyPlus").addEventListener("click",()=>{quantity=Math.min(99,quantity+1);updateProductTotal();});
 $("addToCart").addEventListener("click",addCurrentProduct);
+$("confirmProduct").addEventListener("click",confirmProduct);
+productDialog.addEventListener("close",()=>{pendingProduct=[];selected=null;updatePendingStatus();});
 $("closeProduct").addEventListener("click",()=>productDialog.close());
 $("closeCart").addEventListener("click",()=>cartDialog.close());
 $("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);});

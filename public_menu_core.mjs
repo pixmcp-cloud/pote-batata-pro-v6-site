@@ -38,9 +38,25 @@ export function sodaVariant(name,size){
   if(!flavor||!pack)return null;
   return {flavor,type:/\bzero\b|sem acucar/.test(key)?"Zero":"Normal",pack};
 }
+export function waterVariant(name,size){
+  const key=String(name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  if(!/\bagua\b/.test(key))return null;
+  const type=/\bsem gas\b/.test(key)?"Sem gás":/\bcom gas\b|\bgaseificada\b/.test(key)?"Com gás":null;
+  const volume=String(size||name||"").match(/(\d+)\s*ml\b/i)||String(name||"").match(/(\d+)\s*ml\b/i);
+  return type&&volume?{type,pack:volume[1]+" ml"}:null;
+}
 export function groupDrinkProducts(products){
   const result=[],groups=new Map();
   for(const p of products){
+    const water=p.category==="Bebidas"?waterVariant(p.title,p.size):null;
+    if(water){
+      const key="water-"+water.pack.replace(/\s+/g,"");
+      let g=groups.get(key);
+      if(!g){g={...p,id:key,title:"Água Mineral",description:"Escolha com ou sem gás.",size:water.pack,waterVariants:[],addons:[]};groups.set(key,g);result.push(g);}
+      g.waterVariants.push({id:p.id,type:water.type,available:p.available===true,priceCents:p.priceCents});
+      const enabled=g.waterVariants.filter(v=>v.available);if(enabled.length)g.priceCents=Math.min(...enabled.map(v=>v.priceCents));
+      continue;
+    }
     const v=p.category==="Bebidas"?sodaVariant(p.title,p.size):null;
     if(!v){result.push(p);continue;}
     const key=v.pack.toLowerCase().replace(/\s+/g,"");
@@ -76,12 +92,12 @@ const ownImage=(src,id)=>{
   }
   for(const b of Array.isArray(data.beverages)?data.beverages:[]){
     if(!b?.id||!b?.name)continue;
-    const variant=sodaVariant(b.name,b.size);
+    const variant=sodaVariant(b.name,b.size)||waterVariant(b.name,b.size);
     if(!variant&&(b.unavailable===true||b.suspended===true))continue;
     const id="bev-"+text(b.id,68),price=cents(b.sellPrice);
     if(!price||items.some(p=>p.id===id))continue;
     items.push({id,title:text(b.name,80),description:text(b.size,60),
-      category:"Bebidas",priceCents:price,...(variant?{available:b.unavailable!==true&&b.suspended!==true&&Number(b.stock)>0}:{}),image:isPublishedPhoto(publishedPhotos?.get?.(id))?publishedPhotos.get(id):((typeof imageFor==="function"&&/^\.?\/?assets\/recipes\/refrigerante-(?:lata|600)\.webp$/i.test(String(imageFor(b)||"")))?publicImage(imageFor(b),defaultImage):ownImage(b.imageUrl||b.photoUrl||b.photo||b.image,id)),size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
+      category:"Bebidas",priceCents:price,...(variant?{available:b.unavailable!==true&&b.suspended!==true&&Number(b.stock)>0}:{}),image:isPublishedPhoto(publishedPhotos?.get?.(id))?publishedPhotos.get(id):((typeof imageFor==="function"&&/^\.?\/?assets\/recipes\/(?:refrigerante-(?:lata|600)|agua-mineral)\.webp$/i.test(String(imageFor(b)||"")))?publicImage(imageFor(b),defaultImage):ownImage(b.imageUrl||b.photoUrl||b.photo||b.image,id)),size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
   }
   return items.slice(0, MENU_MAX_ITEMS);
 }
@@ -116,7 +132,7 @@ export function sanitizeReadMenu(raw,slug){
     Number.isSafeInteger(p.priceCents)&&p.priceCents>0&&p.priceCents<=9999999&&Array.isArray(p.addons))
     .slice(0,MENU_MAX_ITEMS).map(p=>({id:text(p.id,72),title:text(p.title,90),
       description:text(p.description,240),category:safeCategory(p.category),
-      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12),...(sodaVariant(p.title,p.size||p.description)?{available:p.available===true}:{})}:{}),addons:[]}));
+      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12),...((sodaVariant(p.title,p.size||p.description)||waterVariant(p.title,p.size||p.description))?{available:p.available===true}:{})}:{}),addons:[]}));
   if(!items.length)return null;
   return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug};
 }

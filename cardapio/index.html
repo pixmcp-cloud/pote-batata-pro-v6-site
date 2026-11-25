@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?release=soda6">
-  <script type="module" src="./cardapio.js?release=refri600-7"></script>
+  <link rel="stylesheet" href="./cardapio.css?release=confirm8">
+  <script type="module" src="./cardapio.js?release=confirm8"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -75,8 +75,8 @@
   <button class="cart-floating" type="button" id="floatingCart" hidden><span><b id="floatingQty">0 itens</b><small>Ver minha sacola</small></span><strong id="floatingTotal">R$ 0,00</strong><span aria-hidden="true">→</span></button>
 
   <dialog id="productDialog" class="app-dialog product-dialog" aria-labelledby="productTitle">
+    <header class="product-modal-header"><span>Personalize seu item</span><button type="button" class="dialog-close" id="closeProduct" aria-label="Cancelar e fechar">×</button></header>
     <div class="dialog-scroll">
-      <button type="button" class="dialog-close" id="closeProduct" aria-label="Fechar detalhes">×</button>
       <div class="product-dialog-media"><img id="productImage" alt=""></div>
       <div class="product-dialog-body">
         <span class="eyebrow" id="productCategory"></span>
@@ -89,17 +89,21 @@
             <div><dt>Apresentação</dt><dd id="productFactFormat"></dd></div>
             <div><dt>Alergênicos</dt><dd>A confirmar com o estabelecimento</dd></div>
           </dl>
-          <h3 class="product-ingredient-heading" id="productIngredientHeading">Ingredientes</h3><p id="productFlavorHint" hidden>Escolha um sabor para este item.</p><div id="productFlavors" class="drink-options" role="group" aria-label="Sabores disponíveis" hidden></div><fieldset id="drinkTypeGroup" class="drink-type" hidden><legend>Versão</legend><label class="drink-option"><input type="radio" name="drinkType" value="Normal"><span>Normal</span></label><label class="drink-option"><input type="radio" name="drinkType" value="Zero"><span>Zero</span></label></fieldset><ul id="productIngredients" class="product-ingredients"></ul><p id="productIngredientsEmpty">Ingredientes ainda não informados. Consulte a loja.</p><p id="productIngredientNote"></p><p>Atenção: a lista não é uma declaração completa de alergênicos ou contaminação cruzada.</p>
+          <h3 class="product-ingredient-heading" id="productIngredientHeading">Ingredientes</h3><p id="productFlavorHint" hidden>Escolha um sabor para este item.</p><div id="productFlavors" class="drink-options" role="group" aria-label="Sabores disponíveis" hidden></div><fieldset id="drinkTypeGroup" class="drink-type" hidden><legend>Versão</legend><label class="drink-option"><input type="radio" name="drinkType" value="Normal"><span>Normal</span></label><label class="drink-option"><input type="radio" name="drinkType" value="Zero"><span>Zero</span></label></fieldset><fieldset id="waterTypeGroup" class="drink-type" hidden><legend>Tipo de água</legend><label class="drink-option"><input type="radio" name="waterType" value="Sem gás"><span>Sem gás</span></label><label class="drink-option"><input type="radio" name="waterType" value="Com gás"><span>Com gás</span></label></fieldset><ul id="productIngredients" class="product-ingredients"></ul><p id="productIngredientsEmpty">Ingredientes ainda não informados. Consulte a loja.</p><p id="productIngredientNote"></p><p>Atenção: a lista não é uma declaração completa de alergênicos ou contaminação cruzada.</p>
         </details>
         <fieldset id="addonFieldset" class="addons"><legend>Deixe ainda melhor</legend><div id="addonList"></div></fieldset>
         <label class="note-field drink-temperature" id="productTemperature" hidden>Temperatura da bebida<select id="drinkTemperature"><option value="Gelado">Gelado</option><option value="Fora do gelo">Fora do gelo</option></select></label>
         <label class="note-field">Alguma observação?<textarea id="productNote" rows="2" maxlength="220" placeholder="Ex.: sem cebola"></textarea></label>
+      </div>
+    </div>
+    <footer class="product-modal-footer">
         <div class="dialog-bottom">
           <div class="qty-counter" aria-label="Quantidade"><button id="qtyMinus" type="button" aria-label="Diminuir quantidade">−</button><output id="productQty" aria-live="polite">1</output><button id="qtyPlus" type="button" aria-label="Aumentar quantidade">+</button></div>
           <button id="addToCart" class="button button-gold" type="button">Adicionar <span id="addPrice"></span></button>
         </div>
-      </div>
-    </div>
+        <p id="pendingProductStatus" class="pending-product-status" role="status" hidden></p>
+        <button id="confirmProduct" class="button button-gold confirm-product" type="button">✓ Confirmar</button>
+    </footer>
   </dialog>
 
   <dialog id="cartDialog" class="app-dialog cart-dialog" aria-labelledby="cartTitle">
