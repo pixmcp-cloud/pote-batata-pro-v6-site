@@ -78,6 +78,11 @@ export async function connectOperation({input,user,env,repository,at,merchantAll
   if(action==="view")return {ok:true,job:projectJob(job,order,role,now)};
   if(action==="deliver"&&role==="courier"&&order.status==="entregue"&&job.completedAt)return {ok:true,job:projectJob(job,order,role,now)};
   if(!jobLive(job,order,now))deny("Entrega encerrada ou convite expirado.","connect_closed",409);
+  // Browser samples are client supplied, not hardware attestation. Never allow
+  // a courier's operational command without a valid location sample.
+  const gpsRequired=(role==="courier"&&["start","deliver","message"].includes(action))||(role==="invitee"&&action==="accept");
+  if(gpsRequired&&!input.position)deny("Ative a localização precisa para continuar.","gps_required",409);
+  const actionPosition=gpsRequired?validatePosition(input.position):null;
   if(action==="revoke"){
    if(role!=="merchant"||!await merchantAllowed(tx,user,job.universe))deny("Somente a loja pode revogar.");
    job={...job,revokedAt:iso,position:null,messages:[]};
@@ -103,7 +108,7 @@ export async function connectOperation({input,user,env,repository,at,merchantAll
    if(messages.length>=40)deny("Limite de mensagens nesta entrega atingido.","message_limit",409);
    const last=messages.filter(m=>m.sender===role).at(-1);
    if(last&&now-Date.parse(last.at)<5000)deny("Aguarde alguns segundos.","message_rate",429);
-   job={...job,messages:[...messages,{id:input.messageId,sender:role,text:message,at:iso}]};
+   job={...job,messages:[...messages,{id:input.messageId,sender:role,text:message,at:iso}],...(role==="courier"&&actionPosition?{position:{...actionPosition,at:iso}}:{})};
   }else if(["start","deliver"].includes(action)){
    if(role!=="courier")deny("Somente o motoboy vinculado pode confirmar esta ação.");
    if(!await merchantAllowed(tx,{uid:job.ownerUid,isAdmin:false},job.universe))deny("Loja sem autorização operacional.");
@@ -114,7 +119,7 @@ export async function connectOperation({input,user,env,repository,at,merchantAll
    if(!Number.isSafeInteger(guard?.data?.revision)||!pulse?.data?.eventId)deny("Sincronização indisponível.","not_ready",409);
    const rows=await lifecycleRows(tx,job.ownerUid,job.universe,{doc:orderDoc,path:orderPath},action==="start"?"dispatch":"deliver",iso);
    const next=updateTracking(order,rows.map(r=>r.next),iso);
-   if(action==="deliver")job={...job,position:null,messages:[],completedAt:iso};
+   if(action==="deliver")job={...job,position:null,messages:[],completedAt:iso};else job={...job,position:{...actionPosition,at:iso}};
    const changedKeys=rows.map(r=>r.path.split("/").at(-1));
    const writes=rows.map(r=>put(r.path,{record:{...r.doc.data.record,item:r.next}},r.doc));
    writes.push(put(orderPath,next,orderDoc),put(path,job,doc),put(guardPath,{revision:guard.data.revision+1},guard),put(pulsePath,{eventId:"connect-"+crypto.randomUUID(),previousEventId:pulse.data.eventId,origin:"motoboy-connect",affected:changedKeys.length,changedKeys,metaChanged:false,sensitive:true},pulse));

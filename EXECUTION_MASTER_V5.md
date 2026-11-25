@@ -208,3 +208,6 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 
 ### V6 — GPS Motoboy responsivo e expansão
 - Mapa 1:1 no celular; 16:9 em desktop amplo; janela modal em tela cheia adaptada ao viewport com X acessível e Escape. Uma única instância de mapa, coordenadas atualizadas no modo expandido, fecha/limpa ao perder posição, encerrar entrega ou sessão. Mantém consentimento explícito de exibição e sem novo serviço contratado. Chrome QA emulado com resposta Worker e mapa simulados. Base cb73b53 com cinco workflows aprovados. Nova CI pendente; nenhuma publicação.
+
+### V6 — GPS obrigatório no Motoboy Connect
+- Entregador sem mapa próprio ou botão de desativar; exige permissão e amostra precisa (até 150m) para liberar comandos; amostra local perde validade em 45s. Worker exige posição válida para aceite, despacho, mensagens e entrega. Posição só é publicada após despacho; finalização limpa localização. Login/logout disponíveis, GPS do sistema pode ser desligado e não há garantia de rastreamento em segundo plano nem prova física de GPS no navegador. Cliente/lojista mantêm mapa expansível. Regressões de ausência de GPS e correção do teste Chrome anterior ($eval -> $$eval para contagem). Sem deploy ou flags ativadas; CI pendente.
