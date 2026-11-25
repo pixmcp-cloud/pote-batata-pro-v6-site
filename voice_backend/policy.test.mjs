@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {authorized,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
+import {authorized,priceCredits,durationQuote,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
 test('FREE e teste grátis ficam bloqueados; PRO válido, vitalício, franquia e ADM verificado autorizam',()=>{
  for(const p of [undefined,{}, {plan:'pro'}, {role:'admin'}, {franchise:{status:'active'}},{accessPolicy:{voiceAiEnabled:'true'}}])assert.equal(authorized(p),false);
  assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),false);
@@ -71,4 +71,15 @@ test('valor de referência da moeda não supera R$1,10 líquido',()=>{
  assert.equal(priceCredits('x'.repeat(500),cfg),3);
  assert.equal(priceCredits('x'.repeat(777),cfg),5);
  assert.equal(priceCredits('x'.repeat(500),{...cfg,creditMicroBrl:900000}),4);
+});
+
+test('tarifa fixa aprovada: uma moeda a cada 15 segundos até 75',()=>{
+ const cfg={providerMicroBrlPer1000:3000000,creditMicroBrl:1100000};
+ for(const seconds of [15,30,45,60,75]){
+  const q=durationQuote('x'.repeat(seconds*10),seconds,cfg);
+  assert.deepEqual(q,{seconds,credits:seconds/15,maxChars:seconds*10});
+  assert.throws(()=>durationQuote('x'.repeat(seconds*10+1),seconds,cfg));
+ }
+ for(const seconds of [0,14,16,90,'15'])assert.throws(()=>durationQuote('x',seconds,cfg));
+ assert.throws(()=>durationQuote('x'.repeat(150),15,{...cfg,providerMicroBrlPer1000:10000000}));
 });
