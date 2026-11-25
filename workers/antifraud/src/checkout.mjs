@@ -1,7 +1,7 @@
 /* V6 public checkout — opt-in canary, off by default. One transaction for
  * all lines, reservation via native received orders, no physical debit/payment.
  * The browser supplies product IDs, quantities and expected total ONLY. */
-import {OperationalError,quantities,recordPath} from "./domain.mjs";
+import {OperationalError,quantities,recordPath,resolveRecord} from "./domain.mjs";
 const fail=(message,code="invalid_checkout",status=400)=>{throw new OperationalError(message,status,code)};
 const isObject=x=>x&&typeof x==="object"&&!Array.isArray(x);
 const exact=(x,keys)=>isObject(x)&&Object.keys(x).every(k=>keys.includes(k))&&keys.every(k=>Object.hasOwn(x,k));
@@ -111,7 +111,6 @@ export async function submitCheckout({input,env,repository,at}){
   const settings=state.settings||{};
   const fees=numeric(settings.fee,"taxa",0)+numeric(settings.tax,"impostos",0);
   if(fees>=100)fail("Taxas precisam ser revisadas.","catalog_incomplete",409);
-  const expenses=Array.isArray(state.expenses)?state.expenses:[];
   // Expenses are normalized records, not metadata; fetched below using the
   // bounded transactional query. Avoid estimating profits without expenses.
   const catalog=new Map();
@@ -122,7 +121,7 @@ export async function submitCheckout({input,env,repository,at}){
   const load=async(group,id)=>{
    if(!idOk(id))fail("Identificador do catálogo inválido.","catalog_changed",409);
    const key=group+":"+id;
-   if(!stock.has(key))stock.set(key,record(await tx.get(recordPath(uid,universe,group,id)),group,universe,id));
+   if(!stock.has(key))stock.set(key,record((await resolveRecord(tx,uid,universe,group,id)).doc,group,universe,id));
    return stock.get(key);
   };
   // Query all received records and count all existing reservations, including

@@ -11,6 +11,16 @@ export function keyFor(universe,group,id) {
 }
 export const recordPath=(uid,universe,group,id)=>
  "users/"+uid+"/recordsV5/"+keyFor(universe,group,id);
+// V5 uses both canonical IDs and deterministic catalog model IDs. Preserve the
+// actual document path on every write; never create a parallel stock record.
+export async function resolveRecord(tx,uid,universe,group,id){
+ const path=recordPath(uid,universe,group,id),canonical=await tx.get(path);
+ if(!/^[a-z0-9_-]+$/.test(universe)||!["ingredients","recipes","beverages","expenses","combos"].includes(group)||!/^[A-Za-z0-9_-]+$/.test(id))return {path,doc:canonical};
+ const modelPath="users/"+uid+"/recordsV5/model~"+universe+"~"+group+"~"+id;
+ const model=await tx.get(modelPath);
+ if(canonical&&model)throw new OperationalError("Cadastro duplicado. Revise os registros.",409,"duplicate_record");
+ return canonical||!model?{path,doc:canonical}:{path:modelPath,doc:model};
+}
 export const nearly=(a,b)=>Math.abs(a-b)<=0.00002;
 const round5=n=>Number(n.toFixed(5));
 const finite=(v,label,{min=0,max=1e9}={})=>{

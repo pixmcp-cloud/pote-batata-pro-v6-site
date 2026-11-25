@@ -37,7 +37,7 @@ jobs:
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-pote-hardening --config firebase.emulator.qa.json
-          "node --test --test-concurrency=1 test_firestore_v5_emulator.cjs test_firestore_v5_multistock.cjs test_firestore_v5_e2e.cjs test_firestore_worker_v5_rest_e2e.cjs test_firestore_profile_moderation.cjs test_firestore_free_segment.cjs test_firestore_public_menu_emulator.cjs"
+          "node --test --test-concurrency=1 test_firestore_v5_emulator.cjs test_firestore_v5_multistock.cjs test_firestore_v5_e2e.cjs test_firestore_worker_v5_rest_e2e.cjs test_firestore_checkout_rest.cjs test_firestore_profile_moderation.cjs test_firestore_free_segment.cjs test_firestore_public_menu_emulator.cjs"
       - name: F05 — executar corte canário em regras isoladas e Worker REST integrado
         env:
           POTE_F05_CUTOVER_RULES: '1'

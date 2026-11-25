@@ -104,6 +104,12 @@ export function settleDeliveryPayment(data,{orderId,method,reference,at}){
  if(!["cash","pix","card"].includes(kind))fail("Selecione dinheiro, Pix ou cartão");
  const ref=String(reference||"").trim();
  if(kind!=="cash"&&!ref)fail("Confirme o comprovante antes de registrar");
+ // Web orders remain unbound until the operator confirms receipt in an open shift.
+ if(order.source==="public-checkout"&&!origin){
+  const active=activeSession(data);
+  if(!active)fail("Abra o caixa para confirmar o recebimento do pedido online.");
+  order.cashSessionId=active.id;
+ }
  order.paymentMethod={cash:"Dinheiro",pix:"Pix",card:"Cartão"}[kind];
  order.paymentStatus=kind==="cash"?"Pago em dinheiro":"pago";
  order.paymentConfirmedAt=asDate(at);

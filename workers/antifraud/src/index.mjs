@@ -4,7 +4,7 @@
  */
 import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
-import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
+import {OperationalError,quantities,planOperation,recordPath,resolveRecord} from "./domain.mjs";
 import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
 import {planStockPurchase} from "./stock_purchase.mjs";
 import {planStockRecount} from "./stock_recount.mjs";
@@ -114,7 +114,7 @@ export function createWorkerApp({
    previousStock,countedStock}=body;
   const root="users/"+uid;
   const eventPath=root+"/workerEvents/"+operationId;
-  const stockPath=recordPath(uid,universe,group,itemId);
+  let stockPath=recordPath(uid,universe,group,itemId);
   const metaPath=root+"/appState/v5",guardPath=root+"/appState/v5InventoryGuard";
   const pulsePath=root+"/appState/v5Pulse";
   const store=repository(env),tx=await store.transaction();
@@ -141,9 +141,10 @@ export function createWorkerApp({
      ...(isPurchase?{purchaseId:prior.purchaseId}:
       isRecount?{recountId:prior.recountId}:{lossId:prior.lossId})},200,headers);
    }
-   const [meta,guard,pulse,existing]=await Promise.all([
-    tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),tx.get(stockPath)
+   const [meta,guard,pulse,resolved]=await Promise.all([
+    tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),resolveRecord(tx,uid,universe,group,itemId)
    ]);
+   const existing=resolved.doc;stockPath=resolved.path;
    const state=meta?.data?.state?.data;
    const active=state?.businessType===universe;
    const archived=state?.businessUniverses?.[universe];
@@ -276,14 +277,14 @@ export function createWorkerApp({
      const path=recordPath(uid,universe,group,id);
      load.push({key,path,group,id});
     }
-    const docs=await Promise.all(load.map(x=>tx.get(x.path)));
+    const docs=await Promise.all(load.map(x=>resolveRecord(tx,uid,universe,x.group,x.id)));
     for(let i=0;i<load.length;i++){
-     const item=load[i],doc=docs[i];
+     const item=load[i],{doc,path}=docs[i];
      if(!doc||doc.data?.record?.group!==item.group||
         doc.data?.record?.id!==item.id||
         doc.data?.record?.universe!==universe)
       throw new OperationalError("Cadastro de estoque inexistente: "+item.id,409,"missing_stock");
-     references.set(item.key,doc);
+     references.set(item.key,{doc,path});
      stock.set(item.key,doc.data.record.item);
     }
    }
@@ -296,8 +297,7 @@ export function createWorkerApp({
     record:persisted("orders",orderId,planned.order,universe,ordered)
    },ordered));
    for(const stockItem of planned.stockUpdates){
-    const key=stockItem.group+":"+stockItem.id,previous=references.get(key);
-    const path=recordPath(uid,universe,stockItem.group,stockItem.id);
+    const key=stockItem.group+":"+stockItem.id,{doc:previous,path}=references.get(key);
     writes.push(put(path,{
      record:persisted(stockItem.group,stockItem.id,stockItem.item,universe,previous)
     },previous));

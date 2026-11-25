@@ -1,7 +1,7 @@
 /* Frente de caixa do Potê Batata Pro.
    Movimentações financeiras por turno, recibo NÃO fiscal e comanda. */
 import {activeSession,openCash,calculateCash,closeCash,registerCashMovement,
- confirmRecordedPayment,settleDeliveryPayment,settlePreviousPayment,confirmPaymentOnSaleCompletion,listOutstandingPrevious,paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs?v=sale-done-auto-20261118";
+ confirmRecordedPayment,settleDeliveryPayment,settlePreviousPayment,confirmPaymentOnSaleCompletion,listOutstandingPrevious,paymentConfirmed,paymentKind,orderAmountCents} from "./pdv_cash_core.mjs?v=public-checkout-20261125";
 import {summarizePdvReceipts,countCashDifference} from "./pdv_cash_summary.mjs";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const brl=x=>Number(x||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -264,9 +264,10 @@ function render(){
  const receipts=summarizePdvReceipts(summary);
  const all=(data.orders||[]).filter(o=>o.cashSessionId===s.id);
  const recent=all.slice(0,40);
- const pending=all.filter(o=>o.status!=="cancelado"&&!paymentConfirmed(o));
+ const pending=[...all,...(data.orders||[]).filter(o=>o.source==="public-checkout"&&!o.cashSessionId)].filter(o=>o.status!=="cancelado"&&!paymentConfirmed(o));
  const overdue=listOutstandingPrevious(data).slice(0,40);
  const count=Number(pending.length+overdue.length);
+ const pendingValue=receipts.pending+pending.filter(o=>!o.cashSessionId).reduce((sum,o)=>sum+orderAmountCents(o)/100,0);
  const pendingList=pending.length?pending.map(o=>{
   const kind=paymentKind(o.paymentMethod);
   const label=kind==="pix"?"Pix":kind==="card"?"Cartão":kind==="cash"?"Dinheiro":kind==="delivery"?"Na entrega":"Outro";
@@ -289,8 +290,8 @@ function render(){
   '</strong><span>Dinheiro + Pix + cartão, incluindo pagamentos antigos recebidos neste turno. Valor bruto registrado.</span></div>'+
   '<div class="pote-pdv-kpi drawer"><small>Dinheiro esperado na gaveta</small><strong>'+brl(summary.expectedCash)+
   '</strong><span>É este valor que você deverá contar ao fechar.</span></div>'+
-  '<div class="pote-pdv-kpi pending"><small>Ainda falta confirmar</small><strong>'+brl(receipts.pending)+
-  '</strong><span>'+summary.pendingCount+' pagamento'+(summary.pendingCount===1?'':'s')+' do turno aguardando conferência.</span></div></div>';
+  '<div class="pote-pdv-kpi pending"><small>Ainda falta confirmar</small><strong>'+brl(pendingValue)+
+  '</strong><span>'+pending.length+' pagamento'+(pending.length===1?'':'s')+' aguardando conferência (inclui pedidos online sem caixa).</span></div></div>';
  body.innerHTML=
   '<div class="pote-pdv-intro"><span class="pote-pdv-step">CAIXA ABERTO · PASSOS 2, 3 E 4</span>'+
   '<h3>Seu caixa está funcionando</h3><p>Você abriu o turno em '+esc(date(s.openedAt))+'. '+
@@ -454,7 +455,7 @@ function action(name,orderId){
    mutate(d=>settlePreviousPayment(d,{id:id(),orderId,method:selected,reference}));
    status("Recebimento anterior conciliado no turno atual; fechamento original preservado.");
   }else if(name==="delivery"){
-   const selected=window.prompt("Recebido na entrega: escolha dinheiro, Pix ou cartão:","Pix");
+   const selected=window.prompt("Recebido na entrega/retirada: escolha dinheiro, Pix ou cartão:",order.requestedPaymentMethod||"Pix");
    if(selected===null)return;
    const kind=paymentKind(selected);
    if(!["cash","pix","card"].includes(kind))throw Error("Forma inválida: dinheiro, Pix ou cartão");

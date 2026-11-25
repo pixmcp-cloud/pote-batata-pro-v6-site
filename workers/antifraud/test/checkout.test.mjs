@@ -1,0 +1,60 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {createWorkerApp} from "../src/index.mjs";
+import {recordPath} from "../src/domain.mjs";
+import {FirestoreError} from "../src/firestore.mjs";
+const uid="qa-checkout",u="batataria",slug="loja-qa",root="users/"+uid;
+const op1="11111111-1111-4111-8111-111111111111",op2="22222222-2222-4222-8222-222222222222";
+const env={ENABLE_WRITES:"true",ENABLE_PUBLIC_CHECKOUT:"true",CANARY_UIDS:uid,ALLOWED_ORIGINS:"https://qa.test"};
+const payload=(operationId=op1,extra={})=>({slug,operationId,items:[{id:"r01",quantity:2,note:""},{id:"bev-suco",quantity:1,note:"Gelado"}],expectedTotalCents:6500,customerName:"Cliente QA",customerPhone:"48999990000",payment:"pix",challenge:"qa-token",...extra});
+function setup(){
+ const docs=new Map();let n=0;
+ const seed=(p,data)=>docs.set(p,{data:structuredClone(data),updateTime:String(++n)});
+ const get=p=>docs.get(p)?.data;
+ const record=(group,id,item,model=false)=>seed(model?root+"/recordsV5/model~"+u+"~"+group+"~"+id:recordPath(uid,u,group,id),{record:{group,id,universe:u,item:{id,...item},rank:1}});
+ seed("publicMenus/"+slug,{schemaVersion:1,ownerUid:uid,slug,businessType:u,published:true,checkoutEnabled:true,items:[{id:"r01",title:"Batata",category:"Salgados",priceCents:3000},{id:"bev-suco",title:"Suco",category:"Bebidas",priceCents:500}]});
+ seed(root,{license:{status:"active",kind:"lifetime",term:"lifetime"},accessPolicy:{workerAuthoritative:true,publicCheckout:true,publicCheckoutSlug:slug}});
+ seed(root+"/appState/v5",{schemaVersion:5,state:{data:{businessType:u,orderSequenceLast:7,kitchenStock:{mode:"separate"},settings:{usePackagingStock:true,otherCost:0,fee:0,tax:0,estimatedMonthlyUnits:100}}}});
+ seed(root+"/appState/v5InventoryGuard",{revision:3});
+ seed(root+"/appState/v5Pulse",{eventId:"old"});
+ record("recipes","r01",{name:"Batata",items:[{id:"batata",g:100}],packagingIngredientIds:["emb"]},true);
+ record("ingredients","batata",{name:"Batata",stock:300,yield:100,measureUnit:"g",purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg"},true);
+ record("ingredients","emb",{name:"Pote",stock:3,yield:100,measureUnit:"un",purchasePrice:10,purchaseQuantity:10,purchaseUnit:"un"});
+ record("beverages","suco",{name:"Suco",stock:2,sellPrice:5,purchasePrice:10,purchaseQuantity:10,purchaseUnit:"un"});
+ record("expenses","e",{enabled:true,mode:"unidade",amount:1,repeat:1});
+ record("expenses","f",{enabled:true,mode:"mensal",amount:100,repeat:1});
+ record("orders","manual",{status:"recebido",qty:1,items:[{id:"batata",g:100,yieldPct:100}],beverageItems:[],orderNumber:7});
+ const database={async transaction(){return {async get(p){return docs.has(p)?structuredClone(docs.get(p)):null},async receivedOrders(){return [...docs.values()].filter(x=>x.data.record?.item?.status==="recebido").map(x=>structuredClone(x))},async expenses(){return [...docs.values()].filter(x=>x.data.record?.group==="expenses").map(x=>structuredClone(x))},async commit(writes){for(const w of writes){const old=docs.get(w.path);if(w.precondition.exists===false&&old||w.precondition.updateTime&&old?.updateTime!==w.precondition.updateTime)throw new FirestoreError(409,"conflict")}for(const w of writes)seed(w.path,w.data)},async rollback(){}}}};
+ const app=createWorkerApp({repository:()=>database,checkoutChallenge:async token=>token==="qa-token",clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async()=>({uid,isAdmin:false})});
+ const call=async(body,override={},route="/v1/checkout")=>{const resp=await app.fetch(new Request("https://worker.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer qa"},body:JSON.stringify(body)}),{...env,...override});return {status:resp.status,body:await resp.json()}};
+ return {docs,seed,get,record,call};
+}
+test("checkout atomic: existing POS hold, recipe + packaging + drink, idempotency, no fake paid",async()=>{
+ const x=setup(),first=await x.call(payload());assert.equal(first.status,201,JSON.stringify(first));
+ assert.deepEqual(first.body.orderNumbers,[8,9]);assert.equal(first.body.totalCents,6500);
+ const o=x.get(recordPath(uid,u,"orders","web-"+op1+"-0")).record.item;
+ assert.equal(o.paymentStatus,"Pendente");assert.equal(o.paymentMethod,"Na entrega");assert.equal(o.cashSessionId,null);assert.equal(o.requestedPaymentMethod,"Pix");assert.equal(o.unitVariableCost,3);assert.equal(o.profit,26);
+ assert.equal(x.get(root+"/recordsV5/model~batataria~ingredients~batata").record.item.stock,300);
+ assert.equal(x.get(root+"/appState/v5InventoryGuard").revision,4);
+ assert.equal(x.get(root+"/appState/v5").state.data.orderSequenceLast,9);
+ assert.equal((await x.call(payload())).body.alreadyApplied,true);
+ assert.equal((await x.call(payload(op1,{customerName:"Outra pessoa"}))).status,409);
+ assert.equal((await x.call(payload(op2))).body.error,"insufficient_stock");
+ assert.equal(x.get(root+"/appState/v5InventoryGuard").revision,4);
+ // Production must update the actual model record, not a parallel canonical document.
+ const produced=await x.call({universe:u,orderId:o.id,operationId:"33333333-3333-4333-8333-333333333333"},{},"/v1/orders/produce");
+ assert.equal(produced.status,200,JSON.stringify(produced));
+ assert.equal(x.get(root+"/recordsV5/model~batataria~ingredients~batata").record.item.stock,100);
+ assert.equal(x.get(recordPath(uid,u,"ingredients","batata")),undefined);
+});
+test("challenge, tenant gates, malformed fields, price changes, concurrent holds",async()=>{
+ const x=setup();
+ assert.equal((await x.call(payload(),{ENABLE_PUBLIC_CHECKOUT:"false"})).status,423);
+ assert.equal((await x.call(payload(op1,{challenge:"bad"}))).status,403);
+ assert.equal((await x.call(payload(op1,{uid:"victim"}))).status,400);
+ assert.equal((await x.call(payload(op1,{expectedTotalCents:1}))).body.error,"price_changed");
+ assert.equal((await x.call(payload(),{CANARY_UIDS:"other"})).status,423);
+ const result=await Promise.all([x.call(payload()),x.call(payload(op2))]);
+ assert.deepEqual(result.map(r=>r.status).sort(),[201,409]);
+ assert.equal(x.get(root+"/appState/v5InventoryGuard").revision,4);
+});
