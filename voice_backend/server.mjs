@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {initializeApp,applicationDefault} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore,FieldValue} from 'firebase-admin/firestore';
-import {authorized,isFranchise,validateText,durationQuote,commercialReady,canReserve,franchiseQuota,individualFranchiseQuota} from './policy.mjs';
+import {authorized,isFranchise,validateText,durationQuote,validateVoiceOptions,commercialReady,canReserve,franchiseQuota,individualFranchiseQuota} from './policy.mjs';
 initializeApp({credential:applicationDefault(),projectId:'potobatata-b71f3'});
 const db=getFirestore(),auth=getAuth();
 const cfg={
@@ -80,6 +80,7 @@ async function generate(uid,id,res,admin=false){
   if(!canReserve({profile:a.data(),commercial:true,quote,balance:current,uid,now:Date.now(),admin}))fail('Cotação expirada, usada, acesso revogado ou saldo insuficiente.',409);
   if(durationQuote(quote.text,quote.seconds,cfg).credits!==quote.credits)fail('Preço alterado, solicite nova cotação.',409);
   validateVoice(quote.voiceId);
+  validateVoiceOptions(quote.options);
   if(!Number.isSafeInteger(s.character_limit)||!Number.isSafeInteger(s.character_count)||s.character_limit-s.character_count<quote.text.length)fail('Cota do provedor insuficiente.',423);
   let franchiseReservation=null;
   if(isFranchise(a.data())){
@@ -121,7 +122,8 @@ async function generate(uid,id,res,admin=false){
    });
    fail('Permissão ou preço alterado antes da geração.',403);
   }
-  const audio=await provider('/v1/text-to-speech/'+encodeURIComponent(q.voiceId)+'?output_format=mp3_44100_128',{text:q.text,model_id:'eleven_flash_v2_5'});
+  const opts=validateVoiceOptions(q.options);
+  const audio=await provider('/v1/text-to-speech/'+encodeURIComponent(q.voiceId)+'?output_format=mp3_44100_128',{text:q.text,model_id:opts.modelId,voice_settings:opts.voiceSettings,...(opts.languageCode?{language_code:opts.languageCode}:{})});
   if(!audio.headers.get('content-type')?.startsWith('audio/'))fail('Formato inesperado.',502);
   const bytes=Buffer.from(await audio.arrayBuffer());
   if(!bytes.length||bytes.length>15*1024*1024)fail('Áudio inválido.',502);
@@ -159,8 +161,8 @@ const server=createServer(async(req,res)=>{
     franchiseAllocationView=await db.runTransaction(async tx=>(await franchiseAllocation(tx,s,uid)).allocation,{readOnly:true});
     if(text.length>franchiseAllocationView.remaining)fail('Cota individual ou coletiva das franquias insuficiente.',409);
    }
-   const quoteId=randomUUID();
-   await order(uid,quoteId).create({uid,text,voiceId,seconds,credits,state:'quoted',expiresAt:Date.now()+300000,createdAt:FieldValue.serverTimestamp()});
+   const options=validateVoiceOptions(data),quoteId=randomUUID();
+   await order(uid,quoteId).create({uid,text,voiceId,seconds,credits,options,state:'quoted',expiresAt:Date.now()+300000,createdAt:FieldValue.serverTimestamp()});
    return send(res,200,{quoteId,credits,seconds,maxChars:tariff.maxChars,balance:value,franchiseAllocation:franchiseAllocationView});
   }
   if(req.url==='/generate')return await generate(uid,data.quoteId,res,admin);

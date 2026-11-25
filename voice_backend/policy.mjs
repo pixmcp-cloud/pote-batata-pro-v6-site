@@ -62,3 +62,21 @@ export function individualFranchiseQuota({limit,count,used,individualUsed}){
  const share=Math.floor(limit/count);
  return {count,share,used:individualUsed,remaining:Math.max(0,Math.min(share-individualUsed,limit-used))};
 }
+
+export function validateVoiceOptions(input={}){
+ const modelId=input.modelId??'eleven_flash_v2_5',languageCode=input.languageCode??null;
+ if(modelId!=='eleven_flash_v2_5')throw Error('Modelo ainda não homologado para esta tarifa.');
+ if(![null,'pt','en','es'].includes(languageCode))throw Error('Idioma não autorizado.');
+ const raw=input.voiceSettings??{stability:.5,similarity_boost:.75,style:0,speed:1,use_speaker_boost:true};
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Configuração de voz inválida.');
+ const bounds={stability:[0,1],similarity_boost:[0,1],style:[0,1],speed:[.7,1.2]};
+ if(Object.keys(raw).length!==5||Object.keys(raw).some(k=>!(k in bounds)&&k!=='use_speaker_boost'))throw Error('Parâmetros de voz inválidos.');
+ const voiceSettings={};
+ for(const [k,[min,max]] of Object.entries(bounds)){
+  if(typeof raw[k]!=='number'||!Number.isFinite(raw[k])||raw[k]<min||raw[k]>max)throw Error('Valor inválido: '+k);
+  voiceSettings[k]=raw[k];
+ }
+ if(typeof raw.use_speaker_boost!=='boolean')throw Error('Speaker Boost inválido.');
+ voiceSettings.use_speaker_boost=raw.use_speaker_boost;
+ return {modelId,languageCode,voiceSettings};
+}

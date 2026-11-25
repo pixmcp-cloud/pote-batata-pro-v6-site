@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {authorized,priceCredits,durationQuote,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
+import {authorized,priceCredits,durationQuote,validateVoiceOptions,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
 test('FREE e teste grátis ficam bloqueados; PRO válido, vitalício, franquia e ADM verificado autorizam',()=>{
  for(const p of [undefined,{}, {plan:'pro'}, {role:'admin'}, {franchise:{status:'active'}},{accessPolicy:{voiceAiEnabled:'true'}}])assert.equal(authorized(p),false);
  assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),false);
@@ -82,4 +82,16 @@ test('tarifa fixa aprovada: uma moeda a cada 15 segundos até 75',()=>{
  }
  for(const seconds of [0,14,16,90,'15'])assert.throws(()=>durationQuote('x',seconds,cfg));
  assert.throws(()=>durationQuote('x'.repeat(150),15,{...cfg,providerMicroBrlPer1000:10000000}));
+});
+
+test('voice configuration is constrained to approved model, language and provider parameters',()=>{
+ const good={modelId:'eleven_flash_v2_5',languageCode:'pt',voiceSettings:{stability:.45,similarity_boost:.8,style:.25,speed:1.05,use_speaker_boost:true}};
+ assert.deepEqual(validateVoiceOptions(good),good);
+ assert.equal(validateVoiceOptions().voiceSettings.speed,1);
+ for(const v of [.69,1.21,'1',NaN])assert.throws(()=>validateVoiceOptions({...good,voiceSettings:{...good.voiceSettings,speed:v}}));
+ assert.throws(()=>validateVoiceOptions({...good,modelId:'eleven_v3'}));
+ assert.throws(()=>validateVoiceOptions({...good,languageCode:'bad'}));
+ assert.throws(()=>validateVoiceOptions({...good,voiceSettings:{...good.voiceSettings,style:2}}));
+ assert.throws(()=>validateVoiceOptions({...good,voiceSettings:{...good.voiceSettings,use_speaker_boost:'true'}}));
+ assert.throws(()=>validateVoiceOptions({...good,voiceSettings:{...good.voiceSettings,extra:1}}));
 });

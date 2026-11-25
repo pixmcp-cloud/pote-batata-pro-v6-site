@@ -70,55 +70,84 @@ async function api(path,body){
  if(auth.currentUser?.uid!==user.uid||!permitted())throw Error("Conta ou autorização alterada.");
  return res;
 }
+// Dedicated studio opens independently of commercial provider availability.
+const voiceConsole=document.createElement('dialog');
+voiceConsole.id='poteVoiceConsole';voiceConsole.setAttribute('aria-labelledby','pvTitle');
+voiceConsole.innerHTML=`<div class="pv-shell"><header class="pv-header"><button id="pvBack" type="button" aria-label="Voltar">‹</button><div><small>PDV MULTIVERSAL · AUDIO LAB</small><strong>VOICE STUDIO</strong></div><button id="pvWallet" type="button" aria-label="Abrir carteira IA COIN"><span id="pvBalance">—</span> IA COIN</button></header><section class="pv-intro"><small>ESTÚDIO PROFISSIONAL</small><h1 id="pvTitle">Sua marca. Sua voz.</h1><p>Produza chamadas, ofertas e anúncios falados com ElevenLabs.</p><div id="pvStatus" role="status" aria-live="polite"></div></section><div id="csVoiceForm" class="pv-layout"><main class="pv-editor"><div class="pv-panel"><div class="pv-line"><h2>01 · Roteiro</h2><button id="pvImport" type="button" class="pv-secondary">Importar criativo</button></div><textarea id="csVoiceText" maxlength="750" rows="9" placeholder="Digite o anúncio que será narrado..."></textarea><div class="pv-line"><small id="csVoiceChars">0 / 150 caracteres</small><button id="pvClear" type="button" class="pv-secondary">Limpar</button></div><p class="pv-hint">A pontuação e as quebras de frase ajudam a definir o ritmo. A duração é estimada.</p></div><div class="pv-panel"><h2>02 · Duração e orçamento</h2><div class="pv-tiers" id="pvTiers"></div><label class="pv-sr">Duração estimada<select id="csVoiceDuration"><option value="15">15 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option><option value="60">60 segundos</option><option value="75">75 segundos</option></select></label><p id="csVoiceQuote" aria-live="polite">Selecione a duração e escreva o roteiro.</p></div></main><aside class="pv-panel pv-settings"><h2>03 · Configuração da voz</h2><label>Voz<select id="csVoiceSelect"><option value="">Aguardando catálogo autorizado</option></select></label><label>Modelo<select id="pvModel"><option value="eleven_flash_v2_5">Eleven Flash v2.5 · econômico</option></select></label><label>Idioma<select id="pvLanguage"><option value="pt">Português</option><option value="">Detecção automática</option><option value="en">Inglês</option><option value="es">Espanhol</option></select></label><div class="pv-presets"><small>Presets de configuração</small><div><button type="button" data-pv-preset="natural">Natural</button><button type="button" data-pv-preset="commercial">Comercial</button><button type="button" data-pv-preset="calm">Suave</button></div></div><div id="pvSliders"></div><label class="pv-check"><input type="checkbox" id="pvBoost" checked> Reforço de similaridade do locutor (Speaker Boost)</label><button class="pv-secondary" id="pvReset" type="button">Restaurar padrão</button><p class="pv-hint">Apenas opções do modelo configurado. Vozes e modelos adicionais dependem da licença e do catálogo autorizado.</p></aside><section class="pv-panel pv-output"><div class="pv-line"><h2>04 · Áudio final</h2><span>MP3 · 44,1 kHz / 128 kbps</span></div><div id="pvWave" aria-hidden="true"></div><p id="pvOutputHint">O áudio aparecerá aqui após geração confirmada.</p><audio id="csVoiceAudio" controls hidden></audio><a id="csVoiceDownload" download="locucao-pdv.mp3" hidden>Baixar MP3</a></section></div><footer class="pv-footer"><div><small>Custo da modalidade</small><strong id="pvCost">1 IA COIN</strong></div><button type="button" id="csVoicePrice" disabled>Validar orçamento</button><button type="button" id="csVoiceGenerate" disabled>Gerar áudio</button></footer></div>`;
+document.body.append(voiceConsole);
+const voiceSettingsSpec=[['stability','Estabilidade',0,1,.01,.5,'Menor: mais variação · maior: mais constante'],['similarity_boost','Similaridade',0,1,.01,.75,'Fidelidade à voz original'],['style','Exagero de estilo',0,1,.01,0,'Intensidade da interpretação'],['speed','Velocidade',.7,1.2,.01,1,'Mais lenta ou mais rápida']];
+$('pvSliders').innerHTML=voiceSettingsSpec.map(([key,label,min,max,step,value,hint])=>'<label class="pv-slider"><span>'+label+' <output id="pvOut_'+key+'">'+value.toFixed(2)+'</output></span><input id="pv_'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+value+'"><small>'+hint+'</small></label>').join('');
+$('pvTiers').innerHTML=[15,30,45,60,75].map(n=>'<button type="button" data-pv-seconds="'+n+'"><b>'+n+' s</b><small>'+n/15+' IA COIN</small></button>').join('');
+$('pvWave').innerHTML=Array.from({length:44},(_,i)=>'<i style="height:'+(8+Math.round(25*Math.abs(Math.sin(i*1.7)*Math.cos(i*.29))))+'px"></i>').join('');
+let consoleReady=false,consoleSeq=0,draftOwner=null;
+function studioStatus(message){$('pvStatus').textContent=message;state(message);}
+function settings(){return Object.fromEntries([...voiceSettingsSpec.map(([key])=>[key,Number($('pv_'+key).value)]),['use_speaker_boost',$('pvBoost').checked]]);}
+function options(){return {modelId:$('pvModel').value,languageCode:$('pvLanguage').value||null,voiceSettings:settings()};}
+function invalidate(){quote=null;$('csVoiceGenerate').disabled=true;$('csVoicePrice').disabled=!consoleReady||busy||!$('csVoiceSelect').value;renderChars();const n=Number($('csVoiceDuration').value);$('pvCost').textContent=n/15+' IA COIN';$('pvTiers').querySelectorAll('[data-pv-seconds]').forEach(el=>el.setAttribute('aria-pressed',String(Number(el.dataset.pvSeconds)===n)));for(const [key] of voiceSettingsSpec)$('pvOut_'+key).textContent=Number($('pv_'+key).value).toFixed(2);$('csVoiceQuote').textContent='Custo previsto: '+n/15+' IA COIN · '+n*10+' caracteres. Validação no servidor obrigatória.';}
+function applyPreset(vals){for(const [key,,,,def] of voiceSettingsSpec)$('pv_'+key).value=String(vals[key]??def);$('pvBoost').checked=true;invalidate();}
+function importCreative(){const value=['creativeHeadline','creativeBody','creativeCta'].map(id=>$(id)?.value||'').filter(Boolean).join('. ').slice(0,750);$('csVoiceText').value=value;$('csVoiceDuration').value=String(Math.min(75,Math.max(15,Math.ceil(value.length/150)*15)));invalidate();}
+$('pvImport').onclick=importCreative;$('pvClear').onclick=()=>{$('csVoiceText').value='';invalidate();};
+$('pvBack').onclick=()=>{if(!busy)voiceConsole.close();};
+$('pvWallet').onclick=()=>{if(!busy){voiceConsole.close();shop();}};
+$('pvReset').onclick=()=>applyPreset({});
+voiceConsole.addEventListener('click',e=>{const tier=e.target.closest('[data-pv-seconds]'),preset=e.target.closest('[data-pv-preset]');if(tier){$('csVoiceDuration').value=tier.dataset.pvSeconds;invalidate();}if(preset){const p={natural:{},commercial:{stability:.45,similarity_boost:.8,style:.25,speed:1.05},calm:{stability:.7,similarity_boost:.75,style:.05,speed:.85}};applyPreset(p[preset.dataset.pvPreset]||{});}});
+for(const id of ['csVoiceText','csVoiceSelect','csVoiceDuration','pvModel','pvLanguage','pvBoost',...voiceSettingsSpec.map(([key])=>'pv_'+key)])$(id).addEventListener('input',invalidate);
+$('csVoicePrice').onclick=price;$('csVoiceGenerate').onclick=generate;
+voiceConsole.addEventListener('cancel',e=>{if(busy)e.preventDefault();});
+voiceConsole.addEventListener('close',()=>{++consoleSeq;quote=null;consoleReady=false;$('csVoiceGenerate').disabled=true;});
+async function consoleBalance(user,seq){try{const snap=await getDoc(doc(db,'users',user.uid,'aiWallet','main'));if(seq!==consoleSeq||auth.currentUser?.uid!==user.uid||!voiceConsole.open)return;const n=snap.exists()?snap.data().balance:0;$('pvBalance').textContent=Number.isSafeInteger(n)&&n>=0?n.toLocaleString('pt-BR'):'—';}catch{if(seq===consoleSeq)$('pvBalance').textContent='—';}}
 async function open(){
- clear();
- if(!permitted())return state("IA exclusiva para PRO ativo, vitalício e franquias. FREE e teste gratuito não podem usar IA. Bloqueios do ADM continuam válidos.");
- void refreshWallet();
- if(!endpoint())return state("Acesso ao plano reconhecido. Carteira disponível conforme regras publicadas; geração depende de licença comercial e servidor. Nenhum crédito será debitado.");
+ if(busy)return;
+ if(!permitted())return state('IA exclusiva para PRO ativo, vitalício e franquias. FREE e teste gratuito não podem usar IA. Bloqueios do ADM continuam válidos.');
+ const user=auth.currentUser,seq=++consoleSeq;consoleReady=false;quote=null;uid=user.uid;
+ if(draftOwner!==uid){clear();uid=user.uid;draftOwner=uid;$('pvOutputHint').textContent='O áudio aparecerá aqui após geração confirmada.';importCreative();applyPreset({});}
+ $('csVoiceForm').hidden=false;$('pvBalance').textContent='—';$('csVoiceSelect').replaceChildren(new Option('Aguardando catálogo autorizado',''));
+ if(!voiceConsole.open)voiceConsole.showModal();invalidate();void consoleBalance(user,seq);void refreshWallet();
+ if(!endpoint()){studioStatus('Modo preparação · editor disponível. Geração, catálogo real de vozes e orçamento final aguardam servidor e licença comercial ElevenLabs. Nenhuma IA COIN será debitada.');return;}
+ studioStatus('Consultando serviço autorizado…');
  try{
-  const data=await(await api("/status",{})).json();
-  if(data.commercialReady!==true||data.authorized!==true)return state("Serviço comercial indisponível.");
-  uid=auth.currentUser.uid;
-  const select=$("csVoiceSelect");select.replaceChildren(...data.voices.map(v=>new Option(v.name,v.id)));
-  $("csVoiceText").value=["creativeHeadline","creativeBody","creativeCta"].map(id=>$(id)?.value||"").filter(Boolean).join(". ").slice(0,750);
-  $("csVoiceDuration").value=String(Math.min(75,Math.max(15,Math.ceil($("csVoiceText").value.length/150)*15)));
-  $("csVoiceForm").hidden=false;renderQuota(data.franchiseAllocation);renderChars();
-  state("Saldo de IA: "+data.balance+" créditos. "+allocationText(data.franchiseAllocation)+" Confira o orçamento antes de gerar.");
-  $("csVoicePrice").onclick=price;
-  $("csVoiceGenerate").onclick=generate;
-  for(const id of ["csVoiceText","csVoiceSelect","csVoiceDuration"])$(id).oninput=()=>{renderChars();quote=null;$("csVoiceGenerate").disabled=true;$("csVoiceQuote").textContent="Recalcule o orçamento."};
- }catch(e){clear();state(e.message)}
+  const data=await(await api('/status',{})).json();
+  if(seq!==consoleSeq||auth.currentUser?.uid!==user.uid||!voiceConsole.open)return;
+  if(data.commercialReady!==true||data.authorized!==true)throw Error('Serviço comercial indisponível.');
+  const voices=Array.isArray(data.voices)?data.voices:[];
+  $('csVoiceSelect').replaceChildren(...voices.map(v=>new Option(v.name,v.id)));
+  consoleReady=voices.length>0;renderQuota(data.franchiseAllocation);invalidate();
+  studioStatus(consoleReady?'Catálogo autorizado conectado. Valide o orçamento antes de gerar.':'Nenhuma voz autorizada disponível.');
+ }catch(e){if(seq===consoleSeq)studioStatus(e.message);}
 }
 function allocationText(q){return q?" Sua cota: "+q.share+" créditos do provedor · usados/reservados: "+q.used+" · disponíveis: "+q.remaining+" · "+q.count+" franquias ativas.":"";}
 async function price(){
- if(busy)return;busy=true;quote=null;$("csVoiceGenerate").disabled=true;
+ if(busy||!consoleReady||!voiceConsole.open)return;busy=true;quote=null;$("csVoiceGenerate").disabled=true;
  try{
   const text=$("csVoiceText").value.trim(),voiceId=$("csVoiceSelect").value;
   const seconds=Number($("csVoiceDuration").value);
   if(![15,30,45,60,75].includes(seconds)||!text||text.length>seconds*10)throw Error("Ajuste o texto ao limite da duração escolhida.");
-  const data=await(await api("/quote",{text,voiceId,seconds})).json();
+  const opts=options(),seq=consoleSeq;
+  const data=await(await api("/quote",{text,voiceId,seconds,...opts})).json();
+  if(seq!==consoleSeq||!voiceConsole.open||JSON.stringify(opts)!==JSON.stringify(options())||text!==$("csVoiceText").value.trim()||voiceId!==$("csVoiceSelect").value||seconds!==Number($("csVoiceDuration").value))return;
   if(!Number.isSafeInteger(data.credits)||data.credits!==seconds/15||data.seconds!==seconds||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
-  quote={id:data.quoteId,credits:data.credits,text,voiceId,seconds};renderQuota(data.franchiseAllocation);
+  quote={id:data.quoteId,credits:data.credits,text,voiceId,seconds,opts};renderQuota(data.franchiseAllocation);
   $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+allocationText(data.franchiseAllocation);
   $("csVoiceGenerate").disabled=data.balance<data.credits;if(data.balance<data.credits){$("csAiWallet").hidden=false;state("Saldo insuficiente. Consulte os pacotes na carteira IA.");}
- }catch(e){state(e.message)}finally{busy=false}
+ }catch(e){studioStatus(e.message)}finally{busy=false;$("csVoicePrice").disabled=!consoleReady||!$("csVoiceSelect").value;}
 }
 async function generate(){
  if(busy||!quote||auth.currentUser?.uid!==uid||!permitted())return;
- const q=quote; if(q.text!==$("csVoiceText").value.trim()||q.voiceId!==$("csVoiceSelect").value||q.seconds!==Number($("csVoiceDuration").value))return;
+ const q=quote,seq=consoleSeq,actor=auth.currentUser.uid; if(q.text!==$("csVoiceText").value.trim()||q.voiceId!==$("csVoiceSelect").value||q.seconds!==Number($("csVoiceDuration").value)||JSON.stringify(q.opts)!==JSON.stringify(options()))return;
  if(!confirm("Consumir "+q.credits+" IA para a locução de "+q.seconds+" segundos estimados?"))return;
- busy=true;quote=null;$("csVoiceGenerate").disabled=true;
+ busy=true;quote=null;$("csVoiceGenerate").disabled=true;$("csVoicePrice").disabled=true;
  try{
   const res=await api("/generate",{quoteId:q.id});
   if(!res.headers.get("content-type")?.startsWith("audio/mpeg"))throw Error("Resposta não contém MP3.");
-  if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(await res.blob());
+  const blob=await res.blob();if(seq!==consoleSeq||auth.currentUser?.uid!==actor||!permitted()||!voiceConsole.open)return;
+  if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(blob);
   $("csVoiceAudio").src=url;$("csVoiceAudio").hidden=false;$("csVoiceDownload").href=url;$("csVoiceDownload").hidden=false;
-  state("Locução pronta. Consulte novamente o saldo antes de outra geração.");renderQuota(null);
- }catch(e){state(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false}
+  studioStatus("Locução pronta. Ouça ou baixe o MP3.");$("pvOutputHint").textContent="Áudio gerado nesta sessão.";renderQuota(null);void consoleBalance(auth.currentUser,consoleSeq);void refreshWallet();
+ }catch(e){if(seq===consoleSeq&&auth.currentUser?.uid===actor)studioStatus(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false;if(seq===consoleSeq)invalidate();}
 }
 window.POTE_VOICE_AI={open,shop,history};
-window.addEventListener("pote:profile-updated",()=>{if(!permitted()){clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
-window.addEventListener("pote:user-logout",clear);
+window.addEventListener("pote:profile-updated",()=>{if(!permitted()){consoleReady=false;draftOwner=null;++consoleSeq;if(voiceConsole.open)voiceConsole.close();$("csVoiceText").value="";clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
+window.addEventListener("pote:user-logout",()=>{draftOwner=null;consoleReady=false;++consoleSeq;if(voiceConsole.open)voiceConsole.close();$("csVoiceText").value="";clear();});
 
 /* IA Universe: isolated full-screen wallet, no simulated credit or payment. */
 const universe=document.createElement('dialog');
@@ -247,7 +276,7 @@ u('iauHistoryBtn').addEventListener('click',async()=>{
   for(const entry of snap.docs){const d=entry.data(),row=document.createElement('p');row.textContent=(d.delta>0?'+':'')+d.delta+' IA COIN · '+String(d.reason||'Movimentação')+' · saldo '+d.after;panel.append(row);}
  }catch{if(seq===universeSeq)panel.textContent='Extrato indisponível.';}
 });
-u('iauVoice').addEventListener('click',()=>{if(!permitted())return;closeUniverse();if(typeof go==='function'){go('creative');requestAnimationFrame(()=>document.getElementById('csVoiceStudio')?.scrollIntoView({block:'start'}));}});
+u('iauVoice').addEventListener('click',()=>{if(!permitted())return;closeUniverse();void open();});
 window.POTE_IA_UNIVERSE={open:openUniverse,close:closeUniverse,isOpen:()=>universe.open};
 window.addEventListener('pote:user-logout',()=>{if(creditDialog.open)creditDialog.close();selectedCredit=null;closeUniverse();});
 for(const name of ['pote:license-updated','pote:profile-updated'])window.addEventListener(name,()=>{if(universe.open)void universeRefresh();});
