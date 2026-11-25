@@ -58,8 +58,14 @@ export class GeoGate {
    if(a==="quote-put"){
     if(!keyOk(b.id)||!uidOk(b.quote?.uid)||!slugOk(b.quote?.slug))error("invalid_quote",400);
     // A separate object per quote, automatically purged; never publicly readable.
-    await this.storage.put("quote",b.quote);await this.storage.setAlarm(b.quote.expiresAt+60000);
+    await this.storage.put("quote",{...b.quote,id:b.id});await this.storage.setAlarm(b.quote.expiresAt+60000);
     return reply({ok:true});
+   }
+   if(a==="quote-get"){
+    if(!keyOk(b.id)||!uidOk(b.uid)||!slugOk(b.slug))error("invalid_quote",400);
+    const q=await this.storage.get("quote");
+    if(!q||q.id!==b.id||q.uid!==b.uid||q.slug!==b.slug||q.expiresAt<=Date.now())error("quote_unavailable",404);
+    return reply({quote:q});
    }
    return reply({error:"not_found"},404);
   }catch(e){return reply({error:e instanceof GeoError?e.code:"geo_gate_unavailable"},e instanceof GeoError?e.status:503)}
@@ -140,7 +146,7 @@ export function createGeoWorker({verify=verifyFirebaseToken,requestFetch=fetch,m
    const route=await call(env,scope,"routing",{waypoints:c.origin.lat+","+c.origin.lon+"|"+point.lat+","+point.lon,
     mode:c.mode,units:"metric",lang:"pt"},2);
    const feeCents=deliveryFee(c,route.meters),now=clock(),id=crypto.randomUUID(),expiresAt=now+10*60000;
-   const quote={uid:user.uid,slug,version:config.version,destination:point,address:location.address,
+   const quote={id,uid:user.uid,slug,version:config.version,destination:point,address:location.address,
     feeCents,meters:route.meters,seconds:route.seconds,expiresAt};
    await gate(env,"quote:"+id,"quote-put",{id,quote});
    return reply({quoteId:id,address:quote.address,feeCents,meters:route.meters,seconds:route.seconds,expiresAt,checkoutEnabled:false},200,cors);

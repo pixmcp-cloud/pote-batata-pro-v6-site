@@ -1,0 +1,13 @@
+name = "pote-batata-geo-live-qa-20261125"
+main = "src/geo_live_qa.mjs"
+compatibility_date = "2026-11-20"
+workers_dev = true
+preview_urls = false
+[vars]
+ENABLE_GEO = "false"
+[[durable_objects.bindings]]
+name = "GEO_GATE"
+class_name = "GeoGate"
+[[migrations]]
+tag = "geo-qa-v1"
+new_sqlite_classes = ["GeoGate"]

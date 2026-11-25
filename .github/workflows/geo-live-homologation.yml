@@ -1,0 +1,78 @@
+name: V6 Geoapify - homologacao real isolada e temporaria
+on:
+  push:
+    branches: [feat/v6-geoapify-qa-20261125]
+    paths: ['.github/workflows/geo-live-homologation.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pote-geo-live-qa
+  cancel-in-progress: false
+jobs:
+  homologate:
+    if: github.repository == 'pixmcp-cloud/pote-batata-pro-v6-site' && github.ref == 'refs/heads/feat/v6-geoapify-qa-20261125'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: workers/antifraud
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/geo_*.test.mjs test/public_checkout_core.test.mjs
+      - name: Confirmar destino QA exclusivo
+        id: preflight
+        run: |
+          node --input-type=module <<'NODE'
+          const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+process.env.CLOUDFLARE_ACCOUNT_ID+"/workers/scripts",{headers:{Authorization:"Bearer "+process.env.CLOUDFLARE_API_TOKEN},signal:AbortSignal.timeout(12000),redirect:"error"});
+          const b=await r.json();if(!r.ok||!b.success||!Array.isArray(b.result)||b.result.some(x=>x.id==="pote-batata-geo-live-qa-20261125"||x.name==="pote-batata-geo-live-qa-20261125"))throw Error("Destino QA indisponível ou já existe");
+          console.log("QA_TARGET_NEW");
+          NODE
+      - name: Publicar exclusivamente worker QA temporário
+        run: |
+          grep -Fx 'name = "pote-batata-geo-live-qa-20261125"' wrangler.geoapify-live-qa.toml
+          npx --no-install wrangler deploy --config wrangler.geoapify-live-qa.toml
+      - name: Instalar segredos e executar integração real
+        env:
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+        run: |
+          set +x
+          QA_PROBE_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$QA_PROBE_SECRET"
+          export QA_PROBE_SECRET
+          printf '%s' "$GEOAPIFY_API_KEY" | npx --no-install wrangler secret put GEOAPIFY_API_KEY --config wrangler.geoapify-live-qa.toml
+          printf '%s' "$QA_PROBE_SECRET" | npx --no-install wrangler secret put QA_PROBE_SECRET --config wrangler.geoapify-live-qa.toml
+          node --input-type=module <<'NODE'
+          const endpoint="https://pote-batata-geo-live-qa-20261125.pixmcp.workers.dev/__qa";
+          const denied=await fetch(endpoint,{method:"POST",signal:AbortSignal.timeout(15000),redirect:"error"});
+          if(denied.status!==404)throw Error("QA sem autenticação não está bloqueado");
+          const r=await fetch(endpoint,{method:"POST",headers:{Authorization:"Bearer "+process.env.QA_PROBE_SECRET},redirect:"error",signal:AbortSignal.timeout(90000)});
+          const b=await r.json().catch(()=>({}));
+          console.log("QA_RESULT "+JSON.stringify({status:r.status,ok:b.ok,phase:b.phase,checks:b.checks,meters:b.meters,seconds:b.seconds,feeCents:b.feeCents}));
+          if(!r.ok||!b.ok)throw Error("Homologação real não aprovada");
+          NODE
+      - name: Remover somente o worker temporário criado pelo teste
+        if: always() && steps.preflight.outcome == 'success'
+        run: |
+          node --input-type=module <<'NODE'
+          const base="https://api.cloudflare.com/client/v4/accounts/"+process.env.CLOUDFLARE_ACCOUNT_ID+"/workers/scripts";
+          const headers={Authorization:"Bearer "+process.env.CLOUDFLARE_API_TOKEN};
+          const r=await fetch(base+"/pote-batata-geo-live-qa-20261125",{method:"DELETE",headers,signal:AbortSignal.timeout(15000),redirect:"error"});
+          if(!r.ok&&r.status!==404)throw Error("Não foi possível remover worker QA temporário, HTTP "+r.status);
+          console.log("QA_TEMP_WORKER_REMOVED");
+          NODE
+      - name: Confirmar staging original continua bloqueado
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          const r=await fetch("https://pote-batata-geo-staging.pixmcp.workers.dev/health",{signal:AbortSignal.timeout(10000),redirect:"error"});
+          const b=await r.json();if(!r.ok||b.enabled!==false||b.checkoutEnabled!==false)throw Error("Staging não está bloqueado");
+          console.log("ORIGINAL_STAGING_LOCKED");
+          NODE
