@@ -18,7 +18,7 @@ for(const name of ["creative_studio.css","creative_studio.js","voice_ai.js"]){
 }
 assert(read("voice_ai.js").includes('from "./firebase_app.mjs?v=init-20261120"'),"Locução deve usar Firebase compartilhado");
 assert(builder.includes("firebase_integration.js?v=moderation-20261121"),"O login deve invalidar cache após moderação por UID");
-assert(builder.includes("floating_menu.js?v=ia-coin-neon-20261125"),"A tela de perfil deve invalidar cache após moderação por UID");
+assert(builder.includes("floating_menu.js?v=menu-restaurado-20261125"),"A tela de perfil deve invalidar cache após moderação por UID");
 const manifest=JSON.parse(read(path.join("assets","brand","manifest.webmanifest")));
 assert.equal(manifest.start_url,"/","PWA deve abrir o PDV, nao /assets/brand/");
 assert.equal(manifest.scope,"/","PWA deve ser instalada no dominio inteiro");
