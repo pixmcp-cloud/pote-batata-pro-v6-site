@@ -138,7 +138,7 @@ function page(){
  '</fieldset><p class="cs-price-hint" id="csPriceHint" aria-live="polite">Para anunciar desconto, escolha um percentual ou preencha um preço menor que o preço atual.</p>'+
  actions+
  '<section class="box" id="csVoiceStudio"><div class="cs-section-title"><div><small>CRÉDITOS IA · PREMIUM</small><h3>Locução profissional IA</h3><p>Produza anúncios falados em português com voz profissional.</p></div><span class="cs-label">ACESSO CONTROLADO</span></div>'+
- '<p id="csVoiceState" role="status">FREE e PRO: liberação individual pelo ADM. Franquias ativas: acesso padrão e 20% de desconto. Consulte seu acesso.</p>'+
+ '<p id="csVoiceState" role="status">FREE e PRO: liberação individual pelo ADM. Franquias ativas: acesso padrão e limite coletivo de 20% da cota total. Consulte seu acesso.</p>'+
  '<button type="button" class="btn line" onclick="window.POTE_VOICE_AI?.open()">Consultar acesso e gerar locução</button>'+
  '<div id="csVoiceForm" hidden><label>Texto da locução<textarea id="csVoiceText" maxlength="777" rows="5"></textarea></label><label>Voz<select id="csVoiceSelect"></select></label><p id="csVoiceQuote" aria-live="polite"></p><div class="actions"><button type="button" class="btn line" id="csVoicePrice">Calcular créditos</button><button type="button" class="btn" id="csVoiceGenerate" disabled>Confirmar e gerar MP3</button></div><audio id="csVoiceAudio" controls hidden></audio><a id="csVoiceDownload" class="btn line" download="locucao-pdv.mp3" hidden>Baixar locução</a></div></section>'+
  '<section id="csPromptPanel" class="cs-prompt-panel" hidden aria-label="Prompt publicitário para IA">'+
