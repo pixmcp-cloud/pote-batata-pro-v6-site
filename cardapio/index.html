@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?release=confirm8">
-  <script type="module" src="./cardapio.js?release=confirm8"></script>
+  <link rel="stylesheet" href="./cardapio.css?release=sacola9">
+  <script type="module" src="./cardapio.js?release=sacola9"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -109,7 +109,8 @@
   <dialog id="cartDialog" class="app-dialog cart-dialog" aria-labelledby="cartTitle">
     <div class="cart-shell">
       <div class="cart-head"><div><span class="eyebrow">SEU PEDIDO</span><h2 id="cartTitle">Minha sacola</h2></div><button type="button" id="closeCart" class="dialog-close" aria-label="Fechar sacola">×</button></div>
-      <div class="cart-items" id="cartItems"></div>
+      <div class="cart-scroll">
+      <section class="cart-product-section" aria-label="Produtos na sacola"><h3>Seus produtos</h3><div class="cart-items" id="cartItems"></div></section>
       <div class="checkout-box">
         <fieldset class="delivery-choice"><legend>Como prefere receber?</legend>
           <label><input type="radio" name="fulfillment" value="retirada" checked> Retirada</label>
@@ -127,6 +128,7 @@
         <p class="demo-warning">Esta é uma prévia interativa. Nenhum pagamento será cobrado e nenhum pedido será registrado no PDV.</p>
         <button type="button" class="button button-gold checkout-button" id="copyOrder">Copiar resumo demonstrativo</button>
         <button type="button" class="button button-quiet" id="keepShopping">Continuar escolhendo</button>
+      </div>
       </div>
     </div>
   </dialog>
