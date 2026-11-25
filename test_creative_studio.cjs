@@ -101,3 +101,8 @@ assert(iaSource.includes('FREE não usa IA')&&iaSource.includes('u(\'iauContent\
 assert(iaCss.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
 assert(html.includes('Comprar IA COIN'));
 console.log('PASS IA COIN: approved branding, fixed package prices, wallet layout and FREE gate');
+
+assert(iaSource.includes('iauAdminCredit')&&iaSource.includes('if(isOwnAdmin()){showCredit(pack[0]);return;}'));
+assert(iaSource.includes('await api.addOwnWalletPackage(selected.amount,selected.eventId,selected.uid)'));
+assert(iaSource.includes('creditBusy||!selected')&&iaSource.includes('crypto.randomUUID()'));
+console.log('PASS: confirmação ADM e bloqueio de cliques duplicados');
