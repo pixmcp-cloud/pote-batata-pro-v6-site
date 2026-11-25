@@ -1,9 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {authorized,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
-test('PRO, ADM e perfil ausente não autorizam por si; franquia oficial é exceção',()=>{
+test('FREE e teste grátis ficam bloqueados; PRO válido, vitalício, franquia e ADM verificado autorizam',()=>{
  for(const p of [undefined,{}, {plan:'pro'}, {role:'admin'}, {franchise:{status:'active'}},{accessPolicy:{voiceAiEnabled:'true'}}])assert.equal(authorized(p),false);
- assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),true);
+ assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),false);
+ const p={license:{kind:'pro',term:'month1',status:'active',expiresAt:{toMillis:()=>200}}};
+ assert.equal(authorized(p,100),true);assert.equal(authorized(p,200),false);
+ assert.equal(authorized({...p,accessPolicy:{voiceAiEnabled:false}},100),false);
+ assert.equal(authorized({license:{...p.license,kind:'trial',term:'trial24h'}},100),false);
+ assert.equal(authorized({license:{kind:'lifetime',term:'lifetime',status:'active'}},100),true);
+ assert.equal(authorized({},100,true),true);
+ assert.equal(authorized({accessPolicy:{voiceAiEnabled:false}},100,true),false);
  const f={franchise:{status:'active',brandId:'potebatata'}};
  assert.equal(authorized(f),true);assert.equal(authorized({...f,accessPolicy:{voiceAiEnabled:false}}),false);
  assert.equal(authorized({franchise:{status:'inactive',brandId:'potebatata'}}),false);
@@ -25,7 +32,7 @@ test('licença comercial positiva e plano gratuito sempre bloqueado',()=>{
  assert.equal(commercialReady({...s,max_credit_limit_extension:100},cfg),false);
 });
 test('reserva exige identidade, autorização, licença, saldo e cotação única válida',()=>{
- const a={profile:{accessPolicy:{voiceAiEnabled:true}},commercial:true,quote:{uid:'u',state:'quoted',credits:3,expiresAt:100},balance:5,uid:'u',now:10};
+ const a={profile:{license:{kind:'pro',term:'month1',status:'active',expiresAt:{toMillis:()=>200}}},commercial:true,quote:{uid:'u',state:'quoted',credits:3,expiresAt:100},balance:5,uid:'u',now:10};
  assert.equal(canReserve(a),true);
  for(const b of [{balance:2},{commercial:false},{profile:{}},{uid:'other'},{now:100},{quote:{...a.quote,state:'reserved'}}])assert.equal(canReserve({...a,...b}),false);
 });
