@@ -4,13 +4,14 @@
 if(window.__poteFloatingMenuLoaded)return;
 window.__poteFloatingMenuLoaded=true;
 const safe=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const nav=[["home","Início"],["business","Negócio"],["orders","Pedidos e produção"],["recipes","Receitas e fichas"],["builder","Criar receita"],["ingredients","Estoque e compras"],["clients","Clientes"],["suppliers","Fornecedores & Compras"],["motoboy","Motoboy"],["deliveryhub","Hub de Delivery"],["vitrine","Cardápio"],["pricing","Precificação"],["expenses","Gastos e despesas"],["reports","Gráficos e relatórios"],["creative","Criativos"],["ia-wallet","IA COIN · Carteira e loja"],["gallery","Galeria · 42h"],["brand","Minha marca"],["settings","Configurações e backup"]];
+const nav=[["home","Início"],["business","Negócio"],["orders","Pedidos e produção"],["recipes","Receitas e fichas"],["builder","Criar receita"],["ingredients","Estoque e compras"],["clients","Clientes"],["suppliers","Fornecedores & Compras"],["motoboy","Motoboy"],["deliveryhub","Hub de Delivery"],["vitrine","Cardápio"],["pricing","Precificação"],["expenses","Gastos e despesas"],["reports","Gráficos e relatórios"],["creative","Criativos"],["gallery","Galeria · 42h"],["brand","Minha marca"],["settings","Configurações e backup"]];
 const icon='<svg viewBox="0 0 24 24" aria-hidden="true" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
 const avatar='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2c0-5 16-5 16 0v2"/></svg>';
 const closeIcon='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l14 14M19 5L5 19"/></svg>';
 const wrap=document.createElement('div');
 wrap.id='poteFloatingRoot';
 wrap.innerHTML=`
+<button id="poteIaCoinToggle" type="button" aria-label="Abrir carteira IA COIN" aria-controls="poteAiUniverse" aria-expanded="false"><span aria-hidden="true">IA</span></button>
 <button id="poteFloatToggle" type="button" aria-label="Abrir menu de opções" aria-expanded="false" aria-controls="poteFloatDrawer">${icon}</button>
 <div id="poteFloatBackdrop" hidden></div>
 <aside id="poteFloatDrawer" aria-label="Menu de navegação" aria-hidden="true" inert>
@@ -132,17 +133,28 @@ if(logo){
  logo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')toggleOperationsMenu(e)},true);
 }
 $('poteFloatToggle').addEventListener('click',toggleOperationsMenu,true);
+const iaButton=$('poteIaCoinToggle');
+function syncWalletButton(){
+ iaButton.setAttribute('aria-expanded',String(!!window.POTE_IA_UNIVERSE?.isOpen()));
+}
+iaButton.addEventListener('click',event=>{
+ event.preventDefault();event.stopImmediatePropagation();
+ if(!window.POTE_APP_READY||!window.POTE_AUTH?.uid)return;
+ setOpen(false);
+ if(window.POTE_IA_UNIVERSE)window.POTE_IA_UNIVERSE.open();
+ else if(typeof toast==='function')toast('Carteira IA COIN indisponível. Atualize a página.');
+ syncWalletButton();
+});
+window.addEventListener('pote:ia-universe-ready',syncWalletButton);
+window.addEventListener('pote:ia-universe-state',syncWalletButton);
+window.addEventListener('pote:user-logout',syncWalletButton);
+syncWalletButton();
 $('poteFloatClose').addEventListener('click',()=>setOpen(false));
 $('poteFloatBackdrop').addEventListener('click',()=>setOpen(false));
 $('poteFloatNavigation').addEventListener('click',e=>{
  const b=e.target.closest('button[data-tab]');
  if(!b)return;
  setOpen(false);
- if(b.dataset.tab==='ia-wallet'){
-  if(window.POTE_IA_UNIVERSE)window.POTE_IA_UNIVERSE.open();
-  else if(typeof toast==='function')toast('Carteira IA COIN indisponível. Atualize a página.');
-  return;
- }
  if(b.dataset.tab==='business'){window.POTE_BUSINESS?.open();return}
  if(b.dataset.tab==='gallery'){window.POTE_GALLERY?.open();return}
  if(typeof go==='function')go(b.dataset.tab);
