@@ -29,12 +29,13 @@ async function open(){
   const select=$("csVoiceSelect");select.replaceChildren(...data.voices.map(v=>new Option(v.name,v.id)));
   $("csVoiceText").value=["creativeHeadline","creativeBody","creativeCta"].map(id=>$(id)?.value||"").filter(Boolean).join(". ").slice(0,777);
   $("csVoiceForm").hidden=false;
-  state("Saldo de IA: "+data.balance+" créditos. Confira o orçamento antes de gerar.");
+  state("Saldo de IA: "+data.balance+" créditos. "+allocationText(data.franchiseAllocation)+" Confira o orçamento antes de gerar.");
   $("csVoicePrice").onclick=price;
   $("csVoiceGenerate").onclick=generate;
   for(const id of ["csVoiceText","csVoiceSelect"])$(id).oninput=()=>{quote=null;$("csVoiceGenerate").disabled=true;$("csVoiceQuote").textContent="Recalcule o orçamento."};
  }catch(e){clear();state(e.message)}
 }
+function allocationText(q){return q?" Sua cota: "+q.share+" créditos do provedor · usados/reservados: "+q.used+" · disponíveis: "+q.remaining+" · "+q.count+" franquias ativas.":"";}
 async function price(){
  if(busy)return;busy=true;quote=null;$("csVoiceGenerate").disabled=true;
  try{
@@ -42,7 +43,7 @@ async function price(){
   const data=await(await api("/quote",{text,voiceId})).json();
   if(!Number.isSafeInteger(data.credits)||data.credits<1||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
   quote={id:data.quoteId,credits:data.credits,text,voiceId};
-  $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+(data.franchiseQuotaRemaining!=null?" · Cota de franquias restante: "+data.franchiseQuotaRemaining:"");
+  $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+allocationText(data.franchiseAllocation);
   $("csVoiceGenerate").disabled=data.balance<data.credits;
  }catch(e){state(e.message)}finally{busy=false}
 }
