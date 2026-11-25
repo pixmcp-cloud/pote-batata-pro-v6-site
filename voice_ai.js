@@ -25,7 +25,7 @@ const permitted=()=>{
  if(p.role==="admin"||p.franchiseActive===true)return true;
  return p.proActive===true&&(p.plan==="lifetime"||(p.plan==="pro"&&Number.isFinite(p.expiresAt)&&p.expiresAt>Date.now()));
 };
-const packages=Object.freeze([[1,150],[5,700],[25,3250],[50,6250],[75,8250],[100,10000]].map(Object.freeze));
+const packages=Object.freeze([[5,990],[10,1790],[25,3990],[50,6990],[75,9490],[100,11990]].map(Object.freeze));
 const brl=cents=>(cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 async function refreshWallet(){
  const user=auth.currentUser,root=$("csAiWallet"),label=$("csAiBalance"),status=$("csAiWalletStatus");
@@ -132,7 +132,7 @@ universe.innerHTML=`
 document.body.append(universe);
 const u=id=>universe.querySelector('#'+id);
 const coin=(i)=>'<div class="iau-coins" aria-hidden="true">'+Array.from({length:[1,3,5,7,9,12][i]},(_,j)=>'<i style="--x:'+((j%3-1)*28)+'px;--y:'+(21-Math.floor(j/3)*10)+'px">IA</i>').join('')+'</div>';
-u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>`<article class="iau-pack" data-tier="${i}"><small>ENERGIA CRIATIVA</small>${coin(i)}<strong>${amount}</strong><span>MOEDAS IA</span><b>${brl(cents)}</b><button type="button" data-package="${i}">Comprar</button></article>`).join('');
+u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>`<article class="iau-pack" data-tier="${i}"><small>${["INICIAL","IMPULSO","CRIADOR","PRODUÇÃO","ESTÚDIO","MÁXIMA ECONOMIA"][i]}</small>${coin(i)}<strong>${amount}</strong><span>MOEDAS IA</span><b>${brl(cents)}</b><button type="button" data-package="${i}">Comprar</button></article>`).join('');
 let universeSeq=0;
 async function universeRefresh(){
  const seq=++universeSeq,user=auth.currentUser;
