@@ -102,3 +102,16 @@ body:has(#poteFloatDrawer.is-open) #poteNotifications{visibility:hidden!importan
 .pote-notice-detail-link a{display:inline-block;justify-self:start;padding:11px 14px;border-radius:10px;background:#264e62;border:1px solid #9ebdcc;color:#ebf9ff;text-decoration:none;font-weight:700;font-size:12px;overflow-wrap:anywhere}
 .pote-notice-detail-finish{justify-self:stretch;margin-top:5px;min-height:44px}
 @media(max-width:580px){.pote-notice-detail{padding:14px;max-height:calc(75dvh - 75px)}.pote-notice-detail-body{font-size:14px;padding:14px}}
+
+/* Independent IA COIN sphere, immediately left of the bell. Reserve space for all three controls. */
+#poteIaCoinToggle{position:fixed;top:12px;right:136px;z-index:9996;width:48px;height:48px;padding:0;display:grid;place-items:center;overflow:hidden;cursor:pointer;border-radius:50%;border:1px solid #47eaff;color:#fff;background:radial-gradient(circle at 30% 23%,#b9ffffa8,transparent 34%),radial-gradient(circle at 35% 30%,#267eaa,#27175f 55%,#08071b 85%);box-shadow:0 0 5px #29ecff,0 0 13px #15d9fd77,inset -3px -3px 8px #a82cff99;font:900 19px system-ui,sans-serif}
+#poteIaCoinToggle:after{content:"";position:absolute;inset:20% -10%;border:1px solid #63e5ffb0;border-radius:50%;transform:rotate(-30deg);pointer-events:none}
+#poteIaCoinToggle span{position:relative;z-index:1;text-shadow:0 0 8px #a4efff}
+#poteIaCoinToggle:focus-visible{outline:2px solid white;outline-offset:3px}
+@media(min-width:851px){.headin{padding-right:196px!important}}
+@media(max-width:850px){#poteIaCoinToggle{top:11px;right:124px;width:47px;height:47px}.headin .brand{padding-right:175px!important;min-width:0}}
+@media(max-width:390px){#poteIaCoinToggle{top:10px;right:116px;width:44px;height:44px;font-size:17px}.headin .brand{padding-right:166px!important}}
+body:has([role="dialog"][aria-modal="true"]:not([hidden])) #poteIaCoinToggle,
+body:has(#poteStockUpdate:not([hidden])) #poteIaCoinToggle,
+body:has(#poteFloatDrawer.is-open) #poteIaCoinToggle,
+body:has(#poteAiUniverse[open]) #poteIaCoinToggle{visibility:hidden!important;pointer-events:none!important}
