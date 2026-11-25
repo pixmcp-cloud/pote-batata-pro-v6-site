@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {initializeApp,applicationDefault} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore,FieldValue} from 'firebase-admin/firestore';
-import {authorized,isFranchise,validateText,priceCredits,commercialReady,canReserve} from './policy.mjs';
+import {authorized,isFranchise,validateText,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota} from './policy.mjs';
 initializeApp({credential:applicationDefault(),projectId:'potobatata-b71f3'});
 const db=getFirestore(),auth=getAuth();
 const cfg={
@@ -62,21 +62,37 @@ async function generate(uid,id,res){
   const [a,w,o]=await Promise.all([tx.get(account(uid)),tx.get(wallet(uid)),tx.get(ref)]);
   const quote=o.data(),current=w.data()?.balance;
   if(!canReserve({profile:a.data(),commercial:true,quote,balance:current,uid,now:Date.now()}))fail('Cotação expirada, usada, acesso revogado ou saldo insuficiente.',409);
-  if(priceCredits(quote.text,cfg,a.data())!==quote.credits)fail('Preço alterado, solicite nova cotação.',409);
+  if(priceCredits(quote.text,cfg)!==quote.credits)fail('Preço alterado, solicite nova cotação.',409);
   validateVoice(quote.voiceId);
   if(!Number.isSafeInteger(s.character_limit)||!Number.isSafeInteger(s.character_count)||s.character_limit-s.character_count<quote.text.length)fail('Cota do provedor insuficiente.',423);
+  let franchiseReservation=null;
+  if(isFranchise(a.data())){
+   const quota=franchiseQuota(s),quotaRef=db.doc('voiceAiFranchiseQuota/'+quota.cycle);
+   const quotaSnap=await tx.get(quotaRef),used=quotaSnap.exists?quotaSnap.data().used:0;
+   const requested=quote.text.length;
+   if(!canUseFranchiseQuota({limit:quota.limit,used,requested}))fail('Cota coletiva de 20% das franquias esgotada.',409);
+   tx.set(quotaRef,{used:used+requested,limit:quota.limit,updatedAt:FieldValue.serverTimestamp()},{merge:true});
+   franchiseReservation={cycle:quota.cycle,requested};
+  }
   tx.update(wallet(uid),{balance:current-quote.credits,updatedAt:FieldValue.serverTimestamp()});
-  tx.update(ref,{state:'reserved',reservedAt:FieldValue.serverTimestamp()});
-  return quote;
+  tx.update(ref,{state:'reserved',franchiseReservation,reservedAt:FieldValue.serverTimestamp()});
+  return {...quote,franchiseReservation};
  });
  // No automatic retry. A timeout may have consumed credits at the provider.
  // Keep reservation for manual reconciliation; never issue a second POST for this quote.
  try{
   const current=await account(uid).get();
-  if(!authorized(current.data())||priceCredits(q.text,cfg,current.data())!==q.credits) {
+  if(!authorized(current.data())||priceCredits(q.text,cfg)!==q.credits||isFranchise(current.data())!==Boolean(q.franchiseReservation)) {
    await db.runTransaction(async tx=>{
     const o=await tx.get(ref),w=await tx.get(wallet(uid));
+    const quotaRef=q.franchiseReservation?db.doc('voiceAiFranchiseQuota/'+q.franchiseReservation.cycle):null;
+    const quotaSnap=quotaRef?await tx.get(quotaRef):null;
     if(o.data()?.state==='reserved'&&Number.isSafeInteger(w.data()?.balance)){
+     if(quotaRef){
+      const used=quotaSnap.data()?.used;
+      if(!Number.isSafeInteger(used)||used<q.franchiseReservation.requested)fail('Cota requer conciliação.',409);
+      tx.update(quotaRef,{used:used-q.franchiseReservation.requested,updatedAt:FieldValue.serverTimestamp()});
+     }
      tx.update(wallet(uid),{balance:w.data().balance+q.credits,updatedAt:FieldValue.serverTimestamp()});
      tx.update(ref,{state:'refunded',reason:'access_revoked_before_provider'});
     }
@@ -111,13 +127,20 @@ const server=createServer(async(req,res)=>{
    return send(res,200,{authorized:true,commercialReady:true,balance:await balance(uid),voices:(list.voices||[]).filter(v=>voiceIds.includes(v.voice_id)).map(v=>({id:v.voice_id,name:v.name}))});
   }
   if(req.url==='/quote'){
-   await subscription();
+   const s=await subscription();
    const profile=(await account(uid).get()).data();
    if(!authorized(profile))fail('Locução bloqueada pelo ADM.',403);
-   const text=validateText(data.text),voiceId=validateVoice(data.voiceId),credits=priceCredits(text,cfg,profile),value=await balance(uid);
+   const text=validateText(data.text),voiceId=validateVoice(data.voiceId),credits=priceCredits(text,cfg),value=await balance(uid);
+   let franchiseQuotaRemaining=null;
+   if(isFranchise(profile)){
+    const quota=franchiseQuota(s),snap=await db.doc('voiceAiFranchiseQuota/'+quota.cycle).get();
+    const used=snap.exists?snap.data().used:0;
+    if(!canUseFranchiseQuota({limit:quota.limit,used,requested:text.length}))fail('Cota coletiva de 20% das franquias esgotada.',409);
+    franchiseQuotaRemaining=quota.limit-used;
+   }
    const quoteId=randomUUID();
    await order(uid,quoteId).create({uid,text,voiceId,credits,state:'quoted',expiresAt:Date.now()+300000,createdAt:FieldValue.serverTimestamp()});
-   return send(res,200,{quoteId,credits,balance:value,discountPercent:isFranchise(profile)?20:0});
+   return send(res,200,{quoteId,credits,balance:value,franchiseQuotaRemaining});
   }
   if(req.url==='/generate')return await generate(uid,data.quoteId,res);
   return send(res,404,{error:'Rota inexistente.'});
