@@ -20,3 +20,6 @@
 
 ## Testes
 Testes unitários atualizados para elegibilidade de planos, divisão igualitária e teto coletivo; execução desta revisão ainda não confirmada. Testes de integração e publicação não executados. Nenhum consumo ElevenLabs.
+
+### Tarifa fixa de locução
+15 s = 1 IA; 30 s = 2 IA; 45 s = 3 IA; 60 s = 4 IA; 75 s = 5 IA. Modalidade escolhida antes da geração e registrada na cotação. Limite piloto de 150 caracteres por 15 segundos (até 750); duração estimada, dependente da voz e ritmo. O preço não aumenta sem nova cotação e confirmação. O servidor recusa a modalidade se a tarifa não cobrir o dobro do custo configurado do provedor. Não promete duração exata; testar duração real dos MP3 antes da ativação comercial. A geração continua desativada até homologação.
