@@ -161,3 +161,5 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 - Pagamento agrupado: linhas do mesmo checkout permanecem pedidos de cozinha individuais; confirmação do valor combinado vincula todas as linhas não canceladas a um único caixa aberto, após conferência manual, sem duplicidade. Corrigido acesso a pedidos somente de bebida. Testes de caixa e Chrome (falha de rede e retry com UUID) adicionados; contratos de cache atualizados. Nenhuma ativação externa.
 
 - QA b29af48: seis workflows aprovados incluindo Firestore REST com reserva/produção/estorno e Worker. QA beee3c8: cardápio/sessão/Worker verdes, falha do build em contrato de cache (corrigido em 416523e), e erro de sintaxe de regex na regra checkoutSiteKey (corrigido neste commit; preservada exigência schemaVersion=1). Reexecutar regressão integral antes de homologar.
+
+- QA checkout: removida duplicação residual após o fechamento das regras (CI 45563436471, L587); trecho de permissões anterior preservado integralmente. Revalidação requerida. Nenhum deploy.
