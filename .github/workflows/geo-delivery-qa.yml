@@ -30,3 +30,13 @@ jobs:
       - run: node test_cardapio_core.mjs
       - run: node --test cardapio/delivery-client.test.mjs
       - run: node --check cardapio/cardapio.js && node --check public_menu_admin.mjs
+      - name: Verificar credenciais de implantação Cloudflare (sem exibir valores)
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CF_TOKEN" ] && [ -n "$CF_ACCOUNT" ]; then
+            echo "CLOUDFLARE_STAGING_CREDENTIALS_PRESENT"
+          else
+            echo "CLOUDFLARE_STAGING_CREDENTIALS_MISSING"
+          fi

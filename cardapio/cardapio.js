@@ -102,7 +102,7 @@ if(requestedSlug!==null){catalogue=[];byId.clear();}
 const STORAGE_KEY = requestedSlug===null ? "pote-cardapio-premium-preview-cart-v1" : "pote-public-menu-cart:"+requestedSlug;
 const $ = id => document.getElementById(id);
 const catTabs = $("categoryTabs"), grid = $("menuGrid"), productDialog = $("productDialog"), cartDialog = $("cartDialog");
-let deliveryController=null;
+let deliveryController=null,deliveryMode=null;
 let cart = restoreCart(), category = "Todos", search = "", selected = null, quantity = 1;
 const chosenExtras = new Set();
 let pendingProduct=[];let pendingDirty=false;
@@ -401,7 +401,9 @@ function fulfill(){
   const delivery=value==="entrega";
   $("addressLabel").hidden=!delivery;
   $("deliveryFee").textContent=delivery?"A definir pela loja":"Não se aplica";
-  if(deliveryController){deliveryController.reset();deliveryController.activate();}
+  if(deliveryController&&deliveryMode!==value){deliveryController.reset();deliveryController.activate();}
+  else deliveryController?.sync();
+  deliveryMode=value;
   return value;
 }
 async function copyText(text){
@@ -502,7 +504,7 @@ async function loadPublicMenu(slug){
     if(reminder)reminder.textContent="Catálogo público da loja. Esta versão permite somente montar uma simulação: não envia pedidos, não reserva estoque nem processa pagamentos.";
     const strip=document.querySelector(".preview-strip");
     if(strip)strip.textContent="CATÁLOGO PUBLICADO • PEDIDOS E PAGAMENTOS AINDA NÃO HABILITADOS";
-    deliveryController=mountDeliveryCheckout({slug,host:$("addressLabel"),addressInput:$("customerAddress"),feeNode:$("deliveryFee"),totalNode:$("total"),subtotal:()=>cartTotals(cart,catalogue).subtotalCents,hasCart:()=>cart.length>0,onMode:()=>document.querySelector('input[name="fulfillment"]:checked')?.value||"retirada"});
+    deliveryController=mountDeliveryCheckout({slug,host:$("addressLabel"),addressInput:$("customerAddress"),feeNode:$("deliveryFee"),totalNode:$("total"),totalLabel:$("totalLabel"),subtotal:()=>cartTotals(cart,catalogue).subtotalCents,hasCart:()=>cart.length>0,onMode:()=>document.querySelector('input[name="fulfillment"]:checked')?.value||"retirada"});
     categories();renderMenu();renderCart();
   }catch(error){
     console.warn("Cardápio público indisponível",error.code||error.message||error);

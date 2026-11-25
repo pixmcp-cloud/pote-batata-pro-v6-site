@@ -32,10 +32,10 @@ export function quoteCurrent(q,{now=Date.now(),identity,slug,address}={}){
  Number.isSafeInteger(q.feeCents)&&q.feeCents>=0);
 }
 // Only mounted on an explicitly published store after configured staging endpoint.
-export function mountDeliveryCheckout({slug,host,addressInput,feeNode,totalNode,subtotal,hasCart,onMode}){
+export function mountDeliveryCheckout({slug,host,addressInput,feeNode,totalNode,totalLabel,subtotal,hasCart,onMode}){
  if(!GEO_ENDPOINT||!host||host.dataset.geoMounted)return null;
  host.dataset.geoMounted="true";
- let auth=null,client=null,uid=null,selected=null,quote=null,epoch=0,busy=false,timer=null,abort=null;
+ let auth=null,client=null,uid=null,selected=null,quote=null,epoch=0,busy=false,timer=null,abort=null,setupPromise=null;
  const panel=el("section");panel.className="geo-delivery-panel";
  panel.append(el("strong","Entrega inteligente • homologação"));
  const signin=button("Entrar com Google para calcular");
@@ -47,10 +47,11 @@ export function mountDeliveryCheckout({slug,host,addressInput,feeNode,totalNode,
  function invalidate(){epoch++;selected=null;abort?.abort();clearTimeout(timer);results.replaceChildren();clearQuote();}
  function sync(){
   const delivery=onMode()==="entrega";panel.hidden=!delivery;
-  const current=delivery&&quoteCurrent(quote,{identity:uid,slug,address:addressInput.value});
+  const current=delivery&&hasCart()&&quoteCurrent(quote,{identity:uid,slug,address:addressInput.value});
   if(!current){quote=null;feeNode.textContent=delivery?"A calcular":"Não se aplica";totalNode.textContent=money(subtotal());}
   else{feeNode.textContent=money(quote.feeCents)+" (cotação)";totalNode.textContent=money(subtotal()+quote.feeCents);}
-  signin.hidden=!!uid;search.disabled=locate.disabled=busy||!uid||!hasCart();calculate.disabled=busy||!selected||!uid||!hasCart();
+  if(totalLabel)totalLabel.textContent=current?"Total estimado (cotação)":"Total dos produtos";
+  signin.hidden=!!uid;signin.disabled=!hasCart();search.disabled=locate.disabled=busy||!uid||!hasCart();calculate.disabled=busy||!selected||!uid||!hasCart();
  }
  function showResults(items){
   results.replaceChildren();
@@ -63,10 +64,13 @@ export function mountDeliveryCheckout({slug,host,addressInput,feeNode,totalNode,
   if(!items?.length)tell("Nenhum endereço localizado na área de atendimento. Revise rua, número e cidade.");
  }
  async function setup(){
-  if(auth)return;const a=await customerAuth();auth=a.auth;
-  client=createDeliveryClient({token:()=>auth.currentUser?.getIdToken()});
-  uid=auth.currentUser?.uid||null;sync();
-  a.sdk.onAuthStateChanged(auth,user=>{if((user?.uid||null)!==uid){uid=user?.uid||null;invalidate();sync();}});
+  if(auth)return;
+  if(!setupPromise)setupPromise=(async()=>{const a=await customerAuth();auth=a.auth;
+   client=createDeliveryClient({token:()=>auth.currentUser?.getIdToken()});
+   uid=auth.currentUser?.uid||null;sync();
+   a.sdk.onAuthStateChanged(auth,user=>{if((user?.uid||null)!==uid){uid=user?.uid||null;invalidate();sync();}});
+  })().finally(()=>{setupPromise=null});
+  await setupPromise;
  }
  signin.addEventListener("click",async()=>{
   if(!hasCart()){tell("Adicione um produto primeiro.");return;}
@@ -144,7 +148,7 @@ export function mountMerchantDelivery({host,slugFor,ownerFor,token}){
   }catch(e){if(same(s,stamp))tell(geoMessage(e));}
   finally{setBusy(false);}
  }
- address.input.addEventListener("input",()=>{selected=null;location.textContent="Selecione novamente a localização.";results.replaceChildren();});
+ address.input.addEventListener("input",()=>{epoch++;selected=null;location.textContent="Selecione novamente a localização.";results.replaceChildren();});
  for(const [b,a] of [[load,"load"],[locate,"locate"],[gpsBtn,"gps"],[save,"save"]])b.addEventListener("click",()=>void run(a));
  details.addEventListener("toggle",()=>{if(details.open)void run("load")});
 }
