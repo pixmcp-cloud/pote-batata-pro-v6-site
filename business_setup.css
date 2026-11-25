@@ -144,3 +144,10 @@ html.pote-business-open{overflow:hidden}
 #poteOpsCards>.ops-business-card>.ops-business-hint{position:absolute!important;z-index:3;left:3%;bottom:10%;width:44%;max-width:44%!important;margin:0!important;text-align:center!important;line-height:1.18;font-size:clamp(13px,3.8vw,21px)!important;font-weight:750;color:#fff2d9;overflow-wrap:normal;text-wrap:balance;}
 #poteOpsCards>.ops-business-card>.ops-chevron{z-index:4;right:12px!important;bottom:13px!important;top:auto!important;color:#ffd28a;text-shadow:0 1px 6px #000;}
 @media(max-width:350px){#poteOpsCards>.ops-business-card>strong{font-size:clamp(20px,6.8vw,25px)!important;}#poteOpsCards>.ops-business-card>.ops-business-hint{font-size:12px!important;}}
+
+/* V6 MULTIVERSAL: título compacto e identificação do ramo em duas linhas. */
+#poteOpsCards>.ops-business-card>strong{inset:9% auto auto 3%!important;height:43%;font-size:clamp(17px,5.1vw,34px)!important;letter-spacing:-.035em!important;white-space:normal!important;line-height:1.08!important;}
+#poteOpsCards>.ops-business-card>.ops-business-hint{bottom:8%;height:32%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;}
+#poteOpsCards>.ops-business-card>.ops-business-hint>.ops-business-label{display:block;color:#e7bc79;font-size:clamp(10px,2.9vw,15px);letter-spacing:.14em;font-weight:750;line-height:1;}
+#poteOpsCards>.ops-business-card>.ops-business-hint>#poteBusinessHeroHint{display:block;width:100%;color:#fff2d9;font-weight:900;font-size:clamp(12px,3.8vw,23px);letter-spacing:-.04em;line-height:1.12;overflow-wrap:normal;word-break:normal;}
+@media(max-width:350px){#poteOpsCards>.ops-business-card>strong{font-size:clamp(16px,5.1vw,19px)!important;}#poteOpsCards>.ops-business-card>.ops-business-hint>#poteBusinessHeroHint{font-size:clamp(11px,3.6vw,13px);}}

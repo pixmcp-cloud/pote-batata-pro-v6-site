@@ -11,21 +11,26 @@ const share=present('pdv-share.jpg');
 assert(share[0]===255 && share[1]===216,'OG preview must be JPEG');
 assert(share.length < 400000,'Keep WhatsApp preview economical in size');
 const svg=present('pdv-icon.svg').toString('utf8');
-assert(svg.includes('>PDV</text>') && svg.includes('>POTÊ BATATA</text>'));
+assert(svg.includes('>PDV</text>') && svg.includes('>MULTIVERSAL</text>'));
 const manifest=JSON.parse(present('manifest.webmanifest'));
-assert.equal(manifest.short_name,'PDV');
+assert.equal(manifest.short_name,'PDV MULTIVERSAL');
 assert.equal(manifest.display,'standalone');
 assert.equal(manifest.icons.length,2);
 for(const [token,what] of [
- ['href="./assets/brand/pdv-64.png"','favicon'],
- ['href="./assets/brand/pdv-icon.svg"','SVG favicon'],
- ['href="./assets/brand/pdv-180.png"','iOS icon'],
- ['href="./assets/brand/manifest.webmanifest"','app manifest'],
- ['property="og:title" content="PDV — Potê Batata"','WhatsApp title'],
+ ['href="./assets/brand/pdv-64.png?v=multiversal-20261125"','favicon'],
+ ['href="./assets/brand/pdv-icon.svg?v=multiversal-20261125"','SVG favicon'],
+ ['href="./assets/brand/pdv-180.png?v=multiversal-20261125"','iOS icon'],
+ ['href="./assets/brand/manifest.webmanifest?v=multiversal-20261125"','app manifest'],
+ ['property="og:title" content="PDV MULTIVERSAL"','WhatsApp title'],
  ['property="og:image" content="https://potobatata-b71f3.web.app/assets/brand/pdv-share.jpg"','WhatsApp preview'],
  ['property="og:image:width" content="1200"','WhatsApp image dimensions'],
  ['property="og:image:height" content="630"','WhatsApp image dimensions'],
  ['content="https://pdv.livresom.com/"','custom domain'],
 ])assert(site.includes(token),'Missing '+what);
 assert(site.includes('poteAuthGate'),'Must retain Google login gate');
-console.log('PASS PDV Potê Batata: favicon, app icons, PWA manifest and WhatsApp OG image metadata.');
+console.log('PASS PDV MULTIVERSAL: favicon, app icons, PWA manifest and WhatsApp OG image metadata.');
+
+assert.equal(manifest.name,'PDV MULTIVERSAL');
+assert(site.includes('<h1>PDV MULTIVERSAL</h1>'));
+assert(site.includes('>Meu Negócio</strong>'));
+assert(site.includes('class="ops-business-label">RAMO</span>'));

@@ -120,3 +120,6 @@ Artes aprovadas pelo proprietário: Negócio (loja/PDV/gráficos), Batataria, Pi
 - PR #42 integrada à main em 3a563ba após os três checks aprovados; publicação Pages em acompanhamento.
 - Erro reportado: Instagram abre teclado numérico. Causa: regex antiga aceitava fragmentos gram, pix, stock, payment, time etc. Falsos positivos também em chave PIX do motoboy, referência de pagamento ADM, nomes de fornecedores em entradas de estoque, observações de perdas e motivo de ajuste.
 - Classificação passa a usar metadados explícitos, tipos nativos e identificadores específicos; texto por padrão, telefone e valores preservados. Instagram recebe inputmode text explicitamente. Cache JS versionado. Teste de regressão ampliado; sem alterações de persistência ou regras.
+
+## V6 — marca comercial PDV MULTIVERSAL (25/11/2026)
+Identidade aprovada: PDV MULTIVERSAL — Todos os segmentos. Uma única plataforma. Emblema preto metálico PDV com MULTIVERSAL. Login, título, metadados, menu e card Caixa PDV ajustados. Card Meu Negócio, rótulo RAMO acima do segmento em caixa alta, foto oficial do segmento mantida. Contas e marca Potê Batata da matriz/franquia preservadas. PR #43 de teclado integrada em 8d4a0aa. Não renomear repositório, domínio, chaves de persistência ou arquivos históricos. QA e publicação a verificar.

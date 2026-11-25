@@ -114,23 +114,23 @@ function refreshIdentity(){
  const topLogo=$("poteHeadLogo"),topName=$("poteHeadName"),topSub=$("poteHeadSubtitle");
  if(topLogo)topLogo.src=isBranded?"./assets/pote-logo-original.jpg":(brand.logoUrl||GENERIC_LOGO);
  const favicon=document.querySelector('link[rel="icon"]');
- if(favicon)favicon.href=isBranded?"./assets/pote-logo-original.jpg":GENERIC_LOGO;
+ if(favicon)favicon.href="./assets/brand/pdv-icon.svg?v=multiversal-20261125";
  const registeredCompany=String(brand.name||"").trim();
  const companyName=isBranded&&(!registeredCompany||registeredCompany.toLowerCase()==="meu negócio")?"Potê Batata":registeredCompany||"Meu Negócio";
  if(topName)topName.textContent=companyName;
  if(topSub)topSub.textContent=isBranded?(on?"GESTÃO ONLINE":"FRANQUIA OFICIAL"):(on?"ADM · ":"")+(currentItem()?.label?.toUpperCase()||"ESCOLHA SEU NEGÓCIO");
  const floatTitle=$("poteFloatBrand");
- if(floatTitle)floatTitle.textContent=isBranded?"POTÊ BATATA PRO":on?"GESTÃO PRO · ADM":"GESTÃO PRO";
+ if(floatTitle)floatTitle.textContent=on?"PDV MULTIVERSAL · ADM":"PDV MULTIVERSAL";
  const footer=document.querySelector(".foot");
  if(footer?.firstChild?.nodeType===Node.TEXT_NODE){
-  const newText=isBranded?"Potê Batata Pro · Gestão Online. ":"Gestão Pro · Plataforma para negócios de alimentação. ";
+  const newText="PDV MULTIVERSAL · Todos os segmentos. Uma única plataforma. ";
   if(footer.firstChild.textContent!==newText)footer.firstChild.textContent=newText;
  }
  const businessDesc=$("poteBusinessCurrent");
  if(businessDesc)businessDesc.textContent=currentItem()?.label||"Escolher tipo de negócio";
  const businessHero=$("poteBusinessHeroHint");
  const activeType=currentItem();
- if(businessHero)businessHero.textContent=activeType?"Ramo "+activeType.label:"Escolha seu ramo";
+ if(businessHero)businessHero.textContent=activeType?activeType.label.toUpperCase():"ESCOLHA SEU RAMO";
  const businessImage=$("poteBusinessImage");
  const heroPhoto=activeType?.photo||BUSINESS_HERO;
  if(businessImage&&businessImage.getAttribute?.("src")!==heroPhoto)businessImage.src=heroPhoto;
