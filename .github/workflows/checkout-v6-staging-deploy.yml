@@ -58,13 +58,22 @@ jobs:
           node --input-type=module <<'NODE'
           const base="https://pote-batata-checkout-v6-staging.pixmcp.workers.dev";
           const req=(p,opts={})=>fetch(base+p,{...opts,redirect:"error",signal:AbortSignal.timeout(12000)});
-          let r,b;
-          for(let i=0;i<5;i++){r=await req("/health");b=await r.json().catch(()=>({}));if(r.ok&&b.status==="ok")break;await new Promise(resolve=>setTimeout(resolve,3000));}
-          if(!r.ok||b.status!=="ok"||b.checkoutEnabled!==false||b.trackingEnabled!==false)throw Error("Staging inesperado");
-          for(const p of ["orders/create","orders/read","orders/assign","orders/transition","orders/resolve","orders/confirm-payment","orders/invite","orders/accept-invite","orders/safety-alert","orders/safety-location","tracking/start","tracking/publish","tracking/read","tracking/clear","tracking/merchant-read","tracking/merchant-consent"]){
-            const q=await req("/v1/"+p,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
-            if(q.status!==423||(await q.json()).error!=="checkout_disabled")throw Error("Rota desbloqueada: "+p);
+          const routes=["orders/create","orders/read","orders/assign","orders/transition","orders/resolve","orders/confirm-payment","orders/invite","orders/accept-invite","orders/safety-alert","orders/safety-location","tracking/start","tracking/publish","tracking/read","tracking/clear","tracking/merchant-read","tracking/merchant-consent"];
+          let ready=false;
+          for(let i=0;i<10;i++){
+            const r=await req("/health"),b=await r.json().catch(()=>({}));
+            if(!r.ok||b.status!=="ok"||b.checkoutEnabled!==false||b.trackingEnabled!==false)throw Error("Staging não bloqueado");
+            if(b.apiRevision!=="v6-commercial-qa-20261125"){await new Promise(resolve=>setTimeout(resolve,5000));continue;}
+            let pending=false;
+            for(const p of routes){
+              const q=await req("/v1/"+p,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+              if(q.status===404){pending=true;continue;}
+              if(q.status!==423||(await q.json()).error!=="checkout_disabled")throw Error("Resposta inesperada: "+p+" HTTP "+q.status);
+            }
+            if(!pending){ready=true;break;}
+            await new Promise(resolve=>setTimeout(resolve,5000));
           }
+          if(!ready)throw Error("Versão ou rotas não propagadas; checkout não homologado");
           if((await req("/health",{headers:{Origin:"https://evil.example"}})).status!==403)throw Error("CORS indevido");
           const cors=await req("/v1/orders/create",{method:"OPTIONS",headers:{Origin:"https://pdv.livresom.com","Access-Control-Request-Method":"POST"}});
           if(cors.status!==204||cors.headers.get("Access-Control-Allow-Origin")!=="https://pdv.livresom.com")throw Error("Preflight inválido");

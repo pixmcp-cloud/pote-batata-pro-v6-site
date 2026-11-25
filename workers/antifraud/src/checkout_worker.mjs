@@ -70,7 +70,7 @@ export function createCheckoutWorker({verify=verifyFirebaseToken,repository=crea
   const cors=origin?{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Methods":"POST, GET, OPTIONS","Access-Control-Allow-Headers":"Authorization, Content-Type","Vary":"Origin"}:{};
   const path=new URL(req.url).pathname;
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
-  if(req.method==="GET"&&path==="/health")return reply({status:"ok",checkoutEnabled:env.ENABLE_CHECKOUT==="true",trackingEnabled:env.ENABLE_TRACKING==="true"},200,cors);
+  if(req.method==="GET"&&path==="/health")return reply({status:"ok",apiRevision:"v6-commercial-qa-20261125",checkoutEnabled:env.ENABLE_CHECKOUT==="true",trackingEnabled:env.ENABLE_TRACKING==="true"},200,cors);
   if(req.method!=="POST"||!Object.hasOwn(fields,path))return reply({error:"not_found"},404,cors);
   try{
    if(env.ENABLE_CHECKOUT!=="true")fail("checkout_disabled",423);
