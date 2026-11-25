@@ -106,3 +106,6 @@ Candidata anterior PR33 atualizada sobre main b1b65f3. FREE escolhe um segmento 
 
 ## V6 comercial — WhatsApp por lojista
 Campo público opcional explicitamente autorizado, número brasileiro validado no núcleo e nas regras. Cliente escolhe itens, informa nome/endereço se entrega e abre WhatsApp da própria loja com pedido e subtotal. Não registra venda, reserva estoque, processa pagamentos ou envia automaticamente; taxa e disponibilidade precisam de confirmação humana. Catálogo sem número continua consulta. Demonstração permanece isolada. Integração automática PRO ainda pendente; requer endpoint autenticado, validação de preços e reserva transacional. Regras candidatas não implantadas.
+
+## V6 comercial — central de planos
+Botão Planos no cabeçalho autenticado e Comparar FREE e PRO na oferta interna. Comparação dos segmentos, anúncios, WhatsApp e gestão; status de licença atual e CTA WhatsApp para contratação/renovação. Nenhum preço inventado, nenhuma cobrança automática e nenhuma promoção de licença pelo cliente. Asaas/Inter e checkout automático continuam dependentes de autorização/validação. Testes de sessão/estado e ausência de autoativação adicionados. Escopo aprovado 1 a 3, Brasil Infláveis não alterado.
