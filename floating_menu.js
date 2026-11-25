@@ -97,7 +97,7 @@ function setOpen(v){
  $('poteFloatBackdrop').hidden=!opened;
  $('poteFloatToggle').setAttribute('aria-expanded',String(opened));
  $('poteFloatToggle').setAttribute('aria-label',opened?'Fechar menu':'Abrir menu de opções');
- $('poteFloatToggle').innerHTML=opened?closeIcon:icon;
+ syncAiOrb();
  if(opened)refresh();
 }
 function showProfile(open){
@@ -119,7 +119,26 @@ function showProfile(open){
  }
 }
 $('poteFloatNavigation').innerHTML=nav.map(([tab,title])=>'<button type="button" data-tab="'+tab+'"><span>'+safe(title)+'</span><span>›</span></button>').join('');
-$('poteFloatToggle').addEventListener('click',()=>setOpen(!opened));
+// The original button keeps its fixed header position. The brand logo opens the navigation.
+const logo=document.getElementById('poteHeadLogo'),orb=$('poteFloatToggle');
+function syncAiOrb(){
+ if(!logo||!window.POTE_IA_UNIVERSE){orb.innerHTML=opened?closeIcon:icon;return;}
+ orb.classList.add('pote-ai-orb');orb.innerHTML='<span>IA</span>';
+ orb.setAttribute('aria-label','Abrir Carteira IA');orb.setAttribute('aria-controls','poteAiUniverse');
+ orb.setAttribute('aria-expanded',String(window.POTE_IA_UNIVERSE.isOpen()));
+}
+if(logo){
+ logo.setAttribute('role','button');logo.tabIndex=0;logo.setAttribute('aria-label','Abrir menu de operações');logo.title='Menu de operações';
+ logo.addEventListener('click',()=>setOpen(!opened));
+ logo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(!opened)}});
+}
+orb.addEventListener('click',()=>{
+ if(window.POTE_IA_UNIVERSE&&logo){setOpen(false);window.POTE_IA_UNIVERSE.open();syncAiOrb();}
+ else setOpen(!opened);
+});
+window.addEventListener('pote:ia-universe-ready',syncAiOrb);
+window.addEventListener('pote:ia-universe-state',syncAiOrb);
+syncAiOrb();
 $('poteFloatClose').addEventListener('click',()=>setOpen(false));
 $('poteFloatBackdrop').addEventListener('click',()=>setOpen(false));
 $('poteFloatNavigation').addEventListener('click',e=>{
