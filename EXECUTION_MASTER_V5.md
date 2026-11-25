@@ -115,3 +115,8 @@ Artes aprovadas pelo proprietário: Negócio (loja/PDV/gráficos), Batataria, Pi
 - Central de Operações: título ampliado e centralizado no bloco esquerdo superior, linha dourada e identificação do ramo ampliada no rodapé; imagem oficial do segmento ativo à direita. Sem segmento: arte genérica Negócio.
 - Seis capas reaproveitadas da PR #41, sem alterações de marca, permissões, dados, estoque ou demais cards. CSS responsivo e versões de JS/CSS alteradas para evitar cache antigo.
 - Regressão em test_business_setup.js: seis ramos, fallback e troca de imagem/texto. Homologação CI e deploy pendentes no momento deste registro.
+
+## V6 — auditoria do teclado contextual (25/11/2026)
+- PR #42 integrada à main em 3a563ba após os três checks aprovados; publicação Pages em acompanhamento.
+- Erro reportado: Instagram abre teclado numérico. Causa: regex antiga aceitava fragmentos gram, pix, stock, payment, time etc. Falsos positivos também em chave PIX do motoboy, referência de pagamento ADM, nomes de fornecedores em entradas de estoque, observações de perdas e motivo de ajuste.
+- Classificação passa a usar metadados explícitos, tipos nativos e identificadores específicos; texto por padrão, telefone e valores preservados. Instagram recebe inputmode text explicitamente. Cache JS versionado. Teste de regressão ampliado; sem alterações de persistência ou regras.

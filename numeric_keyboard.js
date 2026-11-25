@@ -1,13 +1,18 @@
 /* Teclado contextual de inputs — somente campos realmente numéricos.
- * inputmode altera o teclado do celular, sem converter o valor nem aceitar letras.
+ * inputmode altera o teclado do celular, sem converter ou validar o valor.
  * Mantém teclado comum para nomes, descrições, endereços e observações. */
 (function(root){
 "use strict";
 if(root.POTE_NUMERIC_INPUT)return;
-const PHONE=/(?:^|[._-])(?:phone|telefone|celular|whatsapp)(?:$|[._-])|(?:Phone|Telefone|WhatsApp)$/;
-const MONEY=/(?:price|preco|valor|cost|custo|fee|tax|margin|markup|gain|amount|cash|money|received|recebido|discount|desconto|troco|payment|pix|sangria|suprimento|reembolso)/i;
-const QUANTITY=/(?:qty|quant|stock|estoque|minimum|minimo|weight|peso|gram|volume|volume|yield|rendimento|percent|percentage|unidade|units|metas?|tempo|time|times|hour|kg|ml|litro|porcao)/i;
-const ENUM_IDS=/^(?:amt-|times-|pote-price-|pote-cost-)/i;
+// Somente identificadores conhecidos, ou metadados explícitos do campo.
+ // Não usar fragmentos como gram, pix, stock, payment, time: fazem parte de campos de texto.
+const PHONE_KEYS=new Set("phone telefone celular whatsapp clientphone brandphone supplierphone vitrinephone motophone potesupnewphone".split(" "));
+const DECIMAL_KEYS=new Set("orderprice orderqty ordercashreceived bevcost bevstock bevminimum addonqty priceTax builderqty poteshoppingqty openingcash countedcash amount motoratedelivery motoratekm motorateday mototripkm priceunits pricepkg priceother pricedelivery pricefee pricemktfee pricemargin pricegain prepraw prepclean shoppingqty expenseval bevprice addonprice combodiscount orderdelivery orderweight creativeold creativesale vitrinedeliv vitrinecashreceived garimpoqty garimpoprice stockpurchaseqty stockpurchasepaid stockbeverageqty stockbeveragepaid stockupdateqty stockupdatepackcustom stockupdatepaid lossstockqty newingprice newingquantity newingyield poteadmpaymentamount".toLowerCase().split(" "));
+const DYNAMIC_DECIMAL=/^(?:amt-|times-|pote-price-|pote-cost-|potesupprodprice-)[\w.-]+$/i;
+const DYNAMIC_PHONE=/^potesupphone-[\w.-]+$/i;
+const TEXT_KEYS=new Set("brandinstagram instagram motopix poteadmpaymentref stockpurchasesupplier stockbeveragesupplier stockupdatesupplier stockupdatereason lossstocknote lossordernote bevsize garimposize".split(" "));
+// Rótulo genérico permitido somente se for inequivocamente numérico, não por fragmento.
+const NUMERIC_LABEL=/^(?:valor|preço|custo|quantidade|peso|volume|rendimento|margem)\s*\(\s*(?:R\$|g|kg|ml|l|un|%)\s*\)$/i;
 function infer(el){
  if(!el||String(el.tagName||"").toUpperCase()!=="INPUT")return "";
  const type=String(el.getAttribute?.("type")||el.type||"text").toLowerCase();
@@ -19,12 +24,12 @@ function infer(el){
  if(explicit==="decimal"||explicit==="numeric"||explicit==="tel")return explicit;
  if(type==="tel")return "tel";
  if(type==="number")return el.getAttribute?.("step")==="1"?"numeric":"decimal";
- const key=String(el.id||el.name||"");
- if(/(?:Phone|Telefone|WhatsApp)|^(?:phone|telefone|celular)$/i.test(key)||PHONE.test(key))return "tel";
- if(MONEY.test(key)||ENUM_IDS.test(key))return "decimal";
- if(QUANTITY.test(key))return "decimal";
- const label=el.closest?.("label")?.textContent||"";
- if(/\(R\$\)|\(\s*(?:g|kg|ml|L|un|%)\s*\)|\b(?:valor|preço|custo)\s*\(R\$\)/i.test(label))return "decimal";
+ const key=String(el.id||el.name||"").toLowerCase();
+ if(TEXT_KEYS.has(key))return "";
+ if(PHONE_KEYS.has(key)||DYNAMIC_PHONE.test(key))return "tel";
+ if(DECIMAL_KEYS.has(key)||DYNAMIC_DECIMAL.test(key))return "decimal";
+ const label=String(el.closest?.("label")?.textContent||"").trim();
+ if(NUMERIC_LABEL.test(label))return "decimal";
  return "";
 }
 function apply(el){
