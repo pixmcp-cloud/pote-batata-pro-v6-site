@@ -81,7 +81,7 @@ export function createConsumerUI({slug,notify,money}){
   if(!tracked?.connectJobId||tracked.status!=="saiu_entrega"||!user)return;
   const id=tracked.connectJobId,index=epoch,uid=user.uid;
   try{
-   const module=await import("../motoboy-connect/connect-client.mjs?v=2");
+   const module=await import("../motoboy-connect/connect-client.mjs?v=3");
    if(index!==epoch||user?.uid!==uid||tracked?.connectJobId!==id)return;
    if(!connectDialog){connectDialog=document.createElement("dialog");connectDialog.className="merchant-dialog";document.body.append(connectDialog);}
    connectPanel?.close();connectDialog.replaceChildren();

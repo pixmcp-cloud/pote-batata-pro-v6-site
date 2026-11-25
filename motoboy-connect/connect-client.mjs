@@ -18,9 +18,34 @@ export function makeConnectPanel({role,token,id,onClose,container}){
  status.setAttribute("role","status");notice.setAttribute("role","status");map.className="connect-map";chat.className="connect-chat";actions.className="connect-actions";
  root.replaceChildren(title,status,details,map,chat,actions,notice);
  const btn=(label,fn)=>{const b=el("button",label);b.type="button";b.onclick=fn;return b};
- let renderSignature="",mapSignature="",mapEnabled=false;
+ let renderSignature="",mapSignature="",mapEnabled=false,frame=null,position=null;
+ const mapStage=el("div"),mapInfo=el("p"),mapControls=el("div");
+ mapStage.className="connect-map-stage";mapControls.className="connect-map-controls";mapInfo.className="connect-map-info";
+ const fullscreen=el("dialog");fullscreen.className="connect-map-fullscreen";fullscreen.setAttribute("aria-label","Mapa do motoboy em tela cheia");
+ const fullHead=el("header"),fullTitle=el("strong","Trajeto do motoboy"),fullInfo=el("span");
+ const fullClose=btn("×",()=>collapseMap());fullClose.setAttribute("aria-label","Fechar mapa em tela cheia");fullClose.className="connect-map-close";
+ fullHead.append(fullTitle,fullInfo,fullClose);fullscreen.append(fullHead);document.body.append(fullscreen);
+ const expand=btn("⛶ Tela cheia",()=>{if(!position||!frame||closed||fullscreen.open)return;fullscreen.showModal();moveStage(fullscreen);fullClose.focus()});expand.className="connect-map-expand";
+ const enable=btn("Visualizar mapa nesta janela",()=>{mapEnabled=true;paintMap(position)});
+ const outside=link("Abrir localização no mapa","#");
+ const moveStage=parent=>{if(mapStage.parentNode===parent)return;if(typeof parent.moveBefore==="function"){try{parent.moveBefore(mapStage,null);return}catch{}}parent.append(mapStage)};
+ function collapseMap(){if(fullscreen.open)fullscreen.close();moveStage(map);if(expand.isConnected&&!expand.hidden)expand.focus({preventScroll:true})}
+ fullscreen.addEventListener("cancel",event=>{event.preventDefault();collapseMap()});
+ fullscreen.addEventListener("close",()=>{if(!closed&&!fullscreen.open)moveStage(map)});
+ map.append(mapInfo,mapControls,mapStage);mapControls.append(enable,expand,outside);
+ function paintMap(p){
+  position=p;
+  if(!p){if(fullscreen.open)collapseMap();frame?.remove();frame=null;mapStage.hidden=true;mapControls.hidden=true;mapInfo.textContent="Sem localização recente. O GPS depende da autorização e da página aberta do motoboy.";fullInfo.textContent="";return}
+  mapControls.hidden=false;mapInfo.textContent="Última localização: "+new Date(p.at).toLocaleTimeString("pt-BR")+" · precisão "+p.accuracy+" m";fullInfo.textContent=mapInfo.textContent;
+  outside.href=mapLink(p);enable.hidden=mapEnabled;expand.hidden=!mapEnabled;mapStage.hidden=!mapEnabled;
+  if(!mapEnabled)return;
+  if(!frame){frame=el("iframe");frame.title="Posição mais recente do motoboy";frame.loading="lazy";frame.referrerPolicy="no-referrer";mapStage.append(frame)}
+  const delta=.009,url="https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent([p.lng-delta,p.lat-delta,p.lng+delta,p.lat+delta].join(","))+"&layer=mapnik&marker="+encodeURIComponent(p.lat+","+p.lng);
+  if(frame.getAttribute("src")!==url)frame.src=url;
+ }
+ paintMap(null);
  const stopGPS=()=>{if(watch!==null){navigator.geolocation?.clearWatch(watch);watch=null}};
- const end=()=>{closed=true;generation++;clearInterval(timer);stopGPS();root.replaceChildren();onClose?.()};
+ const end=()=>{closed=true;generation++;clearInterval(timer);stopGPS();if(fullscreen.open)fullscreen.close();frame?.remove();fullscreen.remove();root.replaceChildren();onClose?.()};
  const call=async(action,extra={})=>{const t=await token();if(closed)throw Error("Sessão encerrada.");return connectCall(t,{action,id:currentId,...extra})};
  async function send(action,extra={}){
   if(busy||closed)return;
@@ -43,14 +68,7 @@ export function makeConnectPanel({role,token,id,onClose,container}){
   status.textContent=job.code+" · "+({recebido:"Recebido",em_preparo:"Em produção",finalizado:"Pronto",saiu_entrega:"Saiu para entrega",entregue:"Entregue",cancelado:"Cancelado"}[job.status]||job.status)+(job.active?"":" · Encerrado");
   details.textContent=job.storeTitle+(job.courierName?" · "+job.courierName:"")+(job.address?" · "+job.address:"")+(job.instructions?" · "+job.instructions:"");
   if(!job.active||job.status!=="saiu_entrega")stopGPS();
-  const ms=JSON.stringify(job.position);
-  if(ms!==mapSignature){mapSignature=ms;map.replaceChildren();
-   if(job.position){const p=job.position;map.append(el("p","Última localização: "+new Date(p.at).toLocaleTimeString("pt-BR")+" · precisão "+p.accuracy+" m"),link("Abrir localização no mapa",mapLink(p)));
-    // Map is loaded only after explicit user action: the map service sees coordinates.
-    const draw=()=>{const frame=el("iframe");frame.title="Posição mais recente do motoboy";frame.loading="lazy";frame.referrerPolicy="no-referrer";const delta=.009;frame.src="https://www.openstreetmap.org/export/embed.html?bbox="+encodeURIComponent([p.lng-delta,p.lat-delta,p.lng+delta,p.lat+delta].join(","))+"&layer=mapnik&marker="+encodeURIComponent(p.lat+","+p.lng);map.append(frame)};
-    if(mapEnabled)draw();else {const show=btn("Visualizar mapa nesta janela",()=>{mapEnabled=true;show.remove();draw()});map.append(show);}
-   }else map.append(el("p","Sem localização recente. O GPS depende da autorização e da página aberta do motoboy."));
-  }
+  const ms=JSON.stringify(job.position);if(ms!==mapSignature){mapSignature=ms;paintMap(job.active&&job.status==="saiu_entrega"?job.position:null);}
   const signature=JSON.stringify([job.role,job.active,job.status,job.accepted,job.messages]);
   if(signature===renderSignature)return;renderSignature=signature;
   const draft=chat.querySelector("textarea")?.value||"";
@@ -73,7 +91,7 @@ export function makeConnectPanel({role,token,id,onClose,container}){
  async function refresh(){
   if(closed||polling||busy||document.hidden)return;polling=true;const g=++generation;
   try{const next=await call("view");if(closed||g!==generation)return;job=next;paint()}
-  catch(e){if(!closed&&g===generation){notice.textContent=e.message;stopGPS();job=null;status.textContent="Conexão indisponível. Tentando atualizar.";details.textContent="";chat.replaceChildren();actions.replaceChildren();renderSignature="";map.replaceChildren(el("p","Localização indisponível."));mapSignature="";}}
+  catch(e){if(!closed&&g===generation){notice.textContent=e.message;stopGPS();job=null;status.textContent="Conexão indisponível. Tentando atualizar.";details.textContent="";chat.replaceChildren();actions.replaceChildren();renderSignature="";paintMap(null);mapInfo.textContent="Localização indisponível.";mapSignature="";}}
   finally{polling=false}
  }
  timer=setInterval(refresh,20000);void refresh();return {root,close:end,refresh};

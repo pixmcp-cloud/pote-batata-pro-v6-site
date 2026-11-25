@@ -36,6 +36,33 @@ async function tapProduct(page,selector){
   await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));
   const browser=await puppeteer.launch({headless:true,executablePath:chrome,args:["--no-sandbox","--disable-dev-shm-usage","--disable-gpu"]});
   try{
+    // Motoboy GPS: mock all remote requests, never contact OSM or the real Worker.
+    {
+      const page=await browser.newPage();await page.setViewport({width:375,height:800,isMobile:true,hasTouch:true});
+      const errors=[];page.on("pageerror",e=>errors.push(e.message));
+      await page.setRequestInterception(true);
+      let pos={lat:-29.12345,lng:-49.12345,accuracy:12,at:"2026-11-25T10:00:00Z"};
+      page.on("request",req=>{const url=req.url();if(url.startsWith("http://127.0.0.1:"))return req.continue();
+       if(url.includes("/v1/motoboy-connect"))return req.respond({status:200,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization"},contentType:"application/json",body:JSON.stringify({ok:true,job:{id:"qa",role:"customer",status:"saiu_entrega",active:true,accepted:true,code:"#P0000128",storeTitle:"Loja QA",position:pos,messages:[]}})});
+       if(url.startsWith("https://www.openstreetmap.org/export/embed.html"))return req.respond({status:200,contentType:"text/html",body:"<html><body>Mapa simulado</body></html>"});
+       return req.abort();
+      });
+      await page.goto("http://127.0.0.1:"+server.address().port+"/cardapio/",{waitUntil:"domcontentloaded"});
+      await page.evaluate(async()=>{document.querySelectorAll("dialog[open]").forEach(d=>d.close());const {makeConnectPanel}=await import("/motoboy-connect/connect-client.mjs?v=3");const css=document.createElement("link");css.rel="stylesheet";css.href="/motoboy-connect/panel.css";document.head.append(css);await new Promise(resolve=>{css.onload=resolve;css.onerror=resolve});const parent=document.createElement("dialog");parent.id="qa-connect";parent.style.cssText="width:calc(100% - 16px);max-width:650px;padding:12px;box-sizing:border-box";const holder=document.createElement("div");parent.append(holder);document.body.append(parent);parent.showModal();window.qaConnect=makeConnectPanel({role:"customer",token:async()=>"mock",id:"qa",container:holder})});
+      await page.waitForSelector(".connect-map-controls button",{visible:true});
+      await page.click(".connect-map-controls button:first-child");await page.waitForSelector(".connect-map-stage iframe",{visible:true});
+      const square=await page.$eval(".connect-map-stage",e=>{const r=e.getBoundingClientRect();return r.width/r.height});assert(Math.abs(square-1)<.03,"mapa 1:1 celular");
+      await page.click(".connect-map-expand");await page.waitForSelector(".connect-map-fullscreen[open]",{visible:true});
+      assert(await page.$eval(".connect-map-fullscreen",e=>{const r=e.getBoundingClientRect();return Math.abs(r.width-innerWidth)<3&&Math.abs(r.height-innerHeight)<3}));
+      assert.equal(await page.$eval(".connect-map-stage iframe",e=>e.length),1);
+      await page.click(".connect-map-close");assert.equal(await page.$eval(".connect-map-fullscreen",e=>e.open),false);
+      assert(await page.$eval(".connect-map>.connect-map-stage",e=>!e.hidden));
+      await page.click(".connect-map-expand");pos={...pos,lat:-29.124,at:"2026-11-25T10:00:20Z"};await page.evaluate(()=>window.qaConnect.refresh());
+      assert(await page.$eval(".connect-map-fullscreen iframe",e=>e.src.includes("-29.124")));
+      pos=null;await page.evaluate(()=>window.qaConnect.refresh());assert.equal(await page.$eval(".connect-map-fullscreen",e=>e.open),false);assert.equal(await page.$eval(".connect-map-stage iframe",e=>e.length),0);
+      await page.evaluate(()=>window.qaConnect.close());assert.equal(await page.$eval(".connect-map-fullscreen",e=>e.length),0);
+      assert.deepEqual(errors,[]);await page.close();console.log("PASS GPS Motoboy: 1:1, tela cheia, X, atualizacao, encerramento seguro.");
+    }
     for(const width of [320,375,430,834,1366]){
       const page=await browser.newPage();
       await page.setViewport({width,height:width===834?680:800,isMobile:width<600,hasTouch:width<600});
