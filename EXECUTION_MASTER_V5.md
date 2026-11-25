@@ -123,3 +123,6 @@ Artes aprovadas pelo proprietário: Negócio (loja/PDV/gráficos), Batataria, Pi
 
 ## V6 — marca comercial PDV MULTIVERSAL (25/11/2026)
 Identidade aprovada: PDV MULTIVERSAL — Todos os segmentos. Uma única plataforma. Emblema preto metálico PDV com MULTIVERSAL. Login, título, metadados, menu e card Caixa PDV ajustados. Card Meu Negócio, rótulo RAMO acima do segmento em caixa alta, foto oficial do segmento mantida. Contas e marca Potê Batata da matriz/franquia preservadas. PR #43 de teclado integrada em 8d4a0aa. Não renomear repositório, domínio, chaves de persistência ou arquivos históricos. QA e publicação a verificar.
+
+### V6 — correção de publicação MULTIVERSAL (25/11/2026)
+PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contrato visual que exigia a URL literal do PNG antigo. O teste de marca, ícones e metadados passou. Atualizado contrato para exigir o SVG MULTIVERSAL versionado no código-fonte e HTML gerado e verificar o texto da arte, preservando as demais assertivas de PDV, acesso, relatórios e PNG PWA. Sem remoção de testes ou alteração operacional. Nova publicação a conferir.
