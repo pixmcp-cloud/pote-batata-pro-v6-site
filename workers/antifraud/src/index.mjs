@@ -53,7 +53,7 @@ const persisted=(group,id,item,universe,prior,rank)=>({
 });
 export function createWorkerApp({
  verify=verifyFirebaseToken,repository=createFirestoreRepository,
- clock=()=>new Date(),checkoutChallenge=verifyCheckoutChallenge
+ clock=()=>new Date(),checkoutChallenge=verifyCheckoutChallenge,postalLookup
 }={}){
  async function performStockAdjust(req,env,headers){
   if(env.ENABLE_WRITES!=="true")
@@ -280,6 +280,14 @@ export function createWorkerApp({
     await tx.commit(writes);
     return json({ok:true,orderId,operationId,status:next.status,alreadyApplied:false},200,headers);
    }
+   if(action==="cancel"&&original.item.deliveryType==="Tele-entrega"&&tracking){
+    const siblings=await Promise.all(tracking.doc.data.lines.map(line=>tx.get(recordPath(uid,universe,"orders",line.id))));
+    const active=siblings.map(d=>d?.data?.record?.item).filter(o=>o&&o.status!=="cancelado");
+    if(siblings.some(d=>!d?.data?.record?.item)||active.some(o=>o.checkoutDispatchedAt||o.status==="entregue"||o.paymentStatus!=="Pendente"||o.paymentConfirmedAt))
+     throw new OperationalError("Entrega despachada ou recebida exige conciliação manual antes do cancelamento.",409,"delivery_review");
+    if(original.item.checkoutFreightCarrier&&active.length>1)
+     throw new OperationalError("Cancele os outros itens primeiro; a linha com frete deve ser a última.",409,"delivery_review");
+   }
    const counts=action==="cancel"&&original.item.stockDeducted!==true?
     new Map():quantities(original.item);
    // Don't trust any item or quantity supplied by the browser.
@@ -364,7 +372,7 @@ export function createWorkerApp({
      writesEnabled:env.ENABLE_WRITES==="true"},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
    try{
-    if(route==="/v1/checkout"){
+    if(route==="/v1/checkout"||route==="/v1/checkout/quote"){
      // Public ordering is separate from authenticated stock operations. Verify
      // anti-abuse token once, not on each transaction retry.
      if(env.ENABLE_WRITES!=="true"||env.ENABLE_PUBLIC_CHECKOUT!=="true")return json({error:"checkout_disabled"},423,headers);
@@ -376,7 +384,7 @@ export function createWorkerApp({
      const input=await checkoutRequest(req);
      if(!await checkoutChallenge(input.challenge,env,input.operationId))return json({error:"challenge_required"},403,headers);
      for(let attempt=0;attempt<4;attempt++){
-      try{const result=await submitCheckout({input,env,repository,at:clock(),consumerUid:consumer.uid});return json(result,result.alreadyApplied?200:201,headers)}
+      try{const quoteOnly=route==="/v1/checkout/quote";const result=await submitCheckout({input,env,repository,at:clock(),consumerUid:consumer.uid,postalLookup,quoteOnly});return json(result,quoteOnly||result.alreadyApplied?200:201,headers)}
       catch(e){if(!(e instanceof FirestoreError)||![409,412].includes(e.status)||attempt===3)throw e;
        await new Promise(resolve=>setTimeout(resolve,60*(attempt+1)+Math.floor(Math.random()*160)));
       }

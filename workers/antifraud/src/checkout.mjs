@@ -3,6 +3,7 @@
  * The browser supplies product IDs, quantities and expected total ONLY. */
 import {OperationalError,quantities,recordPath,resolveRecord} from "./domain.mjs";
 import {trackingPath,initialTracking} from "./tracking.mjs";
+import {deliveryInput,resolveDelivery,lookupPostalCode} from "./delivery_checkout.mjs";
 const fail=(message,code="invalid_checkout",status=400)=>{throw new OperationalError(message,status,code)};
 const isObject=x=>x&&typeof x==="object"&&!Array.isArray(x);
 const exact=(x,keys)=>isObject(x)&&Object.keys(x).every(k=>keys.includes(k))&&keys.every(k=>Object.hasOwn(x,k));
@@ -24,7 +25,7 @@ export async function checkoutRequest(req){
   try{while(true){const next=await reader.read();if(next.done)break;length+=next.value.length;if(length>12000){await reader.cancel();fail("Pedido muito extenso.")}body+=decoder.decode(next.value,{stream:true});}body+=decoder.decode();}finally{reader.releaseLock()}
   raw=JSON.parse(body);
  }catch(e){if(e instanceof OperationalError)throw e;fail("Pedido inválido.")}
- if(!exact(raw,["slug","operationId","items","expectedTotalCents","customerName","customerPhone","payment","challenge"])||
+ if(!exact(raw,["slug","operationId","items","expectedTotalCents","customerName","customerPhone","payment","challenge",...(raw?.delivery!==undefined?["delivery"]:[])])||
    typeof raw.slug!=="string"||!/^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]$/.test(raw.slug)||!uuid(raw.operationId)||
    !Array.isArray(raw.items)||raw.items.length<1||raw.items.length>20||
    !Number.isSafeInteger(raw.expectedTotalCents)||raw.expectedTotalCents<=0||raw.expectedTotalCents>10000000||
@@ -39,7 +40,7 @@ export async function checkoutRequest(req){
   units+=item.quantity;return {id:item.id,quantity:item.quantity,note:item.note.trim()};
  });
  if(units>60)fail("Limite de 60 produtos por pedido.");
- return {slug:raw.slug,operationId:raw.operationId.toLowerCase(),items,expectedTotalCents:raw.expectedTotalCents,customerName:raw.customerName.trim(),customerPhone:phone,payment:raw.payment,challenge:raw.challenge};
+ return {slug:raw.slug,operationId:raw.operationId.toLowerCase(),items,expectedTotalCents:raw.expectedTotalCents,customerName:raw.customerName.trim(),customerPhone:phone,payment:raw.payment,challenge:raw.challenge,...(raw.delivery!==undefined?{delivery:deliveryInput(raw.delivery)}:{})};
 }
 export async function verifyCheckoutChallenge(token,env,operationId){
  const secret=env.TURNSTILE_SECRET,hosts=String(env.TURNSTILE_HOSTNAMES||"").split(",").map(x=>x.trim()).filter(Boolean);
@@ -82,7 +83,7 @@ function record(doc,group,universe,id){
  return r.item;
 }
 const dateBR=at=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(at);
-export async function submitCheckout({input,env,repository,at,consumerUid}){
+export async function submitCheckout({input,env,repository,at,consumerUid,postalLookup=lookupPostalCode,quoteOnly=false}){
  if(typeof consumerUid!=="string"||!/^[A-Za-z0-9:_-]{1,128}$/.test(consumerUid))fail("Entre com Google para confirmar.","authentication_required",401);
  if(env.ENABLE_WRITES!=="true"||env.ENABLE_PUBLIC_CHECKOUT!=="true")fail("Checkout em homologação.","checkout_disabled",423);
  const tx=await repository(env).transaction();
@@ -94,15 +95,16 @@ export async function submitCheckout({input,env,repository,at,consumerUid}){
   const uid=menu.ownerUid,universe=menu.businessType,root="users/"+uid;
   const profile=(await tx.get(root))?.data;
   if(!permit(profile,env,uid,universe,input.slug,at))fail("Loja indisponível para pedidos automáticos.","checkout_disabled",423);
+  if(quoteOnly&&!input.delivery)fail("Informe endereço para calcular frete.");
   const eventPath=root+"/publicCheckoutEvents/"+input.operationId;
   const {challenge,...intent}=input,fingerprint=await sha256(JSON.stringify({consumerUid,...intent}));
   const previous=await tx.get(eventPath);
-  if(previous){
+  if(previous&&!quoteOnly){
    if(previous.data.consumerUid!==consumerUid||previous.data.fingerprint!==fingerprint)fail("Identificador já utilizado em outro pedido.","idempotency_conflict",409);
    return {...previous.data.result,alreadyApplied:true};
   }
   const consumerPath=trackingPath(consumerUid,input.operationId);
-  if(await tx.get(consumerPath))fail("Identificador já utilizado.","idempotency_conflict",409);
+  if(!quoteOnly&&await tx.get(consumerPath))fail("Identificador já utilizado.","idempotency_conflict",409);
   const metaPath=root+"/appState/v5",guardPath=root+"/appState/v5InventoryGuard",pulsePath=root+"/appState/v5Pulse";
   const [meta,guard,pulse]=await Promise.all([tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath)]);
   const state=meta?.data?.state?.data;
@@ -113,6 +115,13 @@ export async function submitCheckout({input,env,repository,at,consumerUid}){
    !pulse?.data?.eventId||!Number.isSafeInteger(state.orderSequenceLast??0)||(state.orderSequenceLast??0)<0)
    fail("Loja ainda não preparada para checkout.","not_ready",409);
   const settings=state.settings||{};
+  if(input.delivery&&menu.deliveryEnabled!==true)fail("Loja sem tele-entrega automática.","delivery_disabled",423);
+  if(quoteOnly){
+   let subtotal=0;for(const line of input.items){const p=menu.items.find(x=>x.id===line.id);if(!p||p.available===false||!Number.isSafeInteger(p.priceCents)||p.priceCents<=0)fail("Produto indisponível.","catalog_changed",409);subtotal+=p.priceCents*line.quantity;}
+   if(subtotal!==input.expectedTotalCents)fail("Preço mudou. Atualize o cardápio.","price_changed",409);
+   const q=await resolveDelivery({input:input.delivery,settings,subtotalCents:subtotal,lookup:postalLookup,env});
+   return {ok:true,subtotalCents:subtotal,feeCents:q.feeCents,totalCents:subtotal+q.feeCents,address:q.address,method:q.method};
+  }
   const fees=numeric(settings.fee,"taxa",0)+numeric(settings.tax,"impostos",0);
   if(fees>=100)fail("Taxas precisam ser revisadas.","catalog_incomplete",409);
   // Expenses are normalized records, not metadata; fetched below using the
@@ -197,6 +206,16 @@ export async function submitCheckout({input,env,repository,at,consumerUid}){
    addNeeds(reserved,order);
    rows.push(order);total+=p.priceCents*line.quantity;
   }
+  const subtotal=total;
+  let freight=null;
+  if(input.delivery){
+   freight=await resolveDelivery({input:input.delivery,settings,subtotalCents:subtotal,lookup:postalLookup,env});
+   if(freight.feeCents!==input.delivery.expectedFeeCents)fail("Frete mudou. Calcule novamente.","price_changed",409);
+   total+=freight.feeCents;
+   for(const o of rows){o.deliveryType="Tele-entrega";o.clientAddress=freight.address;o.deliveryNeighborhoodId=freight.neighborhoodId;}
+   // A checkout is one destination, even when its kitchen has multiple rows.
+   rows[0].deliveryFee=freight.feeCents/100;rows[0].deliveryCost=freight.costCents/100;rows[0].checkoutFreightCarrier=true;
+  }
   if(total!==input.expectedTotalCents)fail("O total mudou. Atualize o cardápio antes de confirmar.","price_changed",409);
   // Only check items touched by the new order, while subtracting ALL existing holds.
   const needed=new Map();for(const o of rows)addNeeds(needed,o);
@@ -212,7 +231,7 @@ export async function submitCheckout({input,env,repository,at,consumerUid}){
    writes.push(put(path,{record:{universe,group:"orders",id:o.id,item:o,rank:-at.getTime()-index/100}},null));
    changed.push(path.split("/").at(-1));
   }
-  const result={ok:true,checkoutId:input.operationId,createdAt:at.toISOString(),totalCents:total,orderNumbers:rows.map(o=>o.orderNumber),status:"recebido",paymentStatus:"pendente",alreadyApplied:false};
+  const result={ok:true,checkoutId:input.operationId,createdAt:at.toISOString(),totalCents:total,orderNumbers:rows.map(o=>o.orderNumber),status:"recebido",paymentStatus:"pendente",alreadyApplied:false,...(freight?{deliveryType:"Tele-entrega",deliveryFeeCents:freight.feeCents}:{})};
   writes.push(put(metaPath,{...meta.data,state:nextState},meta),put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"web-"+input.operationId,previousEventId:pulse.data.eventId,origin:"public-checkout",affected:changed.length,changedKeys:changed,metaChanged:true,sensitive:true},pulse),
    put(eventPath,{fingerprint,result,consumerUid,createdAt:at.toISOString()},null),

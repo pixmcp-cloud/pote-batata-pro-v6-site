@@ -8,7 +8,7 @@ export function trackingPath(uid,id){
 }
 export function initialTracking({rows,slug,title,total,at,checkoutId}){
  return {checkoutId,slug,storeTitle:String(title||"Loja").slice(0,70),createdAt:at,updatedAt:at,status:"recebido",
-  finishedAt:null,durationSeconds:null,totalCents:total,deliveryType:"Retirada",lines:rows.map(o=>({id:o.id,orderNumber:o.orderNumber,name:o.name,qty:o.qty,priceCents:Math.round(o.price*100),status:"recebido"}))};
+  finishedAt:null,durationSeconds:null,totalCents:total,deliveryType:rows[0]?.deliveryType||"Retirada",...(rows[0]?.deliveryType==="Tele-entrega"?{deliveryFeeCents:Math.round(rows.reduce((sum,o)=>sum+(o.deliveryFee||0),0)*100),deliveryAddress:rows[0].clientAddress}:{}),lines:rows.map(o=>({id:o.id,orderNumber:o.orderNumber,name:o.name,qty:o.qty,priceCents:Math.round(o.price*100),status:"recebido"}))};
 }
 export function updateTracking(previous,updates,at){
  if(!previous||!Array.isArray(previous.lines)||!previous.lines.length||previous.lines.length>20)deny("Histórico do pedido indisponível.","tracking_invalid");
@@ -29,7 +29,7 @@ export function updateTracking(previous,updates,at){
  const start=Date.parse(previous.createdAt),end=Date.parse(finishedAt);
  if(terminal&&(!Number.isFinite(start)||!Number.isFinite(end)||end<start))deny("Horário inválido.","tracking_invalid");
  return {...previous,lines,status,updatedAt:at,finishedAt,durationSeconds:terminal?Math.floor((end-start)/1000):null,
-  totalCents:active.reduce((sum,l)=>sum+l.qty*l.priceCents,0)};
+  totalCents:active.reduce((sum,l)=>sum+l.qty*l.priceCents,0)+(active.length?previous.deliveryFeeCents||0:0)};
 }
 export async function loadTracking(tx,uid,order){
  if(order.source!=="public-checkout"||!order.consumerUid)return null;

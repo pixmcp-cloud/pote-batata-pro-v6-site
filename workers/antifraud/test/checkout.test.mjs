@@ -25,8 +25,8 @@ function setup(){
  record("expenses","f",{enabled:true,mode:"mensal",amount:100,repeat:1});
  record("orders","manual",{status:"recebido",qty:1,items:[{id:"batata",g:100,yieldPct:100}],beverageItems:[],orderNumber:7});
  const database={async transaction(){return {async get(p){return docs.has(p)?structuredClone(docs.get(p)):null},async receivedOrders(){return [...docs.values()].filter(x=>x.data.record?.item?.status==="recebido").map(x=>structuredClone(x))},async expenses(){return [...docs.values()].filter(x=>x.data.record?.group==="expenses").map(x=>structuredClone(x))},async commit(writes){for(const w of writes){const old=docs.get(w.path);if(w.precondition.exists===false&&old||w.precondition.updateTime&&old?.updateTime!==w.precondition.updateTime)throw new FirestoreError(409,"conflict")}for(const w of writes)seed(w.path,w.data)},async rollback(){}}}};
- const app=createWorkerApp({repository:()=>database,checkoutChallenge:async token=>token==="qa-token",clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async token=>({uid:token==="customer"?"qa-consumer":uid,isAdmin:false})});
- const call=async(body,override={},route="/v1/checkout")=>{const resp=await app.fetch(new Request("https://worker.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer "+(route==="/v1/checkout"?"customer":"qa")},body:JSON.stringify(body)}),{...env,...override});return {status:resp.status,body:await resp.json()}};
+ const app=createWorkerApp({repository:()=>database,checkoutChallenge:async token=>token==="qa-token",postalLookup:async cep=>({cep:cep.slice(0,5)+"-"+cep.slice(5),logradouro:"Rua QA",bairro:"Centro",localidade:"Sombrio",uf:"SC"}),clock:()=>new Date("2026-11-25T13:00:00Z"),verify:async token=>({uid:token==="customer"?"qa-consumer":uid,isAdmin:false})});
+ const call=async(body,override={},route="/v1/checkout")=>{const resp=await app.fetch(new Request("https://worker.test"+route,{method:"POST",headers:{Origin:"https://qa.test","Content-Type":"application/json",Authorization:"Bearer "+(route.startsWith("/v1/checkout")?"customer":"qa")},body:JSON.stringify(body)}),{...env,...override});return {status:resp.status,body:await resp.json()}};
  return {docs,seed,get,record,call};
 }
 test("checkout atomic: existing POS hold, recipe + packaging + drink, idempotency, no fake paid",async()=>{
@@ -57,4 +57,31 @@ test("challenge, tenant gates, malformed fields, price changes, concurrent holds
  const result=await Promise.all([x.call(payload()),x.call(payload(op2))]);
  assert.deepEqual(result.map(r=>r.status).sort(),[201,409]);
  assert.equal(x.get(root+"/appState/v5InventoryGuard").revision,4);
+});
+
+test("delivery quote and checkout: server verified CEP, one fee and cost, lifecycle, retry",async()=>{
+ const x=setup(),config={ENABLE_PUBLIC_DELIVERY:"true"};
+ const meta=x.get(root+"/appState/v5");
+ Object.assign(meta.state.data.settings,{deliveryCity:"Sombrio",deliveryUF:"SC",deliveryCostPerOrder:4.5,deliveryPolicy:{enabled:true,mode:"hybrid",perKmCents:50,minFeeCents:0,maxDistanceMeters:null,freeAboveCents:null,neighborhoods:[{id:"centro",name:"Centro",feeCents:500,enabled:true}]}});
+ x.seed(root+"/appState/v5",meta);x.seed("publicMenus/"+slug,{...x.get("publicMenus/"+slug),deliveryEnabled:true});
+ const delivery={cep:"88960001",number:"10",complement:"Apto 2",expectedFeeCents:0};
+ const q=await x.call(payload(op1,{delivery}),config,"/v1/checkout/quote");
+ assert.equal(q.status,200,JSON.stringify(q));assert.equal(q.body.feeCents,500);assert.equal(q.body.totalCents,7000);
+ assert.equal(x.get(root+"/appState/v5InventoryGuard").revision,3,"quote has no writes");
+ assert.equal((await x.call(payload(op1,{delivery,expectedTotalCents:6500}),config)).body.error,"price_changed");
+ const input=payload(op1,{delivery:{...delivery,expectedFeeCents:500},expectedTotalCents:7000});
+ assert.equal((await x.call(input)).status,423);
+ const order=await x.call(input,config);assert.equal(order.status,201,JSON.stringify(order));assert.equal(order.body.totalCents,7000);
+ const ids=[0,1].map(i=>"web-"+op1+"-"+i),rows=ids.map(id=>x.get(recordPath(uid,u,"orders",id)).record.item);
+ assert.deepEqual(rows.map(o=>o.deliveryFee),[5,0]);assert.deepEqual(rows.map(o=>o.deliveryCost),[4.5,0]);assert(rows.every(o=>o.deliveryType==="Tele-entrega"&&o.clientAddress.includes("Rua QA, 10")));
+ assert.equal((await x.call(input,config)).body.alreadyApplied,true);
+ const transition=(action,id,n,extra={})=>x.call({universe:u,orderId:id,operationId:n+"3333333-3333-4333-8333-333333333333",...extra},config,"/v1/orders/"+action);
+ assert.equal((await transition("cancel",ids[0],"3",{decision:"return"})).body.error,"delivery_review");
+ assert.equal((await transition("produce",ids[0],"4")).status,200);
+ assert.equal((await transition("produce",ids[1],"5")).status,200);
+ assert.equal((await transition("ready",ids[0],"6")).status,200);
+ assert.equal((await transition("dispatch",ids[0],"7")).status,200);
+ const tracking=x.get("consumerOrders/qa-consumer/orders/"+op1);assert.equal(tracking.status,"saiu_entrega");assert.equal(tracking.totalCents,7000);
+ assert.equal((await transition("deliver",ids[0],"8")).status,200);
+ assert.equal(x.get("consumerOrders/qa-consumer/orders/"+op1).status,"entregue");assert.equal(x.get("consumerOrders/qa-consumer/orders/"+op1).totalCents,7000);
 });
