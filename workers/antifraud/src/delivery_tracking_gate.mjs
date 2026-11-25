@@ -9,10 +9,11 @@ const int=x=>Number.isSafeInteger(x)&&x>=0;
 const fail=(code,status=403)=>{throw Object.assign(Error(code),{code,status})};
 export class DeliveryTrackingGate {
  constructor(state){this.storage=state.storage}
+ now(){return Date.now()}
  async alarm(){
   const next=await this.storage.transaction(async tx=>{
    const s=await tx.get("session"),closed=await tx.get("closed"),emergency=await tx.get("emergency");
-   const now=Date.now();
+   const now=this.now();
    if(!s||s.expiresAt<=now){await tx.delete("latest");await tx.delete("session");}
    if(closed&&closed.until<=now)await tx.delete("closed");
    if(emergency&&emergency.expiresAt<=now)await tx.delete("emergency");
@@ -24,7 +25,7 @@ export class DeliveryTrackingGate {
  async fetch(req){
   try{
    if(req.method!=="POST")return reply({error:"not_found"},404);
-   const action=new URL(req.url).pathname.slice(1),b=await req.json(),now=Date.now();
+   const action=new URL(req.url).pathname.slice(1),b=await req.json(),now=this.now();
    if(!idOk(b?.id))fail("invalid_order",400);
    const result=await this.storage.transaction(async tx=>{
     if(action==="safety-store"||action==="safety-read"){
