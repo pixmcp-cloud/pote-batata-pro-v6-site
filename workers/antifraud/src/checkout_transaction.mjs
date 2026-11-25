@@ -4,6 +4,7 @@ import {recordPath,quantities} from "./domain.mjs";
 import {stockCostUnit} from "./stock_loss.mjs";
 import {planPublicCheckout,CheckoutError} from "./public_checkout_core.mjs";
 import {deliveryEntitlement} from "./delivery_policy.mjs";
+import {buyerOrderView} from "./public_delivery_view.mjs";
 const fail=code=>{throw new CheckoutError(code)};
 const opOk=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{20,80}$/.test(x);
 const uniOk=x=>typeof x==="string"&&/^[a-z0-9_-]{1,64}$/.test(x);
@@ -57,7 +58,7 @@ function pdvOrder(plan,{id,stock,settings,now}){
   publicLines:plan.lines.map(x=>({name:x.name,id:x.id,qty:x.qty,unitPriceCents:x.unitPriceCents,note:x.note})),
   addons:[],removedIngredients:[],customAddons:[],deliveryStatus:"recebido"};
 }
-export async function commitPublicCheckout({repository,buyerUid,request,quote=null,deliveryConfigVersion=null,limits,now=Date.now()}){
+export async function commitPublicCheckout({repository,buyerUid,request,quote=null,deliveryConfigVersion=null,loadQuote=null,limits,now=Date.now()}){
  if(!uidOk(buyerUid)||!slugOk(request?.slug)||!opOk(request.operationId)||!Array.isArray(request.lines)||request.lines.length<1||request.lines.length>30||!int(now,0,Number.MAX_SAFE_INTEGER))fail("invalid_checkout");
  const hash=await digest([buyerUid,request.slug,request.operationId]),fingerprint=await digest(inputFingerprint(request));
  const eventPath="publicCheckoutEvents/"+hash,receiptPath="publicOrderReceipts/"+hash;
@@ -89,7 +90,9 @@ export async function commitPublicCheckout({repository,buyerUid,request,quote=nu
   if(request.fulfillment==="entrega"&&!entitlement.canStartDelivery)fail("monthly_delivery_limit");
   let redeemedPath=null;
   if(request.fulfillment==="entrega"){
-   if(!opOk(request.quoteId)||quote?.id!==request.quoteId)fail("delivery_quote_invalid");
+   if(!opOk(request.quoteId))fail("delivery_quote_invalid");
+   if(loadQuote){const trusted=await loadQuote({buyerUid,slug:request.slug,quoteId:request.quoteId});quote=trusted?.quote;deliveryConfigVersion=trusted?.version;}
+   if(quote?.id!==request.quoteId)fail("delivery_quote_invalid");
    redeemedPath="publicQuoteRedemptions/"+await digest([request.quoteId]);
    if(await tx.get(redeemedPath))fail("quote_already_used");
   }
@@ -116,7 +119,8 @@ export async function commitPublicCheckout({repository,buyerUid,request,quote=nu
    put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"checkout-"+hash,previousEventId:pulse.data.eventId,origin:"cloudflare-checkout-v6",affected:2,changedKeys:[key],metaChanged:true,sensitive:true},pulse),
    put(eventPath,{buyerUid,fingerprint,result},null),
-   put(receiptPath,privateReceipt,null)
+   put(receiptPath,privateReceipt,null),
+   put("publicOrderViews/"+hash,{...buyerOrderView(privateReceipt,buyerUid,now),buyerUid},null)
   ];
   if(redeemedPath)writes.push(put(redeemedPath,{quoteId:request.quoteId,buyerUid,ownerUid:uid,orderId:order.id},null),
    put(counterPath,{count:used+1,month:monthInBrazil(now)},counter));

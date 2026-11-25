@@ -295,10 +295,14 @@ service cloud.firestore {
       }
       // V5: um documento por entidade, com isolamento por conta e negócio.
       match /recordsV5/{recordId} {
+        function isServerCheckout(record) {
+          return record.group == "orders" && record.item.get("publicCheckoutV6", false) == true;
+        }
         function validCreate(document) {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
             && canWriteOperationalRecord(userId, recordId, record)
+            && !isServerCheckout(record)
             && (record.group != 'cashSessions' || record.item.status == 'open')
             // Pedidos, movimentos, compras e perdas não podem ser criados fora
             // da transação de inventário: evita gravações soltas pelo SDK.
@@ -310,6 +314,7 @@ service cloud.firestore {
           let oldRecord = oldDocument.record;
           return validRecordDocument(document, record)
             && canWriteOperationalRecord(userId, recordId, record)
+            && !isServerCheckout(record) && !isServerCheckout(oldRecord)
             && preservesRecordIdentity(userId, recordId, record, oldRecord)
             && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
             // Movimentos são imutáveis. Turnos abertos só podem ser fechados.
@@ -322,6 +327,7 @@ service cloud.firestore {
         allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
           && canEditOperationalRecord(userId,resource.data.record)
+          && !isServerCheckout(resource.data.record)
           && !isFinancialGroup(resource.data.record.group)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
       }
@@ -529,6 +535,14 @@ service cloud.firestore {
         && resource.data.slug == request.resource.data.slug
         && safeMenuShape();
       allow delete: if false;
+    }
+
+    // V6: sanitized customer status/history, server-written only. No GPS here.
+    match /publicOrderViews/{orderId} {
+      allow get: if googleVerified() && resource.data.buyerUid == request.auth.uid;
+      allow list: if googleVerified() && resource.data.buyerUid == request.auth.uid
+        && request.query.limit != null && request.query.limit <= 30;
+      allow create, update, delete: if false;
     }
 
     // Deny everything not explicitly listed.

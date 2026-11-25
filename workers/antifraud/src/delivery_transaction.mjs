@@ -32,7 +32,7 @@ export async function readDeliveryOrder({repository,actorUid,id,now=Date.now()})
   return {id,code:receipt.code,status:receipt.deliveryStatus,role:"courier",address:receipt.address,destination:receipt.destination,trackingAllowed:true};
  }finally{await tx.rollback()}
 }
-export async function mutateDeliveryOrder({repository,actorUid,id,operationId,action,next,courierUid,decision,reference,now=Date.now()}){
+export async function mutateDeliveryOrder({repository,actorUid,id,operationId,action,next,courierUid,decision,reference,beforeClose=null,now=Date.now()}){
  if(!uidOk(actorUid)||!idOk(id)||!opOk(operationId)||!["assign","transition","confirm_payment"].includes(action)||
     !Number.isSafeInteger(now)||now<0)fail("invalid_operation");
  const opHash=await digest([actorUid,operationId]),fingerprint=await digest([id,action,next??null,courierUid??null,decision??null,reference??null]);
@@ -41,8 +41,8 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
  try{
   const prior=await tx.get(eventPath);
   if(prior){if(prior.data.fingerprint!==fingerprint)fail("idempotency_conflict");return {...prior.data.result,alreadyApplied:true};}
-  const receiptDoc=await tx.get(receiptPath),receipt=receiptDoc?.data;
-  if(!receipt||receipt.id!==id||!uidOk(receipt.ownerUid))fail("order_unavailable");
+  const [receiptDoc,viewDoc]=await Promise.all([tx.get(receiptPath),tx.get("publicOrderViews/"+id)]),receipt=receiptDoc?.data;
+  if(!receipt||receipt.id!==id||!uidOk(receipt.ownerUid)||viewDoc?.data?.buyerUid!==receipt.buyerUid)fail("order_unavailable");
   const owner=actorUid===receipt.ownerUid,courier=receipt.fulfillment==="entrega"&&actorUid===receipt.courierUid;
   if(!owner&&!courier)fail("order_unavailable");
   if(!owner&&action!=="transition")fail("forbidden_operation");
@@ -108,9 +108,11 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
   if(writes.length>90)fail("too_many_items");
   const result={ok:true,id,status:r.deliveryStatus,revision:r.deliveryRevision,paymentStatus:r.paymentStatus,durationSeconds:r.durationSeconds??null};
   writes.push(put(orderPath,{record:{...record,item:o}},ordered),put(receiptPath,r,receiptDoc),
+   put("publicOrderViews/"+id,{...buyerOrderView(r,r.buyerUid,now),buyerUid:r.buyerUid},viewDoc),
    put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"delivery-"+opHash,previousEventId:pulse.data.eventId,origin:"cloudflare-delivery-v6",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
    put(eventPath,{fingerprint,result,actorUid,id,action},null));
+  if(terminal(r)&&!terminal(receipt)&&beforeClose)await beforeClose({id,revision:r.deliveryRevision});
   await tx.commit(writes);return {...result,alreadyApplied:false};
  }finally{await tx.rollback()}
 }
