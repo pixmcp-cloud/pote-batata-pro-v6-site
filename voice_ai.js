@@ -3,7 +3,7 @@
  * Sem endpoint comercial homologado: falha fechada. */
 import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import {getFirestore,doc,getDoc} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {getFirestore,doc,getDoc,collection,query,orderBy,limit,getDocs} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 const auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
 let quote=null,busy=false,url=null,uid=null;
 const endpoint=()=>null; // configuração versionada somente após homologação de servidor comercial
@@ -18,7 +18,7 @@ function renderQuota(q){
  $("csVoiceShare").textContent=q.count+" franquia(s) ativa(s) · "+(20/q.count).toLocaleString("pt-BR",{maximumFractionDigits:3})+"% da cota total por franquia. Limite coletivo: 20%.";
 }
 function renderChars(){if($("csVoiceChars")&&$("csVoiceText"))$("csVoiceChars").textContent=$("csVoiceText").value.length+" / 777 caracteres";}
-function clear(){quote=null;uid=null;if($("csAiWallet"))$("csAiWallet").hidden=true;if($("csAiPackages"))$("csAiPackages").hidden=true;renderQuota(null);if($("csVoiceAudio")){$("csVoiceAudio").pause();$("csVoiceAudio").removeAttribute("src");$("csVoiceAudio").hidden=true;}if($("csVoiceDownload")){$("csVoiceDownload").removeAttribute("href");$("csVoiceDownload").hidden=true;}if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
+function clear(){quote=null;uid=null;if($("csAiWallet"))$("csAiWallet").hidden=true;if($("csAiPackages"))$("csAiPackages").hidden=true;if($("csAiHistory")){$("csAiHistory").replaceChildren();$("csAiHistory").hidden=true;}renderQuota(null);if($("csVoiceAudio")){$("csVoiceAudio").pause();$("csVoiceAudio").removeAttribute("src");$("csVoiceAudio").hidden=true;}if($("csVoiceDownload")){$("csVoiceDownload").removeAttribute("href");$("csVoiceDownload").hidden=true;}if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
 const permitted=()=>{
  const p=window.POTE_AUTH,flag=p?.accessPolicy?.voiceAiEnabled;
  if(!auth.currentUser||p?.uid!==auth.currentUser.uid||flag===false)return false;
@@ -37,6 +37,22 @@ async function refreshWallet(){
   if(!Number.isSafeInteger(n)||n<0)throw Error("Saldo inválido.");
   label.textContent=n.toLocaleString("pt-BR")+" créditos";
  }catch(e){if(auth.currentUser?.uid===user.uid&&root===$("csAiWallet")){label.textContent="Indisponível";status.textContent="Carteira aguardando publicação das regras ou sincronização.";}}
+}
+async function history(){
+ const user=auth.currentUser,panel=$("csAiHistory");if(!user||!panel||!permitted())return;
+ panel.hidden=!panel.hidden;if(panel.hidden)return;
+ panel.textContent="Consultando histórico…";
+ try{
+  const data=await getDocs(query(collection(db,"users",user.uid,"aiWallet","main","entries"),orderBy("at","desc"),limit(30)));
+  if(auth.currentUser?.uid!==user.uid||!permitted()||panel!==$("csAiHistory"))return;
+  panel.replaceChildren();
+  if(data.empty){panel.textContent="Nenhuma movimentação registrada.";return;}
+  for(const entry of data.docs){
+   const d=entry.data(),row=document.createElement("p");row.className="cs-voice-state";
+   const date=d.at?.toDate?.();row.textContent=(date?date.toLocaleString("pt-BR"):"Data pendente")+" · "+(d.delta>0?"+":"")+d.delta+" créditos · "+String(d.reason||"Movimentação")+" · saldo "+d.after;
+   panel.append(row);
+  }
+ }catch(e){if(panel===$("csAiHistory"))panel.textContent="Histórico indisponível.";}
 }
 function shop(){
  if(!permitted())return state("IA exclusiva para PRO ativo, vitalício e franquias.");
@@ -102,6 +118,6 @@ async function generate(){
   state("Locução pronta. Consulte novamente o saldo antes de outra geração.");renderQuota(null);
  }catch(e){state(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false}
 }
-window.POTE_VOICE_AI={open,shop};
+window.POTE_VOICE_AI={open,shop,history};
 window.addEventListener("pote:profile-updated",()=>{if(!permitted()){clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
 window.addEventListener("pote:user-logout",clear);
