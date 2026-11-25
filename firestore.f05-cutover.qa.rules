@@ -20,7 +20,9 @@ service cloud.firestore {
     // Licenças e franquias somente são concedidas no perfil pelo administrador.
     // Não depende de "role" ou "proActive" informados pelo navegador.
     function premiumProfile(userId) {
-      let account = get(/databases/$(database)/documents/users/$(userId)).data;
+      return premiumAccount(get(/databases/$(database)/documents/users/$(userId)).data);
+    }
+    function premiumAccount(account) {
       return (
         account.keys().hasAny(['franchise'])
         && account.franchise.status == 'active'
@@ -111,7 +113,7 @@ service cloud.firestore {
         franchise.get('status', '') == 'active'
           && franchise.get('brandId', '') == 'potebatata'
         ? universe == 'batataria'
-        : (premiumProfile(userId)
+        : (premiumAccount(profile)
           || (profile.keys().hasAny(['freeUniverse'])
             ? validFreeUniverse(profile.freeUniverse) && universe == profile.freeUniverse
             : profile.get('freeUniverseRequired', false) != true && universe != 'lancheria'))
@@ -205,7 +207,7 @@ service cloud.firestore {
     // Evita aumentar insumos na restituição falsificando o pedido produzido.
     // A mesma restrição vale quando o status permanece inalterado.
     function cutoverOrderInputsUnchanged(item, before) {
-      return item.get('qty', null) == before.get('qty', null)
+      return !item.diff(before).affectedKeys().hasAny(['qty','items','beverageItems','recipeId','price','deliveryFee','stockOverrideApproved','stockActualConsumed','stockShortages']) || (item.get('qty', null) == before.get('qty', null)
         && item.get('items', []) == before.get('items', [])
         && item.get('beverageItems', []) == before.get('beverageItems', [])
         && item.get('recipeId', null) == before.get('recipeId', null)
@@ -213,7 +215,7 @@ service cloud.firestore {
         && item.get('deliveryFee', null) == before.get('deliveryFee', null)
         && item.get('stockOverrideApproved', false) == before.get('stockOverrideApproved', false)
         && item.get('stockActualConsumed', {}) == before.get('stockActualConsumed', {})
-        && item.get('stockShortages', []) == before.get('stockShortages', []);
+        && item.get('stockShortages', []) == before.get('stockShortages', []));
     }
     function cutoverUpdateAllowed(userId, record, oldRecord) {
       return !workerCutover(userId) || (
