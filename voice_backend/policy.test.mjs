@@ -95,3 +95,17 @@ test('voice configuration is constrained to approved model, language and provide
  assert.throws(()=>validateVoiceOptions({...good,voiceSettings:{...good.voiceSettings,use_speaker_boost:'true'}}));
  assert.throws(()=>validateVoiceOptions({...good,voiceSettings:{...good.voiceSettings,extra:1}}));
 });
+
+import {validateClone,cloneEnabled,sharedCloneUsable} from './clone_policy.mjs';
+test('clone requires explicit consent, licensed operation, and separate publication',()=>{
+ const bytes=Buffer.alloc(2048);bytes.write('RIFF',0);bytes.write('WAVE',8);
+ const input={name:'Locutor oficial',description:'Voz autorizada',consentRef:'termo-001',consent:true,requestId:'12345678-1234-1234-1234-123456789abc',mime:'audio/wav',audio:bytes.toString('base64')};
+ assert.equal(validateClone(input).bytes.length,2048);
+ assert.throws(()=>validateClone({...input,consent:false}));assert.throws(()=>validateClone({...input,mime:'audio/mpeg'}));assert.throws(()=>validateClone({...input,consentRef:''}));
+ assert.equal(cloneEnabled({cloneApproved:true},{can_use_instant_voice_cloning:true}),true);
+ assert.equal(cloneEnabled({cloneApproved:false},{can_use_instant_voice_cloning:true}),false);
+ const record={state:'published',requiresVerification:false,consentConfirmed:true};
+ assert.equal(sharedCloneUsable(record,{sharedCloneApproved:true}),true);
+ for(const x of [{state:'draft'},{requiresVerification:true},{consentConfirmed:false}])assert.equal(sharedCloneUsable({...record,...x},{sharedCloneApproved:true}),false);
+ assert.equal(sharedCloneUsable(record,{}),false);
+});
