@@ -1,5 +1,5 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
-import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs";
+import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs?catalogo=sem-combos";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -86,8 +86,7 @@ let catalogue = [
   { id:"chocolate-morango",title:"Chocolate Preto com Morango",category:"Doces",description:"Chocolate e morango em camadas de pura felicidade.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-preto.webp",addons:["avela"] },
   { id:"chocolate-morango-branco",title:"Chocolate Branco com Morango",category:"Doces",description:"Chocolate branco e morango em camadas cremosas.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-branco.webp",addons:["avela"] },
   { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=78",addons:[] },
-  { id:"agua",title:"Água Mineral",category:"Bebidas",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=900&q=78",addons:[] },
-  { id:"combo",title:"Combo do Sabor",category:"Combos",description:"Uma opção de demonstração com um salgado e uma bebida. Personalizações reais serão configuradas no PDV.",priceCents:4090,tag:"Combo",image:IMG,addons:[] }
+  { id:"agua",title:"Água Mineral",category:"Bebidas",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=900&q=78",addons:[] }
 ].map(product => ({ ...product, ingredientNames:DEMO_INGREDIENTS[product.id]||[], addons:product.addons.map(id => ({
   cheddar:{id:"cheddar",label:"Cheddar extra",priceCents:490},
   bacon:{id:"bacon",label:"Bacon crocante",priceCents:590},
@@ -181,8 +180,7 @@ function openProduct(p){
   $("productFactFormat").textContent=({
     Salgados:"Pote salgado — referência de 500 g",
     Doces:"Pote doce — referência de 250 g",
-    Bebidas:"Embalagem e volume a confirmar",
-    Combos:"Composição sujeita à configuração da loja"
+    Bebidas:"Embalagem e volume a confirmar"
   })[p.category] || "A confirmar pela loja";
   const names=Array.isArray(p.ingredientNames)?p.ingredientNames:[];
   const list=$("productIngredients");
