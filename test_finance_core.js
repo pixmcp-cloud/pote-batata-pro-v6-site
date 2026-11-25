@@ -30,3 +30,7 @@ assert.equal(pending.outstandingRevenue,35,"Pending sale must be explicit");
 const confirmed=F.result({unitPrice:40,unitVariableCost:15,unitFixedCost:4,paymentStatus:"confirmado"});
 assert.equal(confirmed.receivedRevenue,40);
 console.log("PASS: cálculo financeiro único de custo unitário, markup, margem, preço, lucro e inadimplência.");
+
+for(const raw of ["12.34,50","1,23.45","1 2","1e3","1.2.3","R$ 1,2,3"])assert(Number.isNaN(F.parseNumber(raw)),raw);
+assert.equal(F.parseNumber("1.234"),1.234);
+assert.equal(F.parseNumber("1,234.56"),1234.56);

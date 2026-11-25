@@ -73,7 +73,7 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
 HEAD_ASSETS = (
-    '<script src="./finance_core.js?v=core-20261116"></script>'
+    '<script src="./finance_core.js?v=core-20261116-f03-20261125"></script>'
     '<link rel="stylesheet" href="./franchise_shopping_list.css?v=shopping-close-20261118">'
     '<link rel="icon" href="./assets/brand/pdv-64.png?v=multiversal-20261125" type="image/png" sizes="64x64">'
     '<link rel="icon" href="./assets/brand/pdv-icon.svg?v=multiversal-20261125" type="image/svg+xml">'

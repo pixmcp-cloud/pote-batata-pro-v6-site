@@ -22,7 +22,7 @@ const context={window,state:{data},navigator:{onLine:true},Number,String,Intl,Ma
 vm.createContext(context);vm.runInContext(functions,context);
 for(const [raw,value] of [['1.234,56',1234.56],['R$ 1.234,56',1234.56],['12,50',12.5],['1,234.56',1234.56],['-3,75',-3.75],['1.234',1.234]])
  assert.equal(context.parseBRNumber(raw),value,raw);
-for(const raw of ['12,3,4','1.2.3','R$ abc',''])assert(Number.isNaN(context.parseBRNumber(raw)),raw);
+for(const raw of ['12,3,4','1.2.3','R$ abc','','12.34,50','1,23.45','1 2','1e3'])assert(Number.isNaN(context.parseBRNumber(raw)),raw);
 const t=context.totals();
 assert.equal(t.sales,210);assert.equal(t.receivedRevenue,100);
 assert.equal(t.pendingRevenue,110);assert.equal(t.profit,35);

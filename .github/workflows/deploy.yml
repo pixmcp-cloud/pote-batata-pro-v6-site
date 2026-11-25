@@ -1,13 +1,14 @@
-name: Publicar V5 unificado e beta autenticado
+name: Homologar V6 e publicar somente main
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-permissions: {contents: read, pages: write, id-token: write}
+permissions: {contents: read}
 jobs:
-  deploy:
+  homologacao:
     runs-on: ubuntu-latest
-    environment: github-pages
     steps:
       - uses: actions/checkout@v4
       - name: Preparar demonstracao e beta Firebase
@@ -204,6 +205,7 @@ jobs:
           node test_v5_startup_contract.cjs
           node test_v5_stress.mjs
           node test_finance_core.js
+          node test_f03_form_validation.cjs
           node test_hardening_wave1.cjs
           node test_hardening_render_events.cjs
           node test_cost_history.js
@@ -375,11 +377,17 @@ jobs:
           node test_calc_shopping_browser.cjs
           node test_cardapio_browser.cjs
           node test_pdv_auto_sale_browser.cjs
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with: {path: public}
-      # Evita corrida de indexação: o artefato pode ser enviado mas ainda não
-      # estar listado pela API de Actions quando deploy-pages tenta consultá-lo.
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: homologacao
+    runs-on: ubuntu-latest
+    permissions: {contents: read, pages: write, id-token: write}
+    environment: github-pages
+    steps:
+      - uses: actions/configure-pages@v5
       - name: Aguardar indexação do artefato do Pages
         run: sleep 15
       - uses: actions/deploy-pages@v4
