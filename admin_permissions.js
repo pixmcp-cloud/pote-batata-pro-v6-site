@@ -20,7 +20,7 @@ root.innerHTML='<h3>🔐 Permissões por universo e serviço</h3>'+
  '<div class="pote-access-universes" id="poteAccessUniverses"></div>'+
  '<label class="pote-adm-label">Serviços do universo<select id="poteAccessType"></select></label>'+
  '<div class="pote-access-services" id="poteAccessServices"></div>'+
- '<h4>Locução IA premium · autorização independente</h4><p>Bloqueada por padrão para FREE e PRO. Franquias ativas têm liberação automática e 20% de desconto, salvo bloqueio do ADM. Liberar uma conta não ativa cobrança nem substitui a licença comercial do provedor.</p><button type="button" id="poteVoicePermission" class="pote-access-toggle is-locked" disabled>🔒 Locução IA bloqueada</button>'+
+ '<h4>Locução IA premium · autorização independente</h4><p>Bloqueada por padrão para FREE e PRO. Franquias ativas têm liberação automática e limite coletivo de 20% da cota total, salvo bloqueio do ADM. Liberar uma conta não ativa cobrança nem substitui a licença comercial do provedor.</p><button type="button" id="poteVoicePermission" class="pote-access-toggle is-locked" disabled>🔒 Locução IA bloqueada</button>'+
  '<p id="poteAccessMessage" role="status" aria-live="polite">Selecione uma conta para alterar permissões.</p>';
 const host=document.querySelector("#poteAdmOverlay .pote-adm-editor");
 if(host)host.appendChild(root);
