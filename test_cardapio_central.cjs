@@ -16,3 +16,5 @@ console.log("PASS: card, rota, acesso autenticado, compartilhamento confirmado e
 assert(admin.includes("await runTransaction(db,async tx=>"));assert(admin.includes("old.data().ownerUid!==uid||target.exists()"));assert(admin.includes("published:false,updatedAt:serverTimestamp()"));assert(admin.includes("openFromMenu"));assert(admin.includes("publicMenuSearch"));
 
 assert(html.includes("Ver demonstração</a><button")&&html.includes("Ver meu cardápio"));assert(admin.includes("async function viewOwn()"));assert(admin.includes("menu?.businessType===type"));assert(admin.includes("location.assign(liveLink(menu.slug))"));assert(admin.includes("current.businessType!==businessType()"));
+
+assert(!html.includes("Vitrine Pública Simulada"));assert(!html.includes("Configure o WhatsApp em Marca"));assert(html.includes("Configurar WhatsApp")&&html.includes("Editar identidade da loja")&&html.includes("Configurar cardápio"));assert(html.includes("input.focus({preventScroll:true})"));
