@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {authorized,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota} from './policy.mjs';
+import {authorized,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
 test('PRO, ADM e perfil ausente não autorizam por si; franquia oficial é exceção',()=>{
  for(const p of [undefined,{}, {plan:'pro'}, {role:'admin'}, {franchise:{status:'active'}},{accessPolicy:{voiceAiEnabled:'true'}}])assert.equal(authorized(p),false);
  assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),true);
@@ -39,4 +39,22 @@ test('franquias compartilham 20% da cota do ciclo; sem desconto no preço',()=>{
  assert.equal(canUseFranchiseQuota({limit:q.limit,used:1990,requested:11}),false);
  assert.throws(()=>franchiseQuota({character_limit:10000}));
  assert.equal(canUseFranchiseQuota({limit:2000,used:-1,requested:1}),false);
+});
+
+test('divisão igual para 1, 2, 3, 4 e 10 franquias',()=>{
+ for(const [count,share] of [[1,2000],[2,1000],[3,666],[4,500],[10,200]]){
+  const q=individualFranchiseQuota({limit:2000,count,used:0,individualUsed:0});
+  assert.equal(q.share,share);assert.equal(q.remaining,share);assert.ok(q.share*count<=2000);
+ }
+});
+test('entrada e saída de franquias preservam uso e teto coletivo',()=>{
+ const q=(count,used,individualUsed)=>individualFranchiseQuota({limit:2000,count,used,individualUsed});
+ assert.equal(q(1,800,800).remaining,1200);
+ assert.equal(q(2,800,800).remaining,200);
+ assert.equal(q(3,800,800).remaining,0);
+ assert.equal(q(3,800,0).remaining,666);
+ assert.equal(q(2,1900,0).remaining,100);
+ assert.equal(q(1,1900,100).remaining,100);
+ assert.equal(q(2,2000,0).remaining,0);
+ assert.throws(()=>q(0,0,0));assert.throws(()=>q(2,10,11));
 });
