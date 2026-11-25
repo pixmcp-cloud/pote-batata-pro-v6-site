@@ -29,6 +29,9 @@ jobs:
           cp creative_studio.js public/creative_studio.js
           cp creative_studio.css public/creative_studio.css
           cp creative_prompt.js public/creative_prompt.js
+          cp voice_ai.js public/voice_ai.js
+          node --input-type=module --check < public/voice_ai.js
+          node --test voice_backend/policy.test.mjs
           cp public/index.html public/beta.html
           python3 make_beta.py public/beta.html
           cp public/beta.html public/index.html

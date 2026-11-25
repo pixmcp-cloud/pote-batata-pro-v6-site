@@ -329,7 +329,7 @@ BODY_ASSETS = (
     '<script src="./pro_offer.js?v=free-offer-2"></script>'
     '<script type="module" src="./firebase_integration.js?v=moderation-20261121-free-offer-2"></script>'
     '<script type="module" src="./admin_console.js?v=adm-popup-20261121"></script>'
-    '<script type="module" src="./admin_permissions.js?v=firebase-order-v5-20261120"></script>'
+    '<script type="module" src="./admin_permissions.js?v=locucao-20261125"></script>'
     '<script type="module" src="./gallery.js?v=galeria-42h"></script>'
     '<script src="./universe_templates.js?v=universes-20261115"></script>'
     '<script src="./pastelaria_templates.js?v=pastelaria-20261116"></script>'
@@ -382,9 +382,10 @@ BODY_ASSETS = (
     '<link rel="stylesheet" href="./company_pdv_polish.css?v=company-pdv-20261117">'
     '<link rel="stylesheet" href="./premium_motion.css?v=premium-motion-20261117">'
     '<script defer src="./premium_motion.js?v=premium-motion-20261117"></script>'
-    '<link rel="stylesheet" href="./creative_studio.css?v=creative-v7-20261117">'
-    '<script src="./creative_studio.js?v=creative-v7-20261117"></script>'
+    '<link rel="stylesheet" href="./creative_studio.css?v=locucao-quota-20261125">'
+    '<script src="./creative_studio.js?v=locucao-quota-20261125"></script>'
     '<script src="./creative_prompt.js?v=prompt-v5-20261117"></script>'
+    '<script type="module" src="./voice_ai.js?v=locucao-quota-20261125"></script>'
 )
 once("</body>", BODY_ASSETS + "</body>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
