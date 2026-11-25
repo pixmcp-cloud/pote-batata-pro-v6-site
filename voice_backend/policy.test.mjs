@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {authorized,priceCredits,commercialReady,canReserve} from './policy.mjs';
+import {authorized,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota} from './policy.mjs';
 test('PRO, ADM e perfil ausente não autorizam por si; franquia oficial é exceção',()=>{
  for(const p of [undefined,{}, {plan:'pro'}, {role:'admin'}, {franchise:{status:'active'}},{accessPolicy:{voiceAiEnabled:'true'}}])assert.equal(authorized(p),false);
  assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),true);
@@ -30,8 +30,13 @@ test('reserva exige identidade, autorização, licença, saldo e cotação únic
  for(const b of [{balance:2},{commercial:false},{profile:{}},{uid:'other'},{now:100},{quote:{...a.quote,state:'reserved'}}])assert.equal(canReserve({...a,...b}),false);
 });
 
-test('franquia ativa recebe 20% antes do arredondamento, demais pagam preço integral',()=>{
- const cfg={providerMicroBrlPer1000:1000000,creditMicroBrl:100000};const f={franchise:{status:'active',brandId:'potebatata'}};
- assert.equal(priceCredits('x'.repeat(500),cfg),10);assert.equal(priceCredits('x'.repeat(500),cfg,f),8);
- assert.equal(priceCredits('x'.repeat(501),cfg,f),9);assert.equal(priceCredits('x'.repeat(500),cfg,{franchise:{status:'inactive',brandId:'potebatata'}}),10);
+test('franquias compartilham 20% da cota do ciclo; sem desconto no preço',()=>{
+ const cfg={providerMicroBrlPer1000:1000000,creditMicroBrl:100000};
+ assert.equal(priceCredits('x'.repeat(500),cfg),10);
+ const q=franchiseQuota({character_limit:10000,next_character_count_reset_unix:1800000000});
+ assert.deepEqual(q,{cycle:'1800000000',limit:2000});
+ assert.equal(canUseFranchiseQuota({limit:q.limit,used:1990,requested:10}),true);
+ assert.equal(canUseFranchiseQuota({limit:q.limit,used:1990,requested:11}),false);
+ assert.throws(()=>franchiseQuota({character_limit:10000}));
+ assert.equal(canUseFranchiseQuota({limit:2000,used:-1,requested:1}),false);
 });
