@@ -72,8 +72,10 @@ $("courierStart").onclick=async()=>{
 $("courierConsentCheck").onchange=()=>{if(!$("courierConsentCheck").checked)void stop()};
 $("courierStop").onclick=()=>void stop();
 $("courierDispatch").onclick=async()=>{try{await api.request("orders/transition",{id,operationId:crypto.randomUUID(),next:"saiu_entrega"});await refresh()}catch{say("Saída não confirmada.")}};
-$("courierDone").onclick=async()=>{if(!active()||!confirm("Confirmar que o pedido foi entregue?"))return;await stop();
- try{await api.request("orders/transition",{id,operationId:crypto.randomUUID(),next:"entregue"});view=null;controls();say("Entrega confirmada. GPS encerrado.");}catch{say("Entrega não confirmada. Consulte o pedido antes de tentar novamente.");}};
+$("courierDone").onclick=async()=>{if(!active())return;
+ const deliveryCode=prompt("Peça ao cliente o código de 4 dígitos após entregar o pedido.");
+ if(!/^\d{4}$/.test(deliveryCode||""))return;
+ try{await api.request("orders/transition",{id,operationId:crypto.randomUUID(),next:"entregue",deliveryCode});await stop({clear:false});view=null;controls();say("Entrega confirmada. GPS encerrado.");}catch(e){say(({delivery_code_incorrect:"Código incorreto. Confira com o cliente.",delivery_code_locked:"Muitas tentativas. Aguarde 15 minutos.",delivery_code_unavailable:"Código indisponível. Consulte a loja."})[e.code]||"Entrega não confirmada. Consulte o pedido antes de tentar novamente.");}};
 document.addEventListener("visibilitychange",()=>{if(document.hidden)void stop({clear:false})});
 window.addEventListener("pagehide",()=>{void stop({clear:false})});
 if(!CHECKOUT_ENDPOINT){$("courierLogin").disabled=true;say("Área de entrega em homologação. Ainda não aceita entregas reais.");}

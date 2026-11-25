@@ -53,7 +53,14 @@ export function mountCustomerOrders({slug,checkoutButton,historyButton,getCart,g
    if(terminal(v)){const p=statusPresentation(v);card.append(el("p","Tempo total: "+(p?.clock||"—")));}
    const choose=btn("Acompanhar"),print=btn("Imprimir comprovante");choose.onclick=()=>{selected=v.id;footer.update(v,{online});};print.onclick=()=>printView(v);
    card.append(choose,print);
-   if(v.status==="saiu_entrega"){const track=btn("Localização do motoboy");track.onclick=()=>void startTracking(v.id);card.append(track);}
+   if(v.status==="saiu_entrega"){
+    const code=btn("Ver código da entrega"),track=btn("Localização do motoboy");
+    code.onclick=async()=>{code.disabled=true;try{const identity=uid,stamp=epoch;const r=await api.request("orders/read",{id:v.id});if(stamp!==epoch||identity!==uid||!card.isConnected)return;
+     if(r.status!=="saiu_entrega"||!/^\d{4}$/.test(r.deliveryCode||""))throw Error("unavailable");
+     const p=el("p","Código: "+r.deliveryCode+" — informe somente após receber o pedido.");p.setAttribute("role","status");code.replaceWith(p);
+    }catch{toast("Código indisponível. Atualize o pedido.");}finally{code.disabled=false;}};
+    track.onclick=()=>void startTracking(v.id);card.append(code,track);
+   }
    list.append(card);
   }
   if(!views.length)list.append(el("p","Nenhum pedido encontrado."));

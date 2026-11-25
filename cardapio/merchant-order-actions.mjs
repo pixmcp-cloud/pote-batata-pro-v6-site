@@ -35,7 +35,7 @@ export async function openMerchantOrder({order,ownerUid,onChanged,notify}){
   if(v.fulfillment==="entrega"&&v.courierAssigned&&["finalizado","saiu_entrega"].includes(v.status)){
    const link=el("a","Abrir área do motoboy");link.href=new URL("./entrega.html?pedido="+encodeURIComponent(id),import.meta.url).href;link.target="_blank";link.rel="noopener noreferrer";actions.append(link);
    if(v.status==="finalizado")add("Confirmar saída",transition("saiu_entrega"));
-   if(v.status==="saiu_entrega")add("Confirmar entrega",transition("entregue"));
+   if(v.status==="saiu_entrega")add("Confirmar entrega com código",()=>{const deliveryCode=prompt("Código de 4 dígitos informado pelo cliente após receber o pedido:");if(/^\d{4}$/.test(deliveryCode||""))void send("orders/transition",{next:"entregue",deliveryCode});});
   }
   if(v.status!=="cancelado"&&v.paymentStatus!=="confirmed"){
    const input=el("input");input.placeholder="Referência do recebimento conferido";input.maxLength=120;actions.append(input);

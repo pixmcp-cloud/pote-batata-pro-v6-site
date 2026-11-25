@@ -103,10 +103,17 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
   assert.equal(confirmed.paymentStatus,'confirmed');
   await assert.rejects(()=>mutate(uid,'confirm_payment',{reference:'duplicado'},46000),/payment_confirmation_invalid/);
   await assert.rejects(()=>mutate(uid,'transition',{next:'cancelado',decision:'return'},47000),/paid_order_requires_refund/);
-  const completed=await mutate('courier-a','transition',{next:'entregue'},65000);
+  const buyerWithCode=await readDeliveryOrder({repository,actorUid:'buyer-a',id:first.id,now:now+50000});
+  const code=buyerWithCode.deliveryCode;assert.match(code,/^\d{4}$/);
+  assert.equal(courierView.deliveryCode,undefined);
+  assert.equal((await readDeliveryOrder({repository,actorUid:uid,id:first.id,now:now+50000})).deliveryCode,undefined);
+  await assert.rejects(()=>mutate('courier-a','transition',{next:'entregue'},51000),/delivery_code_required/);
+  const wrong=code==='0000'?'0001':'0000';
+  await assert.rejects(()=>mutate('courier-a','transition',{next:'entregue',deliveryCode:wrong},52000),/delivery_code_incorrect/);
+  const completed=await mutate('courier-a','transition',{next:'entregue',deliveryCode:code},65000);
   assert.equal(completed.durationSeconds,65);
   const view=await readDeliveryOrder({repository,actorUid:'buyer-a',id:first.id,now:now+120000});
-  assert.equal(view.elapsedSeconds,65);assert.equal(view.status,'entregue');assert.equal(view.paymentStatus,'confirmed');
+  assert.equal(view.deliveryCode,undefined);assert.equal(view.elapsedSeconds,65);assert.equal(view.status,'entregue');assert.equal(view.paymentStatus,'confirmed');
   await assert.rejects(()=>readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now:now+120000}),/order_unavailable/);
   await env.withSecurityRulesDisabled(async ctx=>{
    const db=ctx.firestore(),get=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();

@@ -46,7 +46,7 @@ const fields={
  "/v1/orders/resolve":["slug","operationId"],
  "/v1/orders/read":["id"],
  "/v1/orders/assign":["id","operationId","courierUid"],
- "/v1/orders/transition":["id","operationId","next","decision"],
+ "/v1/orders/transition":["id","operationId","next","decision","deliveryCode"],
  "/v1/orders/confirm-payment":["id","operationId","reference"],
  "/v1/tracking/start":["id"],
  "/v1/tracking/publish":["id","point","consent"],

@@ -11,6 +11,8 @@ const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest("
 const terminal=o=>["entregue","cancelado"].includes(o.deliveryStatus);
 const paid=o=>Boolean(o.paymentConfirmedAt)||["pago","confirmado","pago em dinheiro"].includes(String(o.paymentStatus||"").toLowerCase());
 const clone=o=>structuredClone(o);
+// Unbiased random 4-digit code; private receipt only, never in PDV or event logs.
+function newDeliveryCode(){const n=new Uint16Array(1);do{crypto.getRandomValues(n)}while(n[0]>=60000);return String(n[0]%10000).padStart(4,"0");}
 function canonical(receipt,doc){
  const r=doc?.data?.record;
  if(!r||r.group!=="orders"||r.universe!==receipt.businessType||r.id!==receipt.pdvOrderId||r.item?.publicCheckoutV6!==true||r.item?.publicCheckoutId!==receipt.id)fail("order_inconsistent");
@@ -25,14 +27,14 @@ export async function readDeliveryOrder({repository,actorUid,id,now=Date.now()})
   if(!receipt||receipt.id!==id)fail("order_unavailable");
   const buyer=receipt.buyerUid===actorUid,owner=receipt.ownerUid===actorUid,courier=receipt.courierUid===actorUid&&receipt.fulfillment==="entrega"&&!terminal(receipt);
   if(!buyer&&!owner&&!courier)fail("order_unavailable");
-  if(buyer)return buyerOrderView(receipt,actorUid,now);
+  if(buyer)return {...buyerOrderView(receipt,actorUid,now),...(receipt.deliveryStatus==="saiu_entrega"&&/^\d{4}$/.test(receipt.deliveryProof?.code||"")?{deliveryCode:receipt.deliveryProof.code}:{})};
   if(owner)return {...buyerOrderView(receipt,receipt.buyerUid,now),pdvOrderId:receipt.pdvOrderId,customerName:receipt.customerName,customerPhone:receipt.customerPhone,courierAssigned:uidOk(receipt.courierUid),role:"merchant"};
   // Only the assigned courier gets destination and address during an active route.
   if(receipt.deliveryStatus!=="saiu_entrega")return {id,code:receipt.code,status:receipt.deliveryStatus,role:"courier"};
   return {id,code:receipt.code,status:receipt.deliveryStatus,role:"courier",address:receipt.address,destination:receipt.destination,trackingAllowed:true};
  }finally{await tx.rollback()}
 }
-export async function mutateDeliveryOrder({repository,actorUid,id,operationId,action,next,courierUid,decision,reference,beforeClose=null,now=Date.now()}){
+export async function mutateDeliveryOrder({repository,actorUid,id,operationId,action,next,courierUid,decision,reference,deliveryCode,beforeClose=null,now=Date.now()}){
  if(!uidOk(actorUid)||!idOk(id)||!opOk(operationId)||!["assign","transition","confirm_payment"].includes(action)||
     !Number.isSafeInteger(now)||now<0)fail("invalid_operation");
  const opHash=await digest([actorUid,operationId]),fingerprint=await digest([id,action,next??null,courierUid??null,decision??null,reference??null]);
@@ -71,6 +73,20 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
    r.paymentStatus="confirmed";r.paymentConfirmedAt=at;
   }else{
    r=transitionDelivery(receipt,next,{actorUid,now});
+   if(receipt.fulfillment==="entrega"&&next==="saiu_entrega"){r.deliveryProof={code:newDeliveryCode(),attempts:0,lockedUntil:0};}
+   if(receipt.fulfillment==="entrega"&&next==="entregue"){
+    const proof=receipt.deliveryProof;
+    if(!proof||!/^\d{4}$/.test(proof.code||""))fail("delivery_code_unavailable");
+    if(!/^\d{4}$/.test(typeof deliveryCode==="string"?deliveryCode:""))fail("delivery_code_required");
+    if(!Number.isSafeInteger(proof.attempts)||proof.attempts<0||proof.attempts>5||!Number.isSafeInteger(proof.lockedUntil))fail("delivery_code_unavailable");
+    if(proof.lockedUntil>now)fail("delivery_code_locked");
+    if(deliveryCode!==proof.code){
+     const attempts=(proof.lockedUntil?0:proof.attempts)+1;
+     await tx.commit([put(receiptPath,{...receipt,deliveryProof:{...proof,attempts,lockedUntil:attempts>=5?now+900000:0}},receiptDoc)]);
+     fail(attempts>=5?"delivery_code_locked":"delivery_code_incorrect");
+    }
+    r.deliveryVerifiedAt=at;o.deliveryVerifiedAt=at;
+   }
    if(next==="em_producao"||next==="cancelado"){
     if(next==="cancelado"&&paid(o))fail("paid_order_requires_refund");
     if(next==="cancelado"&&!["return","loss"].includes(decision))fail("cancel_decision_required");
@@ -102,7 +118,7 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
    if(next==="cancelado")o.clockStoppedAt=at;
    if(next==="entregue")o.clockStoppedAt=at;
    o.deliveryStatus=next;o.deliveryUpdatedAt=at;r.status=o.status;
-   if(terminal(r))delete r.destination; // exact coordinates no longer needed
+   if(terminal(r)){delete r.destination;delete r.deliveryProof;} // exact coordinates no longer needed
   }
   r.deliveryRevision=receipt.deliveryRevision+1;o.deliveryRevision=r.deliveryRevision;
   if(!Number.isSafeInteger(r.deliveryRevision))fail("revision_overflow");
