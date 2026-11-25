@@ -1,4 +1,5 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
+import {mountDeliveryCheckout} from "./delivery-client.mjs";
 import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=8";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
@@ -101,6 +102,7 @@ if(requestedSlug!==null){catalogue=[];byId.clear();}
 const STORAGE_KEY = requestedSlug===null ? "pote-cardapio-premium-preview-cart-v1" : "pote-public-menu-cart:"+requestedSlug;
 const $ = id => document.getElementById(id);
 const catTabs = $("categoryTabs"), grid = $("menuGrid"), productDialog = $("productDialog"), cartDialog = $("cartDialog");
+let deliveryController=null;
 let cart = restoreCart(), category = "Todos", search = "", selected = null, quantity = 1;
 const chosenExtras = new Set();
 let pendingProduct=[];let pendingDirty=false;
@@ -371,6 +373,7 @@ function renderCart(){
   $("subtotal").textContent=money(totals.subtotalCents);
   $("total").textContent=money(totals.subtotalCents);
   $("copyOrder").disabled=totals.count===0;
+  deliveryController?.sync();
   const holder=$("cartItems");
   holder.replaceChildren();
   if(!cart.length){
@@ -398,6 +401,7 @@ function fulfill(){
   const delivery=value==="entrega";
   $("addressLabel").hidden=!delivery;
   $("deliveryFee").textContent=delivery?"A definir pela loja":"Não se aplica";
+  if(deliveryController){deliveryController.reset();deliveryController.activate();}
   return value;
 }
 async function copyText(text){
@@ -438,7 +442,7 @@ $("confirmProduct").addEventListener("click",confirmProduct);
 productDialog.addEventListener("close",()=>{pendingProduct=[];selected=null;updatePendingStatus();});
 $("closeProduct").addEventListener("click",()=>productDialog.close());
 $("closeCart").addEventListener("click",()=>cartDialog.close());
-$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
+$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);deliveryController?.activate();cartDialog.querySelector(".cart-scroll").scrollTop=0;});
 $("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
 $("keepShopping").addEventListener("click",()=>cartDialog.close());
 $("copyOrder").addEventListener("click",copyOrder);
@@ -498,6 +502,7 @@ async function loadPublicMenu(slug){
     if(reminder)reminder.textContent="Catálogo público da loja. Esta versão permite somente montar uma simulação: não envia pedidos, não reserva estoque nem processa pagamentos.";
     const strip=document.querySelector(".preview-strip");
     if(strip)strip.textContent="CATÁLOGO PUBLICADO • PEDIDOS E PAGAMENTOS AINDA NÃO HABILITADOS";
+    deliveryController=mountDeliveryCheckout({slug,host:$("addressLabel"),addressInput:$("customerAddress"),feeNode:$("deliveryFee"),totalNode:$("total"),subtotal:()=>cartTotals(cart,catalogue).subtotalCents,hasCart:()=>cart.length>0,onMode:()=>document.querySelector('input[name="fulfillment"]:checked')?.value||"retirada"});
     categories();renderMenu();renderCart();
   }catch(error){
     console.warn("Cardápio público indisponível",error.code||error.message||error);

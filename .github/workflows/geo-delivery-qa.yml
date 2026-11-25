@@ -28,3 +28,5 @@ jobs:
         working-directory: workers/antifraud
       - run: grep -q 'ENABLE_GEO = "false"' workers/antifraud/wrangler.geoapify.toml
       - run: node test_cardapio_core.mjs
+      - run: node --test cardapio/delivery-client.test.mjs
+      - run: node --check cardapio/cardapio.js && node --check public_menu_admin.mjs
