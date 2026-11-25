@@ -21,6 +21,10 @@ test('Moderação de nome: só ADM autorizado pode bloquear, corrigir e auditar'
   const claimWrongEmail=env.authenticatedContext('qa-fake2',verified('other@example.test',{potebatataAdmin:true})).firestore();
   const ownerDoc=db=>doc(db,'users','qa-owner');
   await assertSucceeds(updateDoc(ownerDoc(owner),{displayName:'Meu Novo Nome',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ownerDoc(owner),{freeUniverse:'lancheria',updatedAt:serverTimestamp()}));
+  await assertSucceeds(updateDoc(ownerDoc(owner),{freeUniverse:'hamburgueria',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ownerDoc(owner),{freeUniverse:'pizzaria',updatedAt:serverTimestamp()}));
+  await assertSucceeds(updateDoc(ownerDoc(master),{freeUniverse:'pizzaria',updatedAt:serverTimestamp()}));
   async function moderatedTransaction(db,name,lock,oldName,oldLocked,id,reason='nome_improprio'){
    return runTransaction(db,async tx=>{
     const ref=ownerDoc(db),latest=await tx.get(ref);

@@ -16,7 +16,7 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const root=document.createElement("section");
 root.id="poteAdmAccess";root.className="pote-adm-franchise pote-access-panel";
 root.innerHTML='<h3>🔐 Permissões por universo e serviço</h3>'+
- '<p>FREE: todos os ramos abertos por padrão, mas somente um uso/cadastro por função. O ADM pode bloquear ramos ou serviços por conta sem apagar dados.</p>'+
+ '<p>FREE: um segmento específico por conta; Lancheria e demais segmentos são PRO. O ADM pode bloquear ramos ou serviços sem apagar dados.</p>'+
  '<div class="pote-access-universes" id="poteAccessUniverses"></div>'+
  '<label class="pote-adm-label">Serviços do universo<select id="poteAccessType"></select></label>'+
  '<div class="pote-access-services" id="poteAccessServices"></div>'+

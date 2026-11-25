@@ -38,6 +38,14 @@ let expiryCheckInterval = null;
 let rawUserLicense = null;
 let rawUserFranchise = null;
 let rawUserAccessPolicy = null;
+const FREE_SEGMENTS=["batataria","pizzaria","hamburgueria","hotdog","pastelaria"];
+window.POTE_SEGMENT={async choose(type){
+ const session=window.POTE_AUTH,uid=session?.uid,index=epoch;
+ if(!ready||!uid||auth.currentUser?.uid!==uid||!FREE_SEGMENTS.includes(type)||session.proActive)throw Error("Escolha inválida.");
+ const ref=doc(db,"users",uid);
+ await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())throw Error("Perfil não encontrado.");const old=snap.data().freeUniverse;if(old&&old!==type)throw Error("Seu segmento FREE já foi escolhido.");if(!old)tx.set(ref,{freeUniverse:type,updatedAt:serverTimestamp()},{merge:true});});
+ if(!sessionMatches(uid,index))throw Error("Sessão alterada.");session.freeUniverse=type;
+}};
 let cloudFingerprint=stableJson(null);
 let syncBlocked=false;
 let lastSyncCause=null;
@@ -362,6 +370,7 @@ function observeProfile(user, index) {
   unsubscribeProfile = onSnapshot(profileRef, snapshot => {
     if (index !== epoch || auth.currentUser?.uid !== user.uid) return;
     publishAccountProfile(user,snapshot.data()||{});
+    if(window.POTE_AUTH)window.POTE_AUTH.freeUniverse=snapshot.data()?.freeUniverse||null;
     rawUserLicense = snapshot.data()?.license || null;
     rawUserFranchise = snapshot.data()?.franchise || null;
     const previousPolicy=JSON.stringify(rawUserAccessPolicy||{});
@@ -467,6 +476,7 @@ async function loadUser(user, index) {
   const profile = doc(db, "users", user.uid);
   const existing = await withDeadline(getDoc(profile), 15000, "consulta do perfil");
   if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
+  window.POTE_AUTH.freeUniverse=existing.exists()?existing.data().freeUniverse||null:null;
   rawUserLicense = existing.exists() ? existing.data().license || null : null;
   rawUserFranchise = existing.exists() ? existing.data().franchise || null : null;
   rawUserAccessPolicy = existing.exists() ? existing.data().accessPolicy || {} : {};

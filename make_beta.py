@@ -117,7 +117,7 @@ HEAD_ASSETS = (
     '<link rel="stylesheet" href="./cancel_order_flow.css?v=cancel-audit-20261115">'
     '<link rel="stylesheet" href="./app_audit.css?v=audit-20261115">'
     '<link rel="stylesheet" href="./release_news.css?v=news-20261115-06">'
-    '<link rel="stylesheet" href="./pro_offer.css?v=free-offer-1">'
+    '<link rel="stylesheet" href="./pro_offer.css?v=plans-1">'
     '<script src="./dashboard_charts.js?v=ops-20261115"></script>'
     '<script src="./recipe_images.js?v=recipes-20261115"></script>'
 )
@@ -144,7 +144,7 @@ if n != 1:
     raise SystemExit("Cabeçalho da marca não encontrado")
 switch = r'<div class="switch" role="group" aria-label="Versão de demonstração">.*?</div>'
 new_switch = ('<div class="switch" role="group" aria-label="Sua sessão">'
- '<span id="poteLoggedAs"></span><button id="poteAdminOpen" type="button" hidden aria-label="Abrir Central Administrativa">ADM · Gerenciar</button><span id="potePlanBadge" hidden></span><span id="potePlanCountdown" hidden role="timer" aria-label="Tempo restante da licença"></span><button id="poteExit" type="button">Sair</button>'
+ '<span id="poteLoggedAs"></span><button id="poteAdminOpen" type="button" hidden aria-label="Abrir Central Administrativa">ADM · Gerenciar</button><span id="potePlanBadge" hidden></span><button id="potePlansButton" type="button" hidden>Planos</button><span id="potePlanCountdown" hidden role="timer" aria-label="Tempo restante da licença"></span><button id="poteExit" type="button">Sair</button>'
  '<span id="poteSyncStatus" aria-live="polite"></span></div>')
 html, n = re.subn(switch, new_switch, html, count=1, flags=re.S)
 if n != 1:
@@ -185,10 +185,10 @@ function poteFreshAccount(){
  start.data.brand=window.POTE_AUTH?.role==='admin'
   ? {...start.data.brand,logoUrl:POTE_ORIGINAL_LOGO}
   : {...start.data.brand,...POTE_NEUTRAL_BRAND};
- start.data.businessType='batataria'; // FREE e ADM começam na Batataria e podem selecionar outros ramos
+ start.data.businessType=window.POTE_AUTH?.role==='admin'||window.POTE_AUTH?.franchiseActive?'batataria':''; // Nova conta escolhe ramo após Google.
  start.data.businessUniverses={};
  start.data.businessTemplates={};
- start.data.kitchenStock={mode:"shared",version:1,inventory:{}};
+ start.data.kitchenStock={mode:window.POTE_AUTH?.proActive?"shared":"separate",version:1,inventory:{}};
  start.data.kitchenLogistics={couriers:[],trips:[],settlements:[]};
  start.accounts=[];
  start.creatives=[];
@@ -326,7 +326,8 @@ BODY_ASSETS = (
     '<script src="./pote_notice.js?v=aviso-20261116"></script>'
     '<script src="./floating_menu.js?v=moderation-20261121"></script>'
     '<script src="./release_news.js?v=pdv-20261116"></script>'
-    '<script src="./pro_offer.js?v=free-offer-2"></script>'
+    '<script src="./pro_offer.js?v=free-offer-3"></script>'
+    '<script src="./pro_plans.js?v=plans-1"></script>'
     '<script type="module" src="./firebase_integration.js?v=moderation-20261121-free-offer-2"></script>'
     '<script type="module" src="./admin_console.js?v=adm-popup-20261121"></script>'
     '<script type="module" src="./admin_permissions.js?v=firebase-order-v5-20261120"></script>'

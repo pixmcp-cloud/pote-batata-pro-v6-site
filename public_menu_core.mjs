@@ -101,7 +101,12 @@ const ownImage=(src,id)=>{
   }
   return items.slice(0, MENU_MAX_ITEMS);
 }
-export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allowed,imageFor,includeIngredientNames=false,publishedPhotos,previous}={}){
+export function publicWhatsapp(value){
+ const digits=String(value||"").replace(/[^0-9]/g,"");
+ const phone=digits.length===10||digits.length===11?"55"+digits:digits;
+ return /^55[1-9][0-9][2-9][0-9]{7,8}$/.test(phone)?phone:"";
+}
+export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allowed,imageFor,includeIngredientNames=false,publishedPhotos,previous,whatsapp=""}={}){
   if(!validSlug(slug))throw Error("Endereço inválido: use 4 a 40 caracteres, letras, números e hífen.");
   if(typeof ownerUid!=="string"||!ownerUid||ownerUid.length>128)throw Error("Usuário não autenticado.");
   if(previous && previous.ownerUid!==ownerUid)throw Error("Este endereço já pertence a outro estabelecimento.");
@@ -113,7 +118,7 @@ export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allo
   const subtitle=text(brand.subtitle||"",110);
   return {schemaVersion:MENU_SCHEMA,ownerUid,slug,published:true,title,subtitle,
     businessType:text(data.businessType||"batataria",32),
-    color:"#e7b968",items};
+    color:"#e7b968",items,...(publicWhatsapp(whatsapp)?{whatsapp:publicWhatsapp(whatsapp)}:{})};
 }
 // Shared opening is represented by null. Store-specific slides come only from its own published items.
 export function menuHeroSequence(items,{demo=false}={}){
@@ -134,5 +139,5 @@ export function sanitizeReadMenu(raw,slug){
       description:text(p.description,240),category:safeCategory(p.category),
       priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12),...((sodaVariant(p.title,p.size||p.description)||waterVariant(p.title,p.size||p.description))?{available:p.available===true}:{})}:{}),addons:[]}));
   if(!items.length)return null;
-  return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug};
+  return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug,whatsapp:publicWhatsapp(raw.whatsapp)};
 }

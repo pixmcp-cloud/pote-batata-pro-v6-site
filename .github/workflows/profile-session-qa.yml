@@ -24,4 +24,5 @@ jobs:
           node test_profile_isolation.cjs
           node test_auth_v5_integration.js
           node test_pro_offer.cjs
+          node test_pro_plans.cjs
           node test_admin_claim_contract.mjs
