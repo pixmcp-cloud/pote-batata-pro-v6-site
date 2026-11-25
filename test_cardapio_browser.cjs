@@ -46,7 +46,11 @@ const server=http.createServer((req,res)=>{
         await page.click('button[aria-label="Escolher Carne com Cheddar"]');
         await page.waitForSelector("#productDialog[open]");
         assert.deepEqual(await page.$$eval("#productIngredients li",nodes=>nodes.map(n=>n.textContent)),["Batata","Carne desfiada","Cheddar"]);
+        assert.equal(await page.$eval("#productFacts",e=>e.open),false);
+        assert.equal(await page.$eval("#productIngredients",e=>e.getClientRects().length>0),false);
+        await page.click("#productFacts summary");
         assert.equal(await page.$eval("#productFacts",e=>e.open),true);
+        assert.equal(await page.$eval("#productIngredients",e=>e.getClientRects().length>0),true);
         assert.match(await page.$eval("#productFactFormat",e=>e.textContent),/500 g/);
         assert.match(await page.$eval("#productFacts",e=>e.textContent),/A confirmar com o estabelecimento/);
         await page.click('#addonList input[value="cheddar"]');
@@ -62,7 +66,11 @@ const server=http.createServer((req,res)=>{
         await page.click("#closeCart");
         await page.click('button[aria-label="Escolher Sabor Pizza"]');
         await page.waitForSelector("#productDialog[open]");
+        assert.equal(await page.$eval("#productFacts",e=>e.open),false);
+        assert.equal(await page.$eval("#productIngredients",e=>e.getClientRects().length>0),false);
+        await page.click("#productFacts summary");
         assert.equal(await page.$eval("#productFacts",e=>e.open),true);
+        assert.equal(await page.$eval("#productIngredients",e=>e.getClientRects().length>0),true);
         const pizzaIngredients=await page.$$eval("#productIngredients li",nodes=>nodes.map(n=>n.textContent));
         assert(pizzaIngredients.includes("Presunto")&&pizzaIngredients.includes("Muçarela")&&pizzaIngredients.includes("Orégano"));
         assert(!pizzaIngredients.includes("Carne desfiada"));

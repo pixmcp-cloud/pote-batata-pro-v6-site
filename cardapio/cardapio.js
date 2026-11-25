@@ -192,7 +192,7 @@ function openProduct(p){
   $("productIngredientNote").textContent=requestedSlug===null
     ?(p.id==="carne-cheddar"?"Ingredientes principais; ficha completa ainda precisa ser revisada pela loja.":"Ingredientes da receita de referência; confirmar composição final com a loja.")
     :"Ingredientes informados pelo estabelecimento. Confirme composição e alergênicos antes de consumir.";
-  $("productFacts").open=true;
+  $("productFacts").open=false;
   $("productNote").value="";
   $("addonList").replaceChildren();
   $("addonFieldset").hidden=!p.addons.length;
