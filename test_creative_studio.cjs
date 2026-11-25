@@ -91,3 +91,13 @@ assert(milho.ingredients.includes('Milho verde')&&milho.ingredients.includes('Ba
 assert(!milho.ingredients.some(x=>/sal|batata/i.test(x)),'exclude base and seasonings from sales highlights');
 console.log('PASS: Milho & Bacon description and highlighted ingredients without salt/batata');
 console.log('PASS: official price 34,90 and 28,90, ingredients, promo -10%, local decimal, Free/Pro, visibility, validations');
+
+const iaSource=fs.readFileSync(__dirname+'/voice_ai.js','utf8');
+const iaCss=fs.readFileSync(__dirname+'/creative_studio.css','utf8');
+assert(iaSource.includes('Carteira <span>IA COIN</span>'));
+assert(iaSource.includes('[[5,990],[10,1790],[25,3990],[50,6990],[75,9490],[100,11990]]'),'preserve approved six packages');
+assert(iaSource.includes('iauWalletArt')&&iaSource.includes('iau-coin-art'));
+assert(iaSource.includes('FREE não usa IA')&&iaSource.includes('u(\'iauContent\').hidden=!allowed'));
+assert(iaCss.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
+assert(html.includes('Comprar IA COIN'));
+console.log('PASS IA COIN: approved branding, fixed package prices, wallet layout and FREE gate');
