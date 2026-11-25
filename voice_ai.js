@@ -25,7 +25,8 @@ const permitted=()=>{
  if(p.role==="admin"||p.franchiseActive===true)return true;
  return p.proActive===true&&(p.plan==="lifetime"||(p.plan==="pro"&&Number.isFinite(p.expiresAt)&&p.expiresAt>Date.now()));
 };
-const packages=[50,100,250,500,1000];
+const packages=Object.freeze([[1,150],[5,700],[25,3250],[50,6250],[75,8250],[100,10000]].map(Object.freeze));
+const brl=cents=>(cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 async function refreshWallet(){
  const user=auth.currentUser,root=$("csAiWallet"),label=$("csAiBalance"),status=$("csAiWalletStatus");
  if(!user||!root||!permitted())return;
@@ -54,18 +55,7 @@ async function history(){
   }
  }catch(e){if(panel===$("csAiHistory"))panel.textContent="Histórico indisponível.";}
 }
-function shop(){
- if(!permitted())return state("IA exclusiva para PRO ativo, vitalício e franquias.");
- const panel=$("csAiPackages");if(!panel)return;
- panel.hidden=!panel.hidden;if(panel.hidden)return;
- panel.replaceChildren();
- const intro=document.createElement("p");intro.textContent="Pacotes de créditos IA · compra PIX em preparação. Nenhum pagamento será solicitado nesta etapa.";panel.append(intro);
- for(const amount of packages){
-  const row=document.createElement("div");row.className="cs-voice-state";
-  const price=(amount/10).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});row.textContent=amount.toLocaleString("pt-BR")+" créditos IA · "+price;
-  panel.append(row);
- }
-}
+function shop(){window.POTE_IA_UNIVERSE?.open();}
 async function api(path,body){
  const user=auth.currentUser,root=endpoint();
  if(!permitted()||!root)throw Error("Locução indisponível: autorização e servidor comercial obrigatórios.");
@@ -121,3 +111,70 @@ async function generate(){
 window.POTE_VOICE_AI={open,shop,history};
 window.addEventListener("pote:profile-updated",()=>{if(!permitted()){clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
 window.addEventListener("pote:user-logout",clear);
+
+/* IA Universe: isolated full-screen wallet, no simulated credit or payment. */
+const universe=document.createElement('dialog');
+universe.id='poteAiUniverse';
+universe.setAttribute('aria-labelledby','poteAiUniverseTitle');
+universe.innerHTML=`
+ <div class="iau-shell">
+  <header class="iau-header"><button class="iau-back" type="button" data-iau-close aria-label="Voltar ao PDV">‹</button><span class="iau-brand">PDV MULTIVERSAL / IA</span><button class="iau-back" type="button" data-iau-close aria-label="Fechar carteira">×</button></header>
+  <section class="iau-hero"><div><small>INTELIGÊNCIA ARTIFICIAL · PREMIUM</small><h1 id="poteAiUniverseTitle">IA <span>UNIVERSE</span></h1><p>Seu universo de inteligência artificial começa aqui.</p></div><div class="iau-core" aria-hidden="true">IA</div></section>
+  <div id="iauGate" role="status"></div>
+  <div id="iauContent" hidden>
+   <section class="iau-wallet"><div><small>CARTEIRA DIGITAL · SALDO REAL</small><strong id="iauBalance">—</strong><span>Moedas IA disponíveis</span><p>Créditos adquiridos não expiram. Cotas de franquia são contabilizadas separadamente.</p></div><div class="iau-wallet-actions"><button type="button" id="iauHistoryBtn">Extrato</button><button type="button" id="iauRefresh">Atualizar saldo</button></div></section>
+   <section id="iauHistory" hidden aria-label="Extrato de créditos"></section>
+   <section class="iau-store"><div class="iau-section-label">LOJA DE CRÉDITOS</div><h2>Escolha seu pacote</h2><p>Selecione a quantidade ideal para suas campanhas.</p><div class="iau-grid" id="iauPackages"></div><div id="iauPurchase" role="status" hidden></div></section>
+   <section class="iau-services"><h2>Seu poder criativo</h2><button type="button" id="iauVoice">Locução profissional <span>›</span></button><p>Chef IA e imagens: integração de consumo em preparação.</p></section>
+  </div>
+  <footer class="iau-footer">Moedas de uso interno · Não transferíveis · Sem conversão em dinheiro</footer>
+ </div>`;
+document.body.append(universe);
+const u=id=>universe.querySelector('#'+id);
+const coin=(i)=>'<div class="iau-coins" aria-hidden="true">'+Array.from({length:[1,3,5,7,9,12][i]},(_,j)=>'<i style="--i:'+j+';--n:'+([1,3,5,7,9,12][i])+'">IA</i>').join('')+'</div>';
+u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>`<article class="iau-pack" data-tier="${i}"><small>ENERGIA CRIATIVA</small>${coin(i)}<strong>${amount}</strong><span>MOEDAS IA</span><b>${brl(cents)}</b><button type="button" data-package="${i}">Comprar</button></article>`).join('');
+let universeSeq=0;
+async function universeRefresh(){
+ const seq=++universeSeq,user=auth.currentUser;
+ const allowed=permitted();u('iauContent').hidden=!allowed;u('iauGate').hidden=allowed;
+ u('iauGate').textContent=allowed?'':'Acesso exclusivo aos planos PRO ativo, Vitalício e Franquia. FREE e teste gratuito não compram nem utilizam IA. Seu saldo anterior permanece preservado.';
+ u('iauBalance').textContent='—';u('iauHistory').replaceChildren();u('iauHistory').hidden=true;u('iauPurchase').hidden=true;
+ if(!allowed||!user)return;
+ try{
+  const snap=await getDoc(doc(db,'users',user.uid,'aiWallet','main'));
+  if(seq!==universeSeq||!universe.open||auth.currentUser?.uid!==user.uid||!permitted())return;
+  const balance=snap.exists()?snap.data().balance:0;if(!Number.isSafeInteger(balance)||balance<0)throw Error('Saldo inválido');
+  u('iauBalance').textContent=balance.toLocaleString('pt-BR');
+ }catch{if(seq===universeSeq&&universe.open)u('iauBalance').textContent='Indisponível';}
+}
+function closeUniverse(){if(universe.open)universe.close();}
+function openUniverse(){
+ if(!auth.currentUser||!window.POTE_APP_READY)return;
+ if(!universe.open)universe.showModal();
+ void universeRefresh();window.dispatchEvent(new Event('pote:ia-universe-state'));
+}
+universe.addEventListener('close',()=>{++universeSeq;u('iauBalance').textContent='—';u('iauHistory').replaceChildren();u('iauPurchase').hidden=true;window.dispatchEvent(new Event('pote:ia-universe-state'));});
+universe.querySelectorAll('[data-iau-close]').forEach(b=>b.addEventListener('click',closeUniverse));
+u('iauRefresh').addEventListener('click',universeRefresh);
+u('iauPackages').addEventListener('click',e=>{
+ const b=e.target.closest('[data-package]');if(!b||!permitted())return;
+ const pack=packages[Number(b.dataset.package)];if(!pack)return;
+ const panel=u('iauPurchase');panel.hidden=false;panel.textContent=pack[0]+' moedas IA por '+brl(pack[1])+'. Checkout PIX ainda não homologado. Nenhum pagamento ou crédito foi registrado.';panel.scrollIntoView({block:'nearest'});
+});
+u('iauHistoryBtn').addEventListener('click',async()=>{
+ const user=auth.currentUser,panel=u('iauHistory');if(!user||!permitted())return;
+ panel.hidden=!panel.hidden;if(panel.hidden)return;
+ const seq=universeSeq;panel.textContent='Consultando extrato…';
+ try{
+  const snap=await getDocs(query(collection(db,'users',user.uid,'aiWallet','main','entries'),orderBy('at','desc'),limit(30)));
+  if(seq!==universeSeq||!universe.open||auth.currentUser?.uid!==user.uid||!permitted())return;
+  panel.replaceChildren();
+  if(snap.empty)panel.textContent='Nenhuma movimentação.';
+  for(const entry of snap.docs){const d=entry.data(),row=document.createElement('p');row.textContent=(d.delta>0?'+':'')+d.delta+' IA · '+String(d.reason||'Movimentação')+' · saldo '+d.after;panel.append(row);}
+ }catch{if(seq===universeSeq)panel.textContent='Extrato indisponível.';}
+});
+u('iauVoice').addEventListener('click',()=>{if(!permitted())return;closeUniverse();if(typeof go==='function'){go('creative');requestAnimationFrame(()=>document.getElementById('csVoiceStudio')?.scrollIntoView({block:'start'}));}});
+window.POTE_IA_UNIVERSE={open:openUniverse,close:closeUniverse,isOpen:()=>universe.open};
+window.addEventListener('pote:user-logout',closeUniverse);
+for(const name of ['pote:license-updated','pote:profile-updated'])window.addEventListener(name,()=>{if(universe.open)void universeRefresh();});
+window.dispatchEvent(new Event('pote:ia-universe-ready'));
