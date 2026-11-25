@@ -40,3 +40,5 @@ jobs:
           else
             echo "CLOUDFLARE_STAGING_CREDENTIALS_MISSING"
           fi
+      - run: node --test test/public_checkout_core.test.mjs
+        working-directory: workers/antifraud
