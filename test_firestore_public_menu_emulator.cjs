@@ -29,7 +29,9 @@ test('Catálogo público: somente dono verificado publica, leitura pública só 
   await assertFails(setDoc(ref(other),menu('owner-uid')));
   await assertFails(setDoc(ref(owner),{...menu('owner-uid'),clients:[{phone:'123'}]}));
   await assertFails(setDoc(ref(owner),{...menu('owner-uid'),items:[]}));
-  await assertSucceeds(setDoc(ref(owner),menu('owner-uid')));
+  await assertFails(setDoc(ref(owner),{...menu('owner-uid'),whatsapp:'https://bad.test'}));
+  await assertSucceeds(setDoc(ref(owner),{...menu('owner-uid'),whatsapp:'5548999951729'}));
+  assert.equal((await getDoc(ref(anon))).data().whatsapp,'5548999951729');
   assert.equal((await getDoc(ref(anon))).data().title,'Minha Loja');
   await assertFails(getDocs(collection(anon,'publicMenus')));
   await assertFails(updateDoc(ref(other),{title:'Invadido',updatedAt:serverTimestamp()}));

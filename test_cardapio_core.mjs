@@ -29,3 +29,7 @@ assert.match(summary,/Entrega \(taxa não calculada\)/);
 assert.match(summary,/R\$\s138,10/);
 assert.ok(!summary.includes("PAGAMENTO APROVADO"));
 console.log("OK: preços em centavos, carrinho, adicionais e prévia sem transação");
+
+const {whatsappOrder}=await import("./cardapio/cardapio-core.mjs");
+const url=whatsappOrder({cart,products:[salgado,bebida],fulfillment:"entrega",payment:"pix",customerName:"Ana",address:"Rua A",whatsapp:"5548999951729",storeTitle:"Minha Loja"});
+assert.equal(new URL(url).hostname,"wa.me");assert.equal(new URL(url).pathname,"/5548999951729");assert.match(new URL(url).searchParams.get("text"),/Aguardo confirmação/);assert(!new URL(url).searchParams.get("text").includes("simulado"));assert.throws(()=>whatsappOrder({cart,products:[salgado,bebida],whatsapp:"https://bad.test"}));assert.throws(()=>whatsappOrder({cart,products:[salgado,bebida],whatsapp:"5548999951729",fulfillment:"entrega",customerName:"Ana"}));

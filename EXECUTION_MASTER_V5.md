@@ -103,3 +103,6 @@ PR 37 aprovada e integrada em 8b34afd; QA sessão, cardápio e Firestore passara
 
 ## V6 comercial: segmento único — 25/11/2026
 Candidata anterior PR33 atualizada sobre main b1b65f3. FREE escolhe um segmento entre Batataria, Pizzaria, Hamburgueria/sanduíches, Hot Dog, Pastelaria; Lancheria somente PRO. Escolha persistida uma vez no perfil; ADM pode corrigir. PRO acessa os seis; na expiração dados preservados. Novas contas FREE usam estoque separado. Catálogo público e propaganda existentes preservados. Regras Firestore candidatas devem ser implantadas e validadas antes de ativar cliente; cotas propostas e timbres ainda pendentes. Não migrar/destruir dados.
+
+## V6 comercial — WhatsApp por lojista
+Campo público opcional explicitamente autorizado, número brasileiro validado no núcleo e nas regras. Cliente escolhe itens, informa nome/endereço se entrega e abre WhatsApp da própria loja com pedido e subtotal. Não registra venda, reserva estoque, processa pagamentos ou envia automaticamente; taxa e disponibilidade precisam de confirmação humana. Catálogo sem número continua consulta. Demonstração permanece isolada. Integração automática PRO ainda pendente; requer endpoint autenticado, validação de preços e reserva transacional. Regras candidatas não implantadas.
