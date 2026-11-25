@@ -32,6 +32,21 @@ const ctx={
  Event:class{constructor(type){this.type=type}}
 };
 vm.createContext(ctx);vm.runInContext(source,ctx);
+let walletOpens=0;
+window.POTE_IA_UNIVERSE={open(){walletOpens++;},isOpen(){return false;}};
+const navEvent={preventDefault(){},stopImmediatePropagation(){}};
+events.get("poteHeadLogo:click")(navEvent);
+assert.equal(element("poteFloatBackdrop").hidden,false,"Foto Minha Empresa abre menu");
+assert.equal(walletOpens,0,"Foto não abre IA");
+events.get("poteFloatToggle:click")(navEvent);
+assert.equal(element("poteFloatBackdrop").hidden,true,"Três riscos alternam o menu");
+assert.match(element("poteFloatToggle").innerHTML,/M4 7h16/,"Menu fechado mantém três riscos");
+events.get("poteFloatToggle:click")(navEvent);
+assert.equal(element("poteFloatBackdrop").hidden,false,"Três riscos abrem menu mesmo com carteira disponível");
+assert.equal(walletOpens,0);
+events.get("poteFloatNavigation:click")({target:{closest(){return {dataset:{tab:"ia-wallet"}};}}});
+assert.equal(walletOpens,1,"Só a opção IA COIN abre a carteira");
+assert.equal(element("poteFloatBackdrop").hidden,true);
 assert.equal(element("poteFloatName").textContent,"Canário Certo","A identidade vem do documento associado ao UID");
 assert.match(element("poteFloatAvatar").innerHTML,/canary.png/);
 assert.doesNotMatch(element("poteFloatAvatar").innerHTML,/wrong.png/);
