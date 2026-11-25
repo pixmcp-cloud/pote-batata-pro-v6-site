@@ -140,3 +140,5 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 - Não implantar regras/clientes separadamente: cliente antigo não cria novas contas com marcador e cliente novo precisa da regra para confirmar vínculo. Validar downgrade com ramos arquivados, migração de contas legadas e rollback antes de rollout; PR 38 ainda não integralmente reconciliada (WhatsApp comercial e planos pendentes). Nenhuma alteração em produção. QA do novo commit pendente.
 
 - F10 downgrade: codec preserva registros de ramos arquivados com chaves e ranks originais; rejeita alteração/remoção do histórico e troca de ramo bloqueado. Novo teste test_f10_archive_freeze.mjs integrado ao CI; atualização de cache dos módulos. Validação pendente.
+
+- QA de 94e8773: sessão e cardápio passaram; build bloqueado pelo contrato textual antigo de perfil da franquia; Firestore negou a segunda transação concorrente. Ajuste: teste de contrato inclui campo único e imutabilidade, cliente consulta vínculo confirmado no servidor após erro de corrida, sem sobrescrever. Teste visual de espera e negativa adicionado. Não considerar F10 homologado até CI verde.

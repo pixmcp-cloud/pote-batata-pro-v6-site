@@ -1,7 +1,7 @@
 import {app} from "./firebase_app.mjs?v=init-20261120";
 import "./public_menu_admin.mjs";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc,getDocFromServer, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {createV5Store} from "./v5_storage.mjs?v=v5-clean-20261120-f10";
 import {stableJson,jsonBytes,MAX_APPSTATE_BYTES,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
 const pendingKey=uid=>"pote-sync-pending-v5:"+String(uid||"");
@@ -93,7 +93,8 @@ window.POTE_SEGMENT_API={
     account.role==="admin"||account.proActive||account.franchiseActive||!FREE_SEGMENTS.includes(type))
     throw Error("Sessão ou segmento FREE inválido.");
   const ref=doc(db,"users",uid);
-  const selected=await withDeadline(runTransaction(db,async tx=>{
+  let selected;
+  try{selected=await withDeadline(runTransaction(db,async tx=>{
    const current=await tx.get(ref);
    if(!current.exists())throw Error("Perfil não encontrado.");
    if(!sessionMatches(uid,index))throw Error("A sessão mudou.");
@@ -104,7 +105,16 @@ window.POTE_SEGMENT_API={
    }
    tx.set(ref,{freeUniverse:type,updatedAt:serverTimestamp()},{merge:true});
    return type;
-  }),15000,"vínculo do segmento FREE");
+  }),15000,"vínculo do segmento FREE");}
+  catch(error){
+   // A regra imutável pode negar a segunda transação concorrente antes do retry SDK.
+   // Só aceite a escolha já confirmada no servidor; jamais tente sobrescrevê-la.
+   if(!sessionMatches(uid,index))throw error;
+   const latest=await withDeadline(getDocFromServer(ref),15000,"consulta do segmento FREE");
+   const bound=latest.data()?.freeUniverse;
+   if(!FREE_SEGMENTS.includes(bound))throw error;
+   selected=bound;
+  }
   if(!sessionMatches(uid,index))throw Error("A sessão mudou.");
   setConfirmedFreeUniverse(selected);
   return selected;

@@ -17,11 +17,11 @@ test('F10: segmento FREE atômico, imutável e validado no servidor',{timeout:90
   await assertFails(updateDoc(profile(a),{freeUniverse:'lancheria'}));
   await assertFails(updateDoc(profile(a),{freeUniverseRequired:false}));
   await assertFails(updateDoc(profile(other),{freeUniverse:'hotdog'}));
-  const bind=(db,type)=>runTransaction(db,async tx=>{
+  const bind=async(db,type)=>{try{return await runTransaction(db,async tx=>{
    const ref=profile(db),snap=await tx.get(ref),existing=snap.data().freeUniverse;
    if(existing)return existing;
    tx.update(ref,{freeUniverse:type,updatedAt:serverTimestamp()});return type;
-  });
+  });}catch(error){const snap=await getDoc(profile(db));const chosen=snap.data()?.freeUniverse;if(!['pizzaria','hamburgueria'].includes(chosen))throw error;return chosen;}};
   const result=await Promise.all([bind(a,'pizzaria'),bind(b,'hamburgueria')]);
   assert.equal(result[0],result[1],'As duas sessões devem convergir para uma única escolha');
   const selected=result[0],wrong=selected==='pizzaria'?'hamburgueria':'pizzaria';

@@ -168,3 +168,17 @@ assert(businessCss.includes("#poteOpsCards>.ops-business-card>.ops-business-hint
 assert(result.includes("v6-artes-20261125-layout-2"));
 assert(result.includes("v6-layout-20261125"));
 console.log("PASS: sete artes WebP publicadas; Negócio acompanha os seis segmentos e fallback neutro.");
+
+(async()=>{
+ const pending=setup("free");let finish;
+ pending.window.POTE_APP_READY=true;
+ pending.window.POTE_SEGMENT_API={bind:()=>new Promise(resolve=>{finish=resolve})};
+ const action=pending.window.POTE_BUSINESS.choose("pizzaria");
+ assert.equal(pending.state.data.businessType,"");assert.equal(pending.persistCount,0);
+ pending.window.POTE_AUTH.serverFreeUniverse="pizzaria";finish("pizzaria");await action;
+ assert.equal(pending.state.data.businessType,"pizzaria");assert.equal(pending.state.data.recipes.length,30);
+ const denied=setup("free");denied.window.POTE_APP_READY=true;
+ denied.window.POTE_SEGMENT_API={bind:async()=>{denied.window.POTE_AUTH.serverFreeUniverse="batataria";return "batataria"}};
+ await denied.window.POTE_BUSINESS.choose("pizzaria");assert.equal(denied.state.data.businessType,"");assert.equal(denied.persistCount,0);
+ console.log("PASS F10: seleção visual aguarda servidor e não altera catálogo quando outra sessão vence.");
+})().catch(e=>{console.error(e);process.exitCode=1});
