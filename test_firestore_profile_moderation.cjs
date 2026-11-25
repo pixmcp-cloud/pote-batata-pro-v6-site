@@ -59,3 +59,33 @@ test('Moderação de nome: só ADM autorizado pode bloquear, corrigir e auditar'
   console.log('PASS MODERACAO: nome corrigido por ADM, bloqueio real nas regras, foto permitida, auditoria imutável');
  }finally{await env.cleanup()}
 });
+
+test('IA COIN: ajuste próprio ADM real, histórico atômico, replay e negação ao cliente',{timeout:90000,skip:process.env.POTE_HARDENED_RULES==='1'},async()=>{
+ const env=await initializeEmulator();
+ try{
+  const admin=env.authenticatedContext('qa-admin',verified('pixmcp@gmail.com',{potebatataAdmin:true})).firestore();
+  const owner=env.authenticatedContext('qa-owner',verified('owner@example.test')).firestore();
+  const fake=env.authenticatedContext('qa-fake',verified('pixmcp@gmail.com')).firestore();
+  const uid='qa-admin',id='qa_wallet_event_00000001',reason='Crédito administrativo próprio · pacote 100 IA COIN';
+  const wallet=db=>doc(db,'users',uid,'aiWallet','main');
+  const entry=db=>doc(db,'users',uid,'aiWallet','main','entries',id);
+  async function credit(db,actor){
+   return runTransaction(db,async tx=>{
+    const oldEvent=await tx.get(entry(db));if(oldEvent.exists())return oldEvent.data().after;
+    const snap=await tx.get(wallet(db)),before=snap.exists()?snap.data().balance:0,after=before+100;
+    tx.set(wallet(db),{balance:after,lastEventId:id,updatedAt:serverTimestamp()});
+    tx.set(entry(db),{kind:'admin_adjustment',before,after,delta:100,reason,actorUid:actor,at:serverTimestamp()});
+    return after;
+   });
+  }
+  await assertFails(credit(fake,'qa-fake'));await assertFails(credit(owner,'qa-owner'));
+  assert.equal(await assertSucceeds(credit(admin,uid)),100);
+  assert.equal(await assertSucceeds(credit(admin,uid)),100);
+  assert.equal((await getDoc(wallet(admin))).data().balance,100);
+  assert.equal((await getDoc(entry(admin))).data().delta,100);
+  await assertFails(updateDoc(entry(admin),{delta:500}));
+  await assertFails(updateDoc(wallet(admin),{balance:500,updatedAt:serverTimestamp()}));
+  await assertFails(getDoc(wallet(owner)));
+  console.log('PASS IA COIN: carteira e histórico em transação, repetição não duplica e não ADM não ajusta');
+ }finally{await env.cleanup()}
+});
