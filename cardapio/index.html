@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?release=sacola9">
-  <script type="module" src="./cardapio.js?release=sacola9"></script>
+  <link rel="stylesheet" href="./cardapio.css?release=lojista10">
+  <script type="module" src="./cardapio.js?release=lojista10"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -22,6 +22,7 @@
         <button type="button" class="icon-button" id="shareBtn" aria-label="Compartilhar cardápio" title="Compartilhar cardápio">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.82-4M8 13a3 3 0 1 0-2.82-4M18 22a3 3 0 1 0-2.82-4M8 11l8-5M8 14l8 5"/></svg>
         </button>
+        <button type="button" class="icon-button" id="settingsBtn" aria-label="Configurações do lojista" title="Configurações do lojista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4l.6 3 2 .9 2.6-1.6 2.8 2.8-1.6 2.6.9 2 3 .6v4l-3 .6-.9 2 1.6 2.6-2.8 2.8-2.6-1.6-2 .9-.6 3h-4l-.6-3-2-.9-2.6 1.6-2.8-2.8 1.6-2.6-.9-2-3-.6v-4l3-.6.9-2-1.6-2.6 2.8-2.8L7.4 6l2-.9z" transform="translate(2 0) scale(.83)"/><circle cx="12" cy="12" r="3"/></svg></button>
         <button type="button" class="icon-button cart-top" id="cartTopBtn" aria-label="Abrir sacola de compras">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8ZM9 9V6a3 3 0 0 1 6 0v3"/></svg>
           <span id="cartCount" class="cart-count" hidden>0</span>
@@ -132,6 +133,7 @@
       </div>
     </div>
   </dialog>
+  <dialog id="settingsDialog" class="app-dialog merchant-dialog" aria-labelledby="merchantTitle"><header class="product-modal-header"><span>ÁREA DO LOJISTA</span><button class="dialog-close" id="closeSettings" aria-label="Fechar configurações" type="button">×</button></header><div class="merchant-body"><h2 id="merchantTitle">Personalize seu cardápio</h2><p>Gerencie sua loja com segurança. Entre com a conta Google proprietária do catálogo.</p><div class="merchant-options"><a data-merchant-action="link" href="../">🔗 Personalizar link da loja <small>Alterar endereço de compartilhamento</small></a><a data-merchant-action="products" href="../">👁 Produtos visíveis <small>Mostrar, ocultar e selecionar produtos</small></a><a data-merchant-action="publish" href="../">⚙ Publicação e detalhes <small>Atualizar preços, ingredientes ou retirar do ar</small></a><a data-merchant-action="brand" href="../">🎨 Marca e identidade <small>Nome, logotipo e contatos no PDV</small></a></div><p class="merchant-note">Somente o responsável autenticado pode alterar os dados. Não é necessário login para os clientes consultarem o menu.</p></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

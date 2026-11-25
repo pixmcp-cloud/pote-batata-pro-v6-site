@@ -443,8 +443,14 @@ $("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog
 $("keepShopping").addEventListener("click",()=>cartDialog.close());
 $("copyOrder").addEventListener("click",copyOrder);
 $("shareBtn").addEventListener("click",share);
+const settingsDialog=$("settingsDialog");
+$("settingsBtn").addEventListener("click",()=>{
+ for(const link of settingsDialog.querySelectorAll("[data-merchant-action]")){const url=new URL("../",location.href);url.searchParams.set("gerenciar-cardapio",requestedSlug||"");url.searchParams.set("opcao",link.dataset.merchantAction);link.href=url.href;}
+ safeShow(settingsDialog);
+});
+$("closeSettings").addEventListener("click",()=>settingsDialog.close());
 document.querySelectorAll('input[name="fulfillment"]').forEach(input=>input.addEventListener("change",fulfill));
-for(const dialog of [productDialog,cartDialog]){
+for(const dialog of [productDialog,cartDialog,settingsDialog]){
   dialog.addEventListener("click",event=>{
     if(event.target===dialog)dialog.close();
   });

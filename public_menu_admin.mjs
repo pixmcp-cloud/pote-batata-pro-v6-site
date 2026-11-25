@@ -2,8 +2,8 @@
    Um clique explícito é obrigatório. A sincronização privada V5 é independente. */
 import {app} from "./firebase_app.mjs";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto} from "./public_menu_core.mjs?lojas=6";
+import {getFirestore,doc,getDoc,setDoc,serverTimestamp,runTransaction} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto} from "./public_menu_core.mjs?lojas=8";
 
 const auth=getAuth(app),db=getFirestore(app);
 const node=(tag,cls,text)=>{
@@ -13,6 +13,8 @@ const node=(tag,cls,text)=>{
   return el;
 };
 let dialog=null,initialized=false,candidates=[],published=null,selected=new Set(),busy=false,activeUid=null,generation=0;
+const entry=new URLSearchParams(location.search);let deepLinkHandled=false;
+const entrySlug=entry.get("gerenciar-cardapio"),entryOption=entry.get("opcao");
 const $=id=>document.getElementById(id);
 const owner=()=>window.POTE_APP_READY&&auth.currentUser?.uid===window.POTE_AUTH?.uid
   ?auth.currentUser.uid:null;
@@ -41,7 +43,8 @@ function init(){
   document.head.append(css);
   const title=$("pageTitle");
   if(title)new MutationObserver(buttonVisibility).observe(title,{childList:true,subtree:true,characterData:true});
-  window.addEventListener("pote:user-ready",buttonVisibility);
+  window.addEventListener("pote:user-ready",()=>{buttonVisibility();void openFromMenu();});
+  if(owner())void openFromMenu();
   window.addEventListener("pote:user-logout",buttonVisibility);
   window.addEventListener("pote:changed",buttonVisibility);
   buttonVisibility();
@@ -82,7 +85,8 @@ function renderChoices(){
   if(!candidates.length){
     holder.append(node("p","public-menu-hint","Nenhuma receita ou bebida vendável com preço válido. Confira os valores no PDV."));
   }
-  for(const p of candidates){
+  const query=String($("publicMenuSearch")?.value||"").toLocaleLowerCase("pt-BR");
+  for(const p of candidates.filter(p=>!query||(p.title+" "+p.category).toLocaleLowerCase("pt-BR").includes(query))){
     const row=node("label","public-menu-choice");
     const checkbox=node("input");checkbox.type="checkbox";checkbox.value=p.id;checkbox.checked=selected.has(p.id);
     const label=node("span");
@@ -187,7 +191,7 @@ async function refresh({load=true}={}){
       published=existing;
       selected=new Set(published?.items?.map(p=>p.id)||[]);
       $("publicMenuIncludeIngredients").checked=Boolean(published?.items?.some(p=>Array.isArray(p.ingredientNames)&&p.ingredientNames.length));
-      $("publicMenuSlug").readOnly=Boolean(published);
+      $("publicMenuSlug").readOnly=false;
     }
     renderChoices();
     updateLink();
@@ -209,10 +213,13 @@ function createDialog(){
   header.append(heading,close);shell.append(header);
   shell.append(node("p","public-menu-hint",
     "Compartilhe seus produtos e preços de venda. Custos, receitas de preparo, clientes, estoque e dados financeiros permanecem privados. O checkout real continua desativado."));
-  addField(shell,"Endereço da loja (não altere após publicar)","publicMenuSlug","",{max:40});
+  addField(shell,"Endereço personalizado da loja","publicMenuSlug","",{max:40});
+  shell.append(node("p","public-menu-hint","Use 4 a 40 letras minúsculas, números e hífens. Se mudar um endereço publicado, o antigo sairá do ar somente quando o novo for salvo com sucesso."));
   shell.append(node("p","public-menu-hint","Marque somente os produtos que deseja expor na internet. As fotos próprias cadastradas dos produtos escolhidos serão publicadas e usadas automaticamente no carrossel, intercaladas com a abertura CARDÁPIO. Fotos privadas por link não serão copiadas."));
+  const search=addField(shell,"Buscar produtos para mostrar ou ocultar","publicMenuSearch","",{max:80});search.addEventListener("input",renderChoices);
   const products=node("div","public-menu-products");products.id="publicMenuProducts";
   shell.append(products);
+  const bulk=node("div","public-menu-actions");for(const [label,enable] of [["Mostrar todos",true],["Ocultar todos",false]]){const btn=node("button","public-menu-btn secondary",label);btn.type="button";btn.addEventListener("click",()=>{if(busy)return;selected=new Set(enable?candidates.map(p=>p.id):[]);renderChoices();});bulk.append(btn);}shell.append(bulk);
   const ingredientOpt=node("label","public-menu-choice");const ingredientCheck=node("input");ingredientCheck.type="checkbox";ingredientCheck.id="publicMenuIncludeIngredients";ingredientOpt.append(ingredientCheck,node("span","","Publicar também os nomes dos ingredientes revisados acima (sem quantidades e custos)."));shell.append(ingredientOpt);
   const count=node("div","public-menu-count");count.id="publicMenuCount";shell.append(count);
   const msg=node("p","public-menu-message");msg.id="publicMenuMessage";msg.setAttribute("role","status");shell.append(msg);
@@ -229,6 +236,17 @@ function createDialog(){
   unpubBtn.addEventListener("click",unpublish);
   actions.append(refreshBtn,unpubBtn,publishBtn);shell.append(actions);
   dialog.append(shell);document.body.append(dialog);
+}
+async function openFromMenu(){
+ if(deepLinkHandled||entrySlug===null||!owner())return;
+ deepLinkHandled=true;
+ if(entrySlug){try{const data=await loadExisting(entrySlug,owner());if(!data)throw Error("Cardápio inexistente");}catch{alert("Este endereço não pertence à conta Google conectada ou está indisponível. Entre com a conta proprietária.");return;}}
+ if(entryOption==="brand"){window.go?.("brand");return;}
+ window.go?.("vitrine");
+ if(!visible())return;
+ if(!dialog)createDialog();if(entrySlug)$("publicMenuSlug").value=entrySlug;
+ if(!dialog.open)dialog.showModal();await refresh();
+ if(entryOption==="link")$("publicMenuSlug")?.focus();if(entryOption==="products")$("publicMenuSearch")?.focus();
 }
 async function open(){
   buttonVisibility();
@@ -248,7 +266,8 @@ async function publish(){
     if(!validSlug(slug))throw Error("Endereço inválido: use letras minúsculas, números e hífen (4 a 40 caracteres).");
     const current=await loadExisting(slug,uid);
     if(!validSession(uid,epoch))return;
-    if(published&&published.slug!==slug)throw Error("Para trocar endereço, retire o cardápio antigo do ar primeiro.");
+    const oldSlug=published?.slug&&published.slug!==slug?published.slug:null;
+    if(oldSlug&&current)throw Error("O novo endereço já existe. Escolha outro endereço livre.");
     const ids=currentSelected();
     const {photos,skipped}=await photosForPublication(state,ids,uid,epoch);
     if(!validSession(uid,epoch))return;
@@ -257,14 +276,23 @@ async function publish(){
     if(!confirm("Publicar "+result.items.length+" produto(s) de "+result.title+
       " com preços e fotos dos produtos selecionados"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? Nenhum pedido real será aceito por esta página."))return;
     if(!validSession(uid,epoch))return;
-    await setDoc(doc(db,"publicMenus",slug),{...result,updatedAt:serverTimestamp()});
+    if(oldSlug){
+      if(!confirm("Trocar o link de "+oldSlug+" para "+slug+"? O link antigo deixará de funcionar."))return;
+      await runTransaction(db,async tx=>{
+        const oldRef=doc(db,"publicMenus",oldSlug),newRef=doc(db,"publicMenus",slug);
+        const old=await tx.get(oldRef),target=await tx.get(newRef);
+        if(!validSession(uid,epoch)||!old.exists()||old.data().ownerUid!==uid||target.exists())throw Error("Não foi possível reservar o novo endereço. O anterior permanece intacto.");
+        tx.set(newRef,{...result,updatedAt:serverTimestamp()});
+        tx.set(oldRef,{...old.data(),published:false,updatedAt:serverTimestamp()});
+      });
+    }else await setDoc(doc(db,"publicMenus",slug),{...result,updatedAt:serverTimestamp()});
     if(!validSession(uid,epoch))return;
     const saved=await loadExisting(slug,uid);
     if(!validSession(uid,epoch))return;
     published=saved;
     if(!published?.published)throw Error("Servidor não confirmou a publicação.");
     try{localStorage.setItem(localKey(uid),slug)}catch{}
-    $("publicMenuSlug").readOnly=true;
+    $("publicMenuSlug").readOnly=false;
     updateLink();
     setMessage("Publicado. O carrossel usa as fotos publicadas da sua loja."+(skipped?" "+skipped+" foto(s) não puderam ser otimizadas; revise-as no cadastro.":"")+" Compartilhe o link; preços e estoque deverão ser revisados antes de habilitar pedidos.");
   }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha ao publicar.",true);}
@@ -276,7 +304,7 @@ async function unpublish(){
   const epoch=generation;
   setBusy(true);
   try{
-    const slug=$("publicMenuSlug").value.trim().toLowerCase();
+    const slug=published?.slug||$("publicMenuSlug").value.trim().toLowerCase();
     const current=await loadExisting(slug,uid);
     if(!validSession(uid,epoch))return;
     if(!current)throw Error("Não há cardápio público neste endereço.");

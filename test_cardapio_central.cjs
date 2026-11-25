@@ -13,3 +13,4 @@ assert(admin.includes('published?.ownerUid===owner()'));
 assert(admin.includes('validSession(uid,epoch)'));
 assert(admin.includes('published?.published===true'));
 console.log("PASS: card, rota, acesso autenticado, compartilhamento confirmado e isolamento de sessão");
+assert(admin.includes("await runTransaction(db,async tx=>"));assert(admin.includes("old.data().ownerUid!==uid||target.exists()"));assert(admin.includes("published:false,updatedAt:serverTimestamp()"));assert(admin.includes("openFromMenu"));assert(admin.includes("publicMenuSearch"));
