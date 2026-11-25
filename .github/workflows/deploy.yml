@@ -199,6 +199,7 @@ jobs:
           node test_v2_active_archive_regression.mjs
           node test_v2_storage.mjs
           node test_v5_storage.mjs
+          node test_f10_archive_freeze.mjs
           node test_hardening_concurrent_clients.mjs
           node test_auth_v5_integration.js
           node test_pro_offer.cjs
