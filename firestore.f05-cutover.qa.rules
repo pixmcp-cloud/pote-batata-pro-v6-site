@@ -101,9 +101,26 @@ service cloud.firestore {
         : group in ['cashSessions','cashMovements'] ? 'orders'
         : group;
     }
+    // Novo perfil FREE precisa vincular seu segmento antes de gravar registros.
+    function validFreeUniverse(type) {
+      return type in ['batataria','pizzaria','hamburgueria','hotdog','pastelaria'];
+    }
+    function allowsBusinessProfile(userId, profile, universe) {
+      let franchise = profile.get('franchise', {});
+      return isAdmin() || (
+        franchise.get('status', '') == 'active'
+          && franchise.get('brandId', '') == 'potebatata'
+        ? universe == 'batataria'
+        : (premiumProfile(userId)
+          || (profile.keys().hasAny(['freeUniverse'])
+            ? validFreeUniverse(profile.freeUniverse) && universe == profile.freeUniverse
+            : profile.get('freeUniverseRequired', false) != true && universe != 'lancheria'))
+      );
+    }
     function canEditOperationalRecord(userId, record) {
       let profile = get(/databases/$(database)/documents/users/$(userId)).data;
-      return isAdmin() || !profile.keys().hasAny(['accessPolicy']) ||
+      return isAdmin() || (allowsBusinessProfile(userId, profile, record.universe) &&
+        (!profile.keys().hasAny(['accessPolicy']) ||
         (
           (!profile.accessPolicy.keys().hasAny(['blockedUniverses']) ||
             !profile.accessPolicy.blockedUniverses.hasAny([record.universe]))
@@ -111,7 +128,7 @@ service cloud.firestore {
             !profile.accessPolicy.blockedServices.hasAny([
               record.universe + ':' + recordService(record.group)
             ]))
-        );
+        )));
     }
     // F02/F20: impedir saldos físicos negativos ou não numéricos diretamente no SDK.
     // A conferência transacional de consumo e reserva continua sendo requisito separado.
@@ -311,13 +328,17 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly([
-          'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'
+          'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt', 'freeUniverseRequired'
         ])
+        && request.resource.data.get('freeUniverseRequired', false) == true
         && request.resource.data.email == request.auth.token.email;
       allow update: if isAdmin() || (
         isOwner(userId)
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['displayName', 'photoURL', 'updatedAt'])
+          .hasOnly(['displayName', 'photoURL', 'updatedAt', 'freeUniverse'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['freeUniverse'])
+          || (!resource.data.keys().hasAny(['freeUniverse'])
+            && validFreeUniverse(request.resource.data.get('freeUniverse', ''))))
       );
       allow delete: if isAdmin();
 

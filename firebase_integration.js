@@ -78,6 +78,38 @@ window.POTE_ACCOUNT_PROFILE=null;
 function sessionMatches(uid,index=epoch){
  return Boolean(uid&&index===epoch&&auth.currentUser?.uid===uid&&window.POTE_AUTH?.uid===uid);
 }
+const FREE_SEGMENTS=["batataria","pizzaria","hamburgueria","hotdog","pastelaria"];
+function setConfirmedFreeUniverse(value){
+ const account=window.POTE_AUTH;
+ if(!account)return;
+ const confirmed=FREE_SEGMENTS.includes(value)?value:null;
+ account.serverFreeUniverse=confirmed;
+ if(confirmed)account.freeUniverse=confirmed;
+}
+window.POTE_SEGMENT_API={
+ async bind(type){
+  const uid=auth.currentUser?.uid,index=epoch,account=window.POTE_AUTH;
+  if(!ready||!window.POTE_APP_READY||!sessionMatches(uid,index)||
+    account.role==="admin"||account.proActive||account.franchiseActive||!FREE_SEGMENTS.includes(type))
+    throw Error("Sessão ou segmento FREE inválido.");
+  const ref=doc(db,"users",uid);
+  const selected=await withDeadline(runTransaction(db,async tx=>{
+   const current=await tx.get(ref);
+   if(!current.exists())throw Error("Perfil não encontrado.");
+   if(!sessionMatches(uid,index))throw Error("A sessão mudou.");
+   const prior=current.data()?.freeUniverse;
+   if(prior!==undefined&&prior!==null){
+    if(!FREE_SEGMENTS.includes(prior))throw Error("Segmento registrado inválido. Contate o suporte.");
+    return prior;
+   }
+   tx.set(ref,{freeUniverse:type,updatedAt:serverTimestamp()},{merge:true});
+   return type;
+  }),15000,"vínculo do segmento FREE");
+  if(!sessionMatches(uid,index))throw Error("A sessão mudou.");
+  setConfirmedFreeUniverse(selected);
+  return selected;
+ }
+};
 function publishAccountProfile(user,documentData){
  if(!sessionMatches(user?.uid))return;
  const profile={
@@ -366,8 +398,10 @@ function observeProfile(user, index) {
     rawUserFranchise = snapshot.data()?.franchise || null;
     const previousPolicy=JSON.stringify(rawUserAccessPolicy||{});
     rawUserAccessPolicy=snapshot.data()?.accessPolicy||{};
+    const previousSegment=window.POTE_AUTH?.serverFreeUniverse;
+    if(!snapshot.metadata?.hasPendingWrites)setConfirmedFreeUniverse(snapshot.data()?.freeUniverse);
     refreshEntitlements();
-    if(previousPolicy!==JSON.stringify(rawUserAccessPolicy))
+    if(previousPolicy!==JSON.stringify(rawUserAccessPolicy)||previousSegment!==window.POTE_AUTH?.serverFreeUniverse)
       window.dispatchEvent(new Event("pote:access-updated"));
   }, error => console.warn("Licença: ", error.code || error.message));
   if (expiryCheckInterval) clearInterval(expiryCheckInterval);
@@ -470,6 +504,7 @@ async function loadUser(user, index) {
   rawUserLicense = existing.exists() ? existing.data().license || null : null;
   rawUserFranchise = existing.exists() ? existing.data().franchise || null : null;
   rawUserAccessPolicy = existing.exists() ? existing.data().accessPolicy || {} : {};
+  setConfirmedFreeUniverse(existing.exists()?existing.data().freeUniverse:null);
   refreshEntitlements();
   if (!existing.exists()) {
     await withDeadline(setDoc(profile, {
@@ -477,7 +512,8 @@ async function loadUser(user, index) {
       email: user.email,
       photoURL: user.photoURL || "",
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      freeUniverseRequired: true
     }), 15000, "criação do perfil");
     if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
   }

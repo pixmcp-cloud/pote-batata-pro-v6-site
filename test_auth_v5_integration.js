@@ -81,6 +81,9 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  assert.equal(cloud.get("users/u").displayName,"Nome Editável","Nome salvo exclusivamente no documento do usuário");
  assert.equal(cloud.get("users/u").photoURL,"https://images.example/canario.jpg","Edição de nome mantém foto atual");
  assert.equal(cloud.has("users/u/appState/v5"),true,"Conta V5 criada");
+ assert.equal(await ctx.window.POTE_SEGMENT_API.bind("batataria"),"batataria");
+ assert.equal(cloud.get("users/u").freeUniverse,"batataria");
+ assert.equal(await ctx.window.POTE_SEGMENT_API.bind("pizzaria"),"batataria","Segundo aparelho não troca ramo já vinculado");
  assert.equal(cloud.get("users/u/appState/main").state.data.orders.length,1);
  auth.currentUser={uid:"new-user",email:"new@example.com"};
  await login(auth.currentUser);
@@ -90,6 +93,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  assert.equal(ctx.window.POTE_PROFILE_API.getCurrent().displayName,"Conta Separada","Nome da outra conta não pode ser herdado");
  assert.equal(ctx.window.POTE_PROFILE_API.getCurrent().photoURL,"https://images.example/outra.jpg","Foto da outra conta não pode ser herdada");
  assert.equal(ctx.window.POTE_AUTH.role,"free","Outra conta não herda a função ADM");
+ assert.equal(ctx.window.POTE_AUTH.serverFreeUniverse,null,"Não herdar segmento do UID anterior");
  assert.equal(cloud.get("users/u").displayName,"Nome Editável","Troca de conta não altera perfil anterior");
  assert(cloud.has("users/new-user/appState/v5"));
  assert.deepEqual(cloud.get("users/u/appState/main").state.data.orders,[{id:"old-test-order"}],"Legacy data must be untouched");
@@ -174,6 +178,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  auth.currentUser={uid:"u",email:"test@example.com"};
  await login(auth.currentUser);
  assert.equal(ctx.window.POTE_AUTH.role,"free","Após sair do ADM, canário não herda privilégios");
+ assert.equal(ctx.window.POTE_AUTH.serverFreeUniverse,"batataria","Vínculo confirmado volta do servidor no novo login");
  assert.equal(ctx.window.POTE_ACCOUNT_PROFILE.displayName,"Nome Editável");
  assert.equal(ctx.window.POTE_ACCOUNT_PROFILE.photoURL,"https://images.example/canario.jpg");
  assert.equal(cloud.get("users/master").displayName,"Administrador","Canário não contamina perfil ADM");

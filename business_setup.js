@@ -16,7 +16,7 @@ const BUSINESS_HERO="./assets/generic/business-negocio.webp";
 const templateImage=id=>"./assets/generic/recipe-"+id+".svg";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let opened=false;
+let opened=false,selectingAccount=null;
 function master(){return window.POTE_AUTH?.role==="admin"}
 function current(){return (typeof state!=="undefined"&&state.data?.businessType) || (master()?"batataria":"")}
 function currentItem(){return TYPES.find(t=>t.id===current())||null}
@@ -230,12 +230,13 @@ function select(type){
  const counts={batataria:26,pizzaria:30,hamburgueria:30,hotdog:20,lancheria:0,pastelaria:50};
  const summary=" Este universo tem "+counts[type]+" receitas-modelo. Os demais universos ficarão guardados separadamente, com seus próprios dados.";
  if(!confirm("Selecionar "+choice.label+"?"+summary+" Os dados e custos serão próprios da sua conta."+(!master()&&!window.POTE_AUTH?.proActive?" Sua escolha FREE ficará vinculada a este segmento.":"")))return;
- if(previous!==type&&typeof cart!=="undefined"&&cart.length){
-   if(!confirm("A sacola atual tem produtos do ramo anterior. Trocar de universo vai limpar somente os itens não registrados da sacola, sem alterar pedidos já salvos. Continuar?"))return;
-   cart=[];
- }
- const data=state.data;
+ const clearCart=previous!==type&&typeof cart!=="undefined"&&cart.length;
+ if(clearCart&&!confirm("A sacola atual tem produtos do ramo anterior. Trocar de universo vai limpar somente os itens não registrados da sacola, sem alterar pedidos já salvos. Continuar?"))return;
+ const account=window.POTE_AUTH,data=state.data;
  if(!window.POTE_UNIVERSES){alert("Catálogos indisponíveis. Atualize a página e tente novamente.");return}
+ function applySelection(){
+ if(window.POTE_AUTH!==account||state.data!==data||window.POTE_ACCESS?.allowsUniverse?.(type)===false)return;
+ if(clearCart)cart=[];
  window.POTE_ACCESS?.rememberChoice?.(type);
  const imported=window.POTE_UNIVERSES.switchTo(state,type,SEED);
  // Cada universo tem seu próprio cadastro, pedidos e insumos arquivados separadamente.
@@ -246,6 +247,20 @@ function select(type){
  if(typeof toast==="function"){
   toast(choice.label+" selecionado: "+state.data.recipes.length+" fichas no universo atual. Estoques e vendas anteriores estão preservados em seus respectivos ramos.");
  }
+ }
+ if(!master()&&!account.proActive&&!account.franchiseActive&&window.POTE_SEGMENT_API){
+  if(selectingAccount===account)return;
+  selectingAccount=account;
+  $("poteBusinessMessage").textContent="Confirmando seu segmento no servidor...";
+  return window.POTE_SEGMENT_API.bind(type).then(actual=>{
+   if(window.POTE_AUTH!==account)return;
+   if(actual!==type){alert("Este perfil já escolheu outro segmento em outro dispositivo. Selecione o ramo vinculado.");show(true);return;}
+   applySelection();
+  }).catch(error=>{if(window.POTE_AUTH===account){alert(error.message||"Não foi possível confirmar seu segmento. Nenhum catálogo foi alterado.");show(true)}})
+  .finally(()=>{if(selectingAccount===account)selectingAccount=null;});
+ }
+ if(!master()&&!account.proActive&&!account.franchiseActive&&window.POTE_APP_READY===true){alert("Conexão de licenciamento indisponível. Nenhum catálogo foi alterado.");return}
+ return applySelection();
 }
 $("poteBusinessClose").addEventListener("click",()=>show(false));
 $("poteBusinessOverlay").addEventListener("click",e=>{if(e.target===$("poteBusinessOverlay"))show(false)});
@@ -256,6 +271,7 @@ $("poteBusinessOverlay").addEventListener("click",e=>{
 window.POTE_BUSINESS={open:()=>show(true),close:()=>show(false),choose:select,refresh:refreshIdentity,normalizeAccountBrand,
  neutralBrand,importBatatariaTemplates,current,types:TYPES,refreshAccess:()=>{if(opened)show(true)}};
 window.addEventListener?.("pote:changed",refreshIdentity);
+window.addEventListener?.("pote:license-updated",()=>{if(window.POTE_APP_READY&&window.POTE_ACCESS?.requiresChoice?.()&&!opened)show(true)});
 window.addEventListener?.("pote:user-ready",()=>{refreshIdentity();const choice=window.POTE_ACCESS?.freeChoice?.();if(choice)window.POTE_ACCESS?.rememberChoice?.(choice);if(window.POTE_ACCESS?.requiresChoice?.())show(true);});
 refreshIdentity();
 })();
