@@ -1,0 +1,65 @@
+name: V6 Checkout - publicar staging isolado bloqueado
+on:
+  push:
+    branches: [feat/v6-geoapify-qa-20261125]
+    paths: ['.github/workflows/checkout-v6-staging-deploy.yml']
+permissions:
+  contents: read
+concurrency:
+  group: checkout-v6-staging-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'pixmcp-cloud/pote-batata-pro-v6-site' && github.ref == 'refs/heads/feat/v6-geoapify-qa-20261125'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: workers/antifraud
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verificar código e configuração desligada
+        run: |
+          node --test test/auth.test.mjs test/firestore.test.mjs test/checkout_worker.test.mjs test/delivery_policy.test.mjs test/public_checkout_core.test.mjs
+          grep -Fx 'name = "pote-batata-checkout-v6-staging"' wrangler.checkout-v6.qa.toml
+          grep -Fx 'ENABLE_CHECKOUT = "false"' wrangler.checkout-v6.qa.toml
+          grep -Fx 'ENABLE_TRACKING = "false"' wrangler.checkout-v6.qa.toml
+          grep -Fx 'CHECKOUT_CANARY_UIDS = ""' wrangler.checkout-v6.qa.toml
+          grep -Fx 'script_name = "pote-batata-geo-staging"' wrangler.checkout-v6.qa.toml
+          npx --no-install wrangler deploy --config wrangler.checkout-v6.qa.toml --dry-run --outdir .wrangler/checkout-staging
+      - name: Confirmar destino novo e staging geográfico protegido
+        run: |
+          node --input-type=module <<'NODE'
+          const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+process.env.CLOUDFLARE_ACCOUNT_ID+"/workers/scripts",{headers:{Authorization:"Bearer "+process.env.CLOUDFLARE_API_TOKEN},redirect:"error",signal:AbortSignal.timeout(12000)});
+          const b=await r.json();if(!r.ok||!b.success||!Array.isArray(b.result)||b.result.some(x=>x.id==="pote-batata-checkout-v6-staging"||x.name==="pote-batata-checkout-v6-staging"))throw Error("Destino já existe ou indisponível; não sobrescrever");
+          const geo=await fetch("https://pote-batata-geo-staging.pixmcp.workers.dev/health",{redirect:"error",signal:AbortSignal.timeout(12000)});
+          const g=await geo.json();if(!geo.ok||g.enabled!==false||g.checkoutEnabled!==false)throw Error("Geo staging inesperado");
+          console.log("CHECKOUT_NEW_TARGET_GEO_LOCKED");
+          NODE
+      - name: Publicar exclusivamente o novo Worker bloqueado
+        run: npx --no-install wrangler deploy --config wrangler.checkout-v6.qa.toml
+      - name: Homologar superfície HTTP sem acesso ao banco
+        run: |
+          node --input-type=module <<'NODE'
+          const base="https://pote-batata-checkout-v6-staging.pixmcp.workers.dev";
+          const req=(p,opts={})=>fetch(base+p,{...opts,redirect:"error",signal:AbortSignal.timeout(12000)});
+          let r,b;
+          for(let i=0;i<5;i++){r=await req("/health");b=await r.json().catch(()=>({}));if(r.ok&&b.status==="ok")break;await new Promise(resolve=>setTimeout(resolve,3000));}
+          if(!r.ok||b.status!=="ok"||b.checkoutEnabled!==false||b.trackingEnabled!==false)throw Error("Staging inesperado");
+          for(const p of ["orders/create","orders/read","orders/assign","orders/transition","orders/resolve","orders/confirm-payment","tracking/start","tracking/publish","tracking/read","tracking/clear"]){
+            const q=await req("/v1/"+p,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+            if(q.status!==423||(await q.json()).error!=="checkout_disabled")throw Error("Rota desbloqueada: "+p);
+          }
+          if((await req("/health",{headers:{Origin:"https://evil.example"}})).status!==403)throw Error("CORS indevido");
+          const cors=await req("/v1/orders/create",{method:"OPTIONS",headers:{Origin:"https://pdv.livresom.com","Access-Control-Request-Method":"POST"}});
+          if(cors.status!==204||cors.headers.get("Access-Control-Allow-Origin")!=="https://pdv.livresom.com")throw Error("Preflight inválido");
+          console.log("CHECKOUT_STAGING_HEALTHY_10_ROUTES_LOCKED_CORS_OK");
+          NODE

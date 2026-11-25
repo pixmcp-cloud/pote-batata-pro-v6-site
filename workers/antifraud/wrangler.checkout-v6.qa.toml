@@ -1,7 +1,7 @@
 name = "pote-batata-checkout-v6-staging"
 main = "src/checkout_worker.mjs"
 compatibility_date = "2026-11-20"
-workers_dev = false
+workers_dev = true
 preview_urls = false
 [vars]
 FIREBASE_PROJECT_ID = "potobatata-b71f3"

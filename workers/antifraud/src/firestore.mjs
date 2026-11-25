@@ -40,7 +40,7 @@ export function decodeFields(fields){
 export class FirestoreError extends Error{
  constructor(status,message){super(message);this.status=status}
 }
-export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=serviceAccessToken,apiBaseUrl=null}={}){
+export function createFirestoreRepository(env,{requestFetch=(...args)=>fetch(...args),accessToken=serviceAccessToken,apiBaseUrl=null}={}){
  const project=env.FIREBASE_PROJECT_ID;
  if(!/^[a-z][a-z0-9-]{2,50}$/.test(project||""))
   throw Error("Firebase project ID missing");
@@ -51,7 +51,7 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
   const token=await accessToken(env,requestFetch);
   const response=await requestFetch(prefix+path,{
    method,headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
-   signal:AbortSignal.timeout(10000),
+   signal:AbortSignal.timeout(10000),redirect:"manual",
    ...(body===undefined?{}:{body:JSON.stringify(body)})
   });
   if(response.status===404)return {missing:true};

@@ -19,7 +19,7 @@ export async function verifyFirebaseToken(token,projectId,jwks=firebaseKeys){
   payload.email==="pixmcp@gmail.com"};
 }
 let cached=null;
-export async function serviceAccessToken(env,requestFetch=fetch){
+export async function serviceAccessToken(env,requestFetch=(...args)=>fetch(...args)){
  const email=env.GCP_CLIENT_EMAIL,raw=env.GCP_PRIVATE_KEY;
  if(typeof email!=="string"||!email.endsWith(".gserviceaccount.com")||
     typeof raw!=="string"||!raw.includes("PRIVATE KEY"))
@@ -33,7 +33,7 @@ export async function serviceAccessToken(env,requestFetch=fetch){
  }).setProtectedHeader({alg:"RS256",typ:"JWT"}).setIssuedAt(now).setExpirationTime(now+3300)
  .setIssuer(email).setSubject(email).setAudience("https://oauth2.googleapis.com/token").sign(key);
  const response=await requestFetch("https://oauth2.googleapis.com/token",{
-  method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+  method:"POST",redirect:"manual",signal:AbortSignal.timeout(10000),headers:{"Content-Type":"application/x-www-form-urlencoded"},
   body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion})
  });
  if(!response.ok)throw Error("Firestore service authentication failed");

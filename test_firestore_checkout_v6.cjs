@@ -110,29 +110,37 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
   await assert.rejects(()=>mutate('courier-a','transition',{next:'entregue'},51000),/delivery_code_required/);
   const wrong=code==='0000'?'0001':'0000';
   await assert.rejects(()=>mutate('courier-a','transition',{next:'entregue',deliveryCode:wrong},52000),/delivery_code_incorrect/);
-  const completed=await mutate('courier-a','transition',{next:'entregue',deliveryCode:code},65000);
-  assert.equal(completed.durationSeconds,65);
-  const view=await readDeliveryOrder({repository,actorUid:'buyer-a',id:first.id,now:now+120000});
-  assert.equal(view.deliveryCode,undefined);assert.equal(view.elapsedSeconds,65);assert.equal(view.status,'entregue');assert.equal(view.paymentStatus,'confirmed');
-  await assert.rejects(()=>readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now:now+120000}),/order_unavailable/);
+  await assertFails(sdk.getDoc(sdk.doc(buyer,'publicOrderReceipts/'+first.id)));
+  await assertFails(sdk.getDoc(sdk.doc(merchant,'publicOrderReceipts/'+first.id)));
+  for(let i=0;i<3;i++)await assert.rejects(()=>mutate(i%2?uid:'courier-a','transition',{next:'entregue',deliveryCode:wrong},53000+i*1000),/delivery_code_incorrect/);
+  await assert.rejects(()=>mutate(uid,'transition',{next:'entregue',deliveryCode:wrong},56000),/delivery_code_locked/);
+  await assert.rejects(()=>mutate('courier-a','transition',{next:'entregue',deliveryCode:code},955999),/delivery_code_locked/);
+  const proofOp='delivery-proof-000000000000001';
+  const completed=await mutate('courier-a','transition',{next:'entregue',deliveryCode:code},956000,proofOp);
+  assert.equal((await mutate('courier-a','transition',{next:'entregue',deliveryCode:code},957000,proofOp)).alreadyApplied,true);
+  console.log('D05_PROOF_SHARED_ATTEMPTS_LOCKOUT_REPLAY_PASS');
+  assert.equal(completed.durationSeconds,956);
+  const view=await readDeliveryOrder({repository,actorUid:'buyer-a',id:first.id,now:now+1200000});
+  assert.equal(view.deliveryCode,undefined);assert.equal(view.elapsedSeconds,956);assert.equal(view.status,'entregue');assert.equal(view.paymentStatus,'confirmed');
+  await assert.rejects(()=>readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now:now+1200000}),/order_unavailable/);
   await env.withSecurityRulesDisabled(async ctx=>{
    const db=ctx.firestore(),get=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();
    const order=(await get(rp('orders',first.orderId))).record.item,receipt=await get('publicOrderReceipts/'+first.id);
-   assert.equal(order.status,'entregue');assert.equal(order.durationSeconds,65);assert.equal(order.cashSessionId,'shift-a');
-   assert.equal(orderAmountCents(order),7300);assert.equal(receipt.destination,undefined);assert.equal(receipt.durationSeconds,65);
+   assert.equal(order.status,'entregue');assert.equal(order.durationSeconds,956);assert.equal(order.cashSessionId,'shift-a');
+   assert.equal(orderAmountCents(order),7300);assert.equal(receipt.destination,undefined);assert.equal(receipt.deliveryProof,undefined);assert.equal(order.deliveryProof,undefined);assert.equal(receipt.durationSeconds,956);
    assert.equal((await get(rp('ingredients','base'))).record.item.stock,500);
    assert.equal((await get(rp('ingredients','pote'))).record.item.stock,8);
    assert.equal((await get(rp('beverages','refri'))).record.item.stock,9);
   });
   const winner=races.find(x=>x.status==='fulfilled').value;
-  const cancelled=await mutateDeliveryOrder({repository,actorUid:uid,id:winner.id,action:'transition',next:'cancelado',decision:'return',operationId:'delivery-cancel-00000000000001',now:now+70000});
+  const cancelled=await mutateDeliveryOrder({repository,actorUid:uid,id:winner.id,action:'transition',next:'cancelado',decision:'return',operationId:'delivery-cancel-00000000000001',now:now+960000});
   assert.equal(cancelled.status,'cancelado');
   await env.withSecurityRulesDisabled(async ctx=>{
    const db=ctx.firestore(),get=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();
    assert.equal((await get(rp('ingredients','base'))).record.item.stock,500,'Cancelling an undeducted reservation must not create stock');
    assert.equal((await get(guard)).revision,9,'2 creates + assign/produce/finalize/dispatch/payment/delivered/cancel');
   });
-  console.log('D01_D05_LIFECYCLE_EMULATOR_PASS stock=500g elapsed=65s cash=7300cent courier=bound cancellation=reservation_only');
+  console.log('D01_D05_LIFECYCLE_EMULATOR_PASS stock=500g elapsed=956s cash=7300cent courier=bound cancellation=reservation_only');
   console.log('D01_EMULATOR_CHECKOUT_ATOMIC_PASS basket=7300 reserve=500g concurrent=1of2 duplicate=blocked payment=pending');
  }finally{await env.cleanup()}
 });
