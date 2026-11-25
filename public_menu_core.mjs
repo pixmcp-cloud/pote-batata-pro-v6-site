@@ -18,6 +18,7 @@ export const publicImage = (image,fallback="../assets/generic/business-batataria
   return fallback;
 };
 const safeCategory = c=>text(c||"Cardápio",40);
+const isComboCategory = c=>/^combos?$/i.test(String(c??"").trim());
 export function safeIngredientNames(raw){
   return [...new Set((Array.isArray(raw)?raw:[]).filter(x=>typeof x==="string").map(x=>text(x,90)).filter(Boolean))].slice(0,40);
 }
@@ -39,7 +40,7 @@ const ownImage=(src)=>{
   const isAllowed=typeof allowed==="function"?allowed:()=>true;
   const calc=typeof priceFor==="function"?priceFor:()=>NaN;
   for(const r of Array.isArray(data.recipes)?data.recipes:[]){
-    if(!r?.id||!r?.name||r.franchiseLocked===true||r.unavailable===true||r.suspended===true||!isAllowed(r))continue;
+    if(!r?.id||!r?.name||isComboCategory(r.category)||r.franchiseLocked===true||r.unavailable===true||r.suspended===true||!isAllowed(r))continue;
     const id=text(r.id,72),price=cents(calc(r));
     if(!price||!id||items.some(p=>p.id===id))continue;
     items.push({id,title:text(r.name,90),description:text(r.tagline||r.description,240),
@@ -71,7 +72,7 @@ export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allo
 export function sanitizeReadMenu(raw,slug){
   if(!raw||raw.schemaVersion!==MENU_SCHEMA||raw.published!==true||raw.slug!==slug||!validSlug(slug)||
      typeof raw.title!=="string"||!Array.isArray(raw.items)||raw.items.length>MENU_MAX_ITEMS)return null;
-  const items=raw.items.filter(p=>p&&typeof p.id==="string"&&p.id.length<=72&&
+  const items=raw.items.filter(p=>p&&!isComboCategory(p.category)&&typeof p.id==="string"&&p.id.length<=72&&
     typeof p.title==="string"&&p.title.length>0&&p.title.length<=90&&
     Number.isSafeInteger(p.priceCents)&&p.priceCents>0&&p.priceCents<=9999999&&Array.isArray(p.addons))
     .slice(0,MENU_MAX_ITEMS).map(p=>({id:text(p.id,72),title:text(p.title,90),

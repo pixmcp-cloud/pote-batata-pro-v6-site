@@ -43,3 +43,6 @@ As três artes restantes foram recuperadas da biblioteca e dos arquivos enviados
 Ingredientes de referência ficam visíveis automaticamente no diálogo. A publicação por loja inclui nomes somente se o lojista marcar a opção explícita e revisar a lista. Não publica quantidades, custos, estoque ou método de preparo. Não equivale a declaração de alergênicos. Carne com Cheddar tem apenas ingredientes principais confirmáveis pelo nome/arte; revisar ficha completa. A receita Pizza r22 não contém calabresa apesar da arte mostrar rodelas; revisar cadastro antes de vender.
 
 Ajuste de UX: a ficha inicia recolhida em todos os produtos; os ingredientes aparecem apenas quando o cliente toca em “Ver detalhes e cuidados”.
+
+## Combos
+A vitrine pública não apresenta categoria ou itens de combo. O módulo interno de combos e os cadastros do PDV permanecem intactos, reservados para um fluxo futuro. O carrinho de demonstração remove referências a produtos que já não constam no catálogo.

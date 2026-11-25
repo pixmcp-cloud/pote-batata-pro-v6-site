@@ -57,3 +57,9 @@ assert.deepEqual(sanitizeReadMenu(approved,approved.slug).items[0].ingredientNam
 assert(!JSON.stringify(approved.items[0].ingredientNames).includes("500"));
 assert.deepEqual(sanitizeReadMenu({...approved,items:[{...approved.items[0],ingredientNames:[{name:"privado"}, "Batata", "Batata"]}]},approved.slug).items[0].ingredientNames,["Batata"]);
 console.log("PASS: nomes de ingredientes somente por opção explícita, sem quantidades, embalagem ou custos");
+
+const comboState=structuredClone(state);comboState.data.combos=[{id:"combo-pdv",name:"Combo operacional"}];comboState.data.recipes.push({id:"combo-old",name:"Combo antigo",category:"Combos",price:40});
+assert(!buildMenuCandidates(comboState,{priceFor}).some(x=>x.id==="combo-old"||x.id==="combo-pdv"));
+assert.deepEqual(sanitizeReadMenu({...doc,items:[...doc.items,{...doc.items[0],id:"combo-old",category:"Combos"}]},doc.slug).items.map(x=>x.id),["r01","bev-agua"]);
+assert.equal(comboState.data.combos.length,1);
+console.log("PASS: combos fora do cardápio público, dados operacionais preservados");
