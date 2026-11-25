@@ -223,3 +223,6 @@ Run 45612994849: OAuth real novamente aprovado; Firestore retornou TRANSPORT_ERR
 
 ### C07 — conexão real Firestore confirmada
 Run 45613126538: OAuth aprovado, metadados do banco READABLE, legalPolicy/current MISSING, listagem por coleção HTTP 400. Todas as demais verificações 0acc5331 aprovadas. Corrigida consulta Admin para inventário global collectionGroups/-/indexes, sem pageSize explícito e com filtragem de nome/campos/escopo; classificação MISSING apenas após enumeração completa. Testes ajustados. Não conceder indexAdmin ao Worker de execução: criação de índices pelo administrador autorizado, exclusivamente aditiva. Nenhuma escrita nesta etapa.
+
+### C08 — índices ausentes confirmados e instalação aditiva preparada
+Run 45613810691: OAuth PASS, banco READABLE, listagem HTTP 200 e cinco índices MISSING; legalPolicy/current MISSING; segredos e travas preservados. Script de instalação aditiva com inventário prévio, escopo explícito potobatata-b71f3/(default), --check/--apply e nenhuma exclusão. Requer execução sob identidade humana com permissão de criação; não promover a conta do Worker. Gate de homologação comercial documentado. Ainda não foram solicitadas criações no banco real.
