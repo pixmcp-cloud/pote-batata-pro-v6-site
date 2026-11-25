@@ -10,7 +10,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
   expenses:[],beverages:[],purchases:[],stockMovements:[],losses:[]},creatives:[]});
  const records=new Map();
  const elements=new Map(),listeners={},subscriptions=new Map(),timers=new Map();
- let login=null,transactCount=0;
+ let login=null,transactCount=0,legalAllowed=true,legalChecks=[];
  const el={hidden:true,disabled:false,textContent:"",parentElement:{appendChild(child){elements.set(child.id,child)}},
   style:{},classList:{toggle(){}},addEventListener(){},append(){},appendChild(child){elements.set(child.id,child)}};
  for(const name of ["poteAuthGate","poteGoogleLogin","poteExit","poteSyncStatus",
@@ -46,6 +46,7 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  const auth={currentUser:null},store=new Map();
  const ctx={
   ...guard,app:{},createV5Store:v2.createV5Store,
+  ensureLegalAcceptance:async({auth})=>{legalChecks.push(auth.currentUser.uid);if(!legalAllowed)throw Error("legal_declined");return true;},
   createWorkerBridge:opts=>({enabled:false,stagingEndpoint:opts.endpoint}),
   console:{...console,warn(){}},window:{
    POTE_USE_V5:true,
@@ -72,7 +73,11 @@ const assert=require("node:assert/strict"),vm=require("node:vm"),fs=require("nod
  };
  vm.createContext(ctx);vm.runInContext(source,ctx);
  auth.currentUser={uid:"u",email:"test@example.com"};
- await login(auth.currentUser);
+ legalAllowed=false;await login(auth.currentUser);
+ assert.equal(ctx.window.POTE_APP_READY,false,"Recusa de termos impede abertura do V5");
+ assert.equal(cloud.has("users/u/appState/v5"),false,"Recusa não inicializa banco");
+ legalAllowed=true;await login(auth.currentUser);
+ assert.deepEqual(legalChecks,["u","u"],"Aceite verificado em cada login");
  assert.equal(ctx.window.POTE_APP_READY,true,"V5 deve abrir mesmo que haja V1 anterior");
  assert.equal(state.data.orders.length,0,"V1 nao deve ser importado");
  assert.equal(ctx.window.POTE_ACCOUNT_PROFILE?.uid,"u","Perfil pertence ao UID autenticado");

@@ -16,7 +16,7 @@ export async function getOrderAuth(){
  const auth=sdk.getAuth(app);await auth.authStateReady();return {app,auth,sdk};
 }
 export async function signInForOrder(){
- const a=await getOrderAuth();if(!a.auth.currentUser)await a.sdk.signInWithPopup(a.auth,new a.sdk.GoogleAuthProvider());return a;
+ const a=await getOrderAuth();if(!a.auth.currentUser)await a.sdk.signInWithPopup(a.auth,new a.sdk.GoogleAuthProvider());await ensureLegalAcceptance({app:a.app,auth:a.auth,required:true});return a;
 }
 const digest=async x=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(x)))),b=>b.toString(16).padStart(2,"0")).join("");
 export async function checkoutIdentity({storage,uid,slug,request,random=()=>crypto.randomUUID()}){

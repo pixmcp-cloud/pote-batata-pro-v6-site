@@ -26,7 +26,9 @@ export async function ensureLegalAcceptance({app,auth,required=false}){
   box.addEventListener("cancel",e=>{e.preventDefault();finish(false)});
   no.onclick=()=>finish(false);
   yes.onclick=async()=>{if(!input.checked||yes.disabled)return;yes.disabled=true;no.disabled=true;input.disabled=true;msg.textContent="Registrando aceite no servidor…";try{
-   check();await sdk.setDoc(ref,{uid,version:p.version,sha256:p.sha256,accepted:true,acceptedAt:sdk.serverTimestamp()});
+   check();try{await sdk.setDoc(ref,{uid,version:p.version,sha256:p.sha256,accepted:true,acceptedAt:sdk.serverTimestamp()});}catch(err){
+    const concurrent=await sdk.getDocFromServer(ref);check();if(!concurrent.exists()||!matchesAcceptance(concurrent.data(),p,uid))throw err;
+   }
    const saved=await sdk.getDocFromServer(ref);check();if(!matchesAcceptance(saved.data(),p,uid))throw Error("legal_acceptance_unconfirmed");finish(true);
   }catch(e){if(!finished){msg.textContent="Aceite não confirmado. Verifique a conexão ou atualize a página.";no.disabled=false;input.disabled=false;yes.disabled=!input.checked;}}};
   box.append(title,sub,content,label,el("p"),yes,no,msg);document.body.append(box);box.showModal();
