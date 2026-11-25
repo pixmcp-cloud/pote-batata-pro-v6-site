@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {splitState,combineState,diffState,recordId} from "./v5_store_core.mjs";
+const state={data:{businessType:"batataria",clients:[{id:"a",name:"Ativo"}],businessUniverses:{pizzaria:{clients:[{id:"b",name:"Arquivado"}],orders:[{id:"o",status:"recebido"}]}}}};
+const before=splitState(state);
+const restored=combineState(before.meta,before.records);
+const after=splitState(restored,before.records,{free:true,lockedUniverse:"batataria"});
+const key=recordId("pizzaria","clients","b");
+assert.deepEqual(after.records.get(key),before.records.get(key));
+assert(!diffState(before,after).changes.some(c=>(c.before||c.after)?.universe==="pizzaria"));
+const mutate=structuredClone(restored);mutate.data.businessUniverses.pizzaria.clients[0].name="Alterado";
+assert.throws(()=>splitState(mutate,before.records,{free:true,lockedUniverse:"batataria"}),{code:"free/limit"});
+const remove=structuredClone(restored);delete remove.data.businessUniverses.pizzaria;
+assert.throws(()=>splitState(remove,before.records,{free:true,lockedUniverse:"batataria"}),{code:"free/limit"});
+const switched=structuredClone(restored);switched.data.businessType="pizzaria";
+assert.throws(()=>splitState(switched,before.records,{free:true,lockedUniverse:"batataria"}),{code:"free/limit"});
+console.log("F10: downgrade preserva chaves e conteúdo do histórico de outros ramos.");

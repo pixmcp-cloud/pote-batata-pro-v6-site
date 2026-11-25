@@ -1,5 +1,7 @@
-import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
-import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=8";
+import {createCheckoutClient} from "./checkout-client.mjs?v=2";
+import {createConsumerUI} from "./consumer-ui.mjs?v=8";
+import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary, whatsappOrder } from "./cardapio-core.mjs?v=whatsapp12";
+import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=14";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -110,7 +112,7 @@ function restoreCart(){
   catch { return []; }
 }
 function saveCart(){
-  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(cart)); } catch {}
+  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(cart));return true; } catch {return false;}
 }
 function el(tag, className, text){
   const element=document.createElement(tag);
@@ -370,9 +372,10 @@ function renderCart(){
   $("floatingTotal").textContent=money(totals.subtotalCents);
   $("subtotal").textContent=money(totals.subtotalCents);
   $("total").textContent=money(totals.subtotalCents);
-  $("copyOrder").disabled=totals.count===0;
+  $("copyOrder").disabled=checkoutBusy||totals.count===0||(requestedSlug!==null&&!publicStore?.whatsapp&&!publicStore?.checkoutSiteKey)||(publicStore?.checkoutSiteKey&&fulfillChoice()==="entrega"&&!publicStore.whatsapp&&!publicStore.deliveryEnabled);
   const holder=$("cartItems");
   holder.replaceChildren();
+  updateDeliveryDisplay();
   if(!cart.length){
     holder.append(el("p","cart-empty","Sua sacola está vazia. Escolha um sabor para começar."));
     return;
@@ -393,11 +396,19 @@ function renderCart(){
     controls.append(remove);row.append(info,controls);holder.append(row);
   });
 }
+const fulfillChoice=()=>document.querySelector('input[name="fulfillment"]:checked')?.value || "retirada";
 function fulfill(){
-  const value=document.querySelector('input[name="fulfillment"]:checked')?.value || "retirada";
+  const value=fulfillChoice();
   const delivery=value==="entrega";
-  $("addressLabel").hidden=!delivery;
-  $("deliveryFee").textContent=delivery?"A definir pela loja":"Não se aplica";
+  if(publicStore?.checkoutSiteKey){
+   const automatic=!delivery||publicStore.deliveryEnabled===true;
+   $("checkoutChallenge").hidden=!automatic;
+   if(automatic&&!$("cartDialog").hidden&&$("cartDialog").open)void prepareChallenge();
+   $("copyOrder").disabled=checkoutBusy||!cart.length||(delivery&&!publicStore.whatsapp&&!publicStore.deliveryEnabled);
+  }
+  $("addressLabel").hidden=!delivery||isAutomaticDelivery();
+  $("deliveryPostalFields").hidden=!isAutomaticDelivery();
+  updateDeliveryDisplay();
   return value;
 }
 async function copyText(text){
@@ -408,8 +419,86 @@ async function copyText(text){
   document.body.append(box);box.select();
   const ok=document.execCommand("copy");box.remove();return ok;
 }
+let consumerUI=null;
+let publicStore=null,checkoutBusy=false,challengeToken="",widgetId=null,challengePromise=null,deliveryQuote=null;
+const checkoutEndpoint="https://pote-batata-guard-staging.pixmcp.workers.dev/v1/checkout";
+const checkoutClient=createCheckoutClient({endpoint:checkoutEndpoint});
+function isAutomaticDelivery(){return publicStore?.checkoutSiteKey&&publicStore.deliveryEnabled===true&&fulfillChoice()==="entrega"}
+function postalInput(){return {cep:$("deliveryCep").value.trim(),number:$("deliveryNumber").value.trim(),complement:$("deliveryComplement").value.trim()}}
+function quoteKey(){return JSON.stringify([requestedSlug,cart.map(x=>[x.id,x.quantity,x.note||""]),postalInput()])}
+function validQuote(){return isAutomaticDelivery()&&deliveryQuote?.key===quoteKey()?deliveryQuote:null}
+function updateDeliveryDisplay(){
+ const delivery=fulfillChoice()==="entrega",automatic=isAutomaticDelivery(),q=validQuote(),subtotal=cartTotals(cart,catalogue).subtotalCents;
+ $("total").textContent=money(subtotal+(q?.feeCents||0));
+ $("deliveryFee").textContent=automatic?(q?money(q.feeCents):"Calcule o frete"):delivery?"A definir pela loja":"Não se aplica";
+ $("deliveryQuoteAddress").textContent=q?q.address:"";
+ if(publicStore?.checkoutSiteKey)$("copyOrder").textContent=automatic?(q?"Confirmar pedido com entrega":"Calcular frete"):delivery?"Solicitar entrega pelo WhatsApp":"Confirmar pedido para retirada";
+}
+function checkoutInput(){return {slug:requestedSlug,items:cart.map(x=>({id:x.id,quantity:x.quantity,note:x.note||""})),expectedTotalCents:cartTotals(cart,catalogue).subtotalCents,customerName:$("customerName").value,customerPhone:$("customerPhone").value,payment:$("paymentMethod").value}}
+async function calculateDelivery(){
+ if(checkoutBusy)return;
+ if(!challengeToken){await prepareChallenge();toast("Conclua a verificação de segurança e toque novamente.");return;}
+ const input=checkoutInput(),postal=postalInput(),key=quoteKey();
+ if(!input.customerName.trim()||!input.customerPhone.trim()||!postal.cep||!postal.number){toast("Informe nome, celular, CEP e número.");return;}
+ checkoutBusy=true;renderCart();$("checkoutResult").textContent="Calculando frete…";
+ try{
+  const identity=await consumerUI.requireLogin();
+  const response=await fetch(checkoutEndpoint+"/quote",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+identity.token},body:JSON.stringify({...input,operationId:crypto.randomUUID(),challenge:challengeToken,delivery:{...postal,expectedFeeCents:0,expectedAddress:""}}),signal:AbortSignal.timeout(20000)});
+  const result=await response.json().catch(()=>null);
+  if(!response.ok||result?.ok!==true||!Number.isSafeInteger(result.feeCents)||result.feeCents<0||result.subtotalCents!==input.expectedTotalCents||result.totalCents!==result.subtotalCents+result.feeCents||typeof result.address!=="string")throw Error(result?.message||"Não foi possível calcular o frete.");
+  if(key!==quoteKey()||!isAutomaticDelivery())throw Error("Sacola ou endereço alterados. Calcule novamente.");
+  deliveryQuote={key,feeCents:result.feeCents,address:result.address};
+  $("checkoutResult").textContent="Confira o endereço e o total antes de confirmar. Nenhum pedido enviado.";
+ }catch(e){deliveryQuote=null;$("checkoutResult").textContent=e.message||"Frete indisponível."}
+ finally{challengeToken="";if(widgetId!==null)window.turnstile?.reset(widgetId);checkoutBusy=false;renderCart();fulfill();}
+}
+async function prepareChallenge(){
+ if(!publicStore?.checkoutSiteKey||widgetId!==null)return;
+ if(challengePromise)return challengePromise;
+ challengePromise=(async()=>{
+  if(!window.turnstile){
+   await new Promise((resolve,reject)=>{
+    const script=document.createElement("script");script.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";script.async=true;
+    script.onload=resolve;script.onerror=()=>reject(Error("Verificação indisponível. Tente novamente."));
+    document.head.append(script);
+   });
+  }
+  if(!window.turnstile)throw Error("Verificação indisponível.");
+  widgetId=window.turnstile.render("#checkoutChallenge",{sitekey:publicStore.checkoutSiteKey,action:"pote_checkout",theme:"auto",
+   callback:token=>{challengeToken=token;},
+   "expired-callback":()=>{challengeToken="";},"error-callback":()=>{challengeToken="";}});
+ })().catch(error=>{$("checkoutResult").textContent=error.message;}).finally(()=>{challengePromise=null;});
+ return challengePromise;
+}
+async function transactionalOrder(){
+ if(checkoutBusy)return;
+ if(!challengeToken){await prepareChallenge();toast("Conclua a verificação de segurança e confirme novamente.");return;}
+ const input=checkoutInput();
+ if(isAutomaticDelivery()){
+  const quote=validQuote();if(!quote)return calculateDelivery();
+  input.delivery={...postalInput(),expectedFeeCents:quote.feeCents,expectedAddress:quote.address};
+  input.expectedTotalCents+=quote.feeCents;
+ }
+ if(!input.customerName.trim()||!input.customerPhone.trim()){toast("Informe nome e celular.");return;}
+ checkoutBusy=true;renderCart();$("checkoutResult").textContent="Confirmando seu pedido no servidor...";
+ try{
+  const identity=await consumerUI.requireLogin();
+  const result=await checkoutClient.submit(input,challengeToken,identity);
+  await consumerUI.confirmed(result);
+  const codes=result.orderNumbers.map(n=>"#P"+String(n).padStart(7,"0")).join(", ");
+  $("checkoutResult").textContent="Pedido recebido: "+codes+" · "+money(result.totalCents)+". Pagamento pendente, "+(input.delivery?"na entrega.":"na retirada.");
+  cart=[];deliveryQuote=null;if(saveCart())checkoutClient.complete(input.slug);toast("Pedido registrado no PDV.");
+ }catch(error){$("checkoutResult").textContent=error.message||"Não foi possível confirmar. Não envie outro pedido até conferir.";}
+ finally{challengeToken="";if(widgetId!==null)window.turnstile?.reset(widgetId);checkoutBusy=false;renderCart();fulfill();}
+}
 async function copyOrder(){
   if(!cart.length){toast("Escolha um produto primeiro.");return;}
+  if(requestedSlug!==null){
+    if(publicStore?.checkoutSiteKey&&(fulfill()==="retirada"||isAutomaticDelivery()))return transactionalOrder();
+    if(publicStore?.checkoutSiteKey&&checkoutClient.hasPending(requestedSlug)){toast("Resolva primeiro a confirmação do pedido automático. Não envie outro pedido.");return;}
+    if(!publicStore?.whatsapp){toast("A loja não habilitou pedidos pelo WhatsApp.");return;}
+    try{await consumerUI.requireLogin();const url=whatsappOrder({cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,customerName:$("customerName").value,customerPhone:$("customerPhone").value,address:$("customerAddress").value,whatsapp:publicStore.whatsapp,storeTitle:publicStore.title});window.open(url,"_blank","noopener,noreferrer");toast("Confira a mensagem no WhatsApp e aguarde confirmação da loja.");}catch(e){toast(e.message);}return;
+  }
   const summary=demoSummary({
     cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,
     customerName:$("customerName").value,customerPhone:$("customerPhone").value,
@@ -438,8 +527,8 @@ $("confirmProduct").addEventListener("click",confirmProduct);
 productDialog.addEventListener("close",()=>{pendingProduct=[];selected=null;updatePendingStatus();});
 $("closeProduct").addEventListener("click",()=>productDialog.close());
 $("closeCart").addEventListener("click",()=>cartDialog.close());
-$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
-$("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
+$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);fulfill();cartDialog.querySelector(".cart-scroll").scrollTop=0;});
+$("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog);fulfill();cartDialog.querySelector(".cart-scroll").scrollTop=0;});
 $("keepShopping").addEventListener("click",()=>cartDialog.close());
 $("copyOrder").addEventListener("click",copyOrder);
 $("shareBtn").addEventListener("click",share);
@@ -450,6 +539,7 @@ $("settingsBtn").addEventListener("click",()=>{
 });
 $("closeSettings").addEventListener("click",()=>settingsDialog.close());
 document.querySelectorAll('input[name="fulfillment"]').forEach(input=>input.addEventListener("change",fulfill));
+for(const id of ["deliveryCep","deliveryNumber","deliveryComplement"])$(id).addEventListener("input",()=>{deliveryQuote=null;updateDeliveryDisplay()});
 for(const dialog of [productDialog,cartDialog,settingsDialog]){
   dialog.addEventListener("click",event=>{
     if(event.target===dialog)dialog.close();
@@ -476,6 +566,9 @@ async function loadPublicMenu(slug){
     const snap=await getDoc(doc(getFirestore(app),"publicMenus",slug));
     const menu=snap.exists()?sanitizeReadMenu(snap.data(),slug):null;
     if(!menu)throw Error("Loja indisponível");
+    publicStore=menu;
+    $("settingsBtn").hidden=true;$("consumerAccount").hidden=false;
+    consumerUI=createConsumerUI({slug,notify:toast,money});
     catalogue=menu.items;
     cart=restoreCart();
     byId.clear();for(const p of catalogue)byId.set(p.id,p);
@@ -486,19 +579,30 @@ async function loadPublicMenu(slug){
     const footer=document.querySelector(".site-footer strong");
     if(footer)footer.textContent=menu.title;
     const storeStatus=document.querySelector(".store-status");
-    if(storeStatus)storeStatus.textContent="Catálogo publicado • pedidos em breve";
+    if(storeStatus)storeStatus.textContent=menu.whatsapp?"Pedidos pelo WhatsApp":"Catálogo publicado • consulta";
     const subtitle=document.querySelector(".brand-text small");
     if(subtitle)subtitle.textContent=menu.subtitle||"CARDÁPIO DIGITAL";
     renderHero();
     const footerCaption=document.querySelector(".site-footer small");
-    if(footerCaption)footerCaption.textContent="Catálogo público • checkout ainda não habilitado";
+    if(footerCaption)footerCaption.textContent=menu.whatsapp?"Pedido sujeito à confirmação da loja.":"Catálogo público • somente consulta";
     const logo=document.querySelector(".brand-mark img");
     if(logo)logo.hidden=true;
     const reminder=document.querySelector(".demo-warning");
-    if(reminder)reminder.textContent="Catálogo público da loja. Esta versão permite somente montar uma simulação: não envia pedidos, não reserva estoque nem processa pagamentos.";
+    if(reminder)reminder.textContent=menu.whatsapp?"Envie a solicitação pelo WhatsApp e aguarde confirmação. Não há cobrança online nem reserva automática.":"Catálogo público somente para consulta; não registra pedidos.";
     const strip=document.querySelector(".preview-strip");
-    if(strip)strip.textContent="CATÁLOGO PUBLICADO • PEDIDOS E PAGAMENTOS AINDA NÃO HABILITADOS";
-    categories();renderMenu();renderCart();
+    if(strip)strip.textContent=menu.whatsapp?"CARDÁPIO DIGITAL • PEDIDOS PELO WHATSAPP":"CATÁLOGO PUBLICADO • SOMENTE CONSULTA";
+    $("copyOrder").textContent=menu.checkoutSiteKey?"Confirmar pedido para retirada":menu.whatsapp?"Solicitar pedido pelo WhatsApp":"Pedidos não habilitados";
+    if(menu.checkoutSiteKey){
+     if(storeStatus)storeStatus.textContent="Pedidos de retirada online";
+     if(footerCaption)footerCaption.textContent="Pagamento na retirada; sem cobrança online.";
+     if(reminder)reminder.textContent="Entre com Google somente ao confirmar. Pedidos de retirada entram no PDV; acompanhamento em tempo real. Pagamento na retirada. "+(menu.whatsapp?"Entregas pelo WhatsApp.":"Entregas indisponíveis.");
+     if(strip)strip.textContent="CARDÁPIO DIGITAL • PEDIDOS ONLINE PARA RETIRADA";
+     $("checkoutResult").hidden=false;
+     if(!menu.whatsapp&&!menu.deliveryEnabled)document.querySelector('input[name="fulfillment"][value="entrega"]').disabled=true;
+     if(menu.deliveryEnabled){if(storeStatus)storeStatus.textContent="Pedidos online · retirada e entrega";if(reminder)reminder.textContent="Calcule a entrega pelo CEP e confirme o endereço. Pagamento pendente na retirada ou entrega.";if(strip)strip.textContent="CARDÁPIO DIGITAL • RETIRADA E ENTREGA";if(footerCaption)footerCaption.textContent="Pagamento na retirada ou entrega; sem cobrança online.";}
+    }
+    $("paymentLabel").textContent=menu.checkoutSiteKey?(menu.deliveryEnabled?"Forma de pagamento no recebimento":"Forma de pagamento na retirada"):menu.whatsapp?"Forma de pagamento pretendida":"Forma de pagamento (consulta)";
+    categories();renderMenu();renderCart();fulfill();
   }catch(error){
     console.warn("Cardápio público indisponível",error.code||error.message||error);
     $("emptyState").textContent="Este cardápio não está disponível no momento. Solicite o endereço atualizado à loja.";

@@ -20,7 +20,9 @@ service cloud.firestore {
     // Licenças e franquias somente são concedidas no perfil pelo administrador.
     // Não depende de "role" ou "proActive" informados pelo navegador.
     function premiumProfile(userId) {
-      let account = get(/databases/$(database)/documents/users/$(userId)).data;
+      return premiumAccount(get(/databases/$(database)/documents/users/$(userId)).data);
+    }
+    function premiumAccount(account) {
       return (
         account.keys().hasAny(['franchise'])
         && account.franchise.status == 'active'
@@ -101,9 +103,26 @@ service cloud.firestore {
         : group in ['cashSessions','cashMovements'] ? 'orders'
         : group;
     }
+    // Novo perfil FREE precisa vincular seu segmento antes de gravar registros.
+    function validFreeUniverse(type) {
+      return type in ['batataria','pizzaria','hamburgueria','hotdog','pastelaria'];
+    }
+    function allowsBusinessProfile(userId, profile, universe) {
+      let franchise = profile.get('franchise', {});
+      return isAdmin() || (
+        franchise.get('status', '') == 'active'
+          && franchise.get('brandId', '') == 'potebatata'
+        ? universe == 'batataria'
+        : (premiumAccount(profile)
+          || (profile.keys().hasAny(['freeUniverse'])
+            ? validFreeUniverse(profile.freeUniverse) && universe == profile.freeUniverse
+            : profile.get('freeUniverseRequired', false) != true && universe != 'lancheria'))
+      );
+    }
     function canEditOperationalRecord(userId, record) {
       let profile = get(/databases/$(database)/documents/users/$(userId)).data;
-      return isAdmin() || !profile.keys().hasAny(['accessPolicy']) ||
+      return isAdmin() || (allowsBusinessProfile(userId, profile, record.universe) &&
+        (!profile.keys().hasAny(['accessPolicy']) ||
         (
           (!profile.accessPolicy.keys().hasAny(['blockedUniverses']) ||
             !profile.accessPolicy.blockedUniverses.hasAny([record.universe]))
@@ -111,7 +130,7 @@ service cloud.firestore {
             !profile.accessPolicy.blockedServices.hasAny([
               record.universe + ':' + recordService(record.group)
             ]))
-        );
+        )));
     }
     // F02/F20: impedir saldos físicos negativos ou não numéricos diretamente no SDK.
     // A conferência transacional de consumo e reserva continua sendo requisito separado.
@@ -249,13 +268,17 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isOwner(userId)
         && request.resource.data.keys().hasOnly([
-          'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'
+          'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt', 'freeUniverseRequired'
         ])
+        && request.resource.data.get('freeUniverseRequired', false) == true
         && request.resource.data.email == request.auth.token.email;
       allow update: if isAdmin() || (
         isOwner(userId)
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['displayName', 'photoURL', 'updatedAt'])
+          .hasOnly(['displayName', 'photoURL', 'updatedAt', 'freeUniverse'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['freeUniverse'])
+          || (!resource.data.keys().hasAny(['freeUniverse'])
+            && validFreeUniverse(request.resource.data.get('freeUniverse', ''))))
         && (
           !resource.data.get('nameLocked', false)
           || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName'])
@@ -295,9 +318,13 @@ service cloud.firestore {
       }
       // V5: um documento por entidade, com isolamento por conta e negócio.
       match /recordsV5/{recordId} {
+        function isTracked(record) {
+          return record.group == 'orders' && record.item.get('source', '') == 'public-checkout';
+        }
         function validCreate(document) {
           let record = document.get('record', null);
           return validRecordDocument(document, record)
+            && !isTracked(record)
             && canWriteOperationalRecord(userId, recordId, record)
             && (record.group != 'cashSessions' || record.item.status == 'open')
             // Pedidos, movimentos, compras e perdas não podem ser criados fora
@@ -309,6 +336,7 @@ service cloud.firestore {
           let record = document.get('record', null);
           let oldRecord = oldDocument.record;
           return validRecordDocument(document, record)
+            && (isTracked(oldRecord) ? isTracked(record) && record.item.diff(oldRecord.item).affectedKeys().hasOnly(['cashSessionId','paymentMethod','paymentStatus','paidAmount','changeGiven','paymentConfirmedAt','paymentConfirmationReference','paymentConfirmationSource']) : !isTracked(record))
             && canWriteOperationalRecord(userId, recordId, record)
             && preservesRecordIdentity(userId, recordId, record, oldRecord)
             && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
@@ -321,6 +349,7 @@ service cloud.firestore {
         allow create: if canAccess(userId) && validCreate(request.resource.data);
         allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
         allow delete: if canAccess(userId)
+          && !isTracked(resource.data.record)
           && canEditOperationalRecord(userId,resource.data.record)
           && !isFinancialGroup(resource.data.record.group)
           && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
@@ -484,6 +513,11 @@ service cloud.firestore {
     }
 
     // Deny everything not explicitly listed.
+    // Consumer projection: no access to merchant inventory, costs or other customers.
+    match /consumerOrders/{consumerUid}/orders/{checkoutId} {
+      allow get, list: if googleVerified() && request.auth.uid == consumerUid;
+      allow create, update, delete: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

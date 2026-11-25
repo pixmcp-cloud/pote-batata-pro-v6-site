@@ -4,15 +4,14 @@
 if(root.POTE_FINANCE)return;
 function parseNumber(v){
  if(typeof v==="number")return Number.isFinite(v)?v:NaN;
- let value=String(v??"").trim().replace(/^R\$\s*/i,"").replace(/\s/g,"");
- if(!value)return NaN;
- if(value.includes(",")&&value.includes(".")){
-  if(value.lastIndexOf(",")>value.lastIndexOf("."))value=value.replace(/\./g,"").replace(",",".");
-  else value=value.replace(/,/g,"");
- }else if(value.includes(","))value=value.replace(",",".");
- if(!/^[+-]?\d+(?:\.\d+)?$/.test(value))return NaN;
- const number=Number(value);
- return Number.isFinite(number)?number:NaN;
+ let raw=String(v??"").trim().replace(/^R\$\s*/i,"");
+ if(!raw)return NaN;
+ // Dots alone remain decimal, to preserve existing programmatically formatted inputs.
+ if(/^[+-]?\d{1,3}(?:\.\d{3})+,\d+$/.test(raw))raw=raw.replace(/\./g,"").replace(",",".");
+ else if(/^[+-]?\d{1,3}(?:,\d{3})+\.\d+$/.test(raw))raw=raw.replace(/,/g,"");
+ else if(/^[+-]?\d+,\d+$/.test(raw))raw=raw.replace(",",".");
+ if(!/^[+-]?\d+(?:\.\d+)?$/.test(raw))return NaN;
+ const value=Number(raw);return Number.isFinite(value)?value:NaN;
 }
 const n=v=>{const result=parseNumber(v);return Number.isFinite(result)?result:0};
 const round2=v=>Math.round((n(v)+Number.EPSILON)*100)/100;

@@ -1,7 +1,7 @@
 /* Firebase V5 repository. Store one logical record per document.
    Single V5 tenant source; no legacy states are read.
    All inventory-sensitive edits serialize through the same transaction guard. */
-import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v5_store_core.mjs?v=v4-free-ids-20261117";
+import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v5_store_core.mjs?v=v4-free-ids-20261117-f10";
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
 import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
 import {validateInventoryJournalDiff} from "./inventory_integrity.mjs";
@@ -91,7 +91,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   try{
    const client=typeof window!=="undefined"?window.POTE_AUTH:null;
    const free=Boolean(client?.uid===uid&&!client.proActive);
-   next=splitState(snapshot(),baseline.records,{free});
+   next=splitState(snapshot(),baseline.records,{free,lockedUniverse:free?client?.serverFreeUniverse:null});
    // Keep lifetime order counters monotonic across backup restores and universe swaps.
    // A destructive import may remove orders, but it cannot reuse a public number.
    const previousData=baseline.meta?.data||{};

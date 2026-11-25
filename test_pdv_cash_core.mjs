@@ -56,3 +56,16 @@ assert.equal(calculateCash(d,"turno2").expectedCash,55,"Pedidos antigos não pod
 assert.equal(calculateCash(d,"turno1").expectedCash,102);
 assert.equal(orderAmountCents(d.orders[1]),3490);
 console.log("PASS PDV: abertura, turno isolado, confirmação manual Pix/cartão, sangria, suprimento, reembolso idempotente e fechamento com diferença.");
+
+const web={orders:[{id:"w1",source:"public-checkout",checkoutId:"group-1",paymentMethod:"Na entrega",paymentStatus:"Pendente",status:"recebido",qty:2,price:30,cashSessionId:null},{id:"w2",source:"public-checkout",checkoutId:"group-1",paymentMethod:"Na entrega",paymentStatus:"Pendente",status:"recebido",qty:1,price:5,cashSessionId:null},{id:"w3",source:"public-checkout",checkoutId:"group-1",paymentMethod:"Na entrega",paymentStatus:"Pendente",status:"cancelado",qty:1,price:10,cashSessionId:null}]};
+assert.throws(()=>settleDeliveryPayment(web,{orderId:"w1",method:"Pix",reference:"ok"}),/Abra o caixa/);
+openCash(web,{id:"online-turn",openingCash:0});
+assert.throws(()=>settleDeliveryPayment(web,{orderId:"w1",method:"Pix",reference:""}),/comprovante/);
+assert.equal(calculateCash(web,"online-turn").confirmedByMethod.pix,0);
+settleDeliveryPayment(web,{orderId:"w1",method:"Pix",reference:"QA comprovante"});
+assert.equal(calculateCash(web,"online-turn").confirmedByMethod.pix,65);
+assert(web.orders.slice(0,2).every(o=>o.cashSessionId==="online-turn"&&paymentConfirmed(o)));
+assert(!paymentConfirmed(web.orders[2]));
+assert.throws(()=>settleDeliveryPayment(web,{orderId:"w2",method:"Pix",reference:"ok"}),/já registrado/);
+assert.equal(calculateCash(web,"online-turn").confirmedByMethod.pix,65);
+console.log("PASS checkout: grupo pago uma vez, valor integral, cancelado excluído, sem recebimento antes da conferência.");

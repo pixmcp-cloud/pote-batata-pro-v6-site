@@ -144,13 +144,24 @@ function freeLimitError(group,slot){
  error.code="free/limit";
  return error;
 }
-export function splitState(state,previousRecords=new Map(),{free=false}={}){
+export function splitState(state,previousRecords=new Map(),{free=false,lockedUniverse=null}={}){
  if(!state?.data||typeof state.data!=="object")throw Error("Estado V2 inválido");
  const meta=copy(state),records=new Map(),errors=[];
  const historical=free?historicalFreeSlots(previousRecords):new Map();
  delete meta.mode;delete meta.tab;delete meta.expansion;
  const data=meta.data;
  const active=branchId(data);
+ const frozen=free&&lockedUniverse?String(lockedUniverse):null;
+ const denyHistory=()=>{const e=Error("FREE: histórico de outro ramo permanece somente leitura. Ative o Pro para alterá-lo.");e.code="free/limit";throw e;};
+ if(frozen&&active!==frozen)denyHistory();
+ const frozenGroups=new Map();
+ if(frozen)for(const [key,rec] of previousRecords){
+  if(rec.universe===frozen)continue;
+  const group=JSON.stringify([rec.universe,rec.group]);
+  if(!frozenGroups.has(group))frozenGroups.set(group,[]);
+  frozenGroups.get(group).push([key,rec]);
+ }
+ for(const rows of frozenGroups.values())rows.sort((a,b)=>a[1].rank-b[1].rank||String(a[1].id).localeCompare(String(b[1].id)));
  const archived=copy(data.businessUniverses||{});
  delete data.businessUniverses;
  const branches={[active]:data};
@@ -159,10 +170,17 @@ export function splitState(state,previousRecords=new Map(),{free=false}={}){
   branches[name]=value;
  }
  const metaBranches={};
+ for(const rows of frozenGroups.values())if(!Object.hasOwn(branches,rows[0][1].universe))denyHistory();
  for(const [universe,branch] of Object.entries(branches)){
   const branchMeta=universe===active?data:copy(branch||{});
   for(const group of RECORD_GROUPS){
    const rows=asList(branch?.[group]);
+   if(frozen&&universe!==frozen){
+    const prior=frozenGroups.get(JSON.stringify([universe,group]))||[];
+    if(rows.length!==prior.length||rows.some((item,idx)=>stableJson(item)!==stableJson(prior[idx][1].item)))denyHistory();
+    for(const [key,record] of prior){if(records.has(key))throw freeLimitError(group,key);records.set(key,copy(record));}
+    branchMeta[group]=empty();continue;
+   }
    const entries=rows.map((item,idx)=>{
     const {id}=rowInfo(item,idx);
     const recordInfo={universe,group,id};

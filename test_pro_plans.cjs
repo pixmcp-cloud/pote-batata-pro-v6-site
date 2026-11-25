@@ -1,0 +1,11 @@
+const assert=require("node:assert/strict"),fs=require("node:fs"),vm=require("node:vm");
+const events={},elements=new Map();let dialog;
+const el=()=>({hidden:true,textContent:"",href:"",addEventListener(n,f){this[n]=f}});
+const button=el();
+const document={getElementById(){return button},body:{append(d){dialog=d}},createElement(){return {open:false,setAttribute(){},querySelector(id){if(!elements.has(id))elements.set(id,el());return elements.get(id)},showModal(){this.open=true},close(){this.open=false}}}};
+const window={POTE_AUTH:null,POTE_APP_READY:false,addEventListener(n,f){events[n]=f}};
+vm.runInNewContext(fs.readFileSync("pro_plans.js","utf8"),{window,document,encodeURIComponent});
+assert(button.hidden);window.POTE_PLANS.open();assert(!dialog);
+window.POTE_AUTH={uid:"a",role:"free",proActive:false};window.POTE_APP_READY=true;events["pote:user-ready"]();assert(!button.hidden);button.click();assert(dialog.open);assert.match(elements.get("#potePlansStatus").textContent,/FREE/);assert.match(elements.get("#potePlansContact").href,/^https:\/\/wa.me\/5548999951729/);assert.equal(window.POTE_AUTH.proActive,false);
+window.POTE_AUTH.proActive=true;events["pote:license-updated"]();assert.match(elements.get("#potePlansStatus").textContent,/PRO ativo/);assert.match(elements.get("#potePlansContact").textContent,/renovar/);
+events["pote:user-logout"]();assert(!dialog.open);assert(button.hidden);console.log("PASS: central comercial autenticada, licença somente por servidor, link oficial e encerramento por logout");

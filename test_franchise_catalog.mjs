@@ -96,7 +96,9 @@ assert(rules.includes("request.resource.data.publisherUid == request.auth.uid"))
 assert(rules.includes("request.resource.data.recipes.size() > 0"));
 assert(rules.includes("request.resource.data.ingredients.size() > 0"));
 assert(rules.includes("match /franchiseAudit/{eventId}"));
-assert(rules.includes(".hasOnly(['displayName', 'photoURL', 'updatedAt'])"));
+assert(rules.includes(".hasOnly(['displayName', 'photoURL', 'updatedAt', 'freeUniverse'])"));
+assert(rules.includes("!resource.data.keys().hasAny(['freeUniverse'])"));
+assert(rules.includes("validFreeUniverse(request.resource.data.get('freeUniverse', ''))"));
 const src=read("source/pote_app_base.html");
 assert(src.includes("window.POTE_AUTH?.franchiseActive"));
 assert(src.includes("state.data.recipes.filter(r=>!r.franchiseLocked&&!(window.POTE_AUTH?.franchiseActive&&r.templateOrigin==='batataria'))"),"Uma franquia não deve exibir fichas genéricas duplicadas");

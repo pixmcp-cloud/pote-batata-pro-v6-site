@@ -29,7 +29,13 @@ test('Catálogo público: somente dono verificado publica, leitura pública só 
   await assertFails(setDoc(ref(other),menu('owner-uid')));
   await assertFails(setDoc(ref(owner),{...menu('owner-uid'),clients:[{phone:'123'}]}));
   await assertFails(setDoc(ref(owner),{...menu('owner-uid'),items:[]}));
-  await assertSucceeds(setDoc(ref(owner),menu('owner-uid')));
+  await assertFails(setDoc(ref(owner),{...menu('owner-uid'),whatsapp:'https://bad.test'}));
+  await assertFails(setDoc(ref(owner),{...menu('owner-uid'),checkoutEnabled:true,checkoutSiteKey:"qa-public-site-key"}));
+  await env.withSecurityRulesDisabled(async ctx=>updateDoc(doc(ctx.firestore(),'users','owner-uid'),{license:{kind:'lifetime',term:'lifetime',status:'active'},accessPolicy:{workerAuthoritative:true,publicCheckout:true,publicCheckoutSlug:'loja-cardapio-qa',publicCheckoutSiteKey:'qa-public-site-key'}}));
+  await assertFails(setDoc(ref(owner),{...menu('owner-uid'),checkoutEnabled:true,checkoutSiteKey:"another-public-key"}));
+  await assertSucceeds(setDoc(ref(owner),{...menu('owner-uid'),checkoutEnabled:true,checkoutSiteKey:"qa-public-site-key"}));
+  await assertSucceeds(setDoc(ref(owner),{...menu('owner-uid'),whatsapp:'5548999951729'}));
+  assert.equal((await getDoc(ref(anon))).data().whatsapp,'5548999951729');
   assert.equal((await getDoc(ref(anon))).data().title,'Minha Loja');
   await assertFails(getDocs(collection(anon,'publicMenus')));
   await assertFails(updateDoc(ref(other),{title:'Invadido',updatedAt:serverTimestamp()}));

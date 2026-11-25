@@ -131,3 +131,5 @@ assert(unpaidReceipt.includes("NÃO PAGO"),"O recibo deve sinalizar o não pagam
 assert(!unpaidReceipt.includes("Troco devolvido"),"Não exibir troco de pedido marcado não pago");
 assert(!unpaidReceipt.includes("Valor recebido"),"Não indicar dinheiro recebido em pedido não pago");
 console.log("PASS: recibo de inadimplência não apresenta recebimento ou troco como concluído.");
+
+const delivered={...order,status:"entregue",finishedAt:"2026-11-15T14:42:05-03:00",durationSeconds:725};assert(R.render(delivered,"customer",data).includes("00:12:05"));assert(R.render(delivered,"customer",data).includes("Tempo total do pedido"));assert(!R.render(order,"customer",data).includes("Tempo total do pedido"));

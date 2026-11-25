@@ -1,15 +1,16 @@
 import {app} from "./firebase_app.mjs?v=init-20261120";
-import "./public_menu_admin.mjs";
+import "./public_menu_admin.mjs?v=whatsapp12";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {createV5Store} from "./v5_storage.mjs?v=v5-clean-20261120";
+import { getFirestore, doc, collection, getDoc,getDocFromServer, getDocs, setDoc, serverTimestamp, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {createV5Store} from "./v5_storage.mjs?v=v5-clean-20261120-f10";
 import {stableJson,jsonBytes,MAX_APPSTATE_BYTES,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
 const pendingKey=uid=>"pote-sync-pending-v5:"+String(uid||"");
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
-import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120";
+import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120-tracking";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+window.POTE_CONNECT_TOKEN=async()=>{const user=auth.currentUser;if(!user||user.uid!==window.POTE_AUTH?.uid||window.POTE_APP_READY!==true)throw Error("Sessão indisponível.");return user.getIdToken()};
 const google = new GoogleAuthProvider();
 google.setCustomParameters({ prompt: "select_account" });
 
@@ -78,6 +79,48 @@ window.POTE_ACCOUNT_PROFILE=null;
 function sessionMatches(uid,index=epoch){
  return Boolean(uid&&index===epoch&&auth.currentUser?.uid===uid&&window.POTE_AUTH?.uid===uid);
 }
+const FREE_SEGMENTS=["batataria","pizzaria","hamburgueria","hotdog","pastelaria"];
+function setConfirmedFreeUniverse(value){
+ const account=window.POTE_AUTH;
+ if(!account)return;
+ const confirmed=FREE_SEGMENTS.includes(value)?value:null;
+ account.serverFreeUniverse=confirmed;
+ if(confirmed)account.freeUniverse=confirmed;
+}
+window.POTE_SEGMENT_API={
+ async bind(type){
+  const uid=auth.currentUser?.uid,index=epoch,account=window.POTE_AUTH;
+  if(!ready||!window.POTE_APP_READY||!sessionMatches(uid,index)||
+    account.role==="admin"||account.proActive||account.franchiseActive||!FREE_SEGMENTS.includes(type))
+    throw Error("Sessão ou segmento FREE inválido.");
+  const ref=doc(db,"users",uid);
+  let selected;
+  try{selected=await withDeadline(runTransaction(db,async tx=>{
+   const current=await tx.get(ref);
+   if(!current.exists())throw Error("Perfil não encontrado.");
+   if(!sessionMatches(uid,index))throw Error("A sessão mudou.");
+   const prior=current.data()?.freeUniverse;
+   if(prior!==undefined&&prior!==null){
+    if(!FREE_SEGMENTS.includes(prior))throw Error("Segmento registrado inválido. Contate o suporte.");
+    return prior;
+   }
+   tx.set(ref,{freeUniverse:type,updatedAt:serverTimestamp()},{merge:true});
+   return type;
+  }),15000,"vínculo do segmento FREE");}
+  catch(error){
+   // A regra imutável pode negar a segunda transação concorrente antes do retry SDK.
+   // Só aceite a escolha já confirmada no servidor; jamais tente sobrescrevê-la.
+   if(!sessionMatches(uid,index))throw error;
+   const latest=await withDeadline(getDocFromServer(ref),15000,"consulta do segmento FREE");
+   const bound=latest.data()?.freeUniverse;
+   if(!FREE_SEGMENTS.includes(bound))throw error;
+   selected=bound;
+  }
+  if(!sessionMatches(uid,index))throw Error("A sessão mudou.");
+  setConfirmedFreeUniverse(selected);
+  return selected;
+ }
+};
 function publishAccountProfile(user,documentData){
  if(!sessionMatches(user?.uid))return;
  const profile={
@@ -366,8 +409,10 @@ function observeProfile(user, index) {
     rawUserFranchise = snapshot.data()?.franchise || null;
     const previousPolicy=JSON.stringify(rawUserAccessPolicy||{});
     rawUserAccessPolicy=snapshot.data()?.accessPolicy||{};
+    const previousSegment=window.POTE_AUTH?.serverFreeUniverse;
+    if(!snapshot.metadata?.hasPendingWrites)setConfirmedFreeUniverse(snapshot.data()?.freeUniverse);
     refreshEntitlements();
-    if(previousPolicy!==JSON.stringify(rawUserAccessPolicy))
+    if(previousPolicy!==JSON.stringify(rawUserAccessPolicy)||previousSegment!==window.POTE_AUTH?.serverFreeUniverse)
       window.dispatchEvent(new Event("pote:access-updated"));
   }, error => console.warn("Licença: ", error.code || error.message));
   if (expiryCheckInterval) clearInterval(expiryCheckInterval);
@@ -470,6 +515,7 @@ async function loadUser(user, index) {
   rawUserLicense = existing.exists() ? existing.data().license || null : null;
   rawUserFranchise = existing.exists() ? existing.data().franchise || null : null;
   rawUserAccessPolicy = existing.exists() ? existing.data().accessPolicy || {} : {};
+  setConfirmedFreeUniverse(existing.exists()?existing.data().freeUniverse:null);
   refreshEntitlements();
   if (!existing.exists()) {
     await withDeadline(setDoc(profile, {
@@ -477,7 +523,8 @@ async function loadUser(user, index) {
       email: user.email,
       photoURL: user.photoURL || "",
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      freeUniverseRequired: true
     }), 15000, "criação do perfil");
     if(index!==epoch||auth.currentUser?.uid!==user.uid)return;
   }

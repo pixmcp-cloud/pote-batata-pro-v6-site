@@ -90,6 +90,10 @@ export function confirmRecordedPayment(data,{orderId,reference,at}){
  order.paymentConfirmationReference=ref.slice(0,120);
  return order;
 }
+export function checkoutPaymentGroup(data,order){
+ if(order?.source!=="public-checkout"||!order.checkoutId)return order?[order]:[];
+ return (data.orders||[]).filter(o=>o.source==="public-checkout"&&o.checkoutId===order.checkoutId&&o.status!=="cancelado");
+}
 export function settleDeliveryPayment(data,{orderId,method,reference,at}){
  validateCashData(data);
  const order=data.orders.find(o=>o.id===orderId);
@@ -104,6 +108,20 @@ export function settleDeliveryPayment(data,{orderId,method,reference,at}){
  if(!["cash","pix","card"].includes(kind))fail("Selecione dinheiro, Pix ou cartão");
  const ref=String(reference||"").trim();
  if(kind!=="cash"&&!ref)fail("Confirme o comprovante antes de registrar");
+ // A single web cart has one physical payment, even with several kitchen lines.
+ if(order.source==="public-checkout"){
+  const group=checkoutPaymentGroup(data,order),active=activeSession(data);
+  if(!active)fail("Abra o caixa para confirmar o recebimento do pedido online.");
+  if(!group.length||group.some(o=>paymentConfirmed(o)||!["delivery","other"].includes(paymentKind(o.paymentMethod))||
+    (o.cashSessionId&&o.cashSessionId!==active.id)))fail("Pedido online já pago em parte ou vinculado a outro caixa. Concilie antes de confirmar.");
+  const when=asDate(at),note=(kind==="cash"?"Recebido pelo operador: ":"Comprovante conferido: ")+(ref||"Pagamento em espécie");
+  for(const row of group){
+   row.cashSessionId=active.id;row.paymentMethod={cash:"Dinheiro",pix:"Pix",card:"Cartão"}[kind];
+   row.paymentStatus=kind==="cash"?"Pago em dinheiro":"pago";row.paymentConfirmedAt=when;
+   row.paymentConfirmationReference=note;row.paymentConfirmationSource="checkout-recebimento";
+  }
+  return order;
+ }
  order.paymentMethod={cash:"Dinheiro",pix:"Pix",card:"Cartão"}[kind];
  order.paymentStatus=kind==="cash"?"Pago em dinheiro":"pago";
  order.paymentConfirmedAt=asDate(at);

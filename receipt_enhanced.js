@@ -64,7 +64,8 @@ function render(order,type,data){
   '<strong>'+ (kitchen?"COMANDA DE PREPARO":"COMPROVANTE DO PEDIDO")+'</strong>'+
   '<small>Documento não fiscal · identificação interna</small></header>'+
   '<div class="pote-receipt-block">'+line("Pedido","№ "+(code||"—"))+
-   line("Data e hora",formatDate(order))+line("Situação",status[order.status]||order.status||"Não informada")+
+   line("Data e hora",formatDate(order))+line("Situação",order.checkoutDispatchedAt&&order.status==="em_producao"?"Saiu para entrega":order.checkoutReadyAt&&order.status==="em_producao"?"Pedido finalizado":status[order.status]||order.status||"Não informada")+
+   (order.status==="entregue"&&Number.isSafeInteger(order.durationSeconds)&&order.durationSeconds>=0?line("Tempo total do pedido",[Math.floor(order.durationSeconds/3600),Math.floor(order.durationSeconds/60)%60,order.durationSeconds%60].map(n=>String(n).padStart(2,"0")).join(":"))+line("Entregue em",formatDate({createdAt:order.finishedAt})): "")+
    line("Canal",order.channel==="marketplace"?"Marketplace":"Venda direta / balcão")+'</div>'+
   '<div class="pote-receipt-block"><h3>Cliente e entrega</h3>'+
    line("Cliente",client)+(order.clientPhone?line("WhatsApp",order.clientPhone):"")+

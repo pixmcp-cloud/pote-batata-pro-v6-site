@@ -4,10 +4,13 @@
  */
 import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
-import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
+import {OperationalError,quantities,planOperation,recordPath,resolveRecord} from "./domain.mjs";
 import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
 import {planStockPurchase} from "./stock_purchase.mjs";
 import {planStockRecount} from "./stock_recount.mjs";
+import {checkoutRequest,verifyCheckoutChallenge,submitCheckout} from "./checkout.mjs";
+import {loadTracking,updateTracking,lifecycleRows} from "./tracking.mjs";
+import {connectOperation,closeConnectJob} from "./motoboy_connect.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -51,7 +54,7 @@ const persisted=(group,id,item,universe,prior,rank)=>({
 });
 export function createWorkerApp({
  verify=verifyFirebaseToken,repository=createFirestoreRepository,
- clock=()=>new Date()
+ clock=()=>new Date(),checkoutChallenge=verifyCheckoutChallenge,postalLookup
 }={}){
  async function performStockAdjust(req,env,headers){
   if(env.ENABLE_WRITES!=="true")
@@ -113,7 +116,7 @@ export function createWorkerApp({
    previousStock,countedStock}=body;
   const root="users/"+uid;
   const eventPath=root+"/workerEvents/"+operationId;
-  const stockPath=recordPath(uid,universe,group,itemId);
+  let stockPath=recordPath(uid,universe,group,itemId);
   const metaPath=root+"/appState/v5",guardPath=root+"/appState/v5InventoryGuard";
   const pulsePath=root+"/appState/v5Pulse";
   const store=repository(env),tx=await store.transaction();
@@ -140,9 +143,10 @@ export function createWorkerApp({
      ...(isPurchase?{purchaseId:prior.purchaseId}:
       isRecount?{recountId:prior.recountId}:{lossId:prior.lossId})},200,headers);
    }
-   const [meta,guard,pulse,existing]=await Promise.all([
-    tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),tx.get(stockPath)
+   const [meta,guard,pulse,resolved]=await Promise.all([
+    tx.get(metaPath),tx.get(guardPath),tx.get(pulsePath),resolveRecord(tx,uid,universe,group,itemId)
    ]);
+   const existing=resolved.doc;stockPath=resolved.path;
    const state=meta?.data?.state?.data;
    const active=state?.businessType===universe;
    const archived=state?.businessUniverses?.[universe];
@@ -200,7 +204,8 @@ export function createWorkerApp({
   const route=new URL(req.url).pathname;
   if(route==="/v1/inventory/adjust")return performStockAdjust(req,env,headers);
   const action=route==="/v1/orders/produce"?"produce":
-   route==="/v1/orders/cancel"?"cancel":null;
+   route==="/v1/orders/cancel"?"cancel":
+   route==="/v1/orders/ready"?"ready":route==="/v1/orders/dispatch"?"dispatch":route==="/v1/orders/deliver"?"deliver":null;
   if(!action)return json({error:"not_found"},404,headers);
   // Safe-by-default switch. Never expose service-account access by deploying
   // this source alone; the UI keeps using the current Firebase flow.
@@ -228,7 +233,7 @@ export function createWorkerApp({
     !valueOk(body.operationId,/^[a-zA-Z0-9_-]{20,80}$/)||
     Object.keys(body).some(k=>!["universe","orderId","operationId","decision"].includes(k))||
     (action==="cancel"&&!["return","loss"].includes(body.decision))||
-    (action==="produce"&&body.decision!==undefined))
+    (action!=="cancel"&&body.decision!==undefined))
    return json({error:"invalid_operation_request"},400,headers);
   const {uid}=user,{universe,orderId,operationId,decision}=body;
   const orderPath=recordPath(uid,universe,"orders",orderId);
@@ -262,6 +267,29 @@ export function createWorkerApp({
       ordered.data.record.id!==orderId||ordered.data.record.universe!==universe)
     throw new OperationalError("Pedido não encontrado nesta unidade",404,"order_missing");
    const original=ordered.data.record;
+   const tracking=await loadTracking(tx,uid,original.item);
+   const at=clock().toISOString();
+   if(["ready","dispatch","deliver"].includes(action)){
+    if(!tracking)throw new OperationalError("Pedido não possui acompanhamento online",409,"tracking_invalid");
+    const group=await lifecycleRows(tx,uid,universe,tracking,action,at);
+    const changed=group.map(r=>r.path.split("/").at(-1));
+    const next=updateTracking(tracking.doc.data,group.map(r=>r.next),at);
+    const writes=group.map(r=>put(r.path,{record:persisted("orders",r.next.id,r.next,universe,r.doc)},r.doc));
+    writes.push(put(tracking.path,next,tracking.doc),put(guardPath,{revision:guard.data.revision+1},guard),
+     put(pulsePath,{eventId:"cf-"+operationId,previousEventId:pulse.data.eventId,origin:"cloudflare-worker",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
+     put(eventPath,{action,decision:null,universe,orderId,operationId,resultStatus:next.status,actorUid:uid},null));
+    if(next.status==="entregue"){const closed=await closeConnectJob(tx,next,at);if(closed)writes.push(closed);}
+    await tx.commit(writes);
+    return json({ok:true,orderId,operationId,status:next.status,alreadyApplied:false},200,headers);
+   }
+   if(action==="cancel"&&original.item.deliveryType==="Tele-entrega"&&tracking){
+    const siblings=await Promise.all(tracking.doc.data.lines.map(line=>tx.get(recordPath(uid,universe,"orders",line.id))));
+    const active=siblings.map(d=>d?.data?.record?.item).filter(o=>o&&o.status!=="cancelado");
+    if(siblings.some(d=>!d?.data?.record?.item)||active.some(o=>o.checkoutDispatchedAt||o.status==="entregue"||o.paymentStatus!=="Pendente"||o.paymentConfirmedAt))
+     throw new OperationalError("Entrega despachada ou recebida exige conciliação manual antes do cancelamento.",409,"delivery_review");
+    if(original.item.checkoutFreightCarrier&&active.length>1)
+     throw new OperationalError("Cancele os outros itens primeiro; a linha com frete deve ser a última.",409,"delivery_review");
+   }
    const counts=action==="cancel"&&original.item.stockDeducted!==true?
     new Map():quantities(original.item);
    // Don't trust any item or quantity supplied by the browser.
@@ -275,18 +303,17 @@ export function createWorkerApp({
      const path=recordPath(uid,universe,group,id);
      load.push({key,path,group,id});
     }
-    const docs=await Promise.all(load.map(x=>tx.get(x.path)));
+    const docs=await Promise.all(load.map(x=>resolveRecord(tx,uid,universe,x.group,x.id)));
     for(let i=0;i<load.length;i++){
-     const item=load[i],doc=docs[i];
+     const item=load[i],{doc,path}=docs[i];
      if(!doc||doc.data?.record?.group!==item.group||
         doc.data?.record?.id!==item.id||
         doc.data?.record?.universe!==universe)
       throw new OperationalError("Cadastro de estoque inexistente: "+item.id,409,"missing_stock");
-     references.set(item.key,doc);
+     references.set(item.key,{doc,path});
      stock.set(item.key,doc.data.record.item);
     }
    }
-   const at=clock().toISOString();
    const planned=planOperation({
     action,decision,order:original.item,stock,universe,operationId,at
    });
@@ -295,8 +322,7 @@ export function createWorkerApp({
     record:persisted("orders",orderId,planned.order,universe,ordered)
    },ordered));
    for(const stockItem of planned.stockUpdates){
-    const key=stockItem.group+":"+stockItem.id,previous=references.get(key);
-    const path=recordPath(uid,universe,stockItem.group,stockItem.id);
+    const key=stockItem.group+":"+stockItem.id,{doc:previous,path}=references.get(key);
     writes.push(put(path,{
      record:persisted(stockItem.group,stockItem.id,stockItem.item,universe,previous)
     },previous));
@@ -311,6 +337,7 @@ export function createWorkerApp({
      changed.push(path.split("/").at(-1));
     }
    }
+   if(tracking){const next=updateTracking(tracking.doc.data,[planned.order],at);writes.push(put(tracking.path,next,tracking.doc));if(next.status==="cancelado"){const closed=await closeConnectJob(tx,next,at);if(closed)writes.push(closed);}}
    // Firestore V5 listeners depend on guard revision and pulse changes.
    // These must be committed with the operational documents, never later.
    const oldGuard=guard.data.revision,previousPulse=pulse.data.eventId;
@@ -347,6 +374,44 @@ export function createWorkerApp({
      writesEnabled:env.ENABLE_WRITES==="true"},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
    try{
+    if(route==="/v1/motoboy-connect"){
+     if(!origin||req.headers.get("Content-Type")?.split(";")[0]!=="application/json")return json({error:"invalid_connect"},400,headers);
+     const authorization=req.headers.get("Authorization")||"";
+     if(!/^Bearer [^\s]+$/.test(authorization))return json({error:"authentication_required"},401,headers);
+     let user;try{user=await verify(authorization.slice(7),env.FIREBASE_PROJECT_ID)}catch{return json({error:"invalid_firebase_token"},401,headers)}
+     if(!user?.uid||!valueOk(user.uid,/^[a-zA-Z0-9:_-]{1,128}$/))return json({error:"invalid_identity"},401,headers);
+     let input;try{const raw=await req.text();if(raw.length>3000)throw Error("size");input=JSON.parse(raw)}catch{return json({error:"invalid_connect"},400,headers)}
+     if(!input||typeof input!=="object"||Array.isArray(input))return json({error:"invalid_connect"},400,headers);
+     const merchantAllowed=async(tx,claims,universe)=>canaryPermitted(env,claims.uid)&&hasAccess((await tx.get("users/"+claims.uid))?.data,claims,universe);
+     for(let attempt=0;attempt<4;attempt++){
+      try{
+       const result=await connectOperation({input,user,env,repository,at:clock(),merchantAllowed});
+       // Browser-restricted Maps Embed key only. Never expose a server key,
+       // never persist it in order records, and keep map API opt-in.
+       if(result.job?.active&&["courier","customer","merchant"].includes(result.job.role)&&env.ENABLE_GOOGLE_MAPS_EMBED==="true"&&typeof env.GOOGLE_MAPS_EMBED_KEY==="string"&&/^AIza[A-Za-z0-9_-]{35}$/.test(env.GOOGLE_MAPS_EMBED_KEY))result.job.mapsEmbedKey=env.GOOGLE_MAPS_EMBED_KEY;
+       return json(result,200,headers);
+      }
+      catch(e){if(!(e instanceof FirestoreError)||![409,412].includes(e.status)||attempt===3)throw e;}
+     }
+    }
+    if(route==="/v1/checkout"||route==="/v1/checkout/quote"){
+     // Public ordering is separate from authenticated stock operations. Verify
+     // anti-abuse token once, not on each transaction retry.
+     if(env.ENABLE_WRITES!=="true"||env.ENABLE_PUBLIC_CHECKOUT!=="true")return json({error:"checkout_disabled"},423,headers);
+     if(!origin||req.headers.get("Content-Type")?.split(";")[0]!=="application/json")return json({error:"invalid_checkout"},400,headers);
+     const authorization=req.headers.get("Authorization")||"";
+     if(!/^Bearer [^\s]+$/.test(authorization))return json({error:"authentication_required"},401,headers);
+     let consumer;try{consumer=await verify(authorization.slice(7),env.FIREBASE_PROJECT_ID)}catch{return json({error:"invalid_firebase_token"},401,headers)}
+     if(!consumer?.uid||!valueOk(consumer.uid,/^[a-zA-Z0-9:_-]{1,128}$/))return json({error:"invalid_identity"},401,headers);
+     const input=await checkoutRequest(req);
+     if(!await checkoutChallenge(input.challenge,env,input.operationId))return json({error:"challenge_required"},403,headers);
+     for(let attempt=0;attempt<4;attempt++){
+      try{const quoteOnly=route==="/v1/checkout/quote";const result=await submitCheckout({input,env,repository,at:clock(),consumerUid:consumer.uid,postalLookup,quoteOnly});return json(result,quoteOnly||result.alreadyApplied?200:201,headers)}
+      catch(e){if(!(e instanceof FirestoreError)||![409,412].includes(e.status)||attempt===3)throw e;
+       await new Promise(resolve=>setTimeout(resolve,60*(attempt+1)+Math.floor(Math.random()*160)));
+      }
+     }
+    }
     // O SDK Firestore do navegador repete transações em conflito; o REST
     // não faz retry automático. Tentar com uma NOVA transação (mesmo UUID)
     // evita perder a venda em conflitos transitórios; o estoque segue

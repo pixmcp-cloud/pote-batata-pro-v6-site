@@ -17,6 +17,8 @@ jobs:
           node test_cardapio_central.cjs
           node test_public_menu_core.mjs
           node test_cardapio_core.mjs
+          node test_checkout_client.mjs
+          node test_tracking_core.mjs
           node test_cardapio_images.cjs
           node test_cardapio_ingredients.cjs
           node test_cardapio_hero.cjs
@@ -25,10 +27,12 @@ jobs:
           set -e
           mkdir -p public/assets
           cp -R cardapio public/cardapio
+          cp -R motoboy-connect public/motoboy-connect
           cp public_menu_core.mjs public/
           cp assets/pote-logo-original.jpg public/assets/
           cp -R assets/recipes assets/generic public/assets/
           npm ci --prefix qa/mobile --ignore-scripts --no-audit --no-fund
           export CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           test -n "$CHROME_BIN"
+          node test_connect_maps.mjs
           node test_cardapio_browser.cjs

@@ -81,6 +81,23 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       throw Error("Firestore: resposta transacional batchGet inválida");
      return {data:decodeFields(found.found.fields),updateTime:found.found.updateTime};
     },
+    // Bounded query in the same read-write transaction. Never truncate reservations.
+    async receivedOrders(uid,limit=201){
+     if(!/^[A-Za-z0-9:_-]{1,128}$/.test(uid)||!Number.isInteger(limit)||limit<1||limit>201)throw Error("Invalid reservation query");
+     const response=await api("/documents/users/"+encodeURIComponent(uid)+":runQuery",{method:"POST",body:{
+      transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],where:{fieldFilter:{field:{fieldPath:"record.item.status"},op:"EQUAL",value:{stringValue:"recebido"}}},limit}
+     }});
+     if(!Array.isArray(response))throw Error("Invalid reservation query response");
+     return response.filter(row=>row.document).map(row=>({data:decodeFields(row.document.fields),updateTime:row.document.updateTime}));
+    },
+    async expenses(uid,limit=201){
+     if(!/^[A-Za-z0-9:_-]{1,128}$/.test(uid)||!Number.isInteger(limit)||limit<1||limit>201)throw Error("Invalid expense query");
+     const response=await api("/documents/users/"+encodeURIComponent(uid)+":runQuery",{method:"POST",body:{
+      transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],where:{fieldFilter:{field:{fieldPath:"record.group"},op:"EQUAL",value:{stringValue:"expenses"}}},limit}
+     }});
+     if(!Array.isArray(response))throw Error("Invalid expense query response");
+     return response.filter(row=>row.document).map(row=>({data:decodeFields(row.document.fields),updateTime:row.document.updateTime}));
+    },
     async commit(writes){
      if(done)throw Error("Transaction already finalized");
      const updates=writes.map(write=>{
