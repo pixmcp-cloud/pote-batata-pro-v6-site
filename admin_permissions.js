@@ -20,7 +20,7 @@ root.innerHTML='<h3>🔐 Permissões por universo e serviço</h3>'+
  '<div class="pote-access-universes" id="poteAccessUniverses"></div>'+
  '<label class="pote-adm-label">Serviços do universo<select id="poteAccessType"></select></label>'+
  '<div class="pote-access-services" id="poteAccessServices"></div>'+
- '<h4>Locução IA premium · autorização independente</h4><p>Bloqueada por padrão, inclusive para PRO e franquias. Liberar uma conta não ativa cobrança nem substitui a licença comercial do provedor.</p><button type="button" id="poteVoicePermission" class="pote-access-toggle is-locked" disabled>🔒 Locução IA bloqueada</button>'+
+ '<h4>Locução IA premium · autorização independente</h4><p>Bloqueada por padrão para FREE e PRO. Franquias ativas têm liberação automática e 20% de desconto, salvo bloqueio do ADM. Liberar uma conta não ativa cobrança nem substitui a licença comercial do provedor.</p><button type="button" id="poteVoicePermission" class="pote-access-toggle is-locked" disabled>🔒 Locução IA bloqueada</button>'+
  '<p id="poteAccessMessage" role="status" aria-live="polite">Selecione uma conta para alterar permissões.</p>';
 const host=document.querySelector("#poteAdmOverlay .pote-adm-editor");
 if(host)host.appendChild(root);
@@ -29,10 +29,11 @@ const universes=root.querySelector("#poteAccessUniverses"),serviceGrid=root.quer
 selector.innerHTML=types.map(([id,label])=>'<option value="'+id+'">'+esc(label)+'</option>').join("");
 const voiceButton=root.querySelector('#poteVoicePermission');
 let user=null,saving=false;
+const voiceAllowed=u=>u?.accessPolicy?.voiceAiEnabled===true||(u?.accessPolicy?.voiceAiEnabled!==false&&u?.franchise?.status==='active'&&u.franchise.brandId==='potebatata');
 const safeSet=v=>new Set(Array.isArray(v)?v.filter(x=>typeof x==="string"):[]);
 function paint(){
  if(!universes||!serviceGrid)return;
- if(voiceButton){const granted=user?.accessPolicy?.voiceAiEnabled===true;voiceButton.disabled=!user||saving;voiceButton.className='pote-access-toggle '+(granted?'is-open':'is-locked');voiceButton.textContent=granted?'🔓 Locução IA autorizada — bloquear':'🔒 Locução IA bloqueada — autorizar';}
+ if(voiceButton){const granted=voiceAllowed(user);voiceButton.disabled=!user||saving;voiceButton.className='pote-access-toggle '+(granted?'is-open':'is-locked');voiceButton.textContent=granted?'🔓 Locução IA autorizada — bloquear':'🔒 Locução IA bloqueada — autorizar';}
  if(!user){universes.innerHTML="";serviceGrid.innerHTML="";message.textContent="Selecione uma conta.";return}
  const self=user.uid===auth.currentUser?.uid,disabled=saving||self?"disabled":"";
  const policy=user.accessPolicy||{},blockedU=safeSet(policy.blockedUniverses),blockedS=safeSet(policy.blockedServices);
@@ -90,7 +91,7 @@ universes?.addEventListener("click",event=>{const key=event.target.closest("[dat
 serviceGrid?.addEventListener("click",event=>{const key=event.target.closest("[data-service-toggle]")?.dataset.serviceToggle;if(key)void toggle("service",key)});
 voiceButton?.addEventListener('click',async()=>{
  if(saving||!user)return;
- const uid=user.uid,actor=auth.currentUser,enable=user.accessPolicy?.voiceAiEnabled!==true;
+ const uid=user.uid,actor=auth.currentUser,enable=!voiceAllowed(user);
  if(!actor||!confirm((enable?'Autorizar':'Bloquear')+' locução IA para '+(user.email||uid)+'?'))return;
  saving=true;paint();
  try{
