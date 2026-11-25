@@ -124,7 +124,7 @@ const logo=document.getElementById('poteHeadLogo'),orb=$('poteFloatToggle');
 function syncAiOrb(){
  if(!logo||!window.POTE_IA_UNIVERSE){orb.innerHTML=opened?closeIcon:icon;return;}
  orb.classList.add('pote-ai-orb');orb.innerHTML='<span>IA</span>';
- orb.setAttribute('aria-label','Abrir Carteira IA');orb.setAttribute('aria-controls','poteAiUniverse');
+ orb.setAttribute('aria-label','Abrir carteira IA COIN');orb.setAttribute('aria-controls','poteAiUniverse');
  orb.setAttribute('aria-expanded',String(window.POTE_IA_UNIVERSE.isOpen()));
 }
 if(logo){
