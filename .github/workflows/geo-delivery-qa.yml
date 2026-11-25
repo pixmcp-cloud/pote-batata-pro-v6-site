@@ -61,3 +61,7 @@ jobs:
         working-directory: workers/antifraud
       - run: node --test test/delivery_policy.test.mjs
         working-directory: workers/antifraud
+      - run: node --test test/checkout_worker.test.mjs
+        working-directory: workers/antifraud
+      - run: npx wrangler deploy --config wrangler.checkout-v6.qa.toml --dry-run --outdir .wrangler/checkout-qa
+        working-directory: workers/antifraud

@@ -91,7 +91,7 @@ export async function commitPublicCheckout({repository,buyerUid,request,quote=nu
   let redeemedPath=null;
   if(request.fulfillment==="entrega"){
    if(!opOk(request.quoteId))fail("delivery_quote_invalid");
-   if(loadQuote){const trusted=await loadQuote({buyerUid,slug:request.slug,quoteId:request.quoteId});quote=trusted?.quote;deliveryConfigVersion=trusted?.version;}
+   if(loadQuote){const trusted=await loadQuote({buyerUid,slug:request.slug,quoteId:request.quoteId});if(trusted?.ownerUid!==uid)fail("delivery_quote_invalid");quote=trusted?.quote;deliveryConfigVersion=trusted?.version;}
    if(quote?.id!==request.quoteId)fail("delivery_quote_invalid");
    redeemedPath="publicQuoteRedemptions/"+await digest([request.quoteId]);
    if(await tx.get(redeemedPath))fail("quote_already_used");
