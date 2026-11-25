@@ -46,3 +46,28 @@ assert.equal(child.getAttribute("inputmode"),"decimal");
 const onFocus=input({name:"amount"});events.focusin({target:onFocus});
 assert.equal(onFocus.getAttribute("inputmode"),"decimal");
 console.log("PASS: teclado numérico para preço, estoque, quantidades e troco; teclado normal em campos de texto e telefone contextual.");
+
+// V6: falsos positivos da classificação antiga por fragmento (gram, pix, stock, payment).
+for(const id of ["brandInstagram","instagram","motoPix","poteAdmPaymentRef","stockPurchaseSupplier","stockBeverageSupplier","stockUpdateSupplier","stockUpdateReason","lossStockNote","lossOrderNote","bevSize","garimpoSize","supplierCity","poteSupDelivery-x","poteSupNotes-x","clientNote","hubStore","paymentReference","stockItemName","deliveryTimeNotes","taxpayerName","programDescription"]){
+ const el=input({id});assert.equal(helper.apply(el),"",id);assert.equal(el.getAttribute("inputmode"),null,id);
+}
+for(const id of ["motoRateDelivery","motoRateKm","motoRateDay","motoTripKm","poteSupProdPrice-abc","stockPurchasePaid","stockUpdateQty","poteAdmPaymentAmount"]){
+ const el=input({id});assert.equal(helper.apply(el),"decimal",id);
+}
+for(const id of ["motoPhone","poteSupNewPhone","poteSupPhone-abc","vitrinePhone"]){
+ const el=input({id});assert.equal(helper.apply(el),"tel",id);
+}
+for(const label of ["Nome do fornecedor (R$)","Observações (kg)","Volume / embalagem","Chave PIX","Código do pagamento"]){
+ assert.equal(helper.apply(input({label})),"",label);
+}
+const insta=input({id:"brandInstagram",attrs:{inputmode:"text"}});
+assert.equal(helper.apply(insta),"text");assert.equal(insta.getAttribute("inputmode"),"text");
+for(const mode of ["numeric","decimal","tel","text","email","url"]){
+ const el=input({id:"brandInstagram",attrs:{inputmode:mode}});assert.equal(helper.apply(el),mode);
+}
+const explicit=input({id:"newMetric",attrs:{"data-numeric":"decimal"}});assert.equal(helper.apply(explicit),"decimal");
+const dynamicText=input({id:"stockPurchaseSupplier"}),dynamicNumber=input({id:"stockPurchaseQty"}),dynamicPhone=input({id:"brandPhone"});
+assert.equal(helper.scan({tagName:"DIV",querySelectorAll:()=>[dynamicText,dynamicNumber,dynamicPhone]}),2);
+assert.equal(dynamicText.getAttribute("inputmode"),null);
+assert.equal(dynamicNumber.getAttribute("inputmode"),"decimal");assert.equal(dynamicPhone.getAttribute("inputmode"),"tel");
+console.log("PASS V6: regressão de teclado em campos de texto, PIX, referência, fornecedores, estoque, telefone e valores.");
