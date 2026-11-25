@@ -1,5 +1,5 @@
-import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
-import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=8";
+import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary, whatsappOrder } from "./cardapio-core.mjs?v=whatsapp12";
+import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=12";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -370,7 +370,7 @@ function renderCart(){
   $("floatingTotal").textContent=money(totals.subtotalCents);
   $("subtotal").textContent=money(totals.subtotalCents);
   $("total").textContent=money(totals.subtotalCents);
-  $("copyOrder").disabled=totals.count===0;
+  $("copyOrder").disabled=totals.count===0||(requestedSlug!==null&&!publicStore?.whatsapp);
   const holder=$("cartItems");
   holder.replaceChildren();
   if(!cart.length){
@@ -408,8 +408,13 @@ async function copyText(text){
   document.body.append(box);box.select();
   const ok=document.execCommand("copy");box.remove();return ok;
 }
+let publicStore=null;
 async function copyOrder(){
   if(!cart.length){toast("Escolha um produto primeiro.");return;}
+  if(requestedSlug!==null){
+    if(!publicStore?.whatsapp){toast("A loja não habilitou pedidos pelo WhatsApp.");return;}
+    try{const url=whatsappOrder({cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,customerName:$("customerName").value,customerPhone:$("customerPhone").value,address:$("customerAddress").value,whatsapp:publicStore.whatsapp,storeTitle:publicStore.title});window.open(url,"_blank","noopener,noreferrer");toast("Confira a mensagem no WhatsApp e aguarde confirmação da loja.");}catch(e){toast(e.message);}return;
+  }
   const summary=demoSummary({
     cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,
     customerName:$("customerName").value,customerPhone:$("customerPhone").value,
@@ -476,6 +481,7 @@ async function loadPublicMenu(slug){
     const snap=await getDoc(doc(getFirestore(app),"publicMenus",slug));
     const menu=snap.exists()?sanitizeReadMenu(snap.data(),slug):null;
     if(!menu)throw Error("Loja indisponível");
+    publicStore=menu;
     catalogue=menu.items;
     cart=restoreCart();
     byId.clear();for(const p of catalogue)byId.set(p.id,p);
@@ -486,18 +492,20 @@ async function loadPublicMenu(slug){
     const footer=document.querySelector(".site-footer strong");
     if(footer)footer.textContent=menu.title;
     const storeStatus=document.querySelector(".store-status");
-    if(storeStatus)storeStatus.textContent="Catálogo publicado • pedidos em breve";
+    if(storeStatus)storeStatus.textContent=menu.whatsapp?"Pedidos pelo WhatsApp":"Catálogo publicado • consulta";
     const subtitle=document.querySelector(".brand-text small");
     if(subtitle)subtitle.textContent=menu.subtitle||"CARDÁPIO DIGITAL";
     renderHero();
     const footerCaption=document.querySelector(".site-footer small");
-    if(footerCaption)footerCaption.textContent="Catálogo público • checkout ainda não habilitado";
+    if(footerCaption)footerCaption.textContent=menu.whatsapp?"Pedido sujeito à confirmação da loja.":"Catálogo público • somente consulta";
     const logo=document.querySelector(".brand-mark img");
     if(logo)logo.hidden=true;
     const reminder=document.querySelector(".demo-warning");
-    if(reminder)reminder.textContent="Catálogo público da loja. Esta versão permite somente montar uma simulação: não envia pedidos, não reserva estoque nem processa pagamentos.";
+    if(reminder)reminder.textContent=menu.whatsapp?"Envie a solicitação pelo WhatsApp e aguarde confirmação. Não há cobrança online nem reserva automática.":"Catálogo público somente para consulta; não registra pedidos.";
     const strip=document.querySelector(".preview-strip");
-    if(strip)strip.textContent="CATÁLOGO PUBLICADO • PEDIDOS E PAGAMENTOS AINDA NÃO HABILITADOS";
+    if(strip)strip.textContent=menu.whatsapp?"CARDÁPIO DIGITAL • PEDIDOS PELO WHATSAPP":"CATÁLOGO PUBLICADO • SOMENTE CONSULTA";
+    $("copyOrder").textContent=menu.whatsapp?"Solicitar pedido pelo WhatsApp":"Pedidos não habilitados";
+    $("paymentLabel").textContent=menu.whatsapp?"Forma de pagamento pretendida":"Forma de pagamento (consulta)";
     categories();renderMenu();renderCart();
   }catch(error){
     console.warn("Cardápio público indisponível",error.code||error.message||error);

@@ -511,12 +511,13 @@ service cloud.firestore {
         return slug.matches('^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]$')
           && request.resource.data.keys().hasOnly([
             'schemaVersion','ownerUid','slug','published','title','subtitle',
-            'businessType','color','items','updatedAt'
+            'businessType','color','items','updatedAt','whatsapp'
           ])
           && request.resource.data.keys().hasAll([
             'schemaVersion','ownerUid','slug','published','title','subtitle',
             'businessType','color','items','updatedAt'
           ])
+          && (!request.resource.data.keys().hasAny(["whatsapp"]) || (request.resource.data.whatsapp is string && request.resource.data.whatsapp.matches("^55[1-9][0-9][2-9][0-9]{7,8}$")))
           && request.resource.data.schemaVersion == 1
           && request.resource.data.slug == slug
           && request.resource.data.ownerUid is string

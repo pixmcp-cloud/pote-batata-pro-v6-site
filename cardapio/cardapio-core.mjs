@@ -90,3 +90,16 @@ export function demoSummary({ cart, products, fulfillment, payment, customerName
   rows.push("", "NÃO EFETUA VENDA • NÃO FAZ COBRANÇA • NÃO ENTRA NO PDV");
   return rows.join("\n");
 }
+
+// Solicitação manual, sem reserva, gravação ou cobrança. O cliente decide enviar no WhatsApp.
+export function whatsappOrder({cart,products,fulfillment,payment,customerName,customerPhone,address,whatsapp,storeTitle}){
+ if(!/^55[1-9][0-9][2-9][0-9]{7,8}$/.test(String(whatsapp||"")))throw Error("WhatsApp comercial indisponível.");
+ if(!normalizeCart(cart,products).length)throw Error("Escolha pelo menos um produto disponível.");
+ if(!String(customerName||"").trim())throw Error("Informe seu nome.");
+ if(fulfillment==="entrega"&&!String(address||"").trim())throw Error("Informe o endereço de entrega.");
+ const summary=demoSummary({cart,products,fulfillment,payment,customerName,customerPhone,address}).split("\n");
+ const rows=["Olá! Gostaria de solicitar um pedido em "+String(storeTitle||"sua loja").slice(0,70)+".",...summary.slice(2,-2).map(line=>line.replace("Pagamento simulado:","Forma de pagamento pretendida:").replace("taxa não calculada","taxa a confirmar com a loja")),"","Aguardo confirmação da disponibilidade, taxa de entrega e valor final. Nenhum pagamento foi realizado."];
+ const url="https://wa.me/"+whatsapp+"?text="+encodeURIComponent(rows.join("\n"));
+ if(url.length>16000)throw Error("Pedido muito extenso. Divida a solicitação em duas mensagens.");
+ return url;
+}
