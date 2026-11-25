@@ -18,7 +18,9 @@ export function validateText(text){
 export function priceCredits(text,{providerMicroBrlPer1000,creditMicroBrl}){
  const n=validateText(text).length;
  for(const v of [providerMicroBrlPer1000,creditMicroBrl])if(!Number.isSafeInteger(v)||v<=0)throw Error('Preço do provedor e valor de crédito precisam ser configurados pelo servidor.');
- const a=2n*BigInt(n)*BigInt(providerMicroBrlPer1000),b=1000n*BigInt(creditMicroBrl);
+ // Conservative net revenue ceiling: R$1.10 per purchased coin, after fee and reserve.
+ const effectiveCreditMicroBrl=Math.min(creditMicroBrl,1100000);
+ const a=2n*BigInt(n)*BigInt(providerMicroBrlPer1000),b=1000n*BigInt(effectiveCreditMicroBrl);
  const value=(a+b-1n)/b;
  if(value>BigInt(Number.MAX_SAFE_INTEGER))throw Error('Orçamento fora do limite.');
  return Math.max(1,Number(value));
