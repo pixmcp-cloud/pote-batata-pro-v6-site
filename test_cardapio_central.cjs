@@ -1,0 +1,15 @@
+const assert=require("node:assert/strict"),fs=require("node:fs");
+const html=fs.readFileSync("source/pote_app_base.html","utf8");
+const admin=fs.readFileSync("public_menu_admin.mjs","utf8");
+const menu=fs.readFileSync("floating_menu.js","utf8");
+assert(html.includes("['deliveryhub','delivery-hub','Hub de Delivery'],['vitrine','cardapio','Cardápio']"));
+assert(html.includes('id="poteCardapioManager"'));
+assert(html.includes("window.POTE_PUBLIC_MENU?.open()"));
+assert(menu.includes('["deliveryhub","Hub de Delivery"],["vitrine","Cardápio"]'));
+assert(fs.existsSync("assets/operations/cardapio.svg"));
+assert(!admin.includes("snapshot?.().tab"));
+assert(admin.includes('owner()&&$("poteCardapioManager")'));
+assert(admin.includes('published?.ownerUid===owner()'));
+assert(admin.includes('validSession(uid,epoch)'));
+assert(admin.includes('published?.published===true'));
+console.log("PASS: card, rota, acesso autenticado, compartilhamento confirmado e isolamento de sessão");

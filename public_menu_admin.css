@@ -33,3 +33,9 @@
 .public-menu-btn.danger{background:#632a25;color:#ffe4db;border-color:#a55b50}
 @media(max-width:600px){.public-menu-launch{right:12px;bottom:calc(92px + env(safe-area-inset-bottom));font-size:12px;padding:11px 12px}.public-menu-shell{padding:15px}.public-menu-header h2{font-size:22px}.public-menu-actions{display:grid;grid-template-columns:1fr 1fr}.public-menu-btn.primary{grid-column:1/-1}.public-menu-products{max-height:30vh}}
 @media(prefers-reduced-motion:reduce){.public-menu-dialog::backdrop{backdrop-filter:none}}
+
+.public-menu-link[hidden]{display:none}
+#poteCardapioManager{border-color:#ad8550;background:linear-gradient(145deg,#111d2c,#080e19);padding:20px;margin-bottom:16px}
+#poteCardapioManager .actions{display:flex;flex-wrap:wrap;gap:10px}
+#poteCardapioManager .actions a{text-decoration:none;text-align:center}
+@media(max-width:600px){#poteCardapioManager .actions>*{flex:1 1 100%;min-height:44px}}

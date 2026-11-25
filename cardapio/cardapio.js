@@ -202,10 +202,10 @@ async function copyOrder(){
 async function share(){
   const url=location.href.split("#")[0];
   if(navigator.share){
-    try{await navigator.share({title:"Potê Batata • Prévia do cardápio",url});return;}catch{}
+    try{await navigator.share({title:document.title,url});return;}catch{}
   }
   try{
-    if(await copyText(url))toast("Link da prévia copiado.");
+    if(await copyText(url))toast("Link do cardápio copiado.");
     else toast("Não foi possível copiar o link.");
   }catch{toast("Não foi possível copiar o link.");}
 }

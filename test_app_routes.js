@@ -84,6 +84,10 @@ assert(pages.home.includes("Central de Operações"));
 assert(pages.losses.includes("Perdas e prejuízos"));
 assert(pages.expenses.includes("go(\'losses\')"),"Despesas deve ter atalho para Perdas");
 assert(pages.vitrine.includes("Cardápio"));
+assert(pages.home.indexOf("Hub de Delivery")<pages.home.indexOf(">Cardápio<"),"Cardápio deve ficar após Hub");
+assert(pages.home.includes("go('vitrine')")&&pages.home.includes("operations/cardapio.svg"),"Cardápio deve ser um card navegável");
+assert(pages.vitrine.includes('id="poteCardapioManager"')&&pages.vitrine.includes("POTE_PUBLIC_MENU?.open()"),"Gerenciador de cardápio acessível");
+
 assert(pages.reports.includes("Relatórios")||pages.reports.includes("Matriz BCG"));
 console.log("PASS: "+tabs.length+" áreas renderizadas sem erro de JavaScript:",tabs.join(", "));
 

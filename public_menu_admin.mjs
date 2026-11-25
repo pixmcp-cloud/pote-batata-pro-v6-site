@@ -12,14 +12,13 @@ const node=(tag,cls,text)=>{
   if(text!==undefined)el.textContent=text;
   return el;
 };
-let dialog=null,launcher=null,candidates=[],published=null,selected=new Set(),busy=false;
+let dialog=null,initialized=false,candidates=[],published=null,selected=new Set(),busy=false,activeUid=null,generation=0;
 const $=id=>document.getElementById(id);
 const owner=()=>window.POTE_APP_READY&&auth.currentUser?.uid===window.POTE_AUTH?.uid
   ?auth.currentUser.uid:null;
 const localKey=uid=>"pote-public-menu-slug:"+uid;
 const visible=()=>{
-  try {return Boolean(owner()&&window.POTE_APP?.snapshot?.().tab==="vitrine");}
-  catch{return false;}
+  return Boolean(owner()&&$("poteCardapioManager"));
 };
 const liveLink=slug=>{
   const url=new URL("./cardapio/",location.href);
@@ -27,17 +26,19 @@ const liveLink=slug=>{
   return url.href;
 };
 function buttonVisibility(){
-  if(launcher)launcher.hidden=!visible();
-  if(dialog?.open&&!owner())dialog.close();
+  const uid=owner();
+  if(uid!==activeUid){
+    generation++;activeUid=uid;busy=false;published=null;candidates=[];selected=new Set();
+    if(dialog){if(dialog.open)dialog.close();dialog.remove();dialog=null;}
+  }
+  if(dialog?.open&&!visible())dialog.close();
 }
+const validSession=(uid,epoch)=>owner()===uid&&generation===epoch;
 function init(){
-  if(launcher||!document.body)return;
+  if(initialized||!document.body)return;
+  initialized=true;
   const css=node("link");css.rel="stylesheet";css.href="./public_menu_admin.css";
   document.head.append(css);
-  launcher=node("button","public-menu-launch","🌐 Publicar cardápio online");
-  launcher.type="button";launcher.hidden=true;
-  launcher.addEventListener("click",open);
-  document.body.append(launcher);
   const title=$("pageTitle");
   if(title)new MutationObserver(buttonVisibility).observe(title,{childList:true,subtree:true,characterData:true});
   window.addEventListener("pote:user-ready",buttonVisibility);
@@ -62,6 +63,18 @@ function setMessage(message,error=false){
 function setBusy(value){
   busy=value;
   for(const id of ["publicMenuPublish","publicMenuUnpublish","publicMenuRefresh"]){const el=$(id);if(el)el.disabled=value;}
+  updateLink();
+}
+function updateLink(){
+  const link=$("publicMenuLink"),copy=$("publicMenuCopy");
+  const available=Boolean(owner()&&published?.ownerUid===owner()&&published?.published===true&&!busy);
+  if(link){link.hidden=!available;link.href=available?liveLink(published.slug):"#";link.textContent=available?liveLink(published.slug):"";}
+  if(copy)copy.disabled=!available;
+}
+async function copyLink(){
+  if(!owner()||published?.ownerUid!==owner()||!published?.published||busy)return;
+  try{await navigator.clipboard.writeText(liveLink(published.slug));setMessage("Link copiado.");}
+  catch{setMessage("Copie o endereço exibido acima manualmente.");}
 }
 function renderChoices(){
   const holder=$("publicMenuProducts");
@@ -114,6 +127,7 @@ function currentSelected(){
 async function refresh({load=true}={}){
   const uid=owner();
   if(!uid)return;
+  const epoch=generation;
   setBusy(true);
   try{
     const current=snapshot();
@@ -126,26 +140,27 @@ async function refresh({load=true}={}){
     if(!slug)slug=(slugify(name).slice(0,25)||"loja")+"-"+uid.slice(0,8).toLowerCase();
     $("publicMenuSlug").value=slug;
     if(load){
-      published=await loadExisting(slug,uid);
+      const existing=await loadExisting(slug,uid);
+      if(!validSession(uid,epoch))return;
+      published=existing;
       selected=new Set(published?.items?.map(p=>p.id)||[]);
       $("publicMenuSlug").readOnly=Boolean(published);
     }
     renderChoices();
-    $("publicMenuLink").href=liveLink(slug);
-    $("publicMenuLink").textContent=liveLink(slug);
+    updateLink();
     setMessage(published?.published===true
       ?"Cardápio online. Se atualizar preços ou produtos, publique novamente."
       :published?"Cardápio retirado do ar. Você pode publicar novamente."
        :"Selecione apenas produtos revisados; a publicação será pública e não aceitará pedidos reais.");
-  }catch(e){setMessage(e.message||"Falha na consulta.",true);}
-  finally{setBusy(false);}
+  }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha na consulta.",true);}
+  finally{if(validSession(uid,epoch))setBusy(false);}
 }
 function createDialog(){
   dialog=node("dialog","public-menu-dialog");
   dialog.id="publicMenuDialog";
   const shell=node("section","public-menu-shell");
   const header=node("div","public-menu-header");
-  const heading=node("div");heading.append(node("small","", "CARDÁPIO DIGITAL V2"),node("h2","", "Publicar minha vitrine"));
+  const heading=node("div");heading.append(node("small","", "CARDÁPIO DIGITAL"),node("h2","", "Gerenciar minha loja"));
   const close=node("button","public-menu-close","×");close.type="button";close.setAttribute("aria-label","Fechar");
   close.addEventListener("click",()=>dialog.close());
   header.append(heading,close);shell.append(header);
@@ -158,7 +173,8 @@ function createDialog(){
   const count=node("div","public-menu-count");count.id="publicMenuCount";shell.append(count);
   const msg=node("p","public-menu-message");msg.id="publicMenuMessage";msg.setAttribute("role","status");shell.append(msg);
   const link=node("a","public-menu-link");link.id="publicMenuLink";link.href="#";link.target="_blank";link.rel="noopener noreferrer";
-  shell.append(link);
+  link.hidden=true;shell.append(link);
+  const copy=node("button","public-menu-btn secondary","Copiar link da loja");copy.id="publicMenuCopy";copy.type="button";copy.disabled=true;copy.addEventListener("click",copyLink);shell.append(copy);
   const actions=node("div","public-menu-actions");
   const refreshBtn=node("button","public-menu-btn secondary","Atualizar lista");refreshBtn.id="publicMenuRefresh";
   const unpubBtn=node("button","public-menu-btn danger","Retirar do ar");unpubBtn.id="publicMenuUnpublish";
@@ -171,6 +187,7 @@ function createDialog(){
   dialog.append(shell);document.body.append(dialog);
 }
 async function open(){
+  buttonVisibility();
   if(!visible())return;
   if(!dialog)createDialog();
   if(dialog.open)return;
@@ -179,45 +196,56 @@ async function open(){
 async function publish(){
   if(busy)return;
   const uid=owner();if(!uid)return;
+  const epoch=generation;
   setBusy(true);
   try{
     const state=snapshot();
     const slug=$("publicMenuSlug").value.trim().toLowerCase();
     if(!validSlug(slug))throw Error("Endereço inválido: use letras minúsculas, números e hífen (4 a 40 caracteres).");
     const current=await loadExisting(slug,uid);
+    if(!validSession(uid,epoch))return;
     if(published&&published.slug!==slug)throw Error("Para trocar endereço, retire o cardápio antigo do ar primeiro.");
     const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:currentSelected(),
       priceFor,allowed,previous:current});
     if(!confirm("Publicar "+result.items.length+" produto(s) de "+result.title+
       " com preços visíveis a qualquer pessoa? Nenhum pedido real será aceito por esta página."))return;
+    if(!validSession(uid,epoch))return;
     await setDoc(doc(db,"publicMenus",slug),{...result,updatedAt:serverTimestamp()});
-    published=await loadExisting(slug,uid);
+    if(!validSession(uid,epoch))return;
+    const saved=await loadExisting(slug,uid);
+    if(!validSession(uid,epoch))return;
+    published=saved;
     if(!published?.published)throw Error("Servidor não confirmou a publicação.");
     try{localStorage.setItem(localKey(uid),slug)}catch{}
     $("publicMenuSlug").readOnly=true;
-    $("publicMenuLink").href=liveLink(slug);
-    $("publicMenuLink").textContent=liveLink(slug);
+    updateLink();
     setMessage("Publicado. Compartilhe o link; preços e estoque deverão ser revisados antes de habilitar pedidos.");
-  }catch(e){setMessage(e.message||"Falha ao publicar.",true);}
-  finally{setBusy(false);}
+  }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha ao publicar.",true);}
+  finally{if(validSession(uid,epoch))setBusy(false);}
 }
 async function unpublish(){
   if(busy)return;
   const uid=owner();if(!uid)return;
+  const epoch=generation;
   setBusy(true);
   try{
     const slug=$("publicMenuSlug").value.trim().toLowerCase();
     const current=await loadExisting(slug,uid);
+    if(!validSession(uid,epoch))return;
     if(!current)throw Error("Não há cardápio público neste endereço.");
     if(!current.published){setMessage("Este cardápio já está fora do ar.");return;}
     if(!confirm("Retirar sua loja do ar? O endereço ficará indisponível para clientes."))return;
+    if(!validSession(uid,epoch))return;
     await setDoc(doc(db,"publicMenus",slug),{...current,published:false,updatedAt:serverTimestamp()});
-    published=await loadExisting(slug,uid);
+    if(!validSession(uid,epoch))return;
+    const saved=await loadExisting(slug,uid);
+    if(!validSession(uid,epoch))return;
+    published=saved;
     if(published?.published!==false)throw Error("A retirada do ar não foi confirmada.");
     setMessage("Cardápio retirado do ar com sucesso.");
-  }catch(e){setMessage(e.message||"Falha ao retirar cardápio.",true);}
-  finally{setBusy(false);}
+  }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha ao retirar cardápio.",true);}
+  finally{if(validSession(uid,epoch))setBusy(false);}
 }
-window.POTE_PUBLIC_MENU={open,getCurrentLink:()=>owner()&&published?liveLink(published.slug):null};
+window.POTE_PUBLIC_MENU={open,getCurrentLink:()=>owner()&&published?.ownerUid===owner()&&published?.published===true&&!busy?liveLink(published.slug):null};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
 else init();

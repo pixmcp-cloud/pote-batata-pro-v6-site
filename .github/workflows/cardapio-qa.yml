@@ -1,0 +1,19 @@
+name: QA Cardápio V6
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cardapio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          node --check public_menu_admin.mjs
+          node --check floating_menu.js
+          node --check cardapio/cardapio.js
+          node test_cardapio_central.cjs
+          node test_public_menu_core.mjs
+          node test_cardapio_core.mjs
