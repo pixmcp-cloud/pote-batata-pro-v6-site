@@ -106,3 +106,7 @@ Capturas do lojista mostram UI anterior com troca livre e Lancheria disponível,
 
 ## V6 — atalhos acionáveis na vitrine interna (25/11/2026)
 Substituídos rótulos sem ação Vitrine Pública Simulada / Configure o WhatsApp em Marca por botões Configurar/Editar WhatsApp (abre Marca e focaliza brandPhone), Editar identidade da loja e Configurar cardápio (gerenciador autenticado). Mesmo componente atende todos os segmentos; sem alterar dados ou regras. Teste de contrato do cardápio ampliado. PR39 integrada em 6733794 após três checks aprovados; nova correção independente.
+
+
+## V6 — artes do Negócio e seis segmentos (25/11/2026)
+Artes aprovadas pelo proprietário: Negócio (loja/PDV/gráficos), Batataria, Pizzaria, Hamburgueria, Hot Dog, Lancheria e Pastelaria. Sete WebP próprios de 720×540, cerca de 335 KB no total, em `assets/generic/business-*.webp`, já incluídos pela cópia recursiva existente do build. Card da Central usa imagem independente do ramo; seletor e banner de universo usam as capas correspondentes. Cache do JS versionado; teste de integridade das imagens e renderização acrescentado a `test_business_setup.js`. Preservados identidade/logos, receitas, estoque, regras FREE/PRO/ADM, banco e layout. Sem Floot, serviços pagos ou mudança de Firestore. Base anterior: `0d1ae6b9c9429e8e3c77613c1c058b165f26e601`. A validação de CI e deploy Pages deve ser conferida após a integração; Firebase Hosting oficial depende de implantação própria.

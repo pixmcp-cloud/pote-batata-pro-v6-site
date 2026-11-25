@@ -4,14 +4,15 @@
 "use strict";
 if(window.POTE_BUSINESS)return;
 const TYPES=[
- {id:"batataria",label:"Batataria",name:"Minha Batataria",desc:"Receitas-modelo de batatas recheadas, com ingredientes para conferir.",photo:"./assets/generic/business-batataria.svg"},
- {id:"pizzaria",label:"Pizzaria",name:"Minha Pizzaria",desc:"30 receitas-modelo de pizzas, com ingredientes e preparo completos.",photo:"./assets/generic/business-pizzaria.svg"},
- {id:"hamburgueria",label:"Hamburgueria",name:"Minha Hamburgueria",desc:"30 receitas-modelo de hambúrgueres, com opções clássicas e artesanais.",photo:"./assets/generic/business-hamburgueria.svg"},
- {id:"hotdog",label:"Hot Dog",name:"Meu Hot Dog",desc:"Receitas de cachorro-quente e combinações tradicionais e especiais.",photo:"./assets/generic/business-hotdog.svg"},
- {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Ambiente vazio, sem receitas prontas: monte seu próprio cardápio.",photo:"./assets/generic/business-lancheria.svg"},
- {id:"pastelaria",label:"Pastelaria",name:"Minha Pastelaria",desc:"50 receitas de pastéis: 40 salgados e 10 doces, com foto padrão e preparo.",photo:"./assets/recipes/pastelaria-cardapio.jpg"}
+ {id:"batataria",label:"Batataria",name:"Minha Batataria",desc:"Receitas-modelo de batatas recheadas, com ingredientes para conferir.",photo:"./assets/generic/business-batataria.webp"},
+ {id:"pizzaria",label:"Pizzaria",name:"Minha Pizzaria",desc:"30 receitas-modelo de pizzas, com ingredientes e preparo completos.",photo:"./assets/generic/business-pizzaria.webp"},
+ {id:"hamburgueria",label:"Hamburgueria",name:"Minha Hamburgueria",desc:"30 receitas-modelo de hambúrgueres, com opções clássicas e artesanais.",photo:"./assets/generic/business-hamburgueria.webp"},
+ {id:"hotdog",label:"Hot Dog",name:"Meu Hot Dog",desc:"Receitas de cachorro-quente e combinações tradicionais e especiais.",photo:"./assets/generic/business-hotdog.webp"},
+ {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Ambiente vazio, sem receitas prontas: monte seu próprio cardápio.",photo:"./assets/generic/business-lancheria.webp"},
+ {id:"pastelaria",label:"Pastelaria",name:"Minha Pastelaria",desc:"50 receitas de pastéis: 40 salgados e 10 doces, com foto padrão e preparo.",photo:"./assets/generic/business-pastelaria.webp"}
 ];
 const GENERIC_LOGO="./assets/generic/business-neutral.svg";
+const BUSINESS_HERO="./assets/generic/business-negocio.webp";
 const templateImage=id=>"./assets/generic/recipe-"+id+".svg";
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -130,7 +131,7 @@ function refreshIdentity(){
  const businessHero=$("poteBusinessHeroHint");
  if(businessHero)businessHero.textContent=on?(current()==="batataria"?"Batataria · Conta mestre preservada":(currentItem()?.label||"Negócio")+" · Acesso ADM"):window.POTE_AUTH?.franchiseActive?"Batataria · Franquia oficial":"Ramo: "+(currentItem()?.label||"Escolha seu negócio");
  const businessImage=$("poteBusinessImage");
- if(businessImage)businessImage.src=currentItem()?.photo||"./assets/generic/business-neutral.svg";
+ if(businessImage&&businessImage.getAttribute?.("src")!==BUSINESS_HERO)businessImage.src=BUSINESS_HERO;
  normalizePageCopy();
  refreshUniverseBanner();
 }

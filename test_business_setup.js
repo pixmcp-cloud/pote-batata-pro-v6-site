@@ -133,3 +133,24 @@ assert(result.includes("business_setup.css?v=business-universes-20261115"));
 assert(result.includes("GESTÃO PRO"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));
 console.log("PASS: cinco universos, Pizzaria e Hamburgueria com 30 receitas cada, Hot Dog com 20 e Lancheria sem receitas.");
+
+// V6: capas aprovadas, arte fixa da Central e publicação dos WebP.
+const businessCovers=["batataria","pizzaria","hamburgueria","hotdog","lancheria","pastelaria"];
+for(const key of [...businessCovers,"negocio"]){
+ const path="assets/generic/business-"+key+".webp";
+ for(const file of [path,"public/"+path]){
+  const data=fs.readFileSync(file);
+  assert.equal(data.subarray(0,4).toString(),"RIFF",file);
+  assert.equal(data.subarray(8,12).toString(),"WEBP",file);
+  assert(data.length>10000,file+" deve conter a arte real");
+ }
+ if(key!=="negocio")assert(script.includes('photo:"./'+path+'"'),"Capa ausente: "+key);
+}
+assert(src.includes('id="poteBusinessImage" src="./assets/generic/business-negocio.webp"'));
+assert(result.includes('id="poteBusinessImage" src="./assets/generic/business-negocio.webp"'));
+for(const account of [companyAccount,neutral,admin,pizza,burger,dog,pastel,snack]){
+ account.window.POTE_BUSINESS.refresh();
+ assert.equal(account.document.getElementById("poteBusinessImage").src,"./assets/generic/business-negocio.webp");
+}
+assert(result.includes("v6-artes-20261125"));
+console.log("PASS: sete artes WebP publicadas; Negócio independente do segmento.");
