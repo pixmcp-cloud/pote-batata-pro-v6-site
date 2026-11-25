@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {initializeApp,applicationDefault} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore,FieldValue} from 'firebase-admin/firestore';
-import {authorized,validateText,priceCredits,commercialReady,canReserve} from './policy.mjs';
+import {authorized,isFranchise,validateText,priceCredits,commercialReady,canReserve} from './policy.mjs';
 initializeApp({credential:applicationDefault(),projectId:'potobatata-b71f3'});
 const db=getFirestore(),auth=getAuth();
 const cfg={
@@ -62,7 +62,7 @@ async function generate(uid,id,res){
   const [a,w,o]=await Promise.all([tx.get(account(uid)),tx.get(wallet(uid)),tx.get(ref)]);
   const quote=o.data(),current=w.data()?.balance;
   if(!canReserve({profile:a.data(),commercial:true,quote,balance:current,uid,now:Date.now()}))fail('Cotação expirada, usada, acesso revogado ou saldo insuficiente.',409);
-  if(priceCredits(quote.text,cfg)!==quote.credits)fail('Preço alterado, solicite nova cotação.',409);
+  if(priceCredits(quote.text,cfg,a.data())!==quote.credits)fail('Preço alterado, solicite nova cotação.',409);
   validateVoice(quote.voiceId);
   if(!Number.isSafeInteger(s.character_limit)||!Number.isSafeInteger(s.character_count)||s.character_limit-s.character_count<quote.text.length)fail('Cota do provedor insuficiente.',423);
   tx.update(wallet(uid),{balance:current-quote.credits,updatedAt:FieldValue.serverTimestamp()});
@@ -73,7 +73,7 @@ async function generate(uid,id,res){
  // Keep reservation for manual reconciliation; never issue a second POST for this quote.
  try{
   const current=await account(uid).get();
-  if(!authorized(current.data())) {
+  if(!authorized(current.data())||priceCredits(q.text,cfg,current.data())!==q.credits) {
    await db.runTransaction(async tx=>{
     const o=await tx.get(ref),w=await tx.get(wallet(uid));
     if(o.data()?.state==='reserved'&&Number.isSafeInteger(w.data()?.balance)){
@@ -81,7 +81,7 @@ async function generate(uid,id,res){
      tx.update(ref,{state:'refunded',reason:'access_revoked_before_provider'});
     }
    });
-   fail('Permissão revogada antes da geração.',403);
+   fail('Permissão ou preço alterado antes da geração.',403);
   }
   const audio=await provider('/v1/text-to-speech/'+encodeURIComponent(q.voiceId)+'?output_format=mp3_44100_128',{text:q.text,model_id:'eleven_flash_v2_5'});
   if(!audio.headers.get('content-type')?.startsWith('audio/'))fail('Formato inesperado.',502);
@@ -112,10 +112,12 @@ const server=createServer(async(req,res)=>{
   }
   if(req.url==='/quote'){
    await subscription();
-   const text=validateText(data.text),voiceId=validateVoice(data.voiceId),credits=priceCredits(text,cfg),value=await balance(uid);
+   const profile=(await account(uid).get()).data();
+   if(!authorized(profile))fail('Locução bloqueada pelo ADM.',403);
+   const text=validateText(data.text),voiceId=validateVoice(data.voiceId),credits=priceCredits(text,cfg,profile),value=await balance(uid);
    const quoteId=randomUUID();
    await order(uid,quoteId).create({uid,text,voiceId,credits,state:'quoted',expiresAt:Date.now()+300000,createdAt:FieldValue.serverTimestamp()});
-   return send(res,200,{quoteId,credits,balance:value});
+   return send(res,200,{quoteId,credits,balance:value,discountPercent:isFranchise(profile)?20:0});
   }
   if(req.url==='/generate')return await generate(uid,data.quoteId,res);
   return send(res,404,{error:'Rota inexistente.'});
