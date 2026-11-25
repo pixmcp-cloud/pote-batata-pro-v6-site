@@ -85,8 +85,8 @@ let catalogue = [
   { id:"brigadeiro",title:"Brigadeiro Cremoso",category:"Doces",description:"Chocolate intenso em uma sobremesa cremosa, feita para adoçar seu dia.",priceCents:1990,tag:"Doce momento",image:"../assets/recipes/brigadeiro.webp",addons:["avela"] },
   { id:"chocolate-morango",title:"Chocolate Preto com Morango",category:"Doces",description:"Chocolate e morango em camadas de pura felicidade.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-preto.webp",addons:["avela"] },
   { id:"chocolate-morango-branco",title:"Chocolate Branco com Morango",category:"Doces",description:"Chocolate branco e morango em camadas cremosas.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-branco.webp",addons:["avela"] },
-  { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=78",addons:[] },
-  { id:"agua",title:"Água Mineral",category:"Bebidas",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=900&q=78",addons:[] }
+  { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"../assets/recipes/refrigerante-lata.webp",addons:[] },
+  { id:"agua",title:"Água Mineral",category:"Bebidas",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"../assets/recipes/agua-mineral.webp",addons:[] }
 ].map(product => ({ ...product, ingredientNames:DEMO_INGREDIENTS[product.id]||[], addons:product.addons.map(id => ({
   cheddar:{id:"cheddar",label:"Cheddar extra",priceCents:490},
   bacon:{id:"bacon",label:"Bacon crocante",priceCents:590},
