@@ -1,6 +1,16 @@
 // Policy only, independent from browser and subscription level.
 export function isFranchise(profile){return profile?.franchise?.status==='active'&&profile.franchise.brandId==='potebatata';}
-export function authorized(profile){const flag=profile?.accessPolicy?.voiceAiEnabled;return flag===true||(flag!==false&&isFranchise(profile));}
+// FREE and trial are excluded, even if an old explicit voice grant exists.
+export function authorized(profile,now=Date.now(),admin=false){
+ if(profile?.accessPolicy?.voiceAiEnabled===false)return false;
+ if(admin===true)return true;
+ if(isFranchise(profile))return true;
+ const l=profile?.license;
+ if(l?.status!=='active')return false;
+ if(l.kind==='lifetime')return l.term==='lifetime';
+ const expires=typeof l.expiresAt?.toMillis==='function'?l.expiresAt.toMillis():NaN;
+ return l.kind==='pro'&&['month1','month6','year1'].includes(l.term)&&Number.isFinite(expires)&&expires>now;
+}
 export function validateText(text){
  if(typeof text!=='string'||!text.trim()||text.length>777)throw Error('Texto de 1 a 777 caracteres.');
  return text.trim();
@@ -18,8 +28,8 @@ export function commercialReady(subscription,config){
  typeof subscription?.tier==='string'&&subscription.tier!=='free'&&subscription.tier!=='free_tier'&&config.licensedTiers.includes(subscription.tier)&&
  (subscription.max_credit_limit_extension===0||(subscription.max_credit_limit_extension==null&&subscription.can_extend_character_limit===false));
 }
-export function canReserve({profile,commercial,quote,balance,uid,now}){
- return authorized(profile)&&commercial===true&&quote?.uid===uid&&quote?.state==='quoted'&&
+export function canReserve({profile,commercial,quote,balance,uid,now,admin=false}){
+ return authorized(profile,now,admin)&&commercial===true&&quote?.uid===uid&&quote?.state==='quoted'&&
  Number.isSafeInteger(quote?.credits)&&quote.credits>0&&Number.isSafeInteger(balance)&&balance>=quote.credits&&
  Number.isSafeInteger(quote?.expiresAt)&&quote.expiresAt>now;
 }
