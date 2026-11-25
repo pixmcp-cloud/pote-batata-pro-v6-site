@@ -1,0 +1,91 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "recordsV5",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "record.universe",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.group",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.id",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "recordsV5",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "record.universe",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.group",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.item.status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "recordsV5",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "record.universe",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.group",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.rank",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "recordsV5",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "record.universe",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.group",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record.item.orderNumber",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "publicOrderViews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buyerUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

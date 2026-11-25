@@ -14,7 +14,7 @@ const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest("
 const monthInBrazil=now=>new Date(now-3*3600000).toISOString().slice(0,7);
 const dateInBrazil=now=>new Date(now-3*3600000).toISOString().slice(0,10);
 function inputFingerprint(r){
- return [r.slug,r.lines?.map(x=>[x.id,x.quantity,x.addonIds,x.note]),r.fulfillment,r.payment,r.customerName,r.customerPhone,r.quoteId??null];
+ return [r.slug,r.lines?.map(x=>[x.id,x.quantity,x.addonIds,x.note]),r.fulfillment,r.payment,r.customerName,r.customerPhone,r.quoteId??null,r.expectedTotalCents??null];
 }
 function records(rows,universe,group){
  const map=new Map();
@@ -96,15 +96,38 @@ export async function commitPublicCheckout({repository,buyerUid,request,quote=nu
    redeemedPath="publicQuoteRedemptions/"+await digest([request.quoteId]);
    if(await tx.get(redeemedPath))fail("quote_already_used");
   }
-  const [orderRows,recipeRows,ingredientRows,beverageRows]=await Promise.all(["orders","recipes","ingredients","beverages"].map(group=>tx.listRecords(uid,universe,group)));
-  const orders=records(orderRows,universe,"orders"),recipes=records(recipeRows,universe,"recipes"),
-   ingredients=records(ingredientRows,universe,"ingredients"),beverages=records(beverageRows,universe,"beverages");
+  // Read only requested products/stock and currently reserved orders; no full history scan.
+  const fetchIds=async(group,ids)=>{
+   const unique=[...new Set(ids)];
+   if(unique.length>128||unique.some(id=>typeof id!=="string"||!id||id.length>72))fail("invalid_record_ids");
+   const rows=[];for(let i=0;i<unique.length;i+=30)rows.push(...await tx.listRecords(uid,universe,group,{ids:unique.slice(i,i+30),limit:unique.slice(i,i+30).length+2}));
+   return records(rows,universe,group);
+  };
+  if(request.lines.some(x=>!x||typeof x.id!=="string"||x.id.length>72))fail("invalid_cart_line");
+  const [pendingRows,sequenceRows,rankRows,recipes,beverages]=await Promise.all([
+   tx.listRecords(uid,universe,"orders",{status:"recebido",limit:101}),
+   tx.listRecords(uid,universe,"orders",{edge:"sequence"}),
+   tx.listRecords(uid,universe,"orders",{edge:"rank"}),
+   fetchIds("recipes",request.lines.filter(x=>!x.id.startsWith("bev-")).map(x=>x.id)),
+   fetchIds("beverages",request.lines.filter(x=>x.id.startsWith("bev-")).map(x=>x.id.slice(4)))
+  ]);
+  const ingredientIds=[];
+  for(const recipe of recipes.values()){
+   if(!Array.isArray(recipe.items)||recipe.items.length>32)fail("invalid_recipe");
+   ingredientIds.push(...recipe.items.map(x=>x.id));
+   if(settings.usePackagingStock===true)ingredientIds.push(...(recipe.packagingIngredientIds||[]));
+  }
+  const ingredients=await fetchIds("ingredients",ingredientIds);
+  const orders=records(pendingRows,universe,"orders");
+  for(const [id,o] of records(sequenceRows,universe,"orders"))if(!orders.has(id))orders.set(id,o);
+
   const plan=planPublicCheckout({buyerUid,menu,request,recipes,ingredients,beverages,existingOrders:[...orders.values()],
    settings,lastSequence:state.orderSequenceLast??0,quote,deliveryConfigVersion,now});
+  if(request.expectedTotalCents!==undefined&&(!int(request.expectedTotalCents,1,999999999)||request.expectedTotalCents!==plan.totalCents))fail("price_changed");
   const order=pdvOrder(plan,{id:"web-"+hash,stock:{ingredients,beverages},settings,now});
   const orderPath=recordPath(uid,universe,"orders",order.id),key=orderPath.split("/").at(-1);
   // Rank must precede existing rows, including legacy negative-rank writes.
-  const ranks=orderRows.map(x=>x.data.record.rank);
+  const ranks=rankRows.map(x=>x.data.record.rank);
   if(ranks.some(x=>!Number.isFinite(x)))fail("invalid_order_rank");
   const rank=Math.min(0,...ranks)-1000;
   if(!Number.isFinite(rank)||ranks.includes(rank))fail("invalid_order_rank");

@@ -64,7 +64,7 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
   }else if(action==="confirm_payment"){
    if(!owner||receipt.deliveryStatus==="cancelado"||paid(o)||typeof reference!=="string"||!reference.trim()||reference.length>120)fail("payment_confirmation_invalid");
    // Existing open shift only; never auto-open a shift or create a bank charge.
-   const cash=await tx.listRecords(receipt.ownerUid,u,"cashSessions");
+   const cash=await tx.listRecords(receipt.ownerUid,u,"cashSessions",{status:"open",limit:3});
    const open=cash.filter(x=>x.data?.record?.item?.status==="open");
    if(open.length!==1||!open[0].data.record.item.id)fail("cash_session_required");
    o.cashSessionId=open[0].data.record.item.id;o.paymentStatus="pago";o.paymentConfirmedAt=at;o.paymentConfirmationReference=reference.trim();
@@ -80,7 +80,8 @@ export async function mutateDeliveryOrder({repository,actorUid,id,operationId,ac
      const needed=quantities(o);
      for(const group of ["ingredients","beverages"]){
       if(![...needed.keys()].some(k=>k.startsWith(group+":")))continue;
-      const docs=await tx.listRecords(receipt.ownerUid,u,group);
+      const ids=[...needed.keys()].filter(k=>k.startsWith(group+":")).map(k=>k.slice(group.length+1));
+      const docs=[];for(let i=0;i<ids.length;i+=30)docs.push(...await tx.listRecords(receipt.ownerUid,u,group,{ids:ids.slice(i,i+30),limit:ids.slice(i,i+30).length+2}));
       for(const d of docs){const x=d.data?.record;if(x?.universe!==u||x.group!==group||x.id!==x.item?.id)fail("invalid_stock_record");
        const key=group+":"+x.id;if(needed.has(key)){if(stock.has(key))fail("duplicate_stock");stock.set(key,x.item);stockDocs.set(key,d);}}
      }

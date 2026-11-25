@@ -42,7 +42,7 @@ async function trackingStart(repository,actorUid,id){
  }finally{await tx.rollback()}
 }
 const fields={
- "/v1/orders/create":["slug","operationId","lines","fulfillment","payment","customerName","customerPhone","quoteId"],
+ "/v1/orders/create":["slug","operationId","lines","fulfillment","payment","customerName","customerPhone","quoteId","expectedTotalCents"],
  "/v1/orders/read":["id"],
  "/v1/orders/assign":["id","operationId","courierUid"],
  "/v1/orders/transition":["id","operationId","next","decision"],
@@ -73,6 +73,7 @@ export function createCheckoutWorker({verify=verifyFirebaseToken,repository=crea
    const actorUid=user.uid,now=clock();
    if(path==="/v1/orders/create"){
     if(!slugOk(b.slug))fail("invalid_store",400);
+    if(!Number.isSafeInteger(b.expectedTotalCents)||b.expectedTotalCents<1||b.expectedTotalCents>999999999)fail("invalid_expected_total",400);
     const r=await commitPublicCheckout({repository:repository(env),buyerUid:actorUid,request:b,loadQuote:args=>quoteReader(env,args),now});
     return reply(r,200,cors);
    }

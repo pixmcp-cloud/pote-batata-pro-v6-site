@@ -9,13 +9,16 @@ const fail=(code,status=403)=>{throw Object.assign(Error(code),{code,status})};
 export class DeliveryTrackingGate {
  constructor(state){this.storage=state.storage}
  async alarm(){
-  await this.storage.transaction(async tx=>{
+  const next=await this.storage.transaction(async tx=>{
    const p=await tx.get("latest"),s=await tx.get("session"),closed=await tx.get("closed");
    const now=Date.now();
    if(p&&p.expiresAt<=now)await tx.delete("latest");
    if(s&&s.expiresAt<=now){await tx.delete("latest");await tx.delete("session");}
    if(closed&&closed.until<=now)await tx.delete("closed");
+   const due=[p?.expiresAt,s?.expiresAt,closed?.until].filter(v=>Number.isFinite(v)&&v>now);
+   return due.length?Math.min(...due):null;
   });
+  if(next)await this.storage.setAlarm(next);
  }
  async fetch(req){
   try{
