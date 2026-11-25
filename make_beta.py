@@ -335,7 +335,7 @@ BODY_ASSETS = (
     '<script src="./pastelaria_templates.js?v=pastelaria-20261116"></script>'
     '<script src="./universe_core.js?v=kitchen-motoboy-20261116"></script>'
     '<script src="./access_control.js?v=delivery-hub-20261116-free-lock-1"></script>'
-    '<script src="./business_setup.js?v=company-label-20261117-free-lock-1"></script>'
+    '<script src="./business_setup.js?v=company-label-20261117-v6-artes-20261125"></script>'
     '<script src="./beverage_catalog.js?v=commerce-20261115"></script>'
     '<script src="./payment_flow.js?v=exact-cash-safe-sync-20261118"></script>'
     '<script src="./stock_inventory.js?v=stock-priority-20261115"></script>'
