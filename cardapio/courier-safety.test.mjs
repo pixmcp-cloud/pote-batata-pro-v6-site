@@ -14,3 +14,9 @@ test("urgent private safety notification is not a confirmed accident",()=>{
  const items=mergeNotifications([],[],{},1000,[{id:"abc",orderCode:"#P0000001",kind:"possible_accident",atMs:1000}]);
  assert.equal(items[0].priority,"urgent");assert.match(items[0].title,/possível acidente/);assert.equal(items[0].unread,true);
 });
+
+test("emergency notification exposes only an authorized retrieval reference",()=>{
+ const ref={id:"a".repeat(64),kind:"possible_accident",atMs:1000};
+ const item=mergeNotifications([],[],{},1000,[{id:"alert",orderId:ref.id,orderCode:"#P0000001",kind:ref.kind,atMs:ref.atMs,hasLocation:true}])[0];
+ assert.deepEqual(item.safetyRef,ref);assert.equal(item.href,"");
+});

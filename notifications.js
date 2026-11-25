@@ -1,6 +1,7 @@
 /* Global notification bell: verified ADM announcements (Firestore realtime)
    and manual delivery imports already saved in the logged-in account. */
 import {app} from "./firebase_app.mjs?v=init-20261120";
+import {createCheckoutApi} from "./cardapio/checkout-api.mjs";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,collection,onSnapshot,query,orderBy,limit} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 import {notificationState,mergeNotifications,unreadCount,markRead} from "./notification_core.mjs?v=notices-20261116";
@@ -39,6 +40,19 @@ function currentNotifications(){
 function fmt(value){
  return value?new Date(value).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
 }
+async function showSafetyLocation(item,host){
+ if(!logged()||!item?.safetyRef)return;
+ const identity=auth.currentUser.uid,button=document.createElement("button");button.type="button";button.textContent="Ver localização da ocorrência";
+ button.onclick=async()=>{button.disabled=true;try{
+  const api=createCheckoutApi({token:()=>auth.currentUser?.getIdToken()});
+  const result=await api.request("orders/safety-location",item.safetyRef),p=result.point;
+  if(auth.currentUser?.uid!==identity||!host.isConnected)return;
+  if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)||!Number.isFinite(p.accuracy))throw Error();
+  const info=document.createElement("p");info.textContent="Última posição no alerta: "+p.lat.toFixed(6)+", "+p.lon.toFixed(6)+" • precisão aproximada "+Math.round(p.accuracy)+" m • "+fmt(p.at);
+  const map=document.createElement("a");map.textContent="Abrir no mapa";map.target="_blank";map.rel="noopener noreferrer";map.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(p.lat+","+p.lon);host.append(info,map);button.remove();
+ }catch{if(host.isConnected){button.textContent="Localização indisponível — tentar novamente";button.disabled=false;}}};
+ host.append(button);
+}
 function paint(){
  const visible=logged()&&!!safeData();
  root.hidden=!visible;
@@ -69,6 +83,7 @@ function paint(){
      '<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">'+
      'Abrir link externo (nova aba)</a></div>':'')+
    '<button type="button" class="pote-notice-detail-finish" data-notice-back>Voltar à lista</button>';
+  if(selected.kind==="safety")void showSafetyLocation(selected,detail);
   return;
  }
  $("poteNoticeStatus").textContent=listenerError?"Comunicados indisponíveis: "+listenerError:
@@ -79,13 +94,13 @@ function paint(){
   '<p>'+esc(x.body)+'</p><div class="pote-notice-actions"><span>'+esc(x.source)+'</span>'+
   (x.unread?'<button type="button" data-notice-read="'+esc(x.id)+'">Marcar como lida</button>':'<span class="read-tag">✓ Lida</span>')+
   (x.kind==="order"?'<button type="button" data-notice-open="'+esc(x.id)+'">Abrir Hub</button>':
-   x.kind==="broadcast"?'<button type="button" data-notice-detail="'+esc(x.id)+'">Ver mensagem</button>':"")+
+   (x.kind==="broadcast"||x.kind==="safety")?'<button type="button" data-notice-detail="'+esc(x.id)+'">Ver mensagem</button>':"")+
   '</div></article>').join(""):
   '<p class="pote-notice-empty">Nenhuma notificação. Pedidos importados e comunicados aparecerão aqui.</p>';
 }
 function viewMessage(id){
  if(!logged()||!safeData())return false;
- const selected=currentNotifications().find(x=>x.id===id&&x.kind==="broadcast");
+ const selected=currentNotifications().find(x=>x.id===id&&(x.kind==="broadcast"||x.kind==="safety"));
  if(!selected)return false;
  selectedId=id;
  mark(id);
@@ -146,7 +161,7 @@ function connect(){
   const latest=currentNotifications().find(x=>x.kind==="safety"&&x.unread&&!safetySeen.has(x.id)&&Date.now()-x.at<86400000);
   if(!latest||safetyPopup)return;safetySeen.add(latest.id);
   const box=document.createElement("aside");box.setAttribute("role","alert");Object.assign(box.style,{position:"fixed",top:"16px",left:"12px",right:"12px",maxWidth:"480px",margin:"auto",zIndex:"2147483000",background:"#441414",color:"#fff",padding:"18px",border:"2px solid #f59e0b",borderRadius:"12px"});
-  const title=document.createElement("strong");title.textContent=latest.title;const msg=document.createElement("p");msg.textContent=latest.body;const b=document.createElement("button");b.type="button";b.textContent="Ciente — verificar entregador";b.onclick=()=>{mark(latest.id);box.remove();safetyPopup=null;};box.append(title,msg,b);document.body.append(box);safetyPopup=box;
+  const title=document.createElement("strong");title.textContent=latest.title;const msg=document.createElement("p");msg.textContent=latest.body;const b=document.createElement("button");b.type="button";b.textContent="Ciente — verificar entregador";b.onclick=()=>{mark(latest.id);box.remove();safetyPopup=null;};box.append(title,msg);void showSafetyLocation(latest,box);box.append(b);document.body.append(box);safetyPopup=box;
  },()=>{});
  const q=query(collection(db,"announcements"),orderBy("createdAt","desc"),limit(60));
  unsub=onSnapshot(q,snapshot=>{

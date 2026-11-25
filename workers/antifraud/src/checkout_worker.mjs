@@ -5,7 +5,8 @@ import {createFirestoreRepository} from "./firestore.mjs";
 import {commitPublicCheckout,resolvePublicCheckout} from "./checkout_transaction.mjs";
 import {readDeliveryOrder,mutateDeliveryOrder} from "./delivery_transaction.mjs";
 import {issueCourierInvite,acceptCourierInvite} from "./courier_invitation.mjs";
-import {reportCourierSafety} from "./courier_safety.mjs";
+import {reportCourierSafety,readCourierSafetyLocation} from "./courier_safety.mjs";
+import {deliveryEntitlement} from "./delivery_policy.mjs";
 import {DeliveryTrackingGate} from "./delivery_tracking_gate.mjs";
 import {uidOk,slugOk} from "./geo_core.mjs";
 export {DeliveryTrackingGate};
@@ -40,14 +41,17 @@ async function trackingStart(repository,actorUid,id){
   const o=(await tx.get("publicOrderReceipts/"+id))?.data;
   if(o?.id!==id||o.fulfillment!=="entrega"||o.deliveryStatus!=="saiu_entrega"||
    ![o.buyerUid,o.courierUid].includes(actorUid)||o.clockStoppedAt)fail("tracking_forbidden",403);
-  return {id,buyerUid:o.buyerUid,courierUid:o.courierUid,fulfillment:o.fulfillment,deliveryStatus:o.deliveryStatus,deliveryUpdatedAt:o.deliveryUpdatedAt,deliveryRevision:o.deliveryRevision};
+  return {id,ownerUid:o.ownerUid,buyerUid:o.buyerUid,courierUid:o.courierUid,fulfillment:o.fulfillment,deliveryStatus:o.deliveryStatus,deliveryUpdatedAt:o.deliveryUpdatedAt,deliveryRevision:o.deliveryRevision};
  }finally{await tx.rollback()}
 }
 const fields={
  "/v1/orders/create":["slug","operationId","lines","fulfillment","payment","customerName","customerPhone","quoteId","expectedTotalCents"],
  "/v1/orders/resolve":["slug","operationId"],
  "/v1/orders/read":["id"],
- "/v1/orders/safety-alert":["id","kind"],
+ "/v1/orders/safety-alert":["id","kind","point","locationConsent"],
+ "/v1/orders/safety-location":["id","kind","atMs"],
+ "/v1/tracking/merchant-consent":["id","consent"],
+ "/v1/tracking/merchant-read":["id"],
  "/v1/orders/invite":["id","email"],
  "/v1/orders/accept-invite":["id","token"],
  "/v1/orders/assign":["id","operationId","courierUid"],
@@ -85,7 +89,9 @@ export function createCheckoutWorker({verify=verifyFirebaseToken,repository=crea
    }
    if(path==="/v1/orders/resolve")return reply(await resolvePublicCheckout({repository:repository(env),buyerUid:actorUid,slug:b.slug,operationId:b.operationId}),200,cors);
    if(!idOk(b.id))fail("invalid_order",400);
-   if(path==="/v1/orders/safety-alert")return reply(await reportCourierSafety({repository:repository(env),actorUid,id:b.id,kind:b.kind,now}),200,cors);
+   const emergencyBinding=(action,args)=>gate(env.TRACKING_GATE,"safety:"+args.id+":"+args.kind+":"+args.atMs,action,args);
+   if(path==="/v1/orders/safety-alert")return reply(await reportCourierSafety({repository:repository(env),actorUid,id:b.id,kind:b.kind,point:b.point,locationConsent:b.locationConsent,saveLocation:args=>emergencyBinding("safety-store",args),now}),200,cors);
+   if(path==="/v1/orders/safety-location")return reply(await readCourierSafetyLocation({repository:repository(env),actorUid,id:b.id,kind:b.kind,atMs:b.atMs,loadLocation:args=>emergencyBinding("safety-read",args),now}),200,cors);
    if(path==="/v1/orders/invite")return reply(await issueCourierInvite({repository:repository(env),actorUid,id:b.id,email:b.email,now}),200,cors);
    if(path==="/v1/orders/accept-invite")return reply(await acceptCourierInvite({repository:repository(env),actorUid,verifiedEmail:user.email,id:b.id,token:b.token,now}),200,cors);
    if(path==="/v1/orders/read")return reply(await readDeliveryOrder({repository:repository(env),actorUid,id:b.id,now}),200,cors);
@@ -96,6 +102,15 @@ export function createCheckoutWorker({verify=verifyFirebaseToken,repository=crea
      const order=await trackingStart(repository(env),actorUid,b.id);
      return reply(await gate(env.TRACKING_GATE,name,"open",{id:b.id,order}),200,cors);
     }
+    if(action==="merchant-read"){
+     const tx=await repository(env).transaction();try{const o=(await tx.get("publicOrderReceipts/"+b.id))?.data;
+      if(o?.id!==b.id||o.ownerUid!==actorUid||o.deliveryStatus!=="saiu_entrega"||o.fulfillment!=="entrega"||o.clockStoppedAt)fail("tracking_forbidden",403);
+      const profile=(await tx.get("users/"+actorUid))?.data;
+      if(deliveryEntitlement({profile,universe:o.businessType,now}).plan!=="pro")fail("tracking_pro_required",403);
+     }finally{await tx.rollback()}
+     return reply(await gate(env.TRACKING_GATE,name,action,{id:b.id,actorUid}),200,cors);
+    }
+    if(action==="merchant-consent")return reply(await gate(env.TRACKING_GATE,name,action,{id:b.id,actorUid,consent:b.consent}),200,cors);
     if(action==="publish"&&(!object(b.point)||Object.keys(b.point).some(k=>!["lat","lon","accuracy"].includes(k))))fail("invalid_position",400);
     return reply(await gate(env.TRACKING_GATE,name,action,{id:b.id,actorUid,...(action==="publish"?{point:b.point,consent:b.consent}:{})}),200,cors);
    }
