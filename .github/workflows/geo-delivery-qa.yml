@@ -73,3 +73,6 @@ jobs:
       - run: node --test cardapio/courier-safety.test.mjs && node --check cardapio/courier-delivery.mjs && node --check notifications.js
 
       - run: node --check legal_core.mjs && node --check legal_ui.mjs && node --input-type=module --check < firebase_integration.js
+
+      - run: node --test test/firebase-commercial-preflight.test.mjs
+        working-directory: workers/antifraud
