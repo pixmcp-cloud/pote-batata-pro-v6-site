@@ -13,8 +13,8 @@ export const cents = value => {
 export const publicImage = (image,fallback="../assets/generic/business-batataria.svg") => {
   const src=text(image,800);
   if(/^https:\/\/[^\s<>"']{1,760}$/i.test(src))return src;
-  if(/^\.?\/?assets\/(?:generic|recipes)\/[A-Za-z0-9_\-.]+\.(?:svg|webp|png|jpg|jpeg)$/i.test(src))
-    return "../"+src.replace(/^\.?\/?/,"");
+  if(/^(?:\.\.?\/|\/)?assets\/(?:generic|recipes)\/[A-Za-z0-9_\-.]+\.(?:svg|webp|png|jpg|jpeg)$/i.test(src))
+    return "../"+src.replace(/^(?:\.\.?\/|\/)?/,"");
   return fallback;
 };
 const safeCategory = c=>text(c||"Cardápio",40);
