@@ -1,12 +1,12 @@
 /* Synthetic Firestore Emulator only. No real customers, payments or credentials. */
 'use strict';
 const assert=require('node:assert/strict'),test=require('node:test');
-const {initializeEmulator,sdk}=require('./qa/firestore/environment.cjs');
+const {initializeEmulator,assertSucceeds,assertFails,sdk}=require('./qa/firestore/environment.cjs');
 const project='demo-pote-hardening',uid='qa-web-merchant-v6',universe='batataria',slug='qa-checkout-v6';
 const now=Date.parse('2026-11-25T12:00:00Z');
 test('D01: multi-item basket, one reservation, same guard and pulse, quote redemption and concurrent checkout',{timeout:120000},async()=>{
  if(!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||''))throw Error('Local emulator required');
- const {commitPublicCheckout}=await import('./workers/antifraud/src/checkout_transaction.mjs');
+ const {commitPublicCheckout,resolvePublicCheckout}=await import('./workers/antifraud/src/checkout_transaction.mjs');
  const {mutateDeliveryOrder,readDeliveryOrder}=await import('./workers/antifraud/src/delivery_transaction.mjs');
  const {createFirestoreRepository}=await import('./workers/antifraud/src/firestore.mjs');
  const {recordPath,quantities}=await import('./workers/antifraud/src/domain.mjs');
@@ -38,6 +38,21 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
   const first=await run();assert.equal(first.totalCents,7300);assert.equal(first.code,'#P0000002');assert.equal(first.alreadyApplied,false);
   assert.equal((await run()).alreadyApplied,true);
   await assert.rejects(()=>run({...request,customerName:'Outro'}),/idempotency_conflict/);
+  const recovered=await resolvePublicCheckout({repository,buyerUid:'buyer-a',slug,operationId:request.operationId});
+  assert.equal(recovered.accepted,true);assert.equal(recovered.result.id,first.id);
+  const abandoned='checkout-abandoned-00000000000001';
+  assert.equal((await resolvePublicCheckout({repository,buyerUid:'buyer-a',slug,operationId:abandoned})).accepted,false);
+  await assert.rejects(()=>run({...request,operationId:abandoned}),/operation_aborted/);
+  const auth={email_verified:true,firebase:{sign_in_provider:'google.com'}};
+  const buyer=env.authenticatedContext('buyer-a',auth).firestore();
+  const outsider=env.authenticatedContext('buyer-b',auth).firestore();
+  const merchant=env.authenticatedContext(uid,auth).firestore();
+  await assertSucceeds(sdk.getDoc(sdk.doc(buyer,'publicOrderViews/'+first.id)));
+  await assertFails(sdk.getDoc(sdk.doc(outsider,'publicOrderViews/'+first.id)));
+  await assertFails(sdk.updateDoc(sdk.doc(buyer,'publicOrderViews/'+first.id),{totalCents:1}));
+  await assertFails(sdk.updateDoc(sdk.doc(merchant,rp('orders',first.orderId)),{'record.item.status':'entregue'}));
+  console.log('D01_D04_RECOVERY_AND_ISOLATION_PASS');
+
   await assert.rejects(()=>run({...request,operationId:'checkout-bbbb-00000000000002'}),/quote_already_used/);
   await assert.rejects(()=>run({...request,operationId:'checkout-cccc-00000000000003',fulfillment:'retirada',quoteId:null},'buyer-b',null),/insufficient_stock/);
   await env.withSecurityRulesDisabled(async ctx=>{
