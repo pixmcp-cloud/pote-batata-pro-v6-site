@@ -33,3 +33,10 @@ export function franchiseQuota(subscription){
 export function canUseFranchiseQuota({limit,used,requested}){
  return [limit,used,requested].every(Number.isSafeInteger)&&limit>=0&&used>=0&&requested>0&&requested<=limit-used;
 }
+
+ // Equal integer allocation; remainder stays unallocated to preserve equality.
+export function individualFranchiseQuota({limit,count,used,individualUsed}){
+ if(![limit,count,used,individualUsed].every(Number.isSafeInteger)||limit<0||count<1||used<0||individualUsed<0||individualUsed>used)throw Error('Cota individual ou cadastro de franquias inválido.');
+ const share=Math.floor(limit/count);
+ return {count,share,used:individualUsed,remaining:Math.max(0,Math.min(share-individualUsed,limit-used))};
+}
