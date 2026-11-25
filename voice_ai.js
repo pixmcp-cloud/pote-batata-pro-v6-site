@@ -8,7 +8,7 @@ let quote=null,busy=false,url=null,uid=null;
 const endpoint=()=>null; // configuração versionada somente após homologação de servidor comercial
 function state(message){if($("csVoiceState"))$("csVoiceState").textContent=message;}
 function clear(){quote=null;uid=null;if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
-const permitted=()=>!!auth.currentUser&&window.POTE_AUTH?.uid===auth.currentUser.uid&&window.POTE_AUTH?.accessPolicy?.voiceAiEnabled===true;
+const permitted=()=>{const p=window.POTE_AUTH,flag=p?.accessPolicy?.voiceAiEnabled;return !!auth.currentUser&&p?.uid===auth.currentUser.uid&&(flag===true||(flag!==false&&p?.franchiseActive===true));};
 async function api(path,body){
  const user=auth.currentUser,root=endpoint();
  if(!permitted()||!root)throw Error("Locução indisponível: autorização e servidor comercial obrigatórios.");
@@ -20,8 +20,8 @@ async function api(path,body){
 }
 async function open(){
  clear();
- if(!permitted())return state("🔒 Locução bloqueada pelo ADM. O plano PRO não concede acesso automático.");
- if(!endpoint())return state("🔓 Autorização ADM reconhecida. Geração bloqueada até a ativação de uma licença comercial e servidor seguro. Nenhum crédito será debitado.");
+ if(!permitted())return state("🔒 Locução bloqueada pelo ADM. O plano PRO não concede acesso automático; franquias ativas têm acesso padrão.");
+ if(!endpoint())return state("🔓 Acesso reconhecido. Geração bloqueada até a ativação de uma licença comercial e servidor seguro. Nenhum crédito será debitado.");
  try{
   const data=await(await api("/status",{})).json();
   if(data.commercialReady!==true||data.authorized!==true)return state("Serviço comercial indisponível.");
@@ -42,7 +42,7 @@ async function price(){
   const data=await(await api("/quote",{text,voiceId})).json();
   if(!Number.isSafeInteger(data.credits)||data.credits<1||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
   quote={id:data.quoteId,credits:data.credits,text,voiceId};
-  $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance;
+  $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+(data.discountPercent===20?" · Franquia: 20% de desconto":"");
   $("csVoiceGenerate").disabled=data.balance<data.credits;
  }catch(e){state(e.message)}finally{busy=false}
 }
