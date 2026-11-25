@@ -52,3 +52,6 @@ As artes novas de refrigerante (lata vermelha 350 ml) e água mineral (garrafa a
 
 ## Capa animada V6
 Carrossel 16:9 com arte vetorial CARDÁPIO antes de cada foto de salgado/doce, 2,4 s de abertura e 4,2 s por sabor. Vapor animado com SVG/CSS, pausa manual, anterior/próximo, pausa fora da tela e respeito a movimento reduzido. Cada loja usa somente seu catálogo público. Não usa vídeo ou serviço pago.
+
+## Bebidas
+Na prévia, refrigerante lata de 350 ml oferece Cola, Guaraná e Laranja, opções de referência do projeto, não estoque real confirmado. A ficha mantém os sabores recolhidos em Ver detalhes. A escolha do sabor é exigida antes de adicionar; temperatura opcional e observação seguem na sacola e resumo demonstrativo. Lojas publicadas recebem apenas sabores explicitamente cadastrados, sem inventar disponibilidade. Nenhum preço ou estoque alterado.

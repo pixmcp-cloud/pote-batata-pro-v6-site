@@ -51,7 +51,7 @@ const ownImage=(src)=>{
     const id="bev-"+text(b.id,68),price=cents(b.sellPrice);
     if(!price||items.some(p=>p.id===id))continue;
     items.push({id,title:text(b.name,80),description:text(b.size,60),
-      category:"Bebidas",priceCents:price,image:defaultImage,addons:[]});
+      category:"Bebidas",priceCents:price,image:defaultImage,size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
   }
   return items.slice(0, MENU_MAX_ITEMS);
 }
@@ -77,7 +77,7 @@ export function sanitizeReadMenu(raw,slug){
     Number.isSafeInteger(p.priceCents)&&p.priceCents>0&&p.priceCents<=9999999&&Array.isArray(p.addons))
     .slice(0,MENU_MAX_ITEMS).map(p=>({id:text(p.id,72),title:text(p.title,90),
       description:text(p.description,240),category:safeCategory(p.category),
-      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),addons:[]}));
+      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12)}:{}),addons:[]}));
   if(!items.length)return null;
   return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug};
 }

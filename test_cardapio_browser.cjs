@@ -92,6 +92,21 @@ const server=http.createServer((req,res)=>{
         assert(pizzaIngredients.includes("Presunto")&&pizzaIngredients.includes("Muçarela")&&pizzaIngredients.includes("Orégano"));
         assert(!pizzaIngredients.includes("Carne desfiada"));
         await page.click("#closeProduct");
+        await page.click('button[aria-label="Escolher Refrigerante Lata"]');
+        await page.waitForSelector("#productDialog[open]");
+        assert.equal(await page.$eval("#productIngredientHeading",e=>e.textContent),"Sabores");
+        assert.match(await page.$eval("#productNote",e=>e.placeholder),/gelado/);
+        assert.match(await page.$eval("#productFactFormat",e=>e.textContent),/350 ml/);
+        await page.click("#addToCart");
+        assert.equal(await page.$eval("#productDialog",e=>e.open),true);
+        assert.equal(await page.$eval("#productFacts",e=>e.open),true);
+        assert.deepEqual(await page.$$eval('input[name="drinkFlavor"]',nodes=>nodes.map(n=>n.value)),["Cola","Guaraná","Laranja"]);
+        await page.click('input[name="drinkFlavor"][value="Guaraná"]');
+        await page.select("#drinkTemperature","Gelado");
+        await page.click("#addToCart");
+        await page.click("#floatingCart");
+        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Temperatura: Gelado/);
+        await page.click("#closeCart");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);
       await page.close();
