@@ -1,7 +1,7 @@
 import {terminal,elapsed,formatElapsed,orderCode,statusText} from "./tracking-core.mjs";
 export function createConsumerUI({slug,notify,money}){
  const $=id=>document.getElementById(id),bar=$("liveOrderBar"),dialog=$("consumerHistory");
- let api=null,user=null,unsubscribe=null,watch=null,tracked=null,active=[],live=false,epoch=0,timer=null,loading=null;
+ let api=null,user=null,unsubscribe=null,watch=null,tracked=null,active=[],live=false,epoch=0,selection=0,timer=null,loading=null;
  function paint(){
   bar.hidden=!tracked;document.body.classList.toggle("has-live-order",Boolean(tracked));
   if(!tracked)return;
@@ -14,18 +14,21 @@ export function createConsumerUI({slug,notify,money}){
   if(!terminal(tracked)&&timer===null)timer=setInterval(()=>{$("liveTimer").textContent=formatElapsed(elapsed(tracked))},1000);
  }
  function reset(){
-  epoch++;unsubscribe?.();watch?.();unsubscribe=watch=null;tracked=null;active=[];live=false;
+  epoch++;selection++;unsubscribe?.();watch?.();unsubscribe=watch=null;tracked=null;active=[];live=false;
   if(timer!==null){clearInterval(timer);timer=null}paint();
  }
  function follow(order){
   if(!order||!user)return;
-  if(tracked?.checkoutId===order.checkoutId&&watch){tracked=order;paint();return;}
+  if(tracked?.checkoutId===order.checkoutId&&watch)return;
+  const selected=++selection;
   watch?.();watch=null;tracked=order;live=false;paint();
-  const index=epoch,uid=user.uid;
-  if(!terminal(order))watch=api.watchOrder(user,order.checkoutId,(next,connected)=>{
-   if(index!==epoch||user?.uid!==uid||!next)return;tracked=next;live=connected;paint();
+  const index=epoch,uid=user.uid,id=order.checkoutId;
+  const current=()=>index===epoch&&selected===selection&&user?.uid===uid&&tracked?.checkoutId===id;
+  if(!terminal(order))watch=api.watchOrder(user,id,(next,connected)=>{
+   if(!current()||!next||next.checkoutId!==id)return;
+   tracked=next;live=connected;paint();
    if(terminal(next)&&connected){watch?.();watch=null;}
-  },()=>{if(index===epoch){live=false;paint()}});
+  },()=>{if(current()){live=false;paint()}});
  }
  function accept(next){
   if(user?.uid===next?.uid)return;
@@ -35,11 +38,11 @@ export function createConsumerUI({slug,notify,money}){
   unsubscribe=api.listen(user,(orders,connected)=>{
    if(index!==epoch||user?.uid!==uid)return;
    active=orders.filter(o=>o.slug===slug).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
-   live=connected;
-   if((!tracked||terminal(tracked))&&active.length)follow(active[0]);
-   if(tracked){const current=active.find(o=>o.checkoutId===tracked.checkoutId);if(current)tracked=current;}
+   // The list discovers an initial order; only its own listener can update the
+   // selected order or claim a live connection. Keep an explicitly viewed receipt.
+   if(!tracked&&active.length)follow(active[0]);
    paint();
-  },()=>{if(index===epoch){live=false;paint()}});
+  },()=>{});
  }
  async function load(){
   if(!loading)loading=import("./consumer-session.mjs?v=1").then(module=>{api=module;api.observe(accept);return api;}).catch(e=>{loading=null;throw e});

@@ -174,3 +174,7 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 - Ajuste F05 após regressão: regras reaproveitam o perfil já lido para calcular premium e usam diff como fast-path para entradas de pedido inalteradas, mantendo a validação anterior quando há diferenças; reduz custo de expressões no Firestore sem ampliar permissões. Regressão completa pendente.
 
 - Correção QA Chrome: mock de CORS agora permite Authorization, assim como Worker real; confirma segundo POST com token após falha de rede e inclui diagnóstico em timeout. Nenhum ajuste na segurança do servidor.
+
+### Retomada — 25/11/2026
+- HEAD aafa3bf: cinco workflows concluídos com sucesso (sessão 45565501562, cardápio 45565501538, Worker 45565501433, homologação 45565501420, Firestore 45565501543). PR #46 isolada, sem merge/deploy.
+- Corrigido isolamento do letreiro por seleção: callbacks antigos ignorados após troca de pedido, consulta de ativos só inicia acompanhamento, status de conexão vem do listener do próprio pedido. Regressão Chrome cobre troca para comprovante anterior e callback atrasado; nova CI pendente. Retirada transacional permanece desativada por flags; tele-entrega/frete, expiração de reservas, combos/adicionais e pagamento online permanecem pendentes. Sem Floot ou produção.

@@ -225,7 +225,7 @@ async function tapProduct(page,selector){
       await page.setRequestInterception(true);
       page.on("request",req=>{
         const url=new URL(req.url()),cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, Authorization","Access-Control-Allow-Methods":"POST, OPTIONS"};
-        if(url.pathname.endsWith("/consumer-session.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"const u={uid:'qa-consumer'};let cb;export const observe=f=>{cb=f;f(null);return()=>{}};export const login=async()=>{window.__qaLogins=(window.__qaLogins||0)+1;cb(u);return u};export const token=async()=> 'qa-google-token';export const logout=async()=>cb(null);export const listen=(u,f)=>{f([],true);return()=>{}};export const history=async()=>[];export const watchOrder=(u,id,f)=>{window.__qaTrack=(status,seconds)=>f({checkoutId:id,slug:'qa-checkout-web',createdAt:new Date(Date.now()-5000).toISOString(),status,durationSeconds:seconds,lines:[{orderNumber:12}]},true);return()=>{}};"});
+        if(url.pathname.endsWith("/consumer-session.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"const u={uid:'qa-consumer'};let cb;export const observe=f=>{cb=f;f(null);return()=>{}};export const login=async()=>{window.__qaLogins=(window.__qaLogins||0)+1;cb(u);return u};export const token=async()=> 'qa-google-token';export const logout=async()=>cb(null);export const listen=(u,f)=>{f([],true);return()=>{}};export const history=async()=>[{checkoutId:'old-receipt',slug:'qa-checkout-web',storeTitle:'Loja QA',createdAt:'2026-11-25T10:00:00Z',status:'entregue',durationSeconds:60,totalCents:1250,lines:[{orderNumber:99,name:'Receita QA',qty:1}]}];export const watchOrder=(u,id,f)=>{window.__qaTrack=(status,seconds)=>f({checkoutId:id,slug:'qa-checkout-web',createdAt:new Date(Date.now()-5000).toISOString(),status,durationSeconds:seconds,lines:[{orderNumber:12}]},true);return()=>{}};"});
         if(url.pathname.endsWith("/firebase_app.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"export const app={};"});
         if(url.hostname==="www.gstatic.com"&&url.pathname.endsWith("/firebase-firestore.js"))return req.respond({status:200,headers:cors,contentType:"text/javascript",body:"export const getFirestore=()=>({});export const doc=(...a)=>a;export const getDoc=async()=>({exists:()=>true,data:()=>("+JSON.stringify(data)+")});"});
         if(url.hostname==="challenges.cloudflare.com")return req.respond({status:200,contentType:"text/javascript",body:"window.turnstile={render:(s,o)=>{window.__qaTurnstile=o; o.callback('qa-token');return 1;},reset:()=>window.__qaTurnstile.callback('qa-token-2')};"});
@@ -261,6 +261,15 @@ async function tapProduct(page,selector){
       await page.evaluate(()=>window.__qaTrack("entregue",125));
       assert.equal(await page.$eval("#liveTimer",e=>e.textContent),"00:02:05");
       assert.equal(await page.$eval("#liveConnection",e=>e.textContent),"REGISTRADO");
+      await page.click("#liveOrderBar");
+      await page.waitForSelector("#consumerHistory[open]");
+      await page.evaluate(()=>[...document.querySelectorAll("#consumerList button")].find(b=>b.textContent==="Ver no letreiro").click());
+      assert.equal(await page.$eval("#liveCode",e=>e.textContent),"#P0000099");
+      assert.equal(await page.$eval("#liveTimer",e=>e.textContent),"00:01:00");
+      // Simulate a previously queued callback even after unsubscribe.
+      await page.evaluate(()=>window.__qaTrack("em_preparo",null));
+      assert.equal(await page.$eval("#liveCode",e=>e.textContent),"#P0000099");
+      assert.equal(await page.$eval("#liveTimer",e=>e.textContent),"00:01:00");
       assert.deepEqual(errors,[]);await page.close();
       console.log("PASS: checkout automático no Chrome, perda de conexão, UUID único, confirmação e sacola limpa; nenhum acesso externo.");
     }
