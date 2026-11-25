@@ -255,10 +255,23 @@ async function tapProduct(page,selector){
       assert.equal(await page.$eval("#cartCount",e=>e.textContent),"0");assert.equal(await page.evaluate(()=>window.__orderLink),null);
       await page.click("#closeCart");
       await page.waitForFunction(()=>typeof window.__qaTrack==="function");
+      // Check actual CSS colors, not only the status attribute. Wait for the
+      // short transition to complete; the white clock never changes color.
+      const assertLed=async(status,color)=>{
+        await page.waitForFunction((s,c)=>document.getElementById("liveOrderBar").dataset.status===s&&getComputedStyle(document.getElementById("liveMessage")).color===c,{},status,color);
+        assert.equal(await page.$eval("#liveTimer",e=>getComputedStyle(e).color),"rgb(255, 255, 255)");
+      };
+      await assertLed("recebido","rgb(255, 71, 71)");
       await page.evaluate(()=>window.__qaTrack("em_preparo",null));
       await page.waitForFunction(()=>document.getElementById("liveConnection").textContent==="AO VIVO");
       assert.match(await page.$eval("#liveMessage",e=>e.textContent),/Em preparo/);
+      await assertLed("em_preparo","rgb(255, 159, 50)");
+      await page.evaluate(()=>window.__qaTrack("finalizado",null));
+      await assertLed("finalizado","rgb(255, 223, 64)");
+      await page.evaluate(()=>window.__qaTrack("saiu_entrega",null));
+      await assertLed("saiu_entrega","rgb(85, 255, 128)");
       await page.evaluate(()=>window.__qaTrack("entregue",125));
+      await assertLed("entregue","rgb(255, 255, 255)");
       assert.equal(await page.$eval("#liveTimer",e=>e.textContent),"00:02:05");
       assert.equal(await page.$eval("#liveConnection",e=>e.textContent),"REGISTRADO");
       await page.click("#liveOrderBar");

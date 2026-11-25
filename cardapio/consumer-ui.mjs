@@ -4,7 +4,8 @@ export function createConsumerUI({slug,notify,money}){
  let api=null,user=null,unsubscribe=null,watch=null,tracked=null,active=[],live=false,epoch=0,selection=0,timer=null,loading=null;
  function paint(){
   bar.hidden=!tracked;document.body.classList.toggle("has-live-order",Boolean(tracked));
-  if(!tracked)return;
+  if(!tracked){delete bar.dataset.status;return;}
+  bar.dataset.status=["recebido","em_preparo","finalizado","saiu_entrega","entregue","cancelado"].includes(tracked.status)?tracked.status:"unknown";
   $("liveConnection").textContent=terminal(tracked)?"REGISTRADO":live?"AO VIVO":"OFFLINE";
   $("liveDot").classList.toggle("is-live",live&&!terminal(tracked));
   $("liveCode").textContent=orderCode(tracked);

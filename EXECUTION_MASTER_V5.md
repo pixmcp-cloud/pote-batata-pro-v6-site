@@ -185,3 +185,6 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 
 ### V6 — Frete na Central Motoboy
 - Formulário no módulo existente, política por ramo em settings.deliveryPolicy, cadastro/remoção de até 100 bairros, habilitação, tarifa inicial R$0,50/km, modalidade, mínimo, limite e frete grátis; custo previsto reaproveita deliveryCostPerOrder. Mesmo núcleo de validação Worker/UI, sem duplicação. Novo ramo não herda política habilitada de outro. Salvar mantém remuneração dos motoboys intacta. Viagem agrupa linhas de um checkout em uma entrega para remuneração fixa. Testes UI e núcleo adicionados. Sem ativar tele-entrega pública, cotação por rota, pagamento, ou alterar produção; CI pendente.
+
+### V6 — Letreiro LED: cores aprovadas (25/11/2026)
+- Fundo preto; recebido vermelho #ff4747, em produção laranja #ff9f32, concluído amarelo #ffdf40, saiu para entrega verde #55ff80, entregue branco #ffffff. Cancelado cinza neutro, distinto de recebido. Cronômetro sempre branco, sem brilho colorido; bolinha verde apenas em conexão ativa, terminal mantém tempo registrado. Transição suave de cor, respeita movimento reduzido. Cache versionado. Teste Chrome verifica cores CSS efetivas em cada etapa e relógio branco, incluindo evento de despacho simulado. Sem alterar estados, tempos, regras, dados ou produção. CI pendente.
