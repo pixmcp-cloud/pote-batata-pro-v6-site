@@ -36,3 +36,5 @@ O desenvolvimento permanece no **GitHub**. Sem atualização de Floot, APK ou do
 
 ## Fotos oficiais — V6
 A prévia usa as fotos locais do estrogonofe de frango e dos quatro doces originais. Chocolate branco e preto são itens separados; os valores permanecem demonstrativos. Carne com cheddar, pizza e cachorro-quente ainda não têm fotos oficiais correspondentes na biblioteca. Na publicação voluntária da conta mestre Potê Batata, a biblioteca é associada por ID e nome exatos; outros estabelecimentos não herdam as fotos da marca. Fotos privadas e URLs com tokens continuam excluídas.
+
+As três artes restantes foram recuperadas da biblioteca e dos arquivos enviados pelo proprietário: Carne com Cheddar, Pizza e Cachorro-Quente. A publicação inicial utiliza WebP 256×256 otimizado; os originais não foram alterados. Todos os oito sabores da prévia têm arte própria. Sem alteração nos preços.

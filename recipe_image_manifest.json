@@ -26,5 +26,8 @@
   "ninho-nutella": "./assets/recipes/ninho-nutella.webp",
   "brigadeiro": "./assets/recipes/brigadeiro.webp",
   "morango-preto": "./assets/recipes/morango-preto.webp",
-  "morango-branco": "./assets/recipes/morango-branco.webp"
+  "morango-branco": "./assets/recipes/morango-branco.webp",
+  "r21": "./assets/recipes/r21.webp",
+  "r22": "./assets/recipes/r22.webp",
+  "carne-cheddar": "./assets/recipes/carne-cheddar.webp"
 }
