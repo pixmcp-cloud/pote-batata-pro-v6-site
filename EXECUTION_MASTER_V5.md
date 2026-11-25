@@ -232,3 +232,6 @@ Sessão Google secundária conectada. Relatórios TinyFish 3dd6c1b2-7f65-48db-ba
 
 ### C08 — instalação via conta administrativa autorizada
 Sessão secundária TinyFish permitiu acesso ao Firebase. Primeira execução f87eae3e-3356-4633-97a0-332131ee281c submeteu histórico e relatou duplicidade do ID; três índices mal interpretados como individuais. Segunda tentativa Cloud Shell affe0698-b10d-4cb2-b2eb-b8b62f3f2353 não conseguiu executar comandos. Reteste gráfico 42f98e56-d919-4ccf-9d70-bfa72adc6460 relatou quatro definições exatas ativadas e quinta (orderNumber DESC) como duplicada, mas não visível na tabela. Resultado ainda exige verificação independente por API, sem inferir READY de duplicidade. Não excluir índices extras. Sem recargas ou alterações IAM/faturamento. Checkout permanece bloqueado.
+
+### C09 — publicação oficial solicitada pelo operador
+Run 45625148796: cinco índices READY, API HTTP 200, OAuth e banco aprovados, política legal MISSING. Preparação do Hosting: build completo sem publicar, regras e banco inalterados. Endpoints checkout/geo vazios, registro legal não ativado enquanto a política e permissões de leitura não estiverem publicadas; exigência legal do servidor mantida. Validar artefato e estado de produção antes de promover. Não usar Floot, não contratar serviços. Não publicar se QA falhar.

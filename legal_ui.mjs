@@ -1,8 +1,11 @@
 import {validPolicy,policyDigest,matchesAcceptance} from "./legal_core.mjs";
 const el=(tag,text)=>{const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x};
+// Registration policy is activated only after the legal document and read rules are published.
+export const LEGAL_REGISTRATION_ENABLED=false;
 let pending=null;
 export async function ensureLegalAcceptance({app,auth,required=false}){
  const user=auth.currentUser;if(!user)throw Error("authentication_required");
+ if(!required&&!LEGAL_REGISTRATION_ENABLED)return false;
  const uid=user.uid,sdk=await import("https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js"),db=sdk.getFirestore(app);
  const check=()=>{if(auth.currentUser?.uid!==uid)throw Error("session_changed")};
  const snap=await sdk.getDocFromServer(sdk.doc(db,"legalPolicy","current"));check();
