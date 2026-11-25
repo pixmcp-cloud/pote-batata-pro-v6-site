@@ -21,10 +21,16 @@ root.innerHTML='<h3>🔐 Permissões por universo e serviço</h3>'+
  '<label class="pote-adm-label">Serviços do universo<select id="poteAccessType"></select></label>'+
  '<div class="pote-access-services" id="poteAccessServices"></div>'+
  '<h4>Locução IA premium · autorização independente</h4><p>FREE e teste gratuito não utilizam IA. PRO ativo, vitalício e franquia podem usar mediante créditos, salvo bloqueio individual pelo ADM. A licença comercial do provedor continua obrigatória.</p><button type="button" id="poteVoicePermission" class="pote-access-toggle is-locked" disabled>🔒 Locução IA bloqueada</button>'+
- '<section class="pote-adm-franchise"><h4>Carteira IA COIN</h4><p>Saldo virtual não expira. Ajustes manuais registrados em histórico.</p><strong id="poteAiBalance">Selecione uma conta</strong><div class="pote-adm-label"><label>Quantidade<input id="poteAiAmount" type="number" min="1" max="1000000" step="1" inputmode="numeric"></label><label>Motivo<input id="poteAiReason" type="text" maxlength="180" placeholder="Ex.: cortesia autorizada"></label></div><div class="pote-adm-actions"><button type="button" id="poteAiAdd" disabled>Adicionar IA COIN</button><button type="button" id="poteAiRemove" disabled>Remover IA COIN</button></div><p id="poteAiStatus" role="status" aria-live="polite"></p></section>'+
+ '<section class="pote-adm-franchise"><h4>Saldo IA COIN da conta selecionada</h4><p>Informe a quantidade de moedas e confirme. Motivo opcional; toda movimentação será registrada.</p><strong id="poteAiBalance">Selecione uma conta</strong><div class="pote-adm-label"><label>Quantidade<input id="poteAiAmount" placeholder="Ex.: 100" type="number" min="1" max="1000000" step="1" inputmode="numeric"></label><label>Motivo<input id="poteAiReason" type="text" maxlength="180" placeholder="Opcional: cortesia, ajuste..."></label></div><div class="pote-adm-actions"><button type="button" id="poteAiAdd" disabled>Adicionar saldo IA</button><button type="button" id="poteAiRemove" disabled>Remover IA COIN</button></div><p id="poteAiStatus" role="status" aria-live="polite"></p></section>'+
  '<p id="poteAccessMessage" role="status" aria-live="polite">Selecione uma conta para alterar permissões.</p>';
 const host=document.querySelector("#poteAdmOverlay .pote-adm-editor");
-if(host)host.appendChild(root);
+if(host){
+ host.appendChild(root);
+ const wallet=root.querySelector('#poteAiBalance')?.closest('section');
+ const selected=host.querySelector('#poteAdmSelected');
+ if(wallet&&selected)selected.insertAdjacentElement('afterend',wallet);
+}
+const walletPanel=host?.querySelector('#poteAiBalance')?.closest('section')||root.querySelector('#poteAiBalance')?.closest('section');
 const universes=root.querySelector("#poteAccessUniverses"),serviceGrid=root.querySelector("#poteAccessServices"),
  selector=root.querySelector("#poteAccessType"),message=root.querySelector("#poteAccessMessage");
 selector.innerHTML=types.map(([id,label])=>'<option value="'+id+'">'+esc(label)+'</option>').join("");
@@ -105,14 +111,40 @@ voiceButton?.addEventListener('click',async()=>{
  }catch(e){message.textContent='Falha: '+(e.code||e.message)}finally{saving=false;paint()}
 });
 selector?.addEventListener("change",paint);
-const wBalance=root.querySelector('#poteAiBalance'),wAmount=root.querySelector('#poteAiAmount'),wReason=root.querySelector('#poteAiReason'),wStatus=root.querySelector('#poteAiStatus'),wAdd=root.querySelector('#poteAiAdd'),wRemove=root.querySelector('#poteAiRemove');
-let wBusy=false,wReady=false,wSeq=0;
+const wBalance=walletPanel.querySelector('#poteAiBalance'),wAmount=walletPanel.querySelector('#poteAiAmount'),wReason=walletPanel.querySelector('#poteAiReason'),wStatus=walletPanel.querySelector('#poteAiStatus'),wAdd=walletPanel.querySelector('#poteAiAdd'),wRemove=walletPanel.querySelector('#poteAiRemove');
+let wBusy=false,wReady=false,wSeq=0,pendingAdjust=null;
 function wButtons(){wAdd.disabled=wRemove.disabled=!user||wBusy||!wReady;}
 async function verifiedAdmin(){
  const actor=auth.currentUser;if(!actor||actor.email?.toLowerCase()!=='pixmcp@gmail.com')throw Error('Somente ADM');
  const token=await getIdTokenResult(actor,true);
  if(token.claims.email_verified!==true||token.signInProvider!=='google.com'||token.claims.potebatataAdmin!==true||auth.currentUser?.uid!==actor.uid)throw Error('ADM não verificado');
  return actor;
+}
+// One verified and atomic adjustment path for the ADM console and the ADM's own wallet.
+async function adjustWalletFor(uid,sign,amount,reason,eventId,ownOnly=false){
+ if(typeof uid!=='string'||!uid||![1,-1].includes(sign)||!Number.isSafeInteger(amount)||amount<1||amount>1000000||typeof reason!=='string'||reason.length<3||reason.length>180||typeof eventId!=='string'||!/^[A-Za-z0-9_-]{20,80}$/.test(eventId))throw Error('Ajuste inválido');
+ const actor=await verifiedAdmin();
+ if(ownOnly&&actor.uid!==uid)throw Error('Conta ADM alterada');
+ const walletRef=doc(db,'users',uid,'aiWallet','main'),eventRef=doc(db,'users',uid,'aiWallet','main','entries',eventId);
+  return await runTransaction(db,async tx=>{
+   if(auth.currentUser?.uid!==actor.uid)throw Error('Conta alterada');
+   const previousEvent=await tx.get(eventRef);
+   if(previousEvent.exists()){
+    const e=previousEvent.data();if(e.kind!=='admin_adjustment'||e.actorUid!==actor.uid||e.delta!==sign*amount||e.reason!==reason)throw Error('Identificador de ajuste já utilizado');
+    return e.after;
+   }
+   const snap=await tx.get(walletRef),old=snap.exists()?snap.data().balance:0,delta=sign*amount,after=old+delta;
+   if(!Number.isSafeInteger(old)||old<0||!Number.isSafeInteger(after)||after<0||after>100000000)throw Error('Saldo insuficiente ou inválido');
+   tx.set(walletRef,{balance:after,lastEventId:eventId,updatedAt:serverTimestamp()});
+   tx.set(eventRef,{kind:'admin_adjustment',before:old,after,delta,reason,actorUid:actor.uid,at:serverTimestamp()});
+   return after;
+  });
+}
+async function addOwnWalletPackage(amount,eventId,expectedUid,quantity=1){
+ if(![5,10,25,50,75,100].includes(amount)||!Number.isSafeInteger(quantity)||quantity<1||quantity>99)throw Error('Pacote ou quantidade inválida');
+ const uid=auth.currentUser?.uid;
+ if(!uid||uid!==expectedUid)throw Error('Conta alterada');
+ return adjustWalletFor(uid,1,amount*quantity,'Crédito administrativo próprio · '+quantity+' × pacote '+amount+' IA COIN',eventId,true);
 }
 async function loadWallet(){
  const seq=++wSeq,uid=user?.uid;wReady=false;wButtons();wBalance.textContent=uid?'Consultando saldo...':'Selecione uma conta';wStatus.textContent='';
@@ -123,22 +155,17 @@ async function loadWallet(){
 }
 async function adjustWallet(sign){
  if(wBusy||!wReady||!user)return;
- const uid=user.uid,amount=Number(wAmount.value),reason=wReason.value.trim();
- if(!Number.isSafeInteger(amount)||amount<1||amount>1000000||reason.length<3||reason.length>180){wStatus.textContent='Informe quantidade inteira e motivo.';return;}
+ const uid=user.uid,amount=Number(wAmount.value),reason=wReason.value.trim()||(sign>0?'Crédito administrativo manual':'Retirada administrativa manual');
+ if(!Number.isSafeInteger(amount)||amount<1||amount>1000000||reason.length<3||reason.length>180){wStatus.textContent='Informe uma quantidade inteira válida (1 a 1.000.000).';return;}
  if(!confirm((sign>0?'Adicionar ':'Remover ')+amount+' créditos IA para '+(user.email||uid)+'?'))return;
  wBusy=true;wButtons();const seq=wSeq;wStatus.textContent='Registrando ajuste...';
  try{
-  const actor=await verifiedAdmin(),walletRef=doc(db,'users',uid,'aiWallet','main'),eventId=crypto.randomUUID(),eventRef=doc(db,'users',uid,'aiWallet','main','entries',eventId);
-  const next=await runTransaction(db,async tx=>{
-   const snap=await tx.get(walletRef),old=snap.exists()?snap.data().balance:0,delta=sign*amount,after=old+delta;
-   if(!Number.isSafeInteger(old)||old<0||!Number.isSafeInteger(after)||after<0||after>100000000)throw Error('Saldo insuficiente ou inválido');
-   tx.set(walletRef,{balance:after,lastEventId:eventId,updatedAt:serverTimestamp()});
-   tx.set(eventRef,{kind:'admin_adjustment',before:old,after,delta,reason,actorUid:actor.uid,at:serverTimestamp()});
-   return after;
-  });
+  const key=JSON.stringify([uid,sign,amount,reason]);
+  if(pendingAdjust?.key!==key)pendingAdjust={key,eventId:crypto.randomUUID()};
+  const next=await adjustWalletFor(uid,sign,amount,reason,pendingAdjust.eventId);pendingAdjust=null;
   if(seq===wSeq&&user?.uid===uid){wBalance.textContent=next.toLocaleString('pt-BR')+' créditos IA';wStatus.textContent='Ajuste registrado com sucesso.';wAmount.value='';wReason.value='';}
  }catch(e){if(seq===wSeq)wStatus.textContent='Não foi possível ajustar: '+(e.code||e.message);}
  finally{wBusy=false;wButtons();}
 }
 wAdd.addEventListener('click',()=>adjustWallet(1));wRemove.addEventListener('click',()=>adjustWallet(-1));
-window.POTE_ADMIN_PERMISSIONS={renderAccount(account){const changed=user?.uid!==account?.uid;user=account||null;paint();if(changed)void loadWallet();},get state(){return {selected:user?.uid,saving}}};
+window.POTE_ADMIN_PERMISSIONS={addOwnWalletPackage,renderAccount(account){const changed=user?.uid!==account?.uid;user=account||null;paint();if(changed){wAmount.value='';wReason.value='';void loadWallet();}},get state(){return {selected:user?.uid,saving}}};

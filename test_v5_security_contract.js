@@ -29,3 +29,11 @@ assert(!walletUi.includes("updateDoc(")&&!walletUi.includes("setDoc("),"Cliente 
 const config=fs.readFileSync("gallery_config.mjs","utf8");
 assert(config.includes("GALLERY_CLOUD_ENABLED=false"),"Cloud gallery must stay disabled without deployed storage rules");
 console.log("PASS: regras versionadas com isolamento por UID, eventos imutáveis, fallback deny e galeria cloud desativada (sem validar produção).");
+
+assert(walletAdmin.includes("async function addOwnWalletPackage")&&walletAdmin.includes("ownOnly&&actor.uid!==uid"),"Crédito próprio restrito ao titular ADM");
+assert(walletAdmin.includes("await verifiedAdmin()")&&walletAdmin.includes("token.claims.potebatataAdmin!==true"),"Autorização pelo token verificado");
+assert(walletAdmin.includes("previousEvent=await tx.get(eventRef)")&&walletAdmin.includes("return e.after"),"Repetição do ajuste não duplica saldo");
+assert(walletUi.includes("selected.eventId,selected.uid")&&walletUi.includes("showCredit(pack[0],pack[1]);"),"Confirmação explícita do próprio ADM");
+
+assert(walletAdmin.includes("amount*quantity")&&walletAdmin.includes("quantity>99"),"Quantidade de pacotes limitada e validada");
+assert(walletAdmin.includes("selected.insertAdjacentElement('afterend',wallet)")&&walletAdmin.includes("Crédito administrativo manual"),"Ajuste direto na conta selecionada");
