@@ -17,6 +17,7 @@ jobs:
           node test_cardapio_central.cjs
           node test_public_menu_core.mjs
           node test_cardapio_core.mjs
+          node test_checkout_client.mjs
           node test_cardapio_images.cjs
           node test_cardapio_ingredients.cjs
           node test_cardapio_hero.cjs

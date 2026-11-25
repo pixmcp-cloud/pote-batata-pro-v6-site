@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import {createCheckoutClient} from "./cardapio/checkout-client.mjs";
+const m=new Map(),storage={getItem:k=>m.get(k)||null,setItem:(k,v)=>m.set(k,v),removeItem:k=>m.delete(k)};
+const id="11111111-1111-4111-8111-111111111111",input={slug:"loja-qa",items:[{id:"r01",quantity:1,note:""}],expectedTotalCents:3000,customerName:"Ana",customerPhone:"48999999999",payment:"pix"};
+let attempts=0;
+const fetcher=async(url,opts)=>{const b=JSON.parse(opts.body);assert.equal(b.operationId,id);attempts++;if(attempts===1)throw Error("network");return new Response(JSON.stringify({ok:true,checkoutId:id,totalCents:3000,orderNumbers:[1],paymentStatus:"pendente"}),{status:201})};
+let c=createCheckoutClient({endpoint:"https://qa.test",fetcher,storage,randomId:()=>id});
+await assert.rejects(c.submit(input,"qa"),/Resposta não confirmada/);
+assert(c.hasPending(input.slug));assert(!JSON.stringify([...m.values()]).includes("Ana"));assert(!JSON.stringify([...m.values()]).includes(input.customerPhone));
+c=createCheckoutClient({endpoint:"https://qa.test",fetcher,storage,randomId:()=>{throw Error("must reuse")}});
+await assert.rejects(c.submit({...input,expectedTotalCents:4000},"qa"),/confirmação pendente/);
+assert.deepEqual((await c.submit(input,"qa2")).orderNumbers,[1]);assert.equal(attempts,2);assert.deepEqual((await c.submit(input,"qa3")).orderNumbers,[1]);assert.equal(attempts,2);c.complete(input.slug);assert(!c.hasPending(input.slug));
+console.log("PASS checkout cliente: operação persistida sem PII, rede ambígua, recarga, retry seguro e confirmação única.");

@@ -3,7 +3,7 @@
 import {app} from "./firebase_app.mjs";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp,runTransaction} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto,publicWhatsapp} from "./public_menu_core.mjs?lojas=12";
+import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto,publicWhatsapp} from "./public_menu_core.mjs?lojas=13";
 
 const auth=getAuth(app),db=getFirestore(app);
 const node=(tag,cls,text)=>{
@@ -176,6 +176,15 @@ function snapshot(){
 function currentSelected(){
   return [...selected].filter(id=>candidates.some(p=>p.id===id));
 }
+function checkoutSiteKey(slug,data){
+ const a=window.POTE_AUTH,p=a?.accessPolicy||{};
+ return (a?.proActive||a?.franchiseActive)&&p.workerAuthoritative===true&&p.publicCheckout===true&&p.publicCheckoutSlug===slug&&data?.kitchenStock?.mode==="separate"&&typeof p.publicCheckoutSiteKey==="string"&&/^[A-Za-z0-9_-]{10,120}$/.test(p.publicCheckoutSiteKey)?p.publicCheckoutSiteKey:"";
+}
+function refreshCheckoutOption(data){
+ const box=$("publicMenuCheckout"),key=checkoutSiteKey($("publicMenuSlug").value.trim().toLowerCase(),data);
+ box.disabled=!key;if(!key)box.checked=false;
+ $("publicMenuCheckoutHint").textContent=key?"Retirada com pagamento na loja. O servidor confere preços e reserva estoque.":"Checkout em homologação: precisa de autorização ADM, Worker seguro e estoque separado.";
+}
 async function refresh({load=true}={}){
   const uid=owner();
   if(!uid)return;
@@ -197,7 +206,9 @@ async function refresh({load=true}={}){
       $("publicMenuIncludeIngredients").checked=Boolean(published?.items?.some(p=>Array.isArray(p.ingredientNames)&&p.ingredientNames.length));
       $("publicMenuSlug").readOnly=false;
       $("publicMenuWhatsapp").value=published?.whatsapp||"";
+      $("publicMenuCheckout").checked=published?.checkoutEnabled===true;
     }
+    refreshCheckoutOption(current.data);
     renderChoices();
     updateLink();
     setMessage(published?.published===true
@@ -218,11 +229,15 @@ function createDialog(){
   header.append(heading,close);shell.append(header);
   shell.append(node("p","public-menu-hint",
     "Compartilhe seus produtos e preços de venda. Custos, receitas de preparo, clientes, estoque e dados financeiros permanecem privados. Pedidos pelo WhatsApp são opcionais, sem pagamento ou baixa automática no PDV."));
-  addField(shell,"Endereço personalizado da loja","publicMenuSlug","",{max:40});
+  const slugField=addField(shell,"Endereço personalizado da loja","publicMenuSlug","",{max:40});
+  slugField.addEventListener("input",()=>{try{refreshCheckoutOption(snapshot().data)}catch{}});
   shell.append(node("p","public-menu-hint","Use 4 a 40 letras minúsculas, números e hífens. Se mudar um endereço publicado, o antigo sairá do ar somente quando o novo for salvo com sucesso."));
   shell.append(node("p","public-menu-hint","Marque somente os produtos que deseja expor na internet. As fotos próprias cadastradas dos produtos escolhidos serão publicadas e usadas automaticamente no carrossel, intercaladas com a abertura CARDÁPIO. Fotos privadas por link não serão copiadas."));
   const phone=addField(shell,"WhatsApp comercial público (opcional)","publicMenuWhatsapp","",{max:24});phone.type="tel";phone.inputMode="tel";
   shell.append(node("p","public-menu-hint","Ao preencher, você autoriza divulgar este número e receber solicitações pelo WhatsApp. Sem número, o catálogo continua somente para consulta. O pedido não entra automaticamente no PDV."));
+  const checkoutOpt=node("label","public-menu-choice"),checkout=node("input");checkout.type="checkbox";checkout.id="publicMenuCheckout";checkout.disabled=true;
+  checkoutOpt.append(checkout,node("span","","Receber pedidos automaticamente no PDV (retirada)"));shell.append(checkoutOpt);
+  const checkoutHint=node("p","public-menu-hint","Checkout em homologação.");checkoutHint.id="publicMenuCheckoutHint";shell.append(checkoutHint);
   const search=addField(shell,"Buscar produtos para mostrar ou ocultar","publicMenuSearch","",{max:80});search.addEventListener("input",renderChoices);
   const products=node("div","public-menu-products");products.id="publicMenuProducts";
   shell.append(products);
@@ -281,10 +296,12 @@ async function publish(){
     if(!validSession(uid,epoch))return;
     const number=$("publicMenuWhatsapp").value.trim(),whatsapp=publicWhatsapp(number);
     if(number&&!whatsapp)throw Error("Informe um WhatsApp brasileiro válido, com DDD.");
-    const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:ids,whatsapp,
+    const checkoutKey=$("publicMenuCheckout").checked?checkoutSiteKey(slug,state.data):"";
+    if($("publicMenuCheckout").checked&&!checkoutKey)throw Error("Checkout ainda não autorizado para esta loja.");
+    const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:ids,whatsapp,checkoutSiteKey:checkoutKey,
       priceFor,allowed,imageFor,publishedPhotos:photos,includeIngredientNames:$("publicMenuIncludeIngredients").checked,previous:current});
     if(!confirm("Publicar "+result.items.length+" produto(s) de "+result.title+
-      " com preços e fotos dos produtos selecionados"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? "+(whatsapp?"O número comercial também será público e receberá solicitações pelo WhatsApp.":"O catálogo ficará somente para consulta.")))return;
+      " com preços e fotos dos produtos selecionados"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? "+(checkoutKey?"Pedidos de retirada serão enviados automaticamente ao PDV, com pagamento pendente.":whatsapp?"O número comercial também será público e receberá solicitações pelo WhatsApp.":"O catálogo ficará somente para consulta.")))return;
     if(!validSession(uid,epoch))return;
     if(oldSlug){
       if(!confirm("Trocar o link de "+oldSlug+" para "+slug+"? O link antigo deixará de funcionar."))return;
@@ -304,7 +321,7 @@ async function publish(){
     try{localStorage.setItem(localKey(uid),slug)}catch{}
     $("publicMenuSlug").readOnly=false;
     updateLink();
-    setMessage("Publicado. O carrossel usa as fotos publicadas da sua loja."+(skipped?" "+skipped+" foto(s) não puderam ser otimizadas; revise-as no cadastro.":"")+" Compartilhe o link; pedidos pelo WhatsApp precisam de confirmação manual da loja.");
+    setMessage("Publicado. O carrossel usa as fotos publicadas da sua loja."+(skipped?" "+skipped+" foto(s) não puderam ser otimizadas; revise-as no cadastro.":"")+(checkoutKey?" Checkout de retirada habilitado no catálogo; funcionamento depende do Worker autorizado.":" Compartilhe o link; pedidos pelo WhatsApp precisam de confirmação manual da loja."));
   }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha ao publicar.",true);}
   finally{if(validSession(uid,epoch))setBusy(false);}
 }

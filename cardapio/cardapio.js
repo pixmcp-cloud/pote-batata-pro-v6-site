@@ -1,5 +1,6 @@
+import {createCheckoutClient} from "./checkout-client.mjs?v=1";
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary, whatsappOrder } from "./cardapio-core.mjs?v=whatsapp12";
-import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=12";
+import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=13";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -370,7 +371,7 @@ function renderCart(){
   $("floatingTotal").textContent=money(totals.subtotalCents);
   $("subtotal").textContent=money(totals.subtotalCents);
   $("total").textContent=money(totals.subtotalCents);
-  $("copyOrder").disabled=totals.count===0||(requestedSlug!==null&&!publicStore?.whatsapp);
+  $("copyOrder").disabled=checkoutBusy||totals.count===0||(requestedSlug!==null&&!publicStore?.whatsapp&&!publicStore?.checkoutSiteKey);
   const holder=$("cartItems");
   holder.replaceChildren();
   if(!cart.length){
@@ -396,6 +397,12 @@ function renderCart(){
 function fulfill(){
   const value=document.querySelector('input[name="fulfillment"]:checked')?.value || "retirada";
   const delivery=value==="entrega";
+  if(publicStore?.checkoutSiteKey){
+   $("copyOrder").textContent=delivery?"Solicitar entrega pelo WhatsApp":"Confirmar pedido para retirada";
+   $("checkoutChallenge").hidden=delivery;
+   if(!delivery&&!$("cartDialog").hidden&&$("cartDialog").open)void prepareChallenge();
+   $("copyOrder").disabled=checkoutBusy||!cart.length||(delivery&&!publicStore.whatsapp);
+  }
   $("addressLabel").hidden=!delivery;
   $("deliveryFee").textContent=delivery?"A definir pela loja":"Não se aplica";
   return value;
@@ -408,10 +415,46 @@ async function copyText(text){
   document.body.append(box);box.select();
   const ok=document.execCommand("copy");box.remove();return ok;
 }
-let publicStore=null;
+let publicStore=null,checkoutBusy=false,challengeToken="",widgetId=null,challengePromise=null;
+const checkoutClient=createCheckoutClient({endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev/v1/checkout"});
+async function prepareChallenge(){
+ if(!publicStore?.checkoutSiteKey||widgetId!==null)return;
+ if(challengePromise)return challengePromise;
+ challengePromise=(async()=>{
+  if(!window.turnstile){
+   await new Promise((resolve,reject)=>{
+    const script=document.createElement("script");script.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";script.async=true;
+    script.onload=resolve;script.onerror=()=>reject(Error("Verificação indisponível. Tente novamente."));
+    document.head.append(script);
+   });
+  }
+  if(!window.turnstile)throw Error("Verificação indisponível.");
+  widgetId=window.turnstile.render("#checkoutChallenge",{sitekey:publicStore.checkoutSiteKey,action:"pote_checkout",theme:"auto",
+   callback:token=>{challengeToken=token;},
+   "expired-callback":()=>{challengeToken="";},"error-callback":()=>{challengeToken="";}});
+ })().catch(error=>{$("checkoutResult").textContent=error.message;}).finally(()=>{challengePromise=null;});
+ return challengePromise;
+}
+async function transactionalOrder(){
+ if(checkoutBusy)return;
+ if(!challengeToken){await prepareChallenge();toast("Conclua a verificação de segurança e confirme novamente.");return;}
+ const input={slug:requestedSlug,items:cart.map(x=>({id:x.id,quantity:x.quantity,note:x.note||""})),expectedTotalCents:cartTotals(cart,catalogue).subtotalCents,
+  customerName:$("customerName").value,customerPhone:$("customerPhone").value,payment:$("paymentMethod").value};
+ if(!input.customerName.trim()||!input.customerPhone.trim()){toast("Informe nome e celular.");return;}
+ checkoutBusy=true;renderCart();$("checkoutResult").textContent="Confirmando seu pedido no servidor...";
+ try{
+  const result=await checkoutClient.submit(input,challengeToken);
+  const codes=result.orderNumbers.map(n=>"#P"+String(n).padStart(7,"0")).join(", ");
+  $("checkoutResult").textContent="Pedido recebido: "+codes+" · "+money(result.totalCents)+". Pagamento pendente, na retirada.";
+  cart=[];saveCart();checkoutClient.complete(input.slug);toast("Pedido registrado no PDV.");
+ }catch(error){$("checkoutResult").textContent=error.message||"Não foi possível confirmar. Não envie outro pedido até conferir.";}
+ finally{challengeToken="";if(widgetId!==null)window.turnstile?.reset(widgetId);checkoutBusy=false;renderCart();fulfill();}
+}
 async function copyOrder(){
   if(!cart.length){toast("Escolha um produto primeiro.");return;}
   if(requestedSlug!==null){
+    if(publicStore?.checkoutSiteKey&&fulfill()==="retirada")return transactionalOrder();
+    if(publicStore?.checkoutSiteKey&&checkoutClient.hasPending(requestedSlug)){toast("Resolva primeiro a confirmação do pedido automático. Não envie outro pedido.");return;}
     if(!publicStore?.whatsapp){toast("A loja não habilitou pedidos pelo WhatsApp.");return;}
     try{const url=whatsappOrder({cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,customerName:$("customerName").value,customerPhone:$("customerPhone").value,address:$("customerAddress").value,whatsapp:publicStore.whatsapp,storeTitle:publicStore.title});window.open(url,"_blank","noopener,noreferrer");toast("Confira a mensagem no WhatsApp e aguarde confirmação da loja.");}catch(e){toast(e.message);}return;
   }
@@ -443,8 +486,8 @@ $("confirmProduct").addEventListener("click",confirmProduct);
 productDialog.addEventListener("close",()=>{pendingProduct=[];selected=null;updatePendingStatus();});
 $("closeProduct").addEventListener("click",()=>productDialog.close());
 $("closeCart").addEventListener("click",()=>cartDialog.close());
-$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
-$("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
+$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);fulfill();cartDialog.querySelector(".cart-scroll").scrollTop=0;});
+$("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog);fulfill();cartDialog.querySelector(".cart-scroll").scrollTop=0;});
 $("keepShopping").addEventListener("click",()=>cartDialog.close());
 $("copyOrder").addEventListener("click",copyOrder);
 $("shareBtn").addEventListener("click",share);
@@ -504,9 +547,17 @@ async function loadPublicMenu(slug){
     if(reminder)reminder.textContent=menu.whatsapp?"Envie a solicitação pelo WhatsApp e aguarde confirmação. Não há cobrança online nem reserva automática.":"Catálogo público somente para consulta; não registra pedidos.";
     const strip=document.querySelector(".preview-strip");
     if(strip)strip.textContent=menu.whatsapp?"CARDÁPIO DIGITAL • PEDIDOS PELO WHATSAPP":"CATÁLOGO PUBLICADO • SOMENTE CONSULTA";
-    $("copyOrder").textContent=menu.whatsapp?"Solicitar pedido pelo WhatsApp":"Pedidos não habilitados";
-    $("paymentLabel").textContent=menu.whatsapp?"Forma de pagamento pretendida":"Forma de pagamento (consulta)";
-    categories();renderMenu();renderCart();
+    $("copyOrder").textContent=menu.checkoutSiteKey?"Confirmar pedido para retirada":menu.whatsapp?"Solicitar pedido pelo WhatsApp":"Pedidos não habilitados";
+    if(menu.checkoutSiteKey){
+     if(storeStatus)storeStatus.textContent="Pedidos de retirada online";
+     if(footerCaption)footerCaption.textContent="Pagamento na retirada; sem cobrança online.";
+     if(reminder)reminder.textContent="Pedidos de retirada entram no PDV após confirmação. Pagamento somente na retirada. "+(menu.whatsapp?"Entregas pelo WhatsApp.":"Entregas indisponíveis.");
+     if(strip)strip.textContent="CARDÁPIO DIGITAL • PEDIDOS ONLINE PARA RETIRADA";
+     $("checkoutResult").hidden=false;
+     if(!menu.whatsapp)document.querySelector('input[name="fulfillment"][value="entrega"]').disabled=true;
+    }
+    $("paymentLabel").textContent=menu.checkoutSiteKey?"Forma de pagamento na retirada":menu.whatsapp?"Forma de pagamento pretendida":"Forma de pagamento (consulta)";
+    categories();renderMenu();renderCart();fulfill();
   }catch(error){
     console.warn("Cardápio público indisponível",error.code||error.message||error);
     $("emptyState").textContent="Este cardápio não está disponível no momento. Solicite o endereço atualizado à loja.";

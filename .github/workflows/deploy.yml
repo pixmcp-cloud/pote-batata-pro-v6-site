@@ -213,6 +213,7 @@ jobs:
           node test_hardening_render_events.cjs
           node test_cost_history.js
           node test_pdv_cash_core.mjs
+          node test_checkout_client.mjs
           node test_pdv_auto_sale_completion.mjs
           node test_v3_cash_reconciliation.mjs
           node test_v3_rank_persistence.mjs

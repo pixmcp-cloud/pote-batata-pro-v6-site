@@ -44,7 +44,7 @@ export async function verifyCheckoutChallenge(token,env,operationId){
  const secret=env.TURNSTILE_SECRET,hosts=String(env.TURNSTILE_HOSTNAMES||"").split(",").map(x=>x.trim()).filter(Boolean);
  if(!secret||!hosts.length||hosts.length>10||!hosts.every(x=>/^[a-z0-9.-]+$/.test(x)))return false;
  try{
-  const response=await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify",{method:"POST",body:new URLSearchParams({secret,response:token,idempotency_key:operationId}),signal:AbortSignal.timeout(7000)});
+  const response=await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify",{method:"POST",body:new URLSearchParams({secret,response:token,idempotency_key:crypto.randomUUID()}),signal:AbortSignal.timeout(7000)});
   if(!response.ok)return false;
   const data=await response.json();
   return data.success===true&&data.action==="pote_checkout"&&hosts.includes(data.hostname);

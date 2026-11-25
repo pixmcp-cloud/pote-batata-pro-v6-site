@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?release=lojista10">
-  <script type="module" src="./cardapio.js?release=whatsapp12"></script>
+  <link rel="stylesheet" href="./cardapio.css?release=checkout13">
+  <script type="module" src="./cardapio.js?release=checkout13"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -127,6 +127,8 @@
         </label>
         <div class="cart-totals"><div><span>Subtotal</span><strong id="subtotal">R$ 0,00</strong></div><div><span>Entrega</span><span id="deliveryFee">A definir na loja</span></div><div class="grand-total"><span>Total dos produtos</span><strong id="total">R$ 0,00</strong></div></div>
         <p class="demo-warning">Esta é uma prévia interativa. Nenhum pagamento será cobrado e nenhum pedido será registrado no PDV.</p>
+        <div id="checkoutChallenge" hidden aria-label="Verificação de segurança"></div>
+        <p id="checkoutResult" class="checkout-result" hidden role="status" aria-live="polite"></p>
         <button type="button" class="button button-gold checkout-button" id="copyOrder">Copiar resumo demonstrativo</button>
         <button type="button" class="button button-quiet" id="keepShopping">Continuar escolhendo</button>
       </div>
