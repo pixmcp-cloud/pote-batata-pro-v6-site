@@ -33,4 +33,7 @@ console.log("PASS: regras versionadas com isolamento por UID, eventos imutáveis
 assert(walletAdmin.includes("async function addOwnWalletPackage")&&walletAdmin.includes("ownOnly&&actor.uid!==uid"),"Crédito próprio restrito ao titular ADM");
 assert(walletAdmin.includes("await verifiedAdmin()")&&walletAdmin.includes("token.claims.potebatataAdmin!==true"),"Autorização pelo token verificado");
 assert(walletAdmin.includes("previousEvent=await tx.get(eventRef)")&&walletAdmin.includes("return e.after"),"Repetição do ajuste não duplica saldo");
-assert(walletUi.includes("selected.eventId,selected.uid")&&walletUi.includes("if(isOwnAdmin()){showCredit(pack[0]);return;}"),"Confirmação explícita do próprio ADM");
+assert(walletUi.includes("selected.eventId,selected.uid")&&walletUi.includes("showCredit(pack[0],pack[1]);"),"Confirmação explícita do próprio ADM");
+
+assert(walletAdmin.includes("amount*quantity")&&walletAdmin.includes("quantity>99"),"Quantidade de pacotes limitada e validada");
+assert(walletAdmin.includes("selected.insertAdjacentElement('afterend',wallet)")&&walletAdmin.includes("Crédito administrativo manual"),"Ajuste direto na conta selecionada");
