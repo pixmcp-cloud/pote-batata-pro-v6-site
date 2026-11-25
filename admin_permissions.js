@@ -114,6 +114,32 @@ async function verifiedAdmin(){
  if(token.claims.email_verified!==true||token.signInProvider!=='google.com'||token.claims.potebatataAdmin!==true||auth.currentUser?.uid!==actor.uid)throw Error('ADM não verificado');
  return actor;
 }
+// One verified and atomic adjustment path for the ADM console and the ADM's own wallet.
+async function adjustWalletFor(uid,sign,amount,reason,eventId,ownOnly=false){
+ if(typeof uid!=='string'||!uid||![1,-1].includes(sign)||!Number.isSafeInteger(amount)||amount<1||amount>1000000||typeof reason!=='string'||reason.length<3||reason.length>180||typeof eventId!=='string'||!/^[A-Za-z0-9_-]{20,80}$/.test(eventId))throw Error('Ajuste inválido');
+ const actor=await verifiedAdmin();
+ if(ownOnly&&actor.uid!==uid)throw Error('Conta ADM alterada');
+ const walletRef=doc(db,'users',uid,'aiWallet','main'),eventRef=doc(db,'users',uid,'aiWallet','main','entries',eventId);
+  return await runTransaction(db,async tx=>{
+   if(auth.currentUser?.uid!==actor.uid)throw Error('Conta alterada');
+   const previousEvent=await tx.get(eventRef);
+   if(previousEvent.exists()){
+    const e=previousEvent.data();if(e.kind!=='admin_adjustment'||e.actorUid!==actor.uid||e.delta!==sign*amount||e.reason!==reason)throw Error('Identificador de ajuste já utilizado');
+    return e.after;
+   }
+   const snap=await tx.get(walletRef),old=snap.exists()?snap.data().balance:0,delta=sign*amount,after=old+delta;
+   if(!Number.isSafeInteger(old)||old<0||!Number.isSafeInteger(after)||after<0||after>100000000)throw Error('Saldo insuficiente ou inválido');
+   tx.set(walletRef,{balance:after,lastEventId:eventId,updatedAt:serverTimestamp()});
+   tx.set(eventRef,{kind:'admin_adjustment',before:old,after,delta,reason,actorUid:actor.uid,at:serverTimestamp()});
+   return after;
+  });
+}
+async function addOwnWalletPackage(amount,eventId,expectedUid){
+ if(![5,10,25,50,75,100].includes(amount))throw Error('Pacote inválido');
+ const uid=auth.currentUser?.uid;
+ if(!uid||uid!==expectedUid)throw Error('Conta alterada');
+ return adjustWalletFor(uid,1,amount,'Crédito administrativo próprio · pacote '+amount+' IA COIN',eventId,true);
+}
 async function loadWallet(){
  const seq=++wSeq,uid=user?.uid;wReady=false;wButtons();wBalance.textContent=uid?'Consultando saldo...':'Selecione uma conta';wStatus.textContent='';
  if(!uid)return;
@@ -128,17 +154,10 @@ async function adjustWallet(sign){
  if(!confirm((sign>0?'Adicionar ':'Remover ')+amount+' créditos IA para '+(user.email||uid)+'?'))return;
  wBusy=true;wButtons();const seq=wSeq;wStatus.textContent='Registrando ajuste...';
  try{
-  const actor=await verifiedAdmin(),walletRef=doc(db,'users',uid,'aiWallet','main'),eventId=crypto.randomUUID(),eventRef=doc(db,'users',uid,'aiWallet','main','entries',eventId);
-  const next=await runTransaction(db,async tx=>{
-   const snap=await tx.get(walletRef),old=snap.exists()?snap.data().balance:0,delta=sign*amount,after=old+delta;
-   if(!Number.isSafeInteger(old)||old<0||!Number.isSafeInteger(after)||after<0||after>100000000)throw Error('Saldo insuficiente ou inválido');
-   tx.set(walletRef,{balance:after,lastEventId:eventId,updatedAt:serverTimestamp()});
-   tx.set(eventRef,{kind:'admin_adjustment',before:old,after,delta,reason,actorUid:actor.uid,at:serverTimestamp()});
-   return after;
-  });
+  const next=await adjustWalletFor(uid,sign,amount,reason,crypto.randomUUID());
   if(seq===wSeq&&user?.uid===uid){wBalance.textContent=next.toLocaleString('pt-BR')+' créditos IA';wStatus.textContent='Ajuste registrado com sucesso.';wAmount.value='';wReason.value='';}
  }catch(e){if(seq===wSeq)wStatus.textContent='Não foi possível ajustar: '+(e.code||e.message);}
  finally{wBusy=false;wButtons();}
 }
 wAdd.addEventListener('click',()=>adjustWallet(1));wRemove.addEventListener('click',()=>adjustWallet(-1));
-window.POTE_ADMIN_PERMISSIONS={renderAccount(account){const changed=user?.uid!==account?.uid;user=account||null;paint();if(changed)void loadWallet();},get state(){return {selected:user?.uid,saving}}};
+window.POTE_ADMIN_PERMISSIONS={addOwnWalletPackage,renderAccount(account){const changed=user?.uid!==account?.uid;user=account||null;paint();if(changed)void loadWallet();},get state(){return {selected:user?.uid,saving}}};
