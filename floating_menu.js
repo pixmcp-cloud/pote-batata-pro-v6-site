@@ -4,7 +4,7 @@
 if(window.__poteFloatingMenuLoaded)return;
 window.__poteFloatingMenuLoaded=true;
 const safe=(v)=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const nav=[["home","Início"],["business","Negócio"],["orders","Pedidos e produção"],["recipes","Receitas e fichas"],["builder","Criar receita"],["ingredients","Estoque e compras"],["clients","Clientes"],["suppliers","Fornecedores & Compras"],["motoboy","Motoboy"],["deliveryhub","Hub de Delivery"],["vitrine","Cardápio"],["pricing","Precificação"],["expenses","Gastos e despesas"],["reports","Gráficos e relatórios"],["creative","Criativos"],["gallery","Galeria · 42h"],["brand","Minha marca"],["settings","Configurações e backup"]];
+const nav=[["home","Início"],["business","Negócio"],["orders","Pedidos e produção"],["recipes","Receitas e fichas"],["builder","Criar receita"],["ingredients","Estoque e compras"],["clients","Clientes"],["suppliers","Fornecedores & Compras"],["motoboy","Motoboy"],["deliveryhub","Hub de Delivery"],["vitrine","Cardápio"],["pricing","Precificação"],["expenses","Gastos e despesas"],["reports","Gráficos e relatórios"],["creative","Criativos"],["ia-wallet","IA COIN · Carteira e loja"],["gallery","Galeria · 42h"],["brand","Minha marca"],["settings","Configurações e backup"]];
 const icon='<svg viewBox="0 0 24 24" aria-hidden="true" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
 const avatar='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2c0-5 16-5 16 0v2"/></svg>';
 const closeIcon='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l14 14M19 5L5 19"/></svg>';
@@ -97,7 +97,8 @@ function setOpen(v){
  $('poteFloatBackdrop').hidden=!opened;
  $('poteFloatToggle').setAttribute('aria-expanded',String(opened));
  $('poteFloatToggle').setAttribute('aria-label',opened?'Fechar menu':'Abrir menu de opções');
- syncAiOrb();
+ $('poteFloatToggle').innerHTML=opened?closeIcon:icon;
+ const logo=$('poteHeadLogo');if(logo)logo.setAttribute('aria-expanded',String(opened));
  if(opened)refresh();
 }
 function showProfile(open){
@@ -119,32 +120,29 @@ function showProfile(open){
  }
 }
 $('poteFloatNavigation').innerHTML=nav.map(([tab,title])=>'<button type="button" data-tab="'+tab+'"><span>'+safe(title)+'</span><span>›</span></button>').join('');
-// The original button keeps its fixed header position. The brand logo opens the navigation.
-const logo=document.getElementById('poteHeadLogo'),orb=$('poteFloatToggle');
-function syncAiOrb(){
- if(!logo||!window.POTE_IA_UNIVERSE){orb.innerHTML=opened?closeIcon:icon;return;}
- orb.classList.add('pote-ai-orb');orb.innerHTML='<span>IA</span>';
- orb.setAttribute('aria-label','Abrir carteira IA COIN');orb.setAttribute('aria-controls','poteAiUniverse');
- orb.setAttribute('aria-expanded',String(window.POTE_IA_UNIVERSE.isOpen()));
+// Both original header controls always open the same operations menu.
+const logo=document.getElementById('poteHeadLogo');
+function toggleOperationsMenu(event){
+ if(event){event.preventDefault();event.stopImmediatePropagation();}
+ setOpen(!opened);
 }
 if(logo){
- logo.setAttribute('role','button');logo.tabIndex=0;logo.setAttribute('aria-label','Abrir menu de operações');logo.title='Menu de operações';
- logo.addEventListener('click',()=>setOpen(!opened));
- logo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(!opened)}});
+ logo.setAttribute('role','button');logo.tabIndex=0;logo.setAttribute('aria-label','Abrir menu de operações');logo.setAttribute('aria-controls','poteFloatDrawer');logo.setAttribute('aria-expanded','false');logo.title='Menu de operações';
+ logo.addEventListener('click',toggleOperationsMenu,true);
+ logo.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')toggleOperationsMenu(e)},true);
 }
-orb.addEventListener('click',()=>{
- if(window.POTE_IA_UNIVERSE&&logo){setOpen(false);window.POTE_IA_UNIVERSE.open();syncAiOrb();}
- else setOpen(!opened);
-});
-window.addEventListener('pote:ia-universe-ready',syncAiOrb);
-window.addEventListener('pote:ia-universe-state',syncAiOrb);
-syncAiOrb();
+$('poteFloatToggle').addEventListener('click',toggleOperationsMenu,true);
 $('poteFloatClose').addEventListener('click',()=>setOpen(false));
 $('poteFloatBackdrop').addEventListener('click',()=>setOpen(false));
 $('poteFloatNavigation').addEventListener('click',e=>{
  const b=e.target.closest('button[data-tab]');
  if(!b)return;
  setOpen(false);
+ if(b.dataset.tab==='ia-wallet'){
+  if(window.POTE_IA_UNIVERSE)window.POTE_IA_UNIVERSE.open();
+  else if(typeof toast==='function')toast('Carteira IA COIN indisponível. Atualize a página.');
+  return;
+ }
  if(b.dataset.tab==='business'){window.POTE_BUSINESS?.open();return}
  if(b.dataset.tab==='gallery'){window.POTE_GALLERY?.open();return}
  if(typeof go==='function')go(b.dataset.tab);
