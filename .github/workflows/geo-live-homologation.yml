@@ -53,7 +53,12 @@ jobs:
           const endpoint="https://pote-batata-geo-live-qa-20261125.pixmcp.workers.dev/__qa";
           const denied=await fetch(endpoint,{method:"POST",signal:AbortSignal.timeout(15000),redirect:"error"});
           if(denied.status!==404)throw Error("QA sem autenticação não está bloqueado");
-          const r=await fetch(endpoint,{method:"POST",headers:{Authorization:"Bearer "+process.env.QA_PROBE_SECRET},redirect:"error",signal:AbortSignal.timeout(90000)});
+          let r;
+          for(let i=0;i<8;i++){
+            r=await fetch(endpoint,{method:"POST",headers:{Authorization:"Bearer "+process.env.QA_PROBE_SECRET},redirect:"error",signal:AbortSignal.timeout(90000)});
+            if(r.status!==404)break;
+            await new Promise(resolve=>setTimeout(resolve,4000));
+          }
           const b=await r.json().catch(()=>({}));
           console.log("QA_RESULT "+JSON.stringify({status:r.status,ok:b.ok,phase:b.phase,checks:b.checks,meters:b.meters,seconds:b.seconds,feeCents:b.feeCents,diagnostics:b.diagnostics}));
           if(!r.ok||!b.ok)throw Error("Homologação real não aprovada");
