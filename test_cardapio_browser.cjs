@@ -43,6 +43,8 @@ async function tapProduct(page,selector){
       await page.goto("http://127.0.0.1:"+server.address().port+"/cardapio/",{waitUntil:"domcontentloaded"});
       await page.waitForSelector(".product-card",{timeout:10000});
       assert.equal(await page.$$eval(".product-card",nodes=>nodes.length),11);
+      await page.click("#settingsBtn");assert.equal(await page.$eval("#settingsDialog",e=>e.open),true);const manage=await page.$eval('[data-merchant-action="products"]',e=>new URL(e.href).searchParams.get("opcao"));assert.equal(manage,"products");await page.click("#closeSettings");assert.equal(await page.$eval("#settingsDialog",e=>e.open),false);
+      assert(await page.$eval("#settingsBtn",e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
       assert.deepEqual(await page.$$eval(".category-button",nodes=>nodes.map(n=>n.textContent)),["Todos","Salgados","Doces","Bebidas"]);
       assert.equal(await page.$$eval(".product-card",nodes=>nodes.some(n=>n.textContent.includes("Combo do Sabor"))),false);
       const officialImages=await page.$$eval(".product-media img",nodes=>nodes.filter(n=>n.getAttribute("src").includes("/assets/recipes/")).map(n=>n.getAttribute("src")));

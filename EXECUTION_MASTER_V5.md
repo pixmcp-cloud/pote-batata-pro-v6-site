@@ -89,3 +89,6 @@ Modal aprovado: X fixo cancela os itens ainda não confirmados, Adicionar prepar
 
 ## Cardápio V6 — remoção visível na sacola (25/11/2026)
 Diagnóstico: lista flexível de produtos e formulário com rolagens independentes comprimiam as linhas em telas móveis, escondendo Remover. Correção: uma única rolagem abaixo do cabeçalho, itens sem compressão, botão vermelho Remover por linha, atualização imediata dos totais e aviso. Teste Chrome inclui hit-test real e remoção de duas águas com gás, preservando os outros itens. PR separada; publicação somente após testes.
+
+## Cardápio V6 — engrenagem e gestão da vitrine (25/11/2026)
+Engrenagem ao lado de Compartilhar abre menu do lojista: link, visibilidade de produtos, publicação/detalhes, marca. Encaminha ao painel autenticado do próprio PDV, inclusive a partir de loja pública; valida proprietário do slug. Alteração de link por transação Firestore, novo endereço livre e desativação do anterior atômicos, sem apagar dados privados. Busca, seleção em massa, ocultar por desmarcação e republicação, aviso de ingredientes, atualização e retirada do ar. Não há alterações de regras nesta etapa. Ocultar todos exige retirar do ar, porque publicação vazia não é aceita. Testes Chrome e revisão de acesso; não confundir com checkout real ou publicação já confirmada.
