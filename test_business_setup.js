@@ -21,12 +21,13 @@ function setup(role="free"){
   createElement(){return node()},getElementById(id){if(!elements.has(id))elements.set(id,node());return elements.get(id)},
   querySelector(){return null},querySelectorAll(){return []},addEventListener(){}
  };
- const window={POTE_AUTH:user};
+ const window={POTE_AUTH:user,addEventListener(){}};
  const ctx={SEED:seed,state,window,document,Node:{TEXT_NODE:3},Date,Math,JSON,String,Array,Object,
   confirm:()=>true,alert:()=>{},persist:()=>{persisted++},render:()=>{rendered++},toast:()=>{},console};
  vm.createContext(ctx);vm.runInContext(templates,ctx,{filename:"universe_templates.js"});
  vm.runInContext(fs.readFileSync("pastelaria_templates.js","utf8"),ctx,{filename:"pastelaria_templates.js"});
  vm.runInContext(core,ctx,{filename:"universe_core.js"});
+ vm.runInContext(fs.readFileSync("access_control.js","utf8"),ctx,{filename:"access_control.js"});
  vm.runInContext(script,ctx,{filename:"business_setup.js"});
  return {ctx,state,window,document,get persistCount(){return persisted},get renderCount(){return rendered}};
 }
@@ -52,6 +53,9 @@ assert.equal(neutral.state.data.recipes.length,26,"Importação duplicou receita
 assert.equal(neutral.state.data.ingredients.length,45,"Importação duplicou ingredientes");
 neutral.state.data.orders.push({id:"real-order",value:140});
 neutral.window.POTE_BUSINESS.choose("pizzaria");
+assert.equal(neutral.state.data.businessType,"batataria","FREE não troca o segmento");
+neutral.window.POTE_AUTH.proActive=true;
+neutral.window.POTE_BUSINESS.choose("pizzaria");
 assert.equal(neutral.state.data.businessType,"pizzaria");
 assert.equal(neutral.state.data.orders.length,0,"Pedidos de batata não devem aparecer na Pizzaria");
 assert.equal(neutral.state.data.recipes.length,30,"Pizzaria deve receber 30 receitas próprias");
@@ -74,6 +78,9 @@ assert.equal(pastel.state.data.recipes.length,50);
 assert.equal(pastel.state.data.recipes.filter(x=>x.category==="Doces").length,10);
 const snack=setup("free");
 snack.window.POTE_BUSINESS.choose("lancheria");
+assert.equal(snack.state.data.businessType,"","Lancheria bloqueada mesmo antes da escolha");
+snack.window.POTE_AUTH.proActive=true;snack.window.POTE_BUSINESS.choose("lancheria");
+assert.equal(snack.state.data.businessType,"lancheria");
 assert.equal(snack.state.data.recipes.length,0);
 const franchise=setup("free");
 franchise.window.POTE_AUTH.franchiseActive=true;

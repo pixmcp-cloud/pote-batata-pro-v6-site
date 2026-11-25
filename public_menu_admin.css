@@ -41,3 +41,5 @@
 @media(max-width:600px){#poteCardapioManager .actions>*{flex:1 1 100%;min-height:44px}}
 
 .public-menu-field{margin-bottom:10px}.public-menu-products+.public-menu-actions{margin-top:8px;margin-bottom:12px}.public-menu-choice:has(input:not(:checked)){opacity:.68}.public-menu-choice:has(input:checked){background:#3d2d1b;border-radius:8px}
+
+#poteViewMyMenu{border-color:#ad8550;color:#f4d59c;background:#252017}

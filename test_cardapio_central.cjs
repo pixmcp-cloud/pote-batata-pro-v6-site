@@ -14,3 +14,5 @@ assert(admin.includes('validSession(uid,epoch)'));
 assert(admin.includes('published?.published===true'));
 console.log("PASS: card, rota, acesso autenticado, compartilhamento confirmado e isolamento de sessão");
 assert(admin.includes("await runTransaction(db,async tx=>"));assert(admin.includes("old.data().ownerUid!==uid||target.exists()"));assert(admin.includes("published:false,updatedAt:serverTimestamp()"));assert(admin.includes("openFromMenu"));assert(admin.includes("publicMenuSearch"));
+
+assert(html.includes("Ver demonstração</a><button")&&html.includes("Ver meu cardápio"));assert(admin.includes("async function viewOwn()"));assert(admin.includes("menu?.businessType===type"));assert(admin.includes("location.assign(liveLink(menu.slug))"));assert(admin.includes("current.businessType!==businessType()"));

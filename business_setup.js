@@ -188,18 +188,21 @@ root.innerHTML=`<div id="poteBusinessOverlay" role="dialog" aria-modal="true" ar
 </div>`;
 document.body.appendChild(root);
 function show(open){
+ if(!open&&window.POTE_ACCESS?.requiresChoice?.())return;
  opened=!!open;
  $("poteBusinessOverlay").hidden=!opened;
  document.documentElement.classList.toggle("pote-business-open",opened);
  if(opened){
   refreshIdentity();
+  $("poteBusinessClose").hidden=Boolean(window.POTE_ACCESS?.requiresChoice?.());
+  $("poteBusinessMessage").textContent=window.POTE_AUTH?.proActive?"PRO: todos os segmentos.":"FREE: um segmento; outros segmentos e Lancheria são exclusivos do PRO.";
   document.querySelectorAll("[data-business-type]").forEach(button=>{
    button.classList.toggle("selected",button.dataset.businessType===current());
    const type=button.dataset.businessType,enabled=window.POTE_ACCESS?.allowsUniverse?.(type)!==false;
    button.classList.toggle("pote-business-disabled",!enabled);
    button.setAttribute("aria-disabled",String(!enabled));
    const badge=button.querySelector("[data-business-access]");
-   if(badge)badge.textContent=enabled?(master()?"🔓 ADM · acesso total":window.POTE_AUTH?.proActive?"🔓 PRO · acesso total":"🔓 FREE · 1 uso por função"):"🔒 Bloqueado pelo ADM";
+   if(badge)badge.textContent=enabled?(master()?"🔓 ADM · acesso total":window.POTE_AUTH?.proActive?"🔓 PRO · acesso total":"🔓 FREE · segmento único"):(window.POTE_AUTH?.proActive?"🔒 Bloqueado pelo ADM":"🔒 Exclusivo PRO");
   });
  }
 }
@@ -210,7 +213,7 @@ function select(type){
    persist();render();show(false);return}
  const choice=TYPES.find(x=>x.id===type);if(!choice)return;
  if(window.POTE_ACCESS?.allowsUniverse?.(type)===false){
-  alert("🔒 Este universo está bloqueado para sua conta. Solicite a liberação ao administrador.");return;
+  alert("🔒 Este segmento está bloqueado. No FREE você usa apenas um segmento; assine PRO para acessar os demais.");return;
  }
  // ADM pode gerir todos os universos. Reabrir a matriz já preenchida não
  // deve importar modelos demonstrativos sobre as receitas originais.
@@ -223,13 +226,14 @@ function select(type){
  const first=!previous;
  const counts={batataria:26,pizzaria:30,hamburgueria:30,hotdog:20,lancheria:0,pastelaria:50};
  const summary=" Este universo tem "+counts[type]+" receitas-modelo. Os demais universos ficarão guardados separadamente, com seus próprios dados.";
- if(!confirm("Selecionar "+choice.label+"?"+summary+" Os dados e custos serão próprios da sua conta."))return;
+ if(!confirm("Selecionar "+choice.label+"?"+summary+" Os dados e custos serão próprios da sua conta."+(!master()&&!window.POTE_AUTH?.proActive?" Sua escolha FREE ficará vinculada a este segmento.":"")))return;
  if(previous!==type&&typeof cart!=="undefined"&&cart.length){
    if(!confirm("A sacola atual tem produtos do ramo anterior. Trocar de universo vai limpar somente os itens não registrados da sacola, sem alterar pedidos já salvos. Continuar?"))return;
    cart=[];
  }
  const data=state.data;
  if(!window.POTE_UNIVERSES){alert("Catálogos indisponíveis. Atualize a página e tente novamente.");return}
+ window.POTE_ACCESS?.rememberChoice?.(type);
  const imported=window.POTE_UNIVERSES.switchTo(state,type,SEED);
  // Cada universo tem seu próprio cadastro, pedidos e insumos arquivados separadamente.
  persist();
@@ -249,6 +253,6 @@ $("poteBusinessOverlay").addEventListener("click",e=>{
 window.POTE_BUSINESS={open:()=>show(true),close:()=>show(false),choose:select,refresh:refreshIdentity,normalizeAccountBrand,
  neutralBrand,importBatatariaTemplates,current,types:TYPES,refreshAccess:()=>{if(opened)show(true)}};
 window.addEventListener?.("pote:changed",refreshIdentity);
-window.addEventListener?.("pote:user-ready",refreshIdentity);
+window.addEventListener?.("pote:user-ready",()=>{refreshIdentity();const choice=window.POTE_ACCESS?.freeChoice?.();if(choice)window.POTE_ACCESS?.rememberChoice?.(choice);if(window.POTE_ACCESS?.requiresChoice?.())show(true);});
 refreshIdentity();
 })();

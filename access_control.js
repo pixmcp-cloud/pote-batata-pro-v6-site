@@ -17,11 +17,25 @@ const admin=()=>window.POTE_AUTH?.role==="admin";
 const active=()=>typeof state==="undefined"?"batataria":state.data?.businessType||"batataria";
 const cleanList=(items)=>Array.isArray(items)?items.filter(x=>typeof x==="string"):[];
 function policy(){return window.POTE_AUTH?.accessPolicy||{}}
+const FREE_TYPES=universeIds.filter(type=>type!=="lancheria");
+function freeChoice(){
+ const auth=window.POTE_AUTH;if(!auth?.uid)return null;
+ if(FREE_TYPES.includes(auth.freeUniverse))return auth.freeUniverse;
+ try{const stored=localStorage.getItem("pote-free-segment-bridge:"+auth.uid);if(FREE_TYPES.includes(stored))return stored;}catch{}
+ const data=typeof state==="undefined"?null:state.data;
+ const current=data?.businessType;
+ if(FREE_TYPES.includes(current)&&(data.businessTemplates?.[current]||["recipes","ingredients","orders","clients","beverages"].some(key=>data[key]?.length)))return current;
+ return null;
+}
+function rememberChoice(type){const auth=window.POTE_AUTH;if(!auth?.uid||admin()||auth.proActive||auth.franchiseActive||!FREE_TYPES.includes(type))return;auth.freeUniverse=freeChoice()||type;try{localStorage.setItem("pote-free-segment-bridge:"+auth.uid,auth.freeUniverse)}catch{}}
+function requiresChoice(){const auth=window.POTE_AUTH;if(!auth?.uid||admin()||auth.proActive||auth.franchiseActive)return false;const chosen=freeChoice();return !chosen||typeof state!=="undefined"&&state.data?.businessType!==chosen;}
 function allowsUniverse(type){
  if(!universeIds.includes(type))return false;
  if(admin())return true;
  if(window.POTE_AUTH?.franchiseActive)return type==="batataria";
- return !cleanList(policy().blockedUniverses).includes(type);
+ if(cleanList(policy().blockedUniverses).includes(type))return false;
+ if(window.POTE_AUTH?.proActive)return true;
+ const chosen=freeChoice();return FREE_TYPES.includes(type)&&(!chosen||chosen===type);
 }
 function allowsService(type,service){
  if(admin())return true;
@@ -45,7 +59,7 @@ function groupService(group){
  if(["cashSessions","cashMovements"].includes(group))return "orders";
  return group;
 }
-window.POTE_ACCESS={universeIds,services,policy,allowsUniverse,allowsService,requireService,requireTab,groupService};
+window.POTE_ACCESS={universeIds,services,policy,freeChoice,rememberChoice,requiresChoice,allowsUniverse,allowsService,requireService,requireTab,groupService};
 window.addEventListener("pote:access-updated",()=>{
  window.POTE_BUSINESS?.refreshAccess?.();
  if(!allowsUniverse(active())&&typeof window.POTE_BUSINESS?.open==="function")
