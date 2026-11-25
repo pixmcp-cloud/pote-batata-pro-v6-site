@@ -10,6 +10,7 @@ import {planStockPurchase} from "./stock_purchase.mjs";
 import {planStockRecount} from "./stock_recount.mjs";
 import {checkoutRequest,verifyCheckoutChallenge,submitCheckout} from "./checkout.mjs";
 import {loadTracking,updateTracking,lifecycleRows} from "./tracking.mjs";
+import {connectOperation,closeConnectJob} from "./motoboy_connect.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -277,6 +278,7 @@ export function createWorkerApp({
     writes.push(put(tracking.path,next,tracking.doc),put(guardPath,{revision:guard.data.revision+1},guard),
      put(pulsePath,{eventId:"cf-"+operationId,previousEventId:pulse.data.eventId,origin:"cloudflare-worker",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse),
      put(eventPath,{action,decision:null,universe,orderId,operationId,resultStatus:next.status,actorUid:uid},null));
+    if(next.status==="entregue"){const closed=await closeConnectJob(tx,next,at);if(closed)writes.push(closed);}
     await tx.commit(writes);
     return json({ok:true,orderId,operationId,status:next.status,alreadyApplied:false},200,headers);
    }
@@ -335,7 +337,7 @@ export function createWorkerApp({
      changed.push(path.split("/").at(-1));
     }
    }
-   if(tracking)writes.push(put(tracking.path,updateTracking(tracking.doc.data,[planned.order],at),tracking.doc));
+   if(tracking){const next=updateTracking(tracking.doc.data,[planned.order],at);writes.push(put(tracking.path,next,tracking.doc));if(next.status==="cancelado"){const closed=await closeConnectJob(tx,next,at);if(closed)writes.push(closed);}}
    // Firestore V5 listeners depend on guard revision and pulse changes.
    // These must be committed with the operational documents, never later.
    const oldGuard=guard.data.revision,previousPulse=pulse.data.eventId;
@@ -372,6 +374,20 @@ export function createWorkerApp({
      writesEnabled:env.ENABLE_WRITES==="true"},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
    try{
+    if(route==="/v1/motoboy-connect"){
+     if(!origin||req.headers.get("Content-Type")?.split(";")[0]!=="application/json")return json({error:"invalid_connect"},400,headers);
+     const authorization=req.headers.get("Authorization")||"";
+     if(!/^Bearer [^\s]+$/.test(authorization))return json({error:"authentication_required"},401,headers);
+     let user;try{user=await verify(authorization.slice(7),env.FIREBASE_PROJECT_ID)}catch{return json({error:"invalid_firebase_token"},401,headers)}
+     if(!user?.uid||!valueOk(user.uid,/^[a-zA-Z0-9:_-]{1,128}$/))return json({error:"invalid_identity"},401,headers);
+     let input;try{const raw=await req.text();if(raw.length>3000)throw Error("size");input=JSON.parse(raw)}catch{return json({error:"invalid_connect"},400,headers)}
+     if(!input||typeof input!=="object"||Array.isArray(input))return json({error:"invalid_connect"},400,headers);
+     const merchantAllowed=async(tx,claims,universe)=>canaryPermitted(env,claims.uid)&&hasAccess((await tx.get("users/"+claims.uid))?.data,claims,universe);
+     for(let attempt=0;attempt<4;attempt++){
+      try{return json(await connectOperation({input,user,env,repository,at:clock(),merchantAllowed}),200,headers)}
+      catch(e){if(!(e instanceof FirestoreError)||![409,412].includes(e.status)||attempt===3)throw e;}
+     }
+    }
     if(route==="/v1/checkout"||route==="/v1/checkout/quote"){
      // Public ordering is separate from authenticated stock operations. Verify
      // anti-abuse token once, not on each transaction retry.
