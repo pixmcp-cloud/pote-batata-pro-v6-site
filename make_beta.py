@@ -185,10 +185,10 @@ function poteFreshAccount(){
  start.data.brand=window.POTE_AUTH?.role==='admin'
   ? {...start.data.brand,logoUrl:POTE_ORIGINAL_LOGO}
   : {...start.data.brand,...POTE_NEUTRAL_BRAND};
- start.data.businessType='batataria'; // FREE e ADM começam na Batataria e podem selecionar outros ramos
+ start.data.businessType=window.POTE_AUTH?.role==='admin'||window.POTE_AUTH?.franchiseActive?'batataria':''; // Nova conta escolhe ramo após Google.
  start.data.businessUniverses={};
  start.data.businessTemplates={};
- start.data.kitchenStock={mode:"shared",version:1,inventory:{}};
+ start.data.kitchenStock={mode:window.POTE_AUTH?.proActive?"shared":"separate",version:1,inventory:{}};
  start.data.kitchenLogistics={couriers:[],trips:[],settlements:[]};
  start.accounts=[];
  start.creatives=[];

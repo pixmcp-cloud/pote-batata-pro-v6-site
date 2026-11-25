@@ -6,9 +6,9 @@ if(window.POTE_BUSINESS)return;
 const TYPES=[
  {id:"batataria",label:"Batataria",name:"Minha Batataria",desc:"Receitas-modelo de batatas recheadas, com ingredientes para conferir.",photo:"./assets/generic/business-batataria.svg"},
  {id:"pizzaria",label:"Pizzaria",name:"Minha Pizzaria",desc:"30 receitas-modelo de pizzas, com ingredientes e preparo completos.",photo:"./assets/generic/business-pizzaria.svg"},
- {id:"hamburgueria",label:"Hamburgueria",name:"Minha Hamburgueria",desc:"30 receitas-modelo de hambúrgueres, com opções clássicas e artesanais.",photo:"./assets/generic/business-hamburgueria.svg"},
+ {id:"hamburgueria",label:"Hamburgueria e sanduíches",name:"Minha Hamburgueria",desc:"30 receitas-modelo de hambúrgueres, com opções clássicas e artesanais.",photo:"./assets/generic/business-hamburgueria.svg"},
  {id:"hotdog",label:"Hot Dog",name:"Meu Hot Dog",desc:"Receitas de cachorro-quente e combinações tradicionais e especiais.",photo:"./assets/generic/business-hotdog.svg"},
- {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Ambiente vazio, sem receitas prontas: monte seu próprio cardápio.",photo:"./assets/generic/business-lancheria.svg"},
+ {id:"lancheria",label:"Lancheria",name:"Minha Lancheria",desc:"Universo multissegmento exclusivo PRO: reúna diferentes tipos de produtos.",photo:"./assets/generic/business-lancheria.svg"},
  {id:"pastelaria",label:"Pastelaria",name:"Minha Pastelaria",desc:"50 receitas de pastéis: 40 salgados e 10 doces, com foto padrão e preparo.",photo:"./assets/recipes/pastelaria-cardapio.jpg"}
 ];
 const GENERIC_LOGO="./assets/generic/business-neutral.svg";
@@ -187,30 +187,37 @@ root.innerHTML=`<div id="poteBusinessOverlay" role="dialog" aria-modal="true" ar
  </section>
 </div>`;
 document.body.appendChild(root);
+function mustChoose(){return Boolean(window.POTE_ACCESS?.requiresChoice?.());}
 function show(open){
+ if(open&&!window.POTE_AUTH?.uid)return;
+ if(!open&&mustChoose())return;
  opened=!!open;
  $("poteBusinessOverlay").hidden=!opened;
  document.documentElement.classList.toggle("pote-business-open",opened);
  if(opened){
   refreshIdentity();
+  $("poteBusinessClose").hidden=mustChoose();
+  $("poteBusinessMessage").textContent=window.POTE_AUTH?.proActive?"Uma assinatura PRO libera todos os universos.":"FREE: escolha um segmento específico. A troca e a Lancheria são exclusivas do PRO.";
   document.querySelectorAll("[data-business-type]").forEach(button=>{
    button.classList.toggle("selected",button.dataset.businessType===current());
    const type=button.dataset.businessType,enabled=window.POTE_ACCESS?.allowsUniverse?.(type)!==false;
    button.classList.toggle("pote-business-disabled",!enabled);
    button.setAttribute("aria-disabled",String(!enabled));
    const badge=button.querySelector("[data-business-access]");
-   if(badge)badge.textContent=enabled?(master()?"🔓 ADM · acesso total":window.POTE_AUTH?.proActive?"🔓 PRO · acesso total":"🔓 FREE · 1 uso por função"):"🔒 Bloqueado pelo ADM";
+   if(badge)badge.textContent=enabled?(master()?"🔓 ADM · acesso total":window.POTE_AUTH?.proActive?"🔓 PRO · acesso total":"🔓 FREE · segmento único"):(type==="lancheria"||!window.POTE_AUTH?.proActive?"🔒 Exclusivo PRO":"🔒 Bloqueado pelo ADM");
   });
  }
 }
-function select(type){
+let selecting=false;
+async function select(type){
+ if(selecting)return;
  if(!window.POTE_AUTH?.uid){alert("Entre com Google antes de escolher seu negócio.");return}
  if(window.POTE_AUTH.franchiseActive){if(type!=="batataria"){alert("Franquia oficial Potê Batata: o ramo Batataria é obrigatório enquanto a franquia estiver ativa.");return}
    window.POTE_UNIVERSES?.switchTo(state,"batataria",SEED,{skipTemplates:true});
    persist();render();show(false);return}
  const choice=TYPES.find(x=>x.id===type);if(!choice)return;
  if(window.POTE_ACCESS?.allowsUniverse?.(type)===false){
-  alert("🔒 Este universo está bloqueado para sua conta. Solicite a liberação ao administrador.");return;
+  alert("🔒 Este universo está bloqueado. Assine o PRO para acessar todos os segmentos com uma única mensalidade ou consulte o ADM.");return;
  }
  // ADM pode gerir todos os universos. Reabrir a matriz já preenchida não
  // deve importar modelos demonstrativos sobre as receitas originais.
@@ -223,13 +230,23 @@ function select(type){
  const first=!previous;
  const counts={batataria:26,pizzaria:30,hamburgueria:30,hotdog:20,lancheria:0,pastelaria:50};
  const summary=" Este universo tem "+counts[type]+" receitas-modelo. Os demais universos ficarão guardados separadamente, com seus próprios dados.";
- if(!confirm("Selecionar "+choice.label+"?"+summary+" Os dados e custos serão próprios da sua conta."))return;
+ if(!confirm("Selecionar "+choice.label+"?"+summary+(!master()&&!window.POTE_AUTH?.proActive?" No FREE, a escolha ficará vinculada à sua conta Google.":"")+" Os dados e custos serão próprios da sua conta."))return;
  if(previous!==type&&typeof cart!=="undefined"&&cart.length){
    if(!confirm("A sacola atual tem produtos do ramo anterior. Trocar de universo vai limpar somente os itens não registrados da sacola, sem alterar pedidos já salvos. Continuar?"))return;
    cart=[];
  }
  const data=state.data;
  if(!window.POTE_UNIVERSES){alert("Catálogos indisponíveis. Atualize a página e tente novamente.");return}
+ const session=window.POTE_AUTH;
+ if(!master()&&!session.proActive&&!session.freeUniverse){
+  selecting=true;
+  try{
+   if(typeof window.POTE_SEGMENT?.choose!=="function")throw Error("Validação de segmento indisponível.");
+   await window.POTE_SEGMENT.choose(type);
+   if(window.POTE_AUTH!==session)return;
+  }catch(error){alert("Não foi possível confirmar o segmento: "+(error.message||error));return;}
+  finally{selecting=false;}
+ }
  const imported=window.POTE_UNIVERSES.switchTo(state,type,SEED);
  // Cada universo tem seu próprio cadastro, pedidos e insumos arquivados separadamente.
  persist();
@@ -249,6 +266,8 @@ $("poteBusinessOverlay").addEventListener("click",e=>{
 window.POTE_BUSINESS={open:()=>show(true),close:()=>show(false),choose:select,refresh:refreshIdentity,normalizeAccountBrand,
  neutralBrand,importBatatariaTemplates,current,types:TYPES,refreshAccess:()=>{if(opened)show(true)}};
 window.addEventListener?.("pote:changed",refreshIdentity);
-window.addEventListener?.("pote:user-ready",refreshIdentity);
+window.addEventListener?.("pote:user-ready",()=>{refreshIdentity();if(mustChoose())show(true)});
+window.addEventListener?.("pote:license-updated",()=>{if(window.POTE_APP_READY&&mustChoose())show(true)});
+window.addEventListener?.("pote:user-logout",()=>{opened=false;$("poteBusinessOverlay").hidden=true;document.documentElement.classList.toggle("pote-business-open",false)});
 refreshIdentity();
 })();
