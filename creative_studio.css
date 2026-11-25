@@ -224,7 +224,7 @@
 }
 
 /* Locução IA — painel integrado ao Estúdio de Campanhas. */
-.creative-studio .cs-voice-studio{margin:22px 0 14px;padding:20px!important;background:linear-gradient(145deg,#2b2118,#111719 65%)!important;border:1px solid #967447!important;border-radius:20px!important;box-shadow:inset 0 1px 0 #ffe3b91a;color:#fff4e0}
+.cs-voice-studio{margin:22px 0 14px;padding:20px!important;background:linear-gradient(145deg,#2b2118,#111719 65%)!important;border:1px solid #967447!important;border-radius:20px!important;box-shadow:inset 0 1px 0 #ffe3b91a;color:#fff4e0}
 .cs-voice-heading{display:flex;gap:13px;align-items:center;margin-bottom:14px}
 .cs-voice-icon{width:54px;height:54px;flex:0 0 54px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,#e8c58c,#94602d);color:#24170b;box-shadow:0 5px 16px #0005}
 .cs-voice-heading small,.cs-voice-kicker{font-size:10px;font-weight:800;letter-spacing:.13em;color:#e0b572}
@@ -245,4 +245,15 @@
 #csVoiceAudio{width:100%;margin:14px 0}
 .cs-voice-studio [hidden]{display:none!important}
 .cs-voice-studio .btn:disabled{opacity:.45;cursor:not-allowed}
-@media(max-width:350px){.creative-studio .cs-voice-studio{padding:13px!important}.cs-voice-metrics{gap:6px}.cs-voice-metrics small{font-size:10px}}
+@media(max-width:350px){.cs-voice-studio{padding:13px!important}.cs-voice-metrics{gap:6px}.cs-voice-metrics small{font-size:10px}}
+
+/* Card independente e último da sessão Criativos. */
+.cs-voice-studio{position:relative;isolation:isolate;overflow:hidden;box-sizing:border-box;box-shadow:0 15px 38px #0005,inset 0 1px 0 #ffe3b929!important;background:radial-gradient(ellipse at 100% 0%,#b28b3c36,transparent 60%),linear-gradient(135deg,#211c18,#101519 65%)!important}
+.cs-voice-studio .cs-voice-heading{align-items:center;gap:14px}
+.cs-voice-studio .cs-voice-icon{width:64px;height:64px;flex-basis:64px;border:1px solid #ffdd9a80;background:linear-gradient(145deg,#f6dca2,#b58035 70%,#87571e);box-shadow:0 8px 23px #b1803033,inset 0 1px 0 #fff9}
+.cs-voice-studio .cs-voice-heading h3{letter-spacing:-.035em}
+.cs-voice-studio .cs-voice-cta{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;min-height:54px;padding:13px 18px;border:1px solid #ffdd9a!important;border-radius:13px!important;background:linear-gradient(120deg,#f5d797,#c59542)!important;color:#241708!important;font-size:16px!important;font-weight:900;box-shadow:0 5px 18px #c4953938;cursor:pointer}
+.cs-voice-cta span:last-child{font-size:26px;line-height:1}
+.cs-voice-cta:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.cs-voice-studio .cs-voice-foot{margin:10px 0 0;color:#c5b69d;font-size:11px;line-height:1.5}
+@media(max-width:380px){.cs-voice-studio .cs-voice-icon{width:52px;height:52px;flex-basis:52px}}
