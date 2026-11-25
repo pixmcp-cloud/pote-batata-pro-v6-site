@@ -140,3 +140,5 @@ Autorização do proprietário: executar em cascata, sem novas confirmações op
 | D06 | FREE/PRO | GPS operacional do cliente e motoboy para entrega ativa; recursos avançados PRO; cotas por lojista no servidor, sem confundir cliente final com licença do lojista. 10/600 entregas mensais são propostas, não decisão explícita final; manter configuráveis e validar licença antes de ativar. |
 
 Não substituir segurança do Firestore por flags do cliente. Sem deploy comercial ou Floot; rotacionar credenciais expostas antes de produção. A homologação de cada item deve distinguir código, testes unitários, emulador e serviço real.
+
+Checkpoint D02–D06: política de entrega e GPS com consentimento, autorização exclusivamente entregador atribuído/cliente, intervalo 15s em movimento (mínimo 30m) ou 60s parado, TTL 120s, projeção privada de histórico/recibo e componente LED/cronômetro criados. Módulos candidatos ainda não conectados ao armazenamento nem à interface comercial. Limites 10/600 configuráveis ainda não ativados. Teste dedicado adicionado.

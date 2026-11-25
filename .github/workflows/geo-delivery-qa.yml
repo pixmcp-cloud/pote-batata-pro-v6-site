@@ -59,3 +59,5 @@ jobs:
           NODE
       - run: node --test test/public_checkout_core.test.mjs
         working-directory: workers/antifraud
+      - run: node --test test/delivery_policy.test.mjs
+        working-directory: workers/antifraud
