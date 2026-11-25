@@ -42,7 +42,7 @@ async function price(){
   const data=await(await api("/quote",{text,voiceId})).json();
   if(!Number.isSafeInteger(data.credits)||data.credits<1||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
   quote={id:data.quoteId,credits:data.credits,text,voiceId};
-  $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+(data.discountPercent===20?" · Franquia: 20% de desconto":"");
+  $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+(data.franchiseQuotaRemaining!=null?" · Cota de franquias restante: "+data.franchiseQuotaRemaining:"");
   $("csVoiceGenerate").disabled=data.balance<data.credits;
  }catch(e){state(e.message)}finally{busy=false}
 }
