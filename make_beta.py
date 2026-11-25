@@ -378,6 +378,8 @@ BODY_ASSETS = (
     '<script defer src="./tablet_layout.js?v=tablet-responsive-20261117"></script>'
     '<link rel="stylesheet" href="./compact_account_header.css?v=profile-compact-20261117">'
     '<script defer src="./compact_account_header.js?v=profile-compact-20261117"></script>'
+    '<link rel="stylesheet" href="./order_control.css?v=v6-20261125">'
+    '<script type="module" src="./order_control.mjs?v=v6-20261125"></script>'
     '<link rel="stylesheet" href="./top_navigation.css?v=topnav-menu-20261117">'
     '<script defer src="./top_navigation.js?v=topnav-menu-20261117"></script>'
     '<link rel="stylesheet" href="./company_pdv_polish.css?v=company-pdv-20261117">'

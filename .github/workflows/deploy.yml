@@ -101,6 +101,7 @@ jobs:
           mkdir -p public/workers/antifraud/src
           cp workers/antifraud/src/delivery_pricing.mjs public/workers/antifraud/src/delivery_pricing.mjs
           cp motoboy.css public/motoboy.css
+          cp order_control_core.mjs order_control.mjs order_control.css public/
           cp delivery_hub.js public/delivery_hub.js
           cp delivery_hub_core.mjs public/delivery_hub_core.mjs
           cp maisdelivery_payload.mjs public/maisdelivery_payload.mjs
@@ -305,6 +306,8 @@ jobs:
           node --check public/delivery_hub.js
           test -f public/assets/operations/delivery-hub.svg
           node test_motoboy_ui.mjs
+          node --check public/order_control.mjs
+          node test_order_control.mjs
           node --check public/kitchen_inventory.js
           node test_kitchen_inventory.js
           node test_losses.js

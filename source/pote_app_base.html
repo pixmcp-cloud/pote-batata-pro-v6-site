@@ -347,7 +347,7 @@ function totals(){
 }
 function setMode(m){if(!['free','pro','adm'].includes(m))return;state.mode=m;persist();render();toast('Perfil de teste: '+m.toUpperCase())}
 function go(tab){if(tab==='business'){window.POTE_BUSINESS?.open();return}if(tab==='gallery'){if(window.POTE_GALLERY?.open)window.POTE_GALLERY.open();else toast('Galeria disponível após iniciar sessão.');return}if(tab==='admin'&&!master()){toast('🔒 Administração exclusiva do Mestre.');return}state.tab=tab;state.expansion=null;persist();render();scrollTo({top:0,behavior:'smooth'})}
-function render(){window.POTE_EXIT?.beforeRender?.(state);document.body.classList.toggle('admin-mode',master());for(const m of ['free','pro','adm'])document.getElementById(m+'Btn').classList.toggle('active',m===state.mode);document.getElementById('modeBadge').textContent=state.mode==='free'?'FREE • LIMITES ATIVOS':state.mode==='pro'?'PRO • ACESSO SIMULADO':'ADM • ACESSO MESTRE';document.getElementById('pageTitle').textContent=NAMES[state.tab];document.getElementById('pageHint').textContent=state.tab==='home'?'Seu Negócio com Controle de Ponta':state.mode==='free'?'Ferramentas essenciais para organizar sua operação.':state.mode==='pro'?'Gestão profissional de pedidos, custos e estoque.':'Gestão completa do negócio e das licenças.';let nav=Object.keys(NAMES).filter(k=>k!=='admin'||master());for(const id of ['navdesktop','navmobile'])document.getElementById(id).innerHTML=nav.map(k=>`<button class="navbtn ${state.tab===k?'active':''}" onclick="go('${k}')"><span>${ICONS[k]}</span> ${NAMES[k]}</button>`).join('');const fn={home:pageHome,vitrine:pageVitrine,recipes:pageRecipes,builder:pageBuilder,pricing:pagePricing,ingredients:pageIngredients,expenses:pageExpenses,losses:pageLosses,suppliers:pageSuppliers,motoboy:()=>window.POTE_MOTOBOY?.render?.()||'<div class="box">Carregando Motoboy...</div>',deliveryhub:()=>window.POTE_DELIVERY_HUB?.render?.()||'<div class="box">Carregando Hub de Delivery...</div>',garimpo:()=>window.POTE_GARIMPO?.render?.()||'<div class="box">Carregando Garimpo...</div>',clients:pageClients,orders:pageOrders,combos:pageCombos,reports:pageReports,pdv:pagePDV,creative:pageCreative,brand:pageBrand,admin:pageAdmin,settings:pageSettings,tests:pageTests}[state.tab];document.getElementById('page').innerHTML=fn?fn():'';window.POTE_EXIT?.afterRender?.(state);if(state.tab==='pricing'&&!pro()){for(const id of ['pricePkg','priceOther','priceFee','priceMktFee','priceTax','priceMargin','priceUnits','priceDelivCost','priceUsePkgStock']){const e=document.getElementById(id);if(e){e.disabled=true;e.title='Configuração global: Pro'}}}persist()}
+function render(){window.POTE_EXIT?.beforeRender?.(state);document.body.classList.toggle('admin-mode',master());for(const m of ['free','pro','adm'])document.getElementById(m+'Btn').classList.toggle('active',m===state.mode);document.getElementById('modeBadge').textContent=state.mode==='free'?'FREE • LIMITES ATIVOS':state.mode==='pro'?'PRO • ACESSO SIMULADO':'ADM • ACESSO MESTRE';document.getElementById('pageTitle').textContent=NAMES[state.tab];document.getElementById('pageHint').textContent=state.tab==='home'?'Seu Negócio com Controle de Ponta':state.mode==='free'?'Ferramentas essenciais para organizar sua operação.':state.mode==='pro'?'Gestão profissional de pedidos, custos e estoque.':'Gestão completa do negócio e das licenças.';let nav=Object.keys(NAMES).filter(k=>k!=='admin'||master());for(const id of ['navdesktop','navmobile'])document.getElementById(id).innerHTML=nav.map(k=>`<button class="navbtn ${state.tab===k?'active':''}" onclick="go('${k}')"><span>${ICONS[k]}</span> ${NAMES[k]}</button>`).join('');const fn={home:pageHome,vitrine:pageVitrine,recipes:pageRecipes,builder:pageBuilder,pricing:pagePricing,ingredients:pageIngredients,expenses:pageExpenses,losses:pageLosses,suppliers:pageSuppliers,motoboy:()=>window.POTE_MOTOBOY?.render?.()||'<div class="box">Carregando Motoboy...</div>',deliveryhub:()=>window.POTE_DELIVERY_HUB?.render?.()||'<div class="box">Carregando Hub de Delivery...</div>',garimpo:()=>window.POTE_GARIMPO?.render?.()||'<div class="box">Carregando Garimpo...</div>',clients:pageClients,orders:pageOrders,combos:pageCombos,reports:pageReports,pdv:pagePDV,creative:pageCreative,brand:pageBrand,admin:pageAdmin,settings:pageSettings,tests:pageTests}[state.tab];document.getElementById('page').innerHTML=fn?fn():'';window.POTE_EXIT?.afterRender?.(state);window.POTE_ORDER_CONTROL?.refresh?.();if(state.tab==='pricing'&&!pro()){for(const id of ['pricePkg','priceOther','priceFee','priceMktFee','priceTax','priceMargin','priceUnits','priceDelivCost','priceUsePkgStock']){const e=document.getElementById(id);if(e){e.disabled=true;e.title='Configuração global: Pro'}}}persist()}
 function goSupplierSearch(){
  go('suppliers');
  requestAnimationFrame(()=>document.getElementById('poteSupplierSearchSection')?.scrollIntoView({behavior:'smooth',block:'start'}));
@@ -780,7 +780,7 @@ function newOrder(){
    state.data.orderSequenceLast=sequence;
    state.data.orders.unshift(order);window.POTE_DELIVERY_HUB?.onRegistered?.(order);state.tab='orders';window.POTE_ORDER_CUSTOM?.reset?.();render();window.POTE_ORDER?.scrollToOrders?.(order.id);toast('Pedido registrado! Confira a seção Pedidos.');window.POTE_ORDER?.lowAfterOrder?.(order);
 }
-function produce(id){
+function produce(id,{keepView=false}={}){
   if(!operationReady("Produção"))return;
  window.POTE_STOCK?.normalizeInventory?.(state.data);
  const o=state.data.orders.find(x=>x.id===id);if(!o||o.status!=='recebido'||!canOperate(o.recipeId))return;
@@ -789,11 +789,10 @@ function produce(id){
  // When server-side stock is enabled, the server performs the ONLY inventory
  // mutation. Never subtract locally or send the same stock movement twice.
  if(window.POTE_WORKER?.enabled===true){
-  window.POTE_WORKER.produce(id,state.data.businessType||"batataria").then(()=>{
-   state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);
-   toast('Produção confirmada no servidor; estoque atualizado.');
-  }).catch(error=>toast('Produção não confirmada: '+String(error.message||error),'error'));
-  return;
+  return window.POTE_WORKER.produce(id,state.data.businessType||"batataria").then(()=>{
+   if(!keepView)state.tab='orders';render();if(!keepView)window.POTE_ORDER?.scrollToOrders?.(id);
+   toast('Produção confirmada no servidor; estoque atualizado.');return true;
+  }).catch(error=>{toast('Produção não confirmada: '+String(error.message||error),'error');return false});
  }
  const qty=Math.max(1,num(o.qty)),needed=new Map(),needBevs=new Map();
  for(const row of o.items||[]){const i=ingredient(row.id);if(!i&&!o.stockOverrideApproved){toast('Item não encontrado: '+row.ingredientName);return}const y=Math.max(.01,num(row.yieldPct??i?.yield)/100);needed.set(row.id,(needed.get(row.id)||0)+num(row.g)*qty/y)}
@@ -824,10 +823,10 @@ function finishOrder(id){if(!operationReady("Entrega"))return;const o=state.data
     (paidOnCompletion?.reason==='Forma de recebimento não definida'?
       'Pedido concluído. Pagamento na entrega ou sem forma definida continua pendente.':
       'Pedido finalizado. Você permanece na seção Pedidos.'))}
-function onlineOrderStage(id,action){
+function onlineOrderStage(id,action,{keepView=false}={}){
  const o=state.data.orders.find(x=>x.id===id);if(!o||!operationReady('Pedido online'))return;
  if(!window.POTE_WORKER?.enabled||typeof window.POTE_WORKER[action]!=='function'){toast('Acompanhamento seguro indisponível. Nenhum status alterado.');return;}
- window.POTE_WORKER[action](id,state.data.businessType||'batataria').then(()=>{state.tab='orders';render();window.POTE_ORDER?.scrollToOrders?.(id);toast('Status confirmado no servidor.');}).catch(e=>toast(String(e.message||e)));
+ return window.POTE_WORKER[action](id,state.data.businessType||'batataria').then(()=>{if(!keepView)state.tab='orders';render();if(!keepView)window.POTE_ORDER?.scrollToOrders?.(id);toast('Status confirmado no servidor.');return true;}).catch(e=>{toast(String(e.message||e));return false});
 }
 function onlineElapsed(o){const n=o?.durationSeconds;if(!Number.isSafeInteger(n)||n<0||o.status!=='entregue')return '';return [Math.floor(n/3600),Math.floor(n/60)%60,n%60].map(x=>String(x).padStart(2,'0')).join(':');}
 function cancelOrder(id){
