@@ -205,3 +205,6 @@ Run 45606083110: deployment concluído, versão c3b6500b-d212-4c03-a2cd-5bc9c3ee
 
 ### C04 — prontidão Firebase comercial
 Run 45606213409 aprovado: versão 83ae4e6c-3de8-43b1-9964-d9e99c72b1e1, 16 rotas bloqueadas, CORS OK, ausência de segredos do serviço no checkout e FIREBASE_SERVICE_CREDENTIALS_NOT_AVAILABLE. Identidade antiga F05 preservada. Preparado roteiro docs/FIREBASE_COMMERCIAL_V6.md e script independente read-only workers/antifraud/scripts/firebase-commercial-preflight.mjs com classificação READY/CREATING/MISSING/UNKNOWN dos cinco índices, paginação, auditoria de metadados e política sem exposição de dados. Testes sintéticos de requisições somente GET e permissões negadas. Nenhuma modificação em produção, IAM, índices ou faturamento. Próximo gate depende de acesso autorizado ao Google Cloud e identidade dedicada; não reutilizar chaves antigas nem pedir segredo em chat.
+
+### C04 — conferência dos segredos adicionados pelo operador
+Solicitada verificação somente leitura via API Cloudflare de GCP_CLIENT_EMAIL e GCP_PRIVATE_KEY como secret_text, configuração e health bloqueados. Nenhum valor de segredo lido ou alterado; presença não comprova OAuth. Não executar novamente workflow de promoção antigo que exige ausência de segredos.
