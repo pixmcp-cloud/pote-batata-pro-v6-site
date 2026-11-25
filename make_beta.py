@@ -382,10 +382,10 @@ BODY_ASSETS = (
     '<link rel="stylesheet" href="./company_pdv_polish.css?v=company-pdv-20261117">'
     '<link rel="stylesheet" href="./premium_motion.css?v=premium-motion-20261117">'
     '<script defer src="./premium_motion.js?v=premium-motion-20261117"></script>'
-    '<link rel="stylesheet" href="./creative_studio.css?v=ia-coin-neon-20261125-adm-saldo-carrinho">'
-    '<script src="./creative_studio.js?v=ia-coin-neon-20261125-adm-saldo-carrinho"></script>'
+    '<link rel="stylesheet" href="./creative_studio.css?v=voice-studio-20261125">'
+    '<script src="./creative_studio.js?v=voice-studio-20261125"></script>'
     '<script src="./creative_prompt.js?v=prompt-v5-20261117"></script>'
-    '<script type="module" src="./voice_ai.js?v=ia-coin-neon-20261125-adm-saldo-carrinho"></script>'
+    '<script type="module" src="./voice_ai.js?v=voice-studio-20261125"></script>'
 )
 once("</body>", BODY_ASSETS + "</body>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
