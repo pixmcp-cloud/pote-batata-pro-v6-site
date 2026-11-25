@@ -111,6 +111,16 @@ function priceFor(recipe){
   if(typeof window.sellPrice!=="function")return NaN;
   return window.sellPrice(recipe,"direto");
 }
+// Biblioteca oficial é específica da marca mestre, não de outras lojas.
+function imageFor(recipe){
+  if(!owner()||window.POTE_AUTH?.role!=="admin")return null;
+  const normalize=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const brand=window.POTE_APP?.snapshot?.()?.data?.brand?.name;
+  if(normalize(brand)!=="potebatata")return null;
+  if(normalize(recipe.name)!==normalize(window.POTE_RECIPE_LABELS?.[recipe.id]))return null;
+  const alt={r23:"ninho-nutella",r24:"brigadeiro",r25:"morango-preto",r26:"morango-branco"}[recipe.id];
+  return (alt&&window.POTE_RECIPE_ALTERNATES?.[alt])||window.POTE_RECIPE_IMAGES?.[recipe.id]||null;
+}
 function allowed(recipe){
   if(typeof window.allowed==="function")return Boolean(window.allowed(recipe));
   return !recipe.franchiseLocked;
@@ -131,7 +141,7 @@ async function refresh({load=true}={}){
   setBusy(true);
   try{
     const current=snapshot();
-    candidates=buildMenuCandidates(current,{priceFor,allowed});
+    candidates=buildMenuCandidates(current,{priceFor,allowed,imageFor});
     const name=current.data?.brand?.name||"meu-negocio";
     let slug=$("publicMenuSlug").value.trim().toLowerCase();
     if(!slug){
@@ -206,7 +216,7 @@ async function publish(){
     if(!validSession(uid,epoch))return;
     if(published&&published.slug!==slug)throw Error("Para trocar endereço, retire o cardápio antigo do ar primeiro.");
     const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:currentSelected(),
-      priceFor,allowed,previous:current});
+      priceFor,allowed,imageFor,previous:current});
     if(!confirm("Publicar "+result.items.length+" produto(s) de "+result.title+
       " com preços visíveis a qualquer pessoa? Nenhum pedido real será aceito por esta página."))return;
     if(!validSession(uid,epoch))return;

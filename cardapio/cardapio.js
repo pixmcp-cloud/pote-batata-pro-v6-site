@@ -2,16 +2,17 @@ import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, dem
 import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
-// Não assumir que preços/fotos/horários representam dados reais de qualquer loja.
+// Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
 const IMG = "../assets/generic/business-batataria.svg";
 let catalogue = [
   { id:"carne-cheddar",title:"Carne com Cheddar",category:"Salgados",description:"Uma combinação irresistível de carne suculenta, queijo cremoso e muito sabor.",priceCents:3850,tag:"Mais pedido",image:IMG,addons:["cheddar","bacon","requeijao"] },
-  { id:"estrogonofe",title:"Estrogonofe de Frango",category:"Salgados",description:"Frango envolvido em molho cremoso, com aquele toque especial que conquista.",priceCents:3490,tag:"Queridinho",image:IMG,addons:["cheddar","bacon"] },
-  { id:"pizza",title:"Sabor Pizza",category:"Salgados",description:"O clássico sabor de pizza em uma combinação surpreendente e generosa.",priceCents:3490,tag:"Imperdível",image:"https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=900&q=78",addons:["cheddar","requeijao"] },
-  { id:"hotdog",title:"Cachorro-quente",category:"Salgados",description:"Um sabor cheio de memória afetiva, com recheio caprichado.",priceCents:3290,tag:"Clássico",image:IMG,addons:["cheddar","bacon"] },
-  { id:"ninho",title:"Ninho com Creme de Avelã",category:"Doces",description:"Creme suave com uma camada generosa de creme de avelã.",priceCents:2290,tag:"Doce favorito",image:"https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=900&q=78",addons:["avela"] },
-  { id:"brigadeiro",title:"Brigadeiro Cremoso",category:"Doces",description:"Chocolate intenso em uma sobremesa cremosa, feita para adoçar seu dia.",priceCents:1990,tag:"Doce momento",image:"https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=78",addons:["avela"] },
-  { id:"chocolate-morango",title:"Chocolate com Morango",category:"Doces",description:"Chocolate e morango em camadas de pura felicidade.",priceCents:2290,tag:"Especial",image:"https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=900&q=78",addons:["avela"] },
+  { id:"estrogonofe",title:"Estrogonofe de Frango",category:"Salgados",description:"Frango envolvido em molho cremoso, com aquele toque especial que conquista.",priceCents:3490,tag:"Queridinho",image:"../assets/recipes/r05.webp",addons:["cheddar","bacon"] },
+  { id:"pizza",title:"Sabor Pizza",category:"Salgados",description:"O clássico sabor de pizza em uma combinação surpreendente e generosa.",priceCents:3490,tag:"Imperdível",image:"../assets/generic/recipe-r22.svg",addons:["cheddar","requeijao"] },
+  { id:"hotdog",title:"Cachorro-quente",category:"Salgados",description:"Um sabor cheio de memória afetiva, com recheio caprichado.",priceCents:3290,tag:"Clássico",image:"../assets/generic/recipe-r21.svg",addons:["cheddar","bacon"] },
+  { id:"ninho",title:"Ninho com Nutella",category:"Doces",description:"Creme suave com uma camada generosa de creme de avelã.",priceCents:2290,tag:"Doce favorito",image:"../assets/recipes/ninho-nutella.webp",addons:["avela"] },
+  { id:"brigadeiro",title:"Brigadeiro Cremoso",category:"Doces",description:"Chocolate intenso em uma sobremesa cremosa, feita para adoçar seu dia.",priceCents:1990,tag:"Doce momento",image:"../assets/recipes/brigadeiro.webp",addons:["avela"] },
+  { id:"chocolate-morango",title:"Chocolate Preto com Morango",category:"Doces",description:"Chocolate e morango em camadas de pura felicidade.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-preto.webp",addons:["avela"] },
+  { id:"chocolate-morango-branco",title:"Chocolate Branco com Morango",category:"Doces",description:"Chocolate branco e morango em camadas cremosas.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-branco.webp",addons:["avela"] },
   { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=78",addons:[] },
   { id:"agua",title:"Água Mineral",category:"Bebidas",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=900&q=78",addons:[] },
   { id:"combo",title:"Combo do Sabor",category:"Combos",description:"Uma opção de demonstração com um salgado e uma bebida. Personalizações reais serão configuradas no PDV.",priceCents:4090,tag:"Combo",image:IMG,addons:[] }
@@ -46,7 +47,7 @@ function el(tag, className, text){
 function productImage(product, className){
   const img=el("img",className);
   img.src=product.image || IMG;
-  img.alt="Imagem ilustrativa de "+product.title;
+  img.alt=product.title;
   img.loading="lazy";
   img.decoding="async";
   img.addEventListener("error",()=>{
@@ -99,7 +100,7 @@ function safeShow(dialog){
 function openProduct(p){
   selected=p; quantity=1;chosenExtras.clear();
   $("productImage").src=p.image || IMG;
-  $("productImage").alt="Imagem ilustrativa de "+p.title;
+  $("productImage").alt=p.title;
   $("productImage").onerror=()=>{ $("productImage").onerror=null; $("productImage").src=IMG; };
   $("productTitle").textContent=p.title;
   $("productCategory").textContent=p.category.toUpperCase();

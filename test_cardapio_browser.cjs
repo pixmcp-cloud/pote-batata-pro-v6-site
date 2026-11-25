@@ -9,7 +9,7 @@ if(!puppeteer)throw Error("Puppeteer Core ausente");
 const chrome=[process.env.CHROME_BIN,process.env.POTE_QA_CHROME,"/usr/bin/google-chrome","/usr/bin/chromium","C:/Program Files/Google/Chrome/Application/chrome.exe"].find(p=>p&&fs.existsSync(p));
 if(!chrome)throw Error("Chrome/Chromium ausente");
 const root=path.resolve(__dirname,"public");
-const types={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".mjs":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".svg":"image/svg+xml",".jpg":"image/jpeg",".png":"image/png"};
+const types={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".mjs":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".svg":"image/svg+xml",".jpg":"image/jpeg",".png":"image/png",".webp":"image/webp"};
 const server=http.createServer((req,res)=>{
   const raw=decodeURIComponent(new URL(req.url,"http://localhost").pathname);
   const full=path.resolve(root,"."+raw,(raw.endsWith("/")?"index.html":""));
@@ -30,12 +30,15 @@ const server=http.createServer((req,res)=>{
       const errs=[];page.on("pageerror",e=>errs.push(e.message));
       await page.goto("http://127.0.0.1:"+server.address().port+"/cardapio/",{waitUntil:"domcontentloaded"});
       await page.waitForSelector(".product-card",{timeout:10000});
-      assert.equal(await page.$$eval(".product-card",nodes=>nodes.length),10);
+      assert.equal(await page.$$eval(".product-card",nodes=>nodes.length),11);
+      const officialImages=await page.$$eval(".product-media img",nodes=>nodes.filter(n=>n.getAttribute("src").includes("/assets/recipes/")).map(n=>n.getAttribute("src")));
+      assert.equal(officialImages.length,5);
+      if(width===375){for(const url of officialImages){const response=await page.evaluate(async url=>(await fetch(url)).ok,url);assert(response,"Foto ausente: "+url);}}
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
       assert(overflow<=1,"Rolar horizontalmente em "+width+": "+overflow+"px");
       if(width===375){
         await page.click('.category-button:nth-child(3)');
-        assert.equal(await page.$$eval(".product-card",items=>items.length),3);
+        assert.equal(await page.$$eval(".product-card",items=>items.length),4);
         await page.type("#searchInput","brigadeiro");
         assert.equal(await page.$$eval(".product-card",items=>items.length),1);
         await page.click(".category-button:first-child");

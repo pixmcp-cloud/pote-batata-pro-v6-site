@@ -33,3 +33,6 @@ Este módulo implementa a **prévia interativa** aprovada em 21/11/2026 para apr
 
 ## Diretriz de edição
 O desenvolvimento permanece no **GitHub**. Sem atualização de Floot, APK ou domínio oficial por esta alteração. A branch de prévia não altera os dados operacionais.
+
+## Fotos oficiais — V6
+A prévia usa as fotos locais do estrogonofe de frango e dos quatro doces originais. Chocolate branco e preto são itens separados; os valores permanecem demonstrativos. Carne com cheddar, pizza e cachorro-quente ainda não têm fotos oficiais correspondentes na biblioteca. Na publicação voluntária da conta mestre Potê Batata, a biblioteca é associada por ID e nome exatos; outros estabelecimentos não herdam as fotos da marca. Fotos privadas e URLs com tokens continuam excluídas.
