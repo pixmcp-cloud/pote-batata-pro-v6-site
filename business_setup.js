@@ -129,9 +129,11 @@ function refreshIdentity(){
  const businessDesc=$("poteBusinessCurrent");
  if(businessDesc)businessDesc.textContent=currentItem()?.label||"Escolher tipo de negócio";
  const businessHero=$("poteBusinessHeroHint");
- if(businessHero)businessHero.textContent=on?(current()==="batataria"?"Batataria · Conta mestre preservada":(currentItem()?.label||"Negócio")+" · Acesso ADM"):window.POTE_AUTH?.franchiseActive?"Batataria · Franquia oficial":"Ramo: "+(currentItem()?.label||"Escolha seu negócio");
+ const activeType=currentItem();
+ if(businessHero)businessHero.textContent=activeType?"Ramo "+activeType.label:"Escolha seu ramo";
  const businessImage=$("poteBusinessImage");
- if(businessImage&&businessImage.getAttribute?.("src")!==BUSINESS_HERO)businessImage.src=BUSINESS_HERO;
+ const heroPhoto=activeType?.photo||BUSINESS_HERO;
+ if(businessImage&&businessImage.getAttribute?.("src")!==heroPhoto)businessImage.src=heroPhoto;
  normalizePageCopy();
  refreshUniverseBanner();
 }

@@ -110,3 +110,8 @@ Substituídos rótulos sem ação Vitrine Pública Simulada / Configure o WhatsA
 
 ## V6 — artes do Negócio e seis segmentos (25/11/2026)
 Artes aprovadas pelo proprietário: Negócio (loja/PDV/gráficos), Batataria, Pizzaria, Hamburgueria, Hot Dog, Lancheria e Pastelaria. Sete WebP próprios de 720×540, cerca de 335 KB no total, em `assets/generic/business-*.webp`, já incluídos pela cópia recursiva existente do build. Card da Central usa imagem independente do ramo; seletor e banner de universo usam as capas correspondentes. Cache do JS versionado; teste de integridade das imagens e renderização acrescentado a `test_business_setup.js`. Preservados identidade/logos, receitas, estoque, regras FREE/PRO/ADM, banco e layout. Sem Floot, serviços pagos ou mudança de Firestore. Base anterior: `0d1ae6b9c9429e8e3c77613c1c058b165f26e601`. A validação de CI e deploy Pages deve ser conferida após a integração; Firebase Hosting oficial depende de implantação própria.
+
+## V6 — Card Negócio: layout aprovado (25/11/2026)
+- Central de Operações: título ampliado e centralizado no bloco esquerdo superior, linha dourada e identificação do ramo ampliada no rodapé; imagem oficial do segmento ativo à direita. Sem segmento: arte genérica Negócio.
+- Seis capas reaproveitadas da PR #41, sem alterações de marca, permissões, dados, estoque ou demais cards. CSS responsivo e versões de JS/CSS alteradas para evitar cache antigo.
+- Regressão em test_business_setup.js: seis ramos, fallback e troca de imagem/texto. Homologação CI e deploy pendentes no momento deste registro.
