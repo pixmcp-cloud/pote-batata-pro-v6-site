@@ -90,7 +90,9 @@ async function generate(uid,id,res,admin=false){
    tx.set(memberRef,{used:allocation.used+requested,updatedAt:FieldValue.serverTimestamp()},{merge:true});
    franchiseReservation={cycle:quota.cycle,requested};
   }
-  tx.update(wallet(uid),{balance:current-quote.credits,updatedAt:FieldValue.serverTimestamp()});
+  const debitId='voice-'+id+'-debit';
+  tx.update(wallet(uid),{balance:current-quote.credits,lastEventId:debitId,updatedAt:FieldValue.serverTimestamp()});
+  tx.create(wallet(uid).collection('entries').doc(debitId),{kind:'voice_debit',before:current,after:current-quote.credits,delta:-quote.credits,reason:'Reserva de locução',actorUid:uid,at:FieldValue.serverTimestamp()});
   tx.update(ref,{state:'reserved',franchiseReservation,reservedAt:FieldValue.serverTimestamp()});
   return {...quote,franchiseReservation};
  });
@@ -111,7 +113,9 @@ async function generate(uid,id,res,admin=false){
       tx.update(quotaRef,{used:used-q.franchiseReservation.requested,updatedAt:FieldValue.serverTimestamp()});
       tx.update(memberRef,{used:memberUsed-q.franchiseReservation.requested,updatedAt:FieldValue.serverTimestamp()});
      }
-     tx.update(wallet(uid),{balance:w.data().balance+q.credits,updatedAt:FieldValue.serverTimestamp()});
+     const refundId='voice-'+id+'-refund',before=w.data().balance;
+     tx.update(wallet(uid),{balance:before+q.credits,lastEventId:refundId,updatedAt:FieldValue.serverTimestamp()});
+     tx.create(wallet(uid).collection('entries').doc(refundId),{kind:'voice_refund',before,after:before+q.credits,delta:q.credits,reason:'Estorno anterior à síntese',actorUid:uid,at:FieldValue.serverTimestamp()});
      tx.update(ref,{state:'refunded',reason:'access_revoked_before_provider'});
     }
    });
