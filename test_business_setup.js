@@ -134,7 +134,7 @@ assert(result.includes("GESTÃO PRO"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));
 console.log("PASS: cinco universos, Pizzaria e Hamburgueria com 30 receitas cada, Hot Dog com 20 e Lancheria sem receitas.");
 
-// V6: capas aprovadas, arte fixa da Central e publicação dos WebP.
+// V6: capas aprovadas, arte do ramo ativo e publicação dos WebP.
 const businessCovers=["batataria","pizzaria","hamburgueria","hotdog","lancheria","pastelaria"];
 for(const key of [...businessCovers,"negocio"]){
  const path="assets/generic/business-"+key+".webp";
@@ -148,9 +148,23 @@ for(const key of [...businessCovers,"negocio"]){
 }
 assert(src.includes('id="poteBusinessImage" src="./assets/generic/business-negocio.webp"'));
 assert(result.includes('id="poteBusinessImage" src="./assets/generic/business-negocio.webp"'));
+const businessLabels={batataria:"Batataria",pizzaria:"Pizzaria",hamburgueria:"Hamburgueria",hotdog:"Hot Dog",lancheria:"Lancheria",pastelaria:"Pastelaria"};
 for(const account of [companyAccount,neutral,admin,pizza,burger,dog,pastel,snack]){
  account.window.POTE_BUSINESS.refresh();
- assert.equal(account.document.getElementById("poteBusinessImage").src,"./assets/generic/business-negocio.webp");
+ const key=account.window.POTE_BUSINESS.current();
+ assert.equal(account.document.getElementById("poteBusinessImage").src,"./assets/generic/business-"+(key||"negocio")+".webp");
+ assert.equal(account.document.getElementById("poteBusinessHeroHint").textContent,key?"Ramo "+businessLabels[key]:"Escolha seu ramo");
 }
-assert(result.includes("v6-artes-20261125"));
-console.log("PASS: sete artes WebP publicadas; Negócio independente do segmento.");
+for(const key of [...businessCovers,""]){
+ companyAccount.state.data.businessType=key;
+ companyAccount.window.POTE_BUSINESS.refresh();
+ assert.equal(companyAccount.document.getElementById("poteBusinessImage").src,"./assets/generic/business-"+(key||"negocio")+".webp");
+ assert.equal(companyAccount.document.getElementById("poteBusinessHeroHint").textContent,key?"Ramo "+businessLabels[key]:"Escolha seu ramo");
+}
+const businessCss=fs.readFileSync("business_setup.css","utf8");
+assert(businessCss.includes("#poteOpsCards>.ops-business-card>strong"));
+assert(businessCss.includes("border-bottom:1px solid #efbb64"));
+assert(businessCss.includes("#poteOpsCards>.ops-business-card>.ops-business-hint"));
+assert(result.includes("v6-artes-20261125-layout-2"));
+assert(result.includes("v6-layout-20261125"));
+console.log("PASS: sete artes WebP publicadas; Negócio acompanha os seis segmentos e fallback neutro.");

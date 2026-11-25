@@ -134,3 +134,13 @@ html.pote-business-open{overflow:hidden}
 @media(max-width:530px){.pote-access-universes,.pote-access-services{grid-template-columns:1fr}}
 
 #poteBusinessClose[hidden]{display:none!important}.pote-business-options .pote-business-disabled [data-business-access]{color:#ffcf78;font-weight:800}.pote-business-options .pote-business-disabled{filter:saturate(.6);border-color:#99784e}
+
+/* V6 — layout aprovado da Central: título superior, ramo inferior e foto do ramo ativo. */
+#poteOpsCards>.ops-business-card{grid-column:1/-1!important;position:relative;isolation:isolate;overflow:hidden!important;aspect-ratio:auto!important;min-height:clamp(150px,44vw,220px)!important;max-height:none!important;padding:0!important;gap:0!important;background:linear-gradient(155deg,#2b4059,#0b1727 80%)!important;}
+#poteOpsCards>.ops-business-card::before{inset:0!important;background:linear-gradient(155deg,#ffffff0d,transparent 48%)!important;pointer-events:none;}
+#poteOpsCards>.ops-business-card>.ops-icon{inset:0 0 0 auto!important;width:50%!important;height:100%!important;opacity:1!important;overflow:hidden!important;filter:none!important;}
+#poteOpsCards>.ops-business-card>.ops-icon>img{inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center!important;transform:none!important;filter:none!important;mix-blend-mode:normal!important;border-radius:0!important;}
+#poteOpsCards>.ops-business-card>strong{position:absolute!important;z-index:3;inset:9% auto auto 3%!important;width:44%!important;max-width:44%!important;height:49%;display:flex;align-items:center;justify-content:center;text-align:center!important;padding:0 0 4px!important;margin:0!important;box-sizing:border-box;white-space:nowrap!important;overflow-wrap:normal!important;font-weight:900!important;font-size:clamp(23px,7.2vw,43px)!important;letter-spacing:-.045em!important;line-height:1!important;color:#fff2d9!important;border-bottom:1px solid #efbb64;}
+#poteOpsCards>.ops-business-card>.ops-business-hint{position:absolute!important;z-index:3;left:3%;bottom:10%;width:44%;max-width:44%!important;margin:0!important;text-align:center!important;line-height:1.18;font-size:clamp(13px,3.8vw,21px)!important;font-weight:750;color:#fff2d9;overflow-wrap:normal;text-wrap:balance;}
+#poteOpsCards>.ops-business-card>.ops-chevron{z-index:4;right:12px!important;bottom:13px!important;top:auto!important;color:#ffd28a;text-shadow:0 1px 6px #000;}
+@media(max-width:350px){#poteOpsCards>.ops-business-card>strong{font-size:clamp(20px,6.8vw,25px)!important;}#poteOpsCards>.ops-business-card>.ops-business-hint{font-size:12px!important;}}
