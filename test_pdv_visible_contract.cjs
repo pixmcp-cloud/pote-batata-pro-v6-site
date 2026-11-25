@@ -20,9 +20,9 @@ assert(pdv.includes("receiptChart(summarizePdvReceipts(reportForDisplay(data,lat
 assert(pdv.includes("if(!access())return"),"Free users must not see licensed financial reports");
 assert(pdv.includes("if(!next||el.innerHTML===next.innerHTML)return"),"No unnecessary redraw during mobile interaction");
 assert(css.includes(".pote-pdv-page-chart")&&css.includes(".pote-pdv-page-summary"),"Dedicated chart and totals require styles");
-assert(builder.includes("pdv_cash_ui.mjs?v=pdv-order-sequence-20261119"));
+assert(builder.includes("pdv_cash_ui.mjs?v=public-checkout-20261125"));
 assert(builder.includes("pdv_cash.css?v=pdv-page-cash-actions-v7-20261118"));
-assert(site.includes("pdv_cash_ui.mjs?v=pdv-order-sequence-20261119"));
+assert(site.includes("pdv_cash_ui.mjs?v=public-checkout-20261125"));
 assert(site.includes("pdv_cash.css?v=pdv-page-cash-actions-v7-20261118"));
 assert(fs.existsSync("public/assets/brand/pdv-icon.svg"),"Bundled vector card art required");
 assert(fs.existsSync("public/assets/brand/pdv-512.png"),"Bundled raster app icon required");

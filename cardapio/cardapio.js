@@ -111,7 +111,7 @@ function restoreCart(){
   catch { return []; }
 }
 function saveCart(){
-  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(cart)); } catch {}
+  try { localStorage.setItem(STORAGE_KEY,JSON.stringify(cart));return true; } catch {return false;}
 }
 function el(tag, className, text){
   const element=document.createElement(tag);
@@ -371,7 +371,7 @@ function renderCart(){
   $("floatingTotal").textContent=money(totals.subtotalCents);
   $("subtotal").textContent=money(totals.subtotalCents);
   $("total").textContent=money(totals.subtotalCents);
-  $("copyOrder").disabled=checkoutBusy||totals.count===0||(requestedSlug!==null&&!publicStore?.whatsapp&&!publicStore?.checkoutSiteKey);
+  $("copyOrder").disabled=checkoutBusy||totals.count===0||(requestedSlug!==null&&!publicStore?.whatsapp&&!publicStore?.checkoutSiteKey)||(publicStore?.checkoutSiteKey&&fulfillChoice()==="entrega"&&!publicStore.whatsapp);
   const holder=$("cartItems");
   holder.replaceChildren();
   if(!cart.length){
@@ -394,8 +394,9 @@ function renderCart(){
     controls.append(remove);row.append(info,controls);holder.append(row);
   });
 }
+const fulfillChoice=()=>document.querySelector('input[name="fulfillment"]:checked')?.value || "retirada";
 function fulfill(){
-  const value=document.querySelector('input[name="fulfillment"]:checked')?.value || "retirada";
+  const value=fulfillChoice();
   const delivery=value==="entrega";
   if(publicStore?.checkoutSiteKey){
    $("copyOrder").textContent=delivery?"Solicitar entrega pelo WhatsApp":"Confirmar pedido para retirada";
@@ -446,7 +447,7 @@ async function transactionalOrder(){
   const result=await checkoutClient.submit(input,challengeToken);
   const codes=result.orderNumbers.map(n=>"#P"+String(n).padStart(7,"0")).join(", ");
   $("checkoutResult").textContent="Pedido recebido: "+codes+" · "+money(result.totalCents)+". Pagamento pendente, na retirada.";
-  cart=[];saveCart();checkoutClient.complete(input.slug);toast("Pedido registrado no PDV.");
+  cart=[];if(saveCart())checkoutClient.complete(input.slug);toast("Pedido registrado no PDV.");
  }catch(error){$("checkoutResult").textContent=error.message||"Não foi possível confirmar. Não envie outro pedido até conferir.";}
  finally{challengeToken="";if(widgetId!==null)window.turnstile?.reset(widgetId);checkoutBusy=false;renderCart();fulfill();}
 }

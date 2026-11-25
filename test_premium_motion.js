@@ -19,6 +19,6 @@ assert(style.includes('#potePdvTrigger.open'),'Green when open');
 assert(pdv.includes('<strong>PDV</strong>'),'PDV button should show PDV label');
 assert(pdv.includes('textContent=s?"Aberto":"Fechado"'),'PDV badge follows actual session');
 assert(build.includes('premium_motion.js?v=premium-motion-20261117'));
-assert(build.includes('pdv_cash_ui.mjs?v=pdv-order-sequence-20261119'));
+assert(build.includes('pdv_cash_ui.mjs?v=public-checkout-20261125'));
 assert(workflow.includes('cp premium_motion.css public/premium_motion.css'));
 console.log('PASS premium navigation, accessible motion, operational PDV red/green');

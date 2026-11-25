@@ -18,7 +18,7 @@ assert(css.includes('.ops-heading #potePdvTrigger{'),'PDV square near heading');
 assert(css.includes('position:relative!important;inset:auto!important'),'PDV should not float across screen');
 assert(css.includes('.ops-heading #potePdvTrigger[hidden]{display:none!important}'),'Hide unauthorized PDV trigger');
 assert(build.includes('company_pdv_polish.css?v=company-pdv-20261117'));
-assert(build.includes('pdv_cash_ui.mjs?v=pdv-order-sequence-20261119'));
+assert(build.includes('pdv_cash_ui.mjs?v=public-checkout-20261125'));
 assert(build.includes('business_setup.js?v=company-label-20261117'));
 assert(deploy.includes('cp company_pdv_polish.css public/company_pdv_polish.css'));
 console.log('PASS account company header and compact PDV badge with preserved access controls');
