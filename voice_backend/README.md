@@ -1,8 +1,8 @@
 # Locução IA premium — PDV MULTIVERSAL V6
 
 ## Regras comerciais
-- Todo perfil começa bloqueado, inclusive PRO, franquia e ADM. Somente o ADM Google verificado, com claim administrativo, concede/revoga a permissão positiva accessPolicy.voiceAiEnabled.
-- A autorização é global por conta, independente do segmento e do plano. Não equivale à licença comercial.
+- FREE, PRO e ADM começam bloqueados. Franquias oficiais ativas recebem acesso automático e desconto de 20% antes do arredondamento; o ADM Google verificado pode bloquear ou liberar individualmente via accessPolicy.voiceAiEnabled. Bloqueio explícito prevalece.
+- A autorização é global por conta, independente do segmento e do plano PRO; a franquia oficial ativa é a exceção padrão. Não equivale à licença comercial.
 - Plano gratuito da ElevenLabs é pessoal/não comercial: nunca gerar criativos comerciais com ele.
 - Orçamento em créditos IA = teto de (2 × custo efetivo do provedor em reais / valor monetário de um crédito IA), mínimo de 1 crédito. Configuração exclusivamente no servidor. Não confundir markup de 100% com margem líquida.
 - Limite piloto: 777 caracteres, cotação válida por 5 minutos, voz de catálogo previamente autorizada. Não há clonagem no PDV.
@@ -19,4 +19,4 @@
 - Não contratar ou publicar automaticamente.
 
 ## Testes
-Quatro testes unitários de política passaram no Node.js 22.16.0, utilizando cópias locais idênticas aos blobs GitHub de policy.mjs (bacb50890e48fdcab9e313ef62c4aec08f773078) e policy.test.mjs (3f76648d1f86dbfabf13cb9b6080087d3bc94b25). Testes de integração e publicação não executados. Nenhum consumo ElevenLabs.
+Testes unitários atualizados para franquias e desconto; execução desta revisão ainda não confirmada. Testes de integração e publicação não executados. Nenhum consumo ElevenLabs.
