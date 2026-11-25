@@ -55,3 +55,5 @@ Carrossel 16:9 com arte vetorial CARDÁPIO antes de cada foto de salgado/doce, 2
 
 ## Bebidas
 Na prévia, refrigerante lata de 350 ml oferece Cola, Guaraná e Laranja, opções de referência do projeto, não estoque real confirmado. A ficha mantém os sabores recolhidos em Ver detalhes. A escolha do sabor é exigida antes de adicionar; temperatura opcional e observação seguem na sacola e resumo demonstrativo. Lojas publicadas recebem apenas sabores explicitamente cadastrados, sem inventar disponibilidade. Nenhum preço ou estoque alterado.
+
+Correção de publicação: teste Chrome reproduz fechamento da sacola e toque real no produto seguinte, centralizando o alvo fora das barras fixas. Toast não intercepta toques. A QA de pull requests agora executa o mesmo teste de navegador que bloqueava o deploy, sem remover as verificações existentes.
