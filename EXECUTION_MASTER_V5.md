@@ -150,3 +150,6 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 - Central de planos FREE/PRO da PR 38 reconciliada: acesso no cabeçalho, perfil e oferta, consulta/renovação via contato oficial, sem preços inventados, sem liberar licença ou cobrança; teste de sessão/planos e CSS. Versões de módulos atualizadas. QA final pendente.
 
 - QA comercial adicional: teste Chrome de cardápio público com documentos Firebase simulados e window.open capturado, cobrindo loja com/sem WhatsApp; nenhum pedido enviado, nenhum dado real utilizado. CI pendente.
+
+## V6 — Checkout transacional (25/11/2026)
+- HEAD anterior 9a6f8a1: 4/4 workflows success (45562104709, 45562104601, 45562104642, 45562104634). Main preservada. Checkout inicial: retirada, pagamento pendente, carrinho misto com pedidos V5 por linha, preços publicados e total conferidos, ficha técnica, custos e reservas atuais; sequência, guarda, pulso e evento idempotente em um commit REST. Sem baixa física até produção, sem cobrança automática. Gate ENABLE_PUBLIC_CHECKOUT + ENABLE_WRITES + canário + autorização ADM do slug + menu opt-in + Turnstile. Restrição inicial: ramo ativo, estoque separado, custos completos, produtos simples e bebidas (combos/adicionais/entrega e pagamento online aguardam extensão). Nenhuma publicação. Testes/integração visual em andamento.

@@ -8,6 +8,7 @@ import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs
 import {planStockLoss,LOSS_REASONS} from "./stock_loss.mjs";
 import {planStockPurchase} from "./stock_purchase.mjs";
 import {planStockRecount} from "./stock_recount.mjs";
+import {checkoutRequest,verifyCheckoutChallenge,submitCheckout} from "./checkout.mjs";
 const json=(payload,status=200,headers={})=>new Response(JSON.stringify(payload),{
  status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
   "X-Content-Type-Options":"nosniff",...headers}
@@ -51,7 +52,7 @@ const persisted=(group,id,item,universe,prior,rank)=>({
 });
 export function createWorkerApp({
  verify=verifyFirebaseToken,repository=createFirestoreRepository,
- clock=()=>new Date()
+ clock=()=>new Date(),checkoutChallenge=verifyCheckoutChallenge
 }={}){
  async function performStockAdjust(req,env,headers){
   if(env.ENABLE_WRITES!=="true")
@@ -347,6 +348,20 @@ export function createWorkerApp({
      writesEnabled:env.ENABLE_WRITES==="true"},200,headers);
    if(req.method!=="POST")return json({error:"not_found"},404,headers);
    try{
+    if(route==="/v1/checkout"){
+     // Public ordering is separate from authenticated stock operations. Verify
+     // anti-abuse token once, not on each transaction retry.
+     if(env.ENABLE_WRITES!=="true"||env.ENABLE_PUBLIC_CHECKOUT!=="true")return json({error:"checkout_disabled"},423,headers);
+     if(!origin||req.headers.get("Content-Type")?.split(";")[0]!=="application/json")return json({error:"invalid_checkout"},400,headers);
+     const input=await checkoutRequest(req);
+     if(!await checkoutChallenge(input.challenge,env,input.operationId))return json({error:"challenge_required"},403,headers);
+     for(let attempt=0;attempt<4;attempt++){
+      try{const result=await submitCheckout({input,env,repository,at:clock()});return json(result,result.alreadyApplied?200:201,headers)}
+      catch(e){if(!(e instanceof FirestoreError)||![409,412].includes(e.status)||attempt===3)throw e;
+       await new Promise(resolve=>setTimeout(resolve,60*(attempt+1)+Math.floor(Math.random()*160)));
+      }
+     }
+    }
     // O SDK Firestore do navegador repete transações em conflito; o REST
     // não faz retry automático. Tentar com uma NOVA transação (mesmo UUID)
     // evita perder a venda em conflitos transitórios; o estoque segue
