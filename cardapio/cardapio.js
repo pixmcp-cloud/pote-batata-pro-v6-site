@@ -1,5 +1,5 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
-import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs?catalogo=bebidas-opcoes";
+import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=6";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -85,7 +85,8 @@ let catalogue = [
   { id:"brigadeiro",title:"Brigadeiro Cremoso",category:"Doces",description:"Chocolate intenso em uma sobremesa cremosa, feita para adoçar seu dia.",priceCents:1990,tag:"Doce momento",image:"../assets/recipes/brigadeiro.webp",addons:["avela"] },
   { id:"chocolate-morango",title:"Chocolate Preto com Morango",category:"Doces",description:"Chocolate e morango em camadas de pura felicidade.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-preto.webp",addons:["avela"] },
   { id:"chocolate-morango-branco",title:"Chocolate Branco com Morango",category:"Doces",description:"Chocolate branco e morango em camadas cremosas.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-branco.webp",addons:["avela"] },
-  { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",size:"Lata 350 ml",flavors:["Cola","Guaraná","Laranja"],description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"../assets/recipes/refrigerante-lata.webp",addons:[] },
+  { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",size:"Lata 350 ml",flavors:["Cola","Guaraná","Laranja","Soda"],drinkVariants:["Cola","Guaraná","Laranja","Soda"].map(flavor=>({id:"refrigerante",flavor,type:"Normal",available:true,priceCents:700})),description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"../assets/recipes/refrigerante-lata.webp",addons:[] },
+  ...["Cola","Guaraná","Laranja","Soda"].flatMap((flavor,index)=>["Normal","Zero"].filter(type=>type==="Normal"||flavor!=="Soda").map(type=>({id:"refri600-"+index+"-"+type.toLowerCase(),title:"Refrigerante "+flavor+(type==="Zero"?" Zero Açúcar":""),category:"Bebidas",size:"600 ml",description:"Refrigerante 600 ml.",priceCents:type==="Zero"?1000:900,available:true,tag:"Para refrescar",image:"../assets/recipes/refrigerante-600.webp",addons:[]}))),
   { id:"agua",title:"Água Mineral",category:"Bebidas",size:"Garrafa 500 ml",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"../assets/recipes/agua-mineral.webp",addons:[] }
 ].map(product => ({ ...product, ingredientNames:DEMO_INGREDIENTS[product.id]||[], addons:product.addons.map(id => ({
   cheddar:{id:"cheddar",label:"Cheddar extra",priceCents:490},
@@ -127,10 +128,7 @@ function productImage(product, className){
   return img;
 }
 // Cada foto é precedida pela abertura, inclusive ao reiniciar a sequência.
-export function heroSequence(products){
-  return products.filter(p=>p.category!=="Bebidas"&&p.image&&p.image!==IMG&&!/\/generic\//.test(p.image))
-    .flatMap(p=>[null,p]);
-}
+export function heroSequence(products){return menuHeroSequence(products,{demo:requestedSlug===null});}
 let heroTimer=null,heroIndex=0,heroSlides=[],heroPaused=false,heroVisible=true,heroHover=false,heroFocused=false;
 const heroMotion=matchMedia("(prefers-reduced-motion: reduce)");
 function heroStop(){clearTimeout(heroTimer);heroTimer=null;}
@@ -154,13 +152,11 @@ function heroSlide(p){
   const slide=el("div","menu-hero-slide "+(p?"menu-hero-food":"menu-hero-title"));
   slide.dataset.kind=p?"food":"title";slide.setAttribute("aria-hidden","true");
   const image=el("img",p?"menu-hero-product":"");
-  image.src=p?p.image:"./cardapio-abertura.svg";
+  image.src=p?p.image:"./cardapio-dourado.webp?v=4";
   image.alt=p?p.title:"CARDÁPIO";image.decoding="async";
   if(p){
-    const bg=el("img","menu-hero-backdrop");bg.src=p.image;bg.alt="";bg.setAttribute("aria-hidden","true");bg.decoding="async";
-    bg.addEventListener("error",()=>bg.hidden=true,{once:true});
-    image.addEventListener("error",()=>{image.src=IMG;},{once:true});
-    slide.append(bg,image);
+    image.addEventListener("error",()=>{image.hidden=true;slide.classList.add("hero-photo-unavailable");},{once:true});
+    slide.append(image);
     slide.append(el("div","menu-hero-name",p.title));
   }else slide.append(image);
   return slide;
@@ -215,7 +211,7 @@ function categories(){
 }
 function renderMenu(){
   grid.replaceChildren();
-  const found=catalogue.filter(p=>(category==="Todos"||p.category===category) &&
+  const found=groupDrinkProducts(catalogue).filter(p=>(category==="Todos"||p.category===category) &&
     (p.title+" "+p.description).toLocaleLowerCase("pt-BR").includes(search));
   $("emptyState").hidden=found.length>0;
   for(const p of found){
@@ -257,12 +253,16 @@ function openProduct(p){
   const isDrink=p.category==="Bebidas";
   const flavors=isDrink&&Array.isArray(p.flavors)?p.flavors:[];
   const hasFlavors=flavors.length>0;
+  const variants=Array.isArray(p.drinkVariants)?p.drinkVariants:[];
+  $("drinkTypeGroup").hidden=true;
+  $("drinkTypeGroup").querySelectorAll("input").forEach(e=>{e.checked=false;e.disabled=true;});
   $("productFactFormat").textContent=isDrink?(p.size||"Embalagem e volume a confirmar"):$("productFactFormat").textContent;
   $("productIngredientHeading").textContent=isDrink?"Sabores":"Ingredientes";
   $("productIngredients").hidden=isDrink;
   $("productFlavors").hidden=!hasFlavors;
   $("productFlavors").replaceChildren();
-  for(const flavor of flavors){const label=el("label","drink-option");const radio=el("input");radio.type="radio";radio.name="drinkFlavor";radio.value=flavor;label.append(radio,el("span","",flavor));$("productFlavors").append(label);}
+  for(const flavor of flavors){const label=el("label","drink-option");const radio=el("input");radio.type="radio";radio.name="drinkFlavor";radio.value=flavor;radio.disabled=variants.length>0&&!variants.some(v=>v.flavor===flavor&&v.available);radio.addEventListener("change",syncDrinkType);label.append(radio,el("span","",flavor));$("productFlavors").append(label);}
+  if(variants.length)$("drinkTypeGroup").hidden=false;
   $("productFlavorHint").hidden=!hasFlavors;
   $("productTemperature").hidden=!isDrink;
   $("drinkTemperature").value="Gelado";
@@ -293,25 +293,42 @@ function openProduct(p){
   updateProductTotal();
   safeShow(productDialog);
 }
+function chosenDrinkVariant(){
+  const flavor=document.querySelector('input[name="drinkFlavor"]:checked')?.value;
+  const type=document.querySelector('input[name="drinkType"]:checked')?.value;
+  return selected?.drinkVariants?.find(v=>v.flavor===flavor&&v.type===type&&v.available);
+}
+function syncDrinkType(){
+  const flavor=document.querySelector('input[name="drinkFlavor"]:checked')?.value;
+  const types=[...$("drinkTypeGroup").querySelectorAll("input")];
+  for(const input of types){input.disabled=!selected?.drinkVariants?.some(v=>v.flavor===flavor&&v.type===input.value&&v.available);if(input.disabled)input.checked=false;}
+  if(!types.some(e=>e.checked&&!e.disabled)){const first=types.find(e=>!e.disabled);if(first)first.checked=true;}
+  updateProductTotal();
+}
+$("drinkTypeGroup").addEventListener("change",updateProductTotal);
 function updateProductTotal(){
   if(!selected)return;
   $("productQty").textContent=String(quantity);
   $("qtyMinus").disabled=quantity===1;
   $("qtyPlus").disabled=quantity===99;
-  $("addPrice").textContent=money(itemUnitCents(selected,[...chosenExtras])*quantity);
+  const variant=chosenDrinkVariant();
+  $("addPrice").textContent=money((variant?variant.priceCents:itemUnitCents(selected,[...chosenExtras]))*quantity);
 }
 function addCurrentProduct(){
   if(!selected)return;
   const isDrink=selected.category==="Bebidas";
   const flavor=document.querySelector('input[name="drinkFlavor"]:checked')?.value||"";
-  if(isDrink&&selected.flavors?.length&&!selected.flavors.includes(flavor)){
+  const variant=chosenDrinkVariant();
+  if(isDrink&&selected.flavors?.length&&(!selected.flavors.includes(flavor)||(selected.drinkVariants?.length&&!variant))){
     $("productFacts").open=true;
-    $("productFlavors").querySelector("input")?.focus();
+    $("productFlavors").querySelector("input:not(:disabled)")?.focus();
     toast("Escolha o sabor do refrigerante.");return;
   }
   const temperature=isDrink?$("drinkTemperature").value:"";
-  const note=[flavor?"Sabor: "+flavor:"",temperature?"Temperatura: "+temperature:"",$("productNote").value.trim()].filter(Boolean).join(" • ");
-  cart=addLine(cart,makeLine(selected,quantity,[...chosenExtras],note),catalogue);
+  const note=[flavor?"Sabor: "+flavor:"",variant?"Versão: "+variant.type:"",temperature?"Temperatura: "+temperature:"",$("productNote").value.trim()].filter(Boolean).join(" • ");
+  const actual=variant?byId.get(variant.id):selected;
+  if(!actual||actual.available===false){toast("Bebida indisponível.");return;}
+  cart=addLine(cart,makeLine(actual,quantity,[...chosenExtras],note),catalogue);
   saveCart();renderCart();productDialog.close();toast("Adicionado à sacola.");
 }
 function renderCart(){

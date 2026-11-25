@@ -10,7 +10,10 @@ export const cents = value => {
   const n=Number(value);
   return Number.isFinite(n)&&n>0&&n<=99999?Math.round(n*100):0;
 };
+// Only bounded raster data produced by the publishing flow, never SVG or private URLs.
+export const isPublishedPhoto = image => typeof image==="string" && image.length<=12000 && /^data:image\/webp;base64,[A-Za-z0-9+/]+={0,2}$/.test(image);
 export const publicImage = (image,fallback="../assets/generic/business-batataria.svg") => {
+  if(isPublishedPhoto(image))return image;
   const src=text(image,800);
   if(/^https:\/\/[^\s<>"']{1,760}$/i.test(src))return src;
   if(/^(?:\.\.?\/|\/)?assets\/(?:generic|recipes)\/[A-Za-z0-9_\-.]+\.(?:svg|webp|png|jpg|jpeg)$/i.test(src))
@@ -26,15 +29,40 @@ export function recipeIngredientNames(recipe,data){
   const names=new Map((Array.isArray(data?.ingredients)?data.ingredients:[]).filter(i=>i?.id&&typeof i.name==="string"&&!/embalagem|descartável|descartavel/i.test(String(i.category||""))).map(i=>[i.id,i.name]));
   return safeIngredientNames((Array.isArray(recipe?.items)?recipe.items:[]).map(i=>names.get(i?.id)));
 }
-export function buildMenuCandidates(snapshot,{priceFor,allowed,imageFor,includeIngredientNames=false}={}){
+export const SODA_FLAVORS=["Cola","Guaraná","Laranja","Soda"];
+export function sodaVariant(name,size){
+  const key=String(name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  if(!/refrigerante|\bsoda\b/.test(key))return null;
+  const flavor=SODA_FLAVORS.find(x=>new RegExp("\\b"+x.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()+"\\b").test(key));
+  const pack=text(size,60);
+  if(!flavor||!pack)return null;
+  return {flavor,type:/\bzero\b|sem acucar/.test(key)?"Zero":"Normal",pack};
+}
+export function groupDrinkProducts(products){
+  const result=[],groups=new Map();
+  for(const p of products){
+    const v=p.category==="Bebidas"?sodaVariant(p.title,p.size):null;
+    if(!v){result.push(p);continue;}
+    const key=v.pack.toLowerCase().replace(/\s+/g,"");
+    let g=groups.get(key);
+    if(!g){g={...p,id:"soda-group-"+key,title:/lata/i.test(v.pack)?"Refrigerante Lata":"Refrigerante "+v.pack,description:"Escolha o sabor e a versão.",flavors:SODA_FLAVORS,drinkVariants:[],priceCents:p.priceCents,addons:[]};groups.set(key,g);result.push(g);}
+    g.drinkVariants.push({id:p.id,flavor:v.flavor,type:v.type,available:p.available===true,priceCents:p.priceCents});
+    const enabled=g.drinkVariants.filter(v=>v.available);if(enabled.length)g.priceCents=Math.min(...enabled.map(v=>v.priceCents));
+  }
+  return result;
+}
+export function buildMenuCandidates(snapshot,{priceFor,allowed,imageFor,includeIngredientNames=false,publishedPhotos}={}){
   const data=snapshot?.data||{},items=[];
   const business=text(data.businessType||"batataria",32);
   const defaultImage=publicImage("./assets/generic/business-"+business+".svg");
 // Fotos privadas e URLs com tokens nunca são copiadas automaticamente.
 // O upload público de fotos exigirá consentimento e armazenamento autorizado.
-const ownImage=(src)=>{
+const ownImage=(src,id)=>{
+  const approved=publishedPhotos?.get?.(id);
+  if(isPublishedPhoto(approved))return approved;
   const value=text(src,800);
-  return /^\.?\/?assets\/(?:generic|recipes)\/[A-Za-z0-9_\-.]+\.(?:svg|webp|png|jpg|jpeg)$/i.test(value)
+  // Official recipe images only via explicit trusted imageFor, never from a foreign catalogue's saved path.
+  return /^\.?\/?assets\/generic\/[A-Za-z0-9_\-.]+\.svg$/i.test(value)
     ? publicImage(value,defaultImage):defaultImage;
 };
   const isAllowed=typeof allowed==="function"?allowed:()=>true;
@@ -44,30 +72,41 @@ const ownImage=(src)=>{
     const id=text(r.id,72),price=cents(calc(r));
     if(!price||!id||items.some(p=>p.id===id))continue;
     items.push({id,title:text(r.name,90),description:text(r.tagline||r.description,240),
-      category:safeCategory(r.category),priceCents:price,...(includeIngredientNames?{ingredientNames:recipeIngredientNames(r,data)}:{}),image:ownImage((typeof imageFor==="function"?imageFor(r):null)||r.imageUrl||r.photoUrl||r.photo||r.image),addons:[]});
+      category:safeCategory(r.category),priceCents:price,...(includeIngredientNames?{ingredientNames:recipeIngredientNames(r,data)}:{}),image:isPublishedPhoto(publishedPhotos?.get?.(id))?publishedPhotos.get(id):(typeof imageFor==="function"&&/^\.?\/?assets\/recipes\/[A-Za-z0-9_\-.]+\.(?:webp|png|jpg|jpeg)$/i.test(String(imageFor(r)||""))?publicImage(imageFor(r),defaultImage):ownImage(r.imageUrl||r.photoUrl||r.photo||r.image,id)),addons:[]});
   }
   for(const b of Array.isArray(data.beverages)?data.beverages:[]){
-    if(!b?.id||!b?.name||b.unavailable===true||b.suspended===true)continue;
+    if(!b?.id||!b?.name)continue;
+    const variant=sodaVariant(b.name,b.size);
+    if(!variant&&(b.unavailable===true||b.suspended===true))continue;
     const id="bev-"+text(b.id,68),price=cents(b.sellPrice);
     if(!price||items.some(p=>p.id===id))continue;
     items.push({id,title:text(b.name,80),description:text(b.size,60),
-      category:"Bebidas",priceCents:price,image:defaultImage,size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
+      category:"Bebidas",priceCents:price,...(variant?{available:b.unavailable!==true&&b.suspended!==true&&Number(b.stock)>0}:{}),image:isPublishedPhoto(publishedPhotos?.get?.(id))?publishedPhotos.get(id):((typeof imageFor==="function"&&/^\.?\/?assets\/recipes\/refrigerante-(?:lata|600)\.webp$/i.test(String(imageFor(b)||"")))?publicImage(imageFor(b),defaultImage):ownImage(b.imageUrl||b.photoUrl||b.photo||b.image,id)),size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
   }
   return items.slice(0, MENU_MAX_ITEMS);
 }
-export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allowed,imageFor,includeIngredientNames=false,previous}={}){
+export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allowed,imageFor,includeIngredientNames=false,publishedPhotos,previous}={}){
   if(!validSlug(slug))throw Error("Endereço inválido: use 4 a 40 caracteres, letras, números e hífen.");
   if(typeof ownerUid!=="string"||!ownerUid||ownerUid.length>128)throw Error("Usuário não autenticado.");
   if(previous && previous.ownerUid!==ownerUid)throw Error("Este endereço já pertence a outro estabelecimento.");
   const data=snapshot?.data||{},brand=data.brand||{};
   const selected=new Set(Array.isArray(selectedIds)?selectedIds:[]);
-  const items=buildMenuCandidates(snapshot,{priceFor,allowed,imageFor,includeIngredientNames}).filter(p=>selected.has(p.id));
+  const items=buildMenuCandidates(snapshot,{priceFor,allowed,imageFor,includeIngredientNames,publishedPhotos}).filter(p=>selected.has(p.id));
   if(!items.length)throw Error("Selecione ao menos um produto com preço positivo.");
   const title=text(brand.name||"Meu Negócio",70);
   const subtitle=text(brand.subtitle||"",110);
   return {schemaVersion:MENU_SCHEMA,ownerUid,slug,published:true,title,subtitle,
     businessType:text(data.businessType||"batataria",32),
     color:"#e7b968",items};
+}
+// Shared opening is represented by null. Store-specific slides come only from its own published items.
+export function menuHeroSequence(items,{demo=false}={}){
+  const seen=new Set();
+  return (Array.isArray(items)?items:[]).filter(p=>{
+    if(!p||p.category==="Bebidas"||!p.image||/\/generic\//.test(p.image)||seen.has(p.image))return false;
+    if(!demo&&!isPublishedPhoto(p.image)&&!/^https:\/\//i.test(p.image))return false;
+    seen.add(p.image);return true;
+  }).flatMap(p=>[null,p]);
 }
 export function sanitizeReadMenu(raw,slug){
   if(!raw||raw.schemaVersion!==MENU_SCHEMA||raw.published!==true||raw.slug!==slug||!validSlug(slug)||
@@ -77,7 +116,7 @@ export function sanitizeReadMenu(raw,slug){
     Number.isSafeInteger(p.priceCents)&&p.priceCents>0&&p.priceCents<=9999999&&Array.isArray(p.addons))
     .slice(0,MENU_MAX_ITEMS).map(p=>({id:text(p.id,72),title:text(p.title,90),
       description:text(p.description,240),category:safeCategory(p.category),
-      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12)}:{}),addons:[]}));
+      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12),...(sodaVariant(p.title,p.size||p.description)?{available:p.available===true}:{})}:{}),addons:[]}));
   if(!items.length)return null;
   return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug};
 }
