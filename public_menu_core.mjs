@@ -118,9 +118,11 @@ export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allo
   if(!items.length)throw Error("Selecione ao menos um produto com preço positivo.");
   const title=text(brand.name||"Meu Negócio",70);
   const subtitle=text(brand.subtitle||"",110);
+  const policy=data.settings?.deliveryPolicy;
+  const deliveryEnabled=policy?.enabled===true&&["fixed","hybrid"].includes(policy.mode)&&policy.maxDistanceMeters===null&&typeof data.settings?.deliveryCity==="string"&&Boolean(data.settings.deliveryCity.trim())&&/^[A-Z]{2}$/.test(data.settings?.deliveryUF||"")&&Array.isArray(policy.neighborhoods)&&policy.neighborhoods.some(z=>z.enabled===true);
   return {schemaVersion:MENU_SCHEMA,ownerUid,slug,published:true,title,subtitle,
     businessType:text(data.businessType||"batataria",32),
-    color:"#e7b968",items,...(publicWhatsapp(whatsapp)?{whatsapp:publicWhatsapp(whatsapp)}:{}),...(/^[A-Za-z0-9_-]{10,120}$/.test(checkoutSiteKey)?{checkoutEnabled:true,checkoutSiteKey}:{})};
+    color:"#e7b968",items,...(publicWhatsapp(whatsapp)?{whatsapp:publicWhatsapp(whatsapp)}:{}),...(/^[A-Za-z0-9_-]{10,120}$/.test(checkoutSiteKey)?{checkoutEnabled:true,checkoutSiteKey,...(deliveryEnabled?{deliveryEnabled:true}:{})}:{})};
 }
 // Shared opening is represented by null. Store-specific slides come only from its own published items.
 export function menuHeroSequence(items,{demo=false}={}){
@@ -141,5 +143,5 @@ export function sanitizeReadMenu(raw,slug){
       description:text(p.description,240),category:safeCategory(p.category),
       priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12),...((sodaVariant(p.title,p.size||p.description)||waterVariant(p.title,p.size||p.description))?{available:p.available===true}:{})}:{}),addons:[]}));
   if(!items.length)return null;
-  return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug,whatsapp:publicWhatsapp(raw.whatsapp),checkoutSiteKey:raw.checkoutEnabled===true&&typeof raw.checkoutSiteKey==="string"&&/^[A-Za-z0-9_-]{10,120}$/.test(raw.checkoutSiteKey)?raw.checkoutSiteKey:""};
+  return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug,whatsapp:publicWhatsapp(raw.whatsapp),...(raw.checkoutEnabled===true&&raw.deliveryEnabled===true?{deliveryEnabled:true}:{}),checkoutSiteKey:raw.checkoutEnabled===true&&typeof raw.checkoutSiteKey==="string"&&/^[A-Za-z0-9_-]{10,120}$/.test(raw.checkoutSiteKey)?raw.checkoutSiteKey:""};
 }

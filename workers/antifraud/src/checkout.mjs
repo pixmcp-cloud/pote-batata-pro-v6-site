@@ -210,7 +210,7 @@ export async function submitCheckout({input,env,repository,at,consumerUid,postal
   let freight=null;
   if(input.delivery){
    freight=await resolveDelivery({input:input.delivery,settings,subtotalCents:subtotal,lookup:postalLookup,env});
-   if(freight.feeCents!==input.delivery.expectedFeeCents)fail("Frete mudou. Calcule novamente.","price_changed",409);
+   if(freight.feeCents!==input.delivery.expectedFeeCents||freight.address!==input.delivery.expectedAddress)fail("Frete ou endereço mudou. Calcule novamente.","price_changed",409);
    total+=freight.feeCents;
    for(const o of rows){o.deliveryType="Tele-entrega";o.clientAddress=freight.address;o.deliveryNeighborhoodId=freight.neighborhoodId;}
    // A checkout is one destination, even when its kitchen has multiple rows.

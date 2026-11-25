@@ -7,7 +7,7 @@
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
   <link rel="stylesheet" href="./cardapio.css?release=tracking16">
-  <script type="module" src="./cardapio.js?release=tracking16"></script>
+  <script type="module" src="./cardapio.js?release=delivery17"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -123,10 +123,11 @@
           <label>Celular <input id="customerPhone" autocomplete="tel" type="tel" inputmode="tel" placeholder="(00) 00000-0000" maxlength="20"></label>
         </div>
         <label id="addressLabel" class="address-field" hidden>Endereço para entrega <input id="customerAddress" autocomplete="street-address" placeholder="Rua, número, bairro e referência" maxlength="220"></label>
+        <div id="deliveryPostalFields" hidden><div class="form-grid"><label>CEP <input id="deliveryCep" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"></label><label>Número <input id="deliveryNumber" maxlength="8" placeholder="123"></label></div><label>Complemento (opcional) <input id="deliveryComplement" maxlength="80"></label><p id="deliveryQuoteAddress" role="status"></p></div>
         <label><span id="paymentLabel">Forma de pagamento (simulação)</span>
           <select id="paymentMethod"><option value="pix">Pix</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option></select>
         </label>
-        <div class="cart-totals"><div><span>Subtotal</span><strong id="subtotal">R$ 0,00</strong></div><div><span>Entrega</span><span id="deliveryFee">A definir na loja</span></div><div class="grand-total"><span>Total dos produtos</span><strong id="total">R$ 0,00</strong></div></div>
+        <div class="cart-totals"><div><span>Subtotal</span><strong id="subtotal">R$ 0,00</strong></div><div><span>Entrega</span><span id="deliveryFee">A definir na loja</span></div><div class="grand-total"><span>Total</span><strong id="total">R$ 0,00</strong></div></div>
         <p class="demo-warning">Esta é uma prévia interativa. Nenhum pagamento será cobrado e nenhum pedido será registrado no PDV.</p>
         <div id="checkoutChallenge" hidden aria-label="Verificação de segurança"></div>
         <p id="checkoutResult" class="checkout-result" hidden role="status" aria-live="polite"></p>

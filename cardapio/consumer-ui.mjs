@@ -65,6 +65,7 @@ export function createConsumerUI({slug,notify,money}){
     const local=value=>{const d=new Date(value);return value&&Number.isFinite(d.getTime())?d.toLocaleString("pt-BR"):"—"};
     dates.textContent="Recebido: "+local(o.createdAt)+(o.finishedAt?" · "+(o.status==="entregue"?"Entregue":"Encerrado")+": "+local(o.finishedAt):"");
     article.append(title,detail,dates,items);
+    if(o.deliveryType==="Tele-entrega"){const freight=document.createElement("p");freight.textContent=(o.status==="cancelado"?"Frete cancelado: ":"Frete: ")+money(o.deliveryFeeCents||0)+" · "+(o.deliveryAddress||"");article.append(freight);}
     if(terminal(o)){const print=document.createElement("button");print.type="button";print.className="button button-quiet";print.textContent="Imprimir comprovante";print.onclick=()=>{article.classList.add("consumer-print");document.body.classList.add("printing-consumer");try{window.print()}finally{article.classList.remove("consumer-print");document.body.classList.remove("printing-consumer")}};article.append(print);}
     if(o.slug===slug){const b=document.createElement("button");b.type="button";b.className="button button-quiet";b.textContent="Ver no letreiro";b.onclick=()=>{follow(o);dialog.close()};article.append(b)}
     container.append(article);

@@ -519,7 +519,7 @@ service cloud.firestore {
         return slug.matches('^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]$')
           && request.resource.data.keys().hasOnly([
             'schemaVersion','ownerUid','slug','published','title','subtitle',
-            'businessType','color','items','updatedAt','whatsapp','checkoutEnabled','checkoutSiteKey'
+            'businessType','color','items','updatedAt','whatsapp','checkoutEnabled','checkoutSiteKey','deliveryEnabled'
           ])
           && request.resource.data.keys().hasAll([
             'schemaVersion','ownerUid','slug','published','title','subtitle',
@@ -527,6 +527,7 @@ service cloud.firestore {
           ])
           && (!request.resource.data.keys().hasAny(["whatsapp"]) || (request.resource.data.whatsapp is string && request.resource.data.whatsapp.matches("^55[1-9][0-9][2-9][0-9]{7,8}$")))
           && (!request.resource.data.keys().hasAny(['checkoutEnabled']) || request.resource.data.checkoutEnabled is bool)
+          && (!request.resource.data.keys().hasAny(['deliveryEnabled']) || (request.resource.data.deliveryEnabled is bool && request.resource.data.get('checkoutEnabled', false) == true))
           && (request.resource.data.get('checkoutEnabled', false) == false
             ? !request.resource.data.keys().hasAny(['checkoutSiteKey'])
             : request.resource.data.get('checkoutSiteKey', '') is string

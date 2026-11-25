@@ -54,7 +54,7 @@ console.log("PASS: UI Motoboy, 2 universos na mesma viagem, WhatsApp, cálculos 
 window.POTE_AUTH={uid:"account-a",role:"admin",proActive:true};state.mode="adm";
 assert(M.render().includes("Frete cobrado do cliente"));
 assert.equal(M.deliveryPolicy().perKmCents,50);
-value("motoFeeMode","hybrid");value("motoFeeKm","0,75");value("motoFeeMin","3,00");value("motoFeeMax","10");value("motoFeeFree","");value("motoFeeCost","4,50");fields.set("motoFeeEnabled",{checked:true});
+value("motoFeeCity","Sombrio");value("motoFeeUF","SC");value("motoFeeMode","hybrid");value("motoFeeKm","0,75");value("motoFeeMin","3,00");value("motoFeeMax","10");value("motoFeeFree","");value("motoFeeCost","4,50");fields.set("motoFeeEnabled",{checked:true});
 const zone={dataset:{zoneId:"centro"},querySelector:s=>({"[data-zone-name]":{value:"Centro"},"[data-zone-fee]":{value:"5,50"},"[data-zone-enabled]":{checked:true}}[s])};fields.set("motoFeeZones",{querySelectorAll:()=>[zone]});
 M.saveDelivery();assert.ok(state.data.settings?.deliveryPolicy,messages.at(-1));assert.equal(state.data.settings.deliveryPolicy.perKmCents,75);assert.equal(state.data.settings.deliveryPolicy.neighborhoods[0].feeCents,550);assert.equal(state.data.settings.deliveryCostPerOrder,4.5);
 const original=structuredClone(state.data.settings);value("motoFeeKm","-1");M.saveDelivery();assert.deepEqual(state.data.settings,original);

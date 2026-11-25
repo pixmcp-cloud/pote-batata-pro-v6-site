@@ -3,10 +3,10 @@ import {validateDeliveryPolicy,quoteDelivery,neighborhoodKey} from "./delivery_p
 const deny=(message,code="delivery_unavailable",status=409)=>{throw new OperationalError(message,status,code)};
 const clean=(x,max)=>typeof x==="string"&&x.trim().length<=max&&!/[\u0000-\u001f\u007f]/.test(x)?x.trim():null;
 export function deliveryInput(raw){
- if(!raw||typeof raw!=="object"||Array.isArray(raw)||Object.keys(raw).length!==4||!["cep","number","complement","expectedFeeCents"].every(k=>Object.hasOwn(raw,k)))deny("Endereço inválido.","invalid_checkout",400);
- const cep=clean(raw.cep,9),number=clean(raw.number,16),complement=clean(raw.complement,80);
- if(!cep||!/^\d{5}-?\d{3}$/.test(cep)||!number||!/^\d{1,7}[A-Za-z]?$/.test(number)||complement===null||!Number.isSafeInteger(raw.expectedFeeCents)||raw.expectedFeeCents<0||raw.expectedFeeCents>10000000)deny("Informe CEP, número e complemento válidos.","invalid_checkout",400);
- return {cep:cep.replace("-",""),number,complement,expectedFeeCents:raw.expectedFeeCents};
+ if(!raw||typeof raw!=="object"||Array.isArray(raw)||Object.keys(raw).length!==5||!["cep","number","complement","expectedFeeCents","expectedAddress"].every(k=>Object.hasOwn(raw,k)))deny("Endereço inválido.","invalid_checkout",400);
+ const cep=clean(raw.cep,9),number=clean(raw.number,16),complement=clean(raw.complement,80),expectedAddress=clean(raw.expectedAddress,360);
+ if(!cep||!/^\d{5}-?\d{3}$/.test(cep)||!number||!/^\d{1,7}[A-Za-z]?$/.test(number)||complement===null||expectedAddress===null||!Number.isSafeInteger(raw.expectedFeeCents)||raw.expectedFeeCents<0||raw.expectedFeeCents>10000000)deny("Informe CEP, número e complemento válidos.","invalid_checkout",400);
+ return {cep:cep.replace("-",""),number,complement,expectedFeeCents:raw.expectedFeeCents,expectedAddress};
 }
 // Lookup only the CEP, never customer name, phone or complement. No bulk
 // requests and no fabricated distance. A generic CEP cannot verify a zone.

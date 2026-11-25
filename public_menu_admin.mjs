@@ -3,7 +3,7 @@
 import {app} from "./firebase_app.mjs";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp,runTransaction} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto,publicWhatsapp} from "./public_menu_core.mjs?lojas=13";
+import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto,publicWhatsapp} from "./public_menu_core.mjs?lojas=14";
 
 const auth=getAuth(app),db=getFirestore(app);
 const node=(tag,cls,text)=>{
@@ -301,7 +301,7 @@ async function publish(){
     const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:ids,whatsapp,checkoutSiteKey:checkoutKey,
       priceFor,allowed,imageFor,publishedPhotos:photos,includeIngredientNames:$("publicMenuIncludeIngredients").checked,previous:current});
     if(!confirm("Publicar "+result.items.length+" produto(s) de "+result.title+
-      " com preços e fotos dos produtos selecionados"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? "+(checkoutKey?"Pedidos de retirada serão enviados automaticamente ao PDV, com pagamento pendente.":whatsapp?"O número comercial também será público e receberá solicitações pelo WhatsApp.":"O catálogo ficará somente para consulta.")))return;
+      " com preços e fotos dos produtos selecionados"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? "+(checkoutKey?"Pedidos online serão enviados automaticamente ao PDV, com pagamento pendente. A tele-entrega por bairro exige política válida na Central Motoboy.":whatsapp?"O número comercial também será público e receberá solicitações pelo WhatsApp.":"O catálogo ficará somente para consulta.")))return;
     if(!validSession(uid,epoch))return;
     if(oldSlug){
       if(!confirm("Trocar o link de "+oldSlug+" para "+slug+"? O link antigo deixará de funcionar."))return;
@@ -321,7 +321,7 @@ async function publish(){
     try{localStorage.setItem(localKey(uid),slug)}catch{}
     $("publicMenuSlug").readOnly=false;
     updateLink();
-    setMessage("Publicado. O carrossel usa as fotos publicadas da sua loja."+(skipped?" "+skipped+" foto(s) não puderam ser otimizadas; revise-as no cadastro.":"")+(checkoutKey?" Checkout de retirada habilitado no catálogo; funcionamento depende do Worker autorizado.":" Compartilhe o link; pedidos pelo WhatsApp precisam de confirmação manual da loja."));
+    setMessage("Publicado. O carrossel usa as fotos publicadas da sua loja."+(skipped?" "+skipped+" foto(s) não puderam ser otimizadas; revise-as no cadastro.":"")+(checkoutKey?" Checkout habilitado no catálogo; funcionamento depende do Worker autorizado. Republique após configurar frete na Central Motoboy.":" Compartilhe o link; pedidos pelo WhatsApp precisam de confirmação manual da loja."));
   }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha ao publicar.",true);}
   finally{if(validSession(uid,epoch))setBusy(false);}
 }

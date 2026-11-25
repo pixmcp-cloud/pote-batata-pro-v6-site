@@ -26,7 +26,7 @@ function empty(state,type){
  for(const k of LISTS)branch[k]=[];
  branch.businessTemplates={};
  branch.unlocked=null;branch.freeCreativeRecipeId=null;branch.creatives=[];
- delete branch.settings.deliveryPolicy;
+ delete branch.settings.deliveryPolicy;delete branch.settings.deliveryCity;delete branch.settings.deliveryUF;
  branch.settings={...branch.settings,estimatedMonthlyUnits:0,
   portion:{batataria:500,pizzaria:700,hamburgueria:320,hotdog:260,lancheria:300,pastelaria:260}[type]};
  const name={batataria:"Minha Batataria",pizzaria:"Minha Pizzaria",

@@ -64,12 +64,12 @@ test("delivery quote and checkout: server verified CEP, one fee and cost, lifecy
  const meta=x.get(root+"/appState/v5");
  Object.assign(meta.state.data.settings,{deliveryCity:"Sombrio",deliveryUF:"SC",deliveryCostPerOrder:4.5,deliveryPolicy:{enabled:true,mode:"hybrid",perKmCents:50,minFeeCents:0,maxDistanceMeters:null,freeAboveCents:null,neighborhoods:[{id:"centro",name:"Centro",feeCents:500,enabled:true}]}});
  x.seed(root+"/appState/v5",meta);x.seed("publicMenus/"+slug,{...x.get("publicMenus/"+slug),deliveryEnabled:true});
- const delivery={cep:"88960001",number:"10",complement:"Apto 2",expectedFeeCents:0};
+ const delivery={cep:"88960001",number:"10",complement:"Apto 2",expectedFeeCents:0,expectedAddress:""};
  const q=await x.call(payload(op1,{delivery}),config,"/v1/checkout/quote");
  assert.equal(q.status,200,JSON.stringify(q));assert.equal(q.body.feeCents,500);assert.equal(q.body.totalCents,7000);
  assert.equal(x.get(root+"/appState/v5InventoryGuard").revision,3,"quote has no writes");
  assert.equal((await x.call(payload(op1,{delivery,expectedTotalCents:6500}),config)).body.error,"price_changed");
- const input=payload(op1,{delivery:{...delivery,expectedFeeCents:500},expectedTotalCents:7000});
+ const input=payload(op1,{delivery:{...delivery,expectedFeeCents:500,expectedAddress:q.body.address},expectedTotalCents:7000});
  assert.equal((await x.call(input)).status,423);
  const order=await x.call(input,config);assert.equal(order.status,201,JSON.stringify(order));assert.equal(order.body.totalCents,7000);
  const ids=[0,1].map(i=>"web-"+op1+"-"+i),rows=ids.map(id=>x.get(recordPath(uid,u,"orders",id)).record.item);

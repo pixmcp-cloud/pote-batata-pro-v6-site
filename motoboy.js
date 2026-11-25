@@ -59,6 +59,7 @@ function deliveryForm(){
  return '<details class="moto-new" open><summary>🚚 Frete cobrado do cliente · '+esc((state.data.businessType||"batataria").toUpperCase())+'</summary>'+
  '<p class="moto-note">Configuração por ramo. Não altera a remuneração dos motoboys nem ativa o checkout. A rota e o bairro precisam ser verificados pelo servidor antes da cobrança automática.</p>'+
  '<div class="moto-fields"><label>Modalidade<select id="motoFeeMode">'+[["hybrid","Híbrido · bairro prevalece"],["distance","Por km"],["fixed","Somente bairros cadastrados"]].map(([id,label])=>'<option value="'+id+'" '+(p.mode===id?'selected':'')+'>'+label+'</option>').join("")+'</select></label>'+
+ field("motoFeeCity","Cidade atendida",state.data.settings?.deliveryCity||"")+field("motoFeeUF","UF (ex.: SC)",state.data.settings?.deliveryUF||"")+
  feeInput("motoFeeKm","R$ por km",brlInput(p.perKmCents))+feeInput("motoFeeMin","Taxa mínima por km (R$)",brlInput(p.minFeeCents))+
  feeInput("motoFeeMax","Distância máxima (km, opcional)",p.maxDistanceMeters===null?"":String(p.maxDistanceMeters/1000).replace(".",","))+
  feeInput("motoFeeFree","Frete grátis a partir de (R$, opcional)",p.freeAboveCents===null?"":brlInput(p.freeAboveCents))+
@@ -95,10 +96,12 @@ function saveDelivery(){
   const next=validateDeliveryPolicy({enabled:$("motoFeeEnabled")?.checked===true,mode:val("motoFeeMode"),
    perKmCents:decimal(val("motoFeeKm"),100),minFeeCents:decimal(val("motoFeeMin"),100),
    maxDistanceMeters:decimal(val("motoFeeMax"),1000,true),freeAboveCents:decimal(val("motoFeeFree"),100,true),neighborhoods});
+  const city=String(val("motoFeeCity")||"").trim(),uf=String(val("motoFeeUF")||"").trim().toUpperCase();
+  if(next.enabled&&(!city||city.length>80||! /^[A-Z]{2}$/.test(uf)))throw Error("Informe cidade e UF atendidas.");
   const cost=decimal(val("motoFeeCost"),100);
   if(cost>10000000)throw Error("Custo de entrega fora do limite.");
   const settings=state.data.settings??(state.data.settings={});
-  settings.deliveryPolicy=next;settings.deliveryCostPerOrder=cost/100;
+  settings.deliveryPolicy=next;settings.deliveryCity=city;settings.deliveryUF=uf;settings.deliveryCostPerOrder=cost/100;
   changed();alerts("Configuração de frete salva no ramo atual. Checkout automático ainda em homologação.");
  }catch(error){alerts(error.message)}
 }
