@@ -119,6 +119,8 @@ export function confirmPaymentOnSaleCompletion(data,{orderId,operator,id,at}={})
  validateCashData(data);
  const order=data.orders.find(o=>o.id===orderId);
  if(!order||order.status!=="entregue")fail("Somente uma venda concluída pode registrar recebimento automático");
+ if(order.publicCheckoutV6===true&&!paymentConfirmed(order))
+  return {recorded:false,reason:"Pagamento do checkout online exige confirmação de recebimento"};
  const kind=paymentKind(order.paymentMethod);
  if(!["cash","pix","card"].includes(kind))
   return {recorded:false,reason:"Forma de recebimento não definida"};

@@ -81,6 +81,28 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       throw Error("Firestore: resposta transacional batchGet inválida");
      return {data:decodeFields(found.found.fields),updateTime:found.found.updateTime};
     },
+    // Query participates in the same transaction as the inventory guard.
+    // A bounded result must never be mistaken for a complete inventory.
+    async listRecords(uid,universe,group,{limit=501}={}){
+     if(!/^[A-Za-z0-9:_-]{1,128}$/.test(uid)||!/^[a-z0-9_-]{1,64}$/.test(universe)||
+        !["orders","ingredients","beverages","recipes"].includes(group)||
+        !Number.isSafeInteger(limit)||limit<1||limit>501)throw Error("Invalid transactional query");
+     const result=await api("/documents/users/"+encodeURIComponent(uid)+":runQuery",{method:"POST",body:{
+      transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],
+       where:{compositeFilter:{op:"AND",filters:[
+        {fieldFilter:{field:{fieldPath:"record.universe"},op:"EQUAL",value:{stringValue:universe}}},
+        {fieldFilter:{field:{fieldPath:"record.group"},op:"EQUAL",value:{stringValue:group}}}
+       ]}},limit}
+     }});
+     if(!Array.isArray(result))throw Error("Invalid transactional query result");
+     const rows=result.filter(x=>x.document).map(x=>{
+      const d=x.document;
+      if(!d.fields||!d.updateTime||!d.name)throw Error("Invalid record response");
+      return {data:decodeFields(d.fields),updateTime:d.updateTime,path:d.name.split("/documents/")[1]};
+     });
+     if(rows.length>=limit)throw new FirestoreError(409,"CHECKOUT_SCOPE_TOO_LARGE");
+     return rows;
+    },
     async commit(writes){
      if(done)throw Error("Transaction already finalized");
      const updates=writes.map(write=>{
