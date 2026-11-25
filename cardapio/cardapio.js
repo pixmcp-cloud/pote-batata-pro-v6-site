@@ -154,13 +154,11 @@ function heroSlide(p){
   const slide=el("div","menu-hero-slide "+(p?"menu-hero-food":"menu-hero-title"));
   slide.dataset.kind=p?"food":"title";slide.setAttribute("aria-hidden","true");
   const image=el("img",p?"menu-hero-product":"");
-  image.src=p?p.image:"./cardapio-abertura.svg";
+  image.src=p?p.image:"./cardapio-abertura.svg?v=luminoso3";
   image.alt=p?p.title:"CARDÁPIO";image.decoding="async";
   if(p){
-    const bg=el("img","menu-hero-backdrop");bg.src=p.image;bg.alt="";bg.setAttribute("aria-hidden","true");bg.decoding="async";
-    bg.addEventListener("error",()=>bg.hidden=true,{once:true});
     image.addEventListener("error",()=>{image.src=IMG;},{once:true});
-    slide.append(bg,image);
+    slide.append(image);
     slide.append(el("div","menu-hero-name",p.title));
   }else slide.append(image);
   return slide;

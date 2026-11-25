@@ -58,6 +58,14 @@ async function tapProduct(page,selector){
         await page.click("#heroNext");
         assert.equal(await page.$eval("#menuHero .is-active",e=>e.dataset.kind),"food");
         assert.equal(await page.$eval("#menuHero",e=>e.classList.contains("is-food")),true);
+        await page.waitForFunction(()=>Number(getComputedStyle(document.querySelector(".menu-hero-steam")).opacity)>.9);
+        const visual=await page.$eval(".menu-hero-food.is-active .menu-hero-product",e=>({fit:getComputedStyle(e).objectFit,pos:getComputedStyle(e).objectPosition}));
+        assert.equal(visual.fit,"cover");assert.equal(visual.pos,"50% 9%");
+        await page.waitForFunction(()=>[...document.querySelectorAll(".menu-hero-steam i")].some(e=>Number(getComputedStyle(e).opacity)>.35&&getComputedStyle(e).animationPlayState==="running"));
+        const motion=await page.evaluate(async()=>{const e=document.querySelector(".menu-hero-steam i");const first=getComputedStyle(e).transform;await new Promise(r=>setTimeout(r,220));return first!==getComputedStyle(e).transform;});
+        assert(motion,"vapor precisa se mover mesmo com carrossel pausado");
+        assert(await page.evaluate(async()=>{const r=await fetch("./vapor.svg?v=3");return r.ok&&r.headers.get("content-type").includes("svg");}));
+
         await page.click("#heroNext");
         assert.equal(await page.$eval("#menuHero .is-active",e=>e.dataset.kind),"title");
         await page.click("#heroPrev");

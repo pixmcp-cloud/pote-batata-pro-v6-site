@@ -57,3 +57,5 @@ Carrossel 16:9 com arte vetorial CARDÁPIO antes de cada foto de salgado/doce, 2
 Na prévia, refrigerante lata de 350 ml oferece Cola, Guaraná e Laranja, opções de referência do projeto, não estoque real confirmado. A ficha mantém os sabores recolhidos em Ver detalhes. A escolha do sabor é exigida antes de adicionar; temperatura opcional e observação seguem na sacola e resumo demonstrativo. Lojas publicadas recebem apenas sabores explicitamente cadastrados, sem inventar disponibilidade. Nenhum preço ou estoque alterado.
 
 Correção de publicação: teste Chrome reproduz fechamento da sacola e toque real no produto seguinte, centralizando o alvo fora das barras fixas. Toast não intercepta toques. A QA de pull requests agora executa o mesmo teste de navegador que bloqueava o deploy, sem remover as verificações existentes.
+
+Capa luminosa v3: fundo âmbar mais claro, ouro iluminado, foto preenche 16:9 com posição vertical 9% (recorte predominantemente inferior), vapor branco reforçado com quatro camadas e movimento comprovado em Chrome. Vapor permanece animado ao pausar os slides; preferência de movimento reduzido mantém névoa estática.
