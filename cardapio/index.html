@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?capa=20261125">
-  <script type="module" src="./cardapio.js?capa=20261125"></script>
+  <link rel="stylesheet" href="./cardapio.css?bebidas=opcoes-20261125">
+  <script type="module" src="./cardapio.js?bebidas=opcoes-20261125"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -89,9 +89,10 @@
             <div><dt>Apresentação</dt><dd id="productFactFormat"></dd></div>
             <div><dt>Alergênicos</dt><dd>A confirmar com o estabelecimento</dd></div>
           </dl>
-          <h3 class="product-ingredient-heading">Ingredientes</h3><ul id="productIngredients" class="product-ingredients"></ul><p id="productIngredientsEmpty">Ingredientes ainda não informados. Consulte a loja.</p><p id="productIngredientNote"></p><p>Atenção: a lista não é uma declaração completa de alergênicos ou contaminação cruzada.</p>
+          <h3 class="product-ingredient-heading" id="productIngredientHeading">Ingredientes</h3><p id="productFlavorHint" hidden>Escolha um sabor para este item.</p><div id="productFlavors" class="drink-options" role="group" aria-label="Sabores disponíveis" hidden></div><ul id="productIngredients" class="product-ingredients"></ul><p id="productIngredientsEmpty">Ingredientes ainda não informados. Consulte a loja.</p><p id="productIngredientNote"></p><p>Atenção: a lista não é uma declaração completa de alergênicos ou contaminação cruzada.</p>
         </details>
         <fieldset id="addonFieldset" class="addons"><legend>Deixe ainda melhor</legend><div id="addonList"></div></fieldset>
+        <label class="note-field drink-temperature" id="productTemperature" hidden>Temperatura da bebida<select id="drinkTemperature"><option value="">Sem preferência</option><option value="Gelado">Gelado</option><option value="Fora do gelo">Fora do gelo</option><option value="Temperatura ambiente">Temperatura ambiente</option></select></label>
         <label class="note-field">Alguma observação?<textarea id="productNote" rows="2" maxlength="220" placeholder="Ex.: sem cebola"></textarea></label>
         <div class="dialog-bottom">
           <div class="qty-counter" aria-label="Quantidade"><button id="qtyMinus" type="button" aria-label="Diminuir quantidade">−</button><output id="productQty" aria-live="polite">1</output><button id="qtyPlus" type="button" aria-label="Aumentar quantidade">+</button></div>

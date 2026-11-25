@@ -63,3 +63,5 @@ assert(!buildMenuCandidates(comboState,{priceFor}).some(x=>x.id==="combo-old"||x
 assert.deepEqual(sanitizeReadMenu({...doc,items:[...doc.items,{...doc.items[0],id:"combo-old",category:"Combos"}]},doc.slug).items.map(x=>x.id),["r01","bev-agua"]);
 assert.equal(comboState.data.combos.length,1);
 console.log("PASS: combos fora do cardápio público, dados operacionais preservados");
+
+const drinkState=structuredClone(state);drinkState.data.beverages=[{id:"lata",name:"Refrigerante",size:"350 ml",sellPrice:7,flavors:["Cola","Guaraná","Laranja"]}];const drink=makePublicMenu(drinkState,{slug:"loja-bebidas",ownerUid:"uid-owner",selectedIds:["bev-lata"],priceFor});assert.deepEqual(sanitizeReadMenu(drink,drink.slug).items[0].flavors,["Cola","Guaraná","Laranja"]);assert.equal(sanitizeReadMenu(drink,drink.slug).items[0].size,"350 ml");

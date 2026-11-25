@@ -1,5 +1,5 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
-import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs?catalogo=sem-combos";
+import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs?catalogo=bebidas-opcoes";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -85,8 +85,8 @@ let catalogue = [
   { id:"brigadeiro",title:"Brigadeiro Cremoso",category:"Doces",description:"Chocolate intenso em uma sobremesa cremosa, feita para adoçar seu dia.",priceCents:1990,tag:"Doce momento",image:"../assets/recipes/brigadeiro.webp",addons:["avela"] },
   { id:"chocolate-morango",title:"Chocolate Preto com Morango",category:"Doces",description:"Chocolate e morango em camadas de pura felicidade.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-preto.webp",addons:["avela"] },
   { id:"chocolate-morango-branco",title:"Chocolate Branco com Morango",category:"Doces",description:"Chocolate branco e morango em camadas cremosas.",priceCents:2290,tag:"Especial",image:"../assets/recipes/morango-branco.webp",addons:["avela"] },
-  { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"../assets/recipes/refrigerante-lata.webp",addons:[] },
-  { id:"agua",title:"Água Mineral",category:"Bebidas",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"../assets/recipes/agua-mineral.webp",addons:[] }
+  { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",size:"Lata 350 ml",flavors:["Cola","Guaraná","Laranja"],description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"../assets/recipes/refrigerante-lata.webp",addons:[] },
+  { id:"agua",title:"Água Mineral",category:"Bebidas",size:"Garrafa 500 ml",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"../assets/recipes/agua-mineral.webp",addons:[] }
 ].map(product => ({ ...product, ingredientNames:DEMO_INGREDIENTS[product.id]||[], addons:product.addons.map(id => ({
   cheddar:{id:"cheddar",label:"Cheddar extra",priceCents:490},
   bacon:{id:"bacon",label:"Bacon crocante",priceCents:590},
@@ -254,14 +254,29 @@ function openProduct(p){
     Doces:"Pote doce — referência de 250 g",
     Bebidas:"Embalagem e volume a confirmar"
   })[p.category] || "A confirmar pela loja";
+  const isDrink=p.category==="Bebidas";
+  const flavors=isDrink&&Array.isArray(p.flavors)?p.flavors:[];
+  const hasFlavors=flavors.length>0;
+  $("productFactFormat").textContent=isDrink?(p.size||"Embalagem e volume a confirmar"):$("productFactFormat").textContent;
+  $("productIngredientHeading").textContent=isDrink?"Sabores":"Ingredientes";
+  $("productIngredients").hidden=isDrink;
+  $("productFlavors").hidden=!hasFlavors;
+  $("productFlavors").replaceChildren();
+  for(const flavor of flavors){const label=el("label","drink-option");const radio=el("input");radio.type="radio";radio.name="drinkFlavor";radio.value=flavor;label.append(radio,el("span","",flavor));$("productFlavors").append(label);}
+  $("productFlavorHint").hidden=!hasFlavors;
+  $("productTemperature").hidden=!isDrink;
+  $("drinkTemperature").value="";
+  $("productNote").placeholder=isDrink?"Ex.: gelado, fora do gelo, temperatura ambiente":"Ex.: sem cebola";
   const names=Array.isArray(p.ingredientNames)?p.ingredientNames:[];
   const list=$("productIngredients");
   list.replaceChildren();
   for(const name of names)list.append(el("li","",name));
-  $("productIngredientsEmpty").hidden=names.length>0;
+  $("productIngredientsEmpty").hidden=isDrink?hasFlavors:names.length>0;
+  $("productIngredientsEmpty").textContent=isDrink?(p.id==="agua"?"Água mineral sem gás.":"Consulte a loja sobre os sabores disponíveis."):"Ingredientes ainda não informados. Consulte a loja.";
   $("productIngredientNote").textContent=requestedSlug===null
     ?(p.id==="carne-cheddar"?"Ingredientes principais; ficha completa ainda precisa ser revisada pela loja.":"Ingredientes da receita de referência; confirmar composição final com a loja.")
     :"Ingredientes informados pelo estabelecimento. Confirme composição e alergênicos antes de consumir.";
+  if(isDrink)$("productIngredientNote").textContent="Confira a composição e os alergênicos no rótulo da bebida.";
   $("productFacts").open=false;
   $("productNote").value="";
   $("addonList").replaceChildren();
@@ -287,7 +302,16 @@ function updateProductTotal(){
 }
 function addCurrentProduct(){
   if(!selected)return;
-  cart=addLine(cart,makeLine(selected,quantity,[...chosenExtras],$("productNote").value),catalogue);
+  const isDrink=selected.category==="Bebidas";
+  const flavor=document.querySelector('input[name="drinkFlavor"]:checked')?.value||"";
+  if(isDrink&&selected.flavors?.length&&!selected.flavors.includes(flavor)){
+    $("productFacts").open=true;
+    $("productFlavors").querySelector("input")?.focus();
+    toast("Escolha o sabor do refrigerante.");return;
+  }
+  const temperature=isDrink?$("drinkTemperature").value:"";
+  const note=[flavor?"Sabor: "+flavor:"",temperature?"Temperatura: "+temperature:"",$("productNote").value.trim()].filter(Boolean).join(" • ");
+  cart=addLine(cart,makeLine(selected,quantity,[...chosenExtras],note),catalogue);
   saveCart();renderCart();productDialog.close();toast("Adicionado à sacola.");
 }
 function renderCart(){

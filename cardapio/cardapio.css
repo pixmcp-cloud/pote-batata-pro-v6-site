@@ -238,3 +238,5 @@ svg{width:22px;height:22px}
 .menu-hero-controls span{font-size:11px;color:#f0d5a7;min-width:35px;text-align:center}
 @media(max-width:720px){.menu-hero{width:calc(100% - 24px);margin:12px auto 8px;border-radius:15px}.menu-hero-controls{gap:3px;padding:3px;bottom:4%;right:3%}.menu-hero-controls button{width:28px;height:28px;font-size:15px}.menu-hero-controls span{font-size:9px;min-width:30px}.menu-hero-name{bottom:23%}}
 @media(prefers-reduced-motion:reduce){.menu-hero-steam{display:none}}
+
+.drink-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:7px;margin:8px 0 12px}.drink-option{display:flex;align-items:center;gap:6px;padding:10px 8px;border:1px solid #70583b;border-radius:9px;color:var(--cream);font-size:12px;cursor:pointer}.drink-option:has(input:checked){border-color:var(--gold);background:#503719}.drink-option input{accent-color:#e7b968;margin:0}.drink-temperature{margin:14px 0}.drink-temperature select{border:1px solid #695137;border-radius:11px;background:#17130f;color:var(--cream);padding:12px;width:100%}#productFlavors[hidden],#productTemperature[hidden],#productFlavorHint[hidden]{display:none!important}
