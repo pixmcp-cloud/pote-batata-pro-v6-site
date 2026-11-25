@@ -149,3 +149,5 @@ Checkpoint de ciclo D01/D05: adaptador candidato de transições grava recibo e 
 
 ### Ordem de execução reafirmada — 25/11/2026
 Executar D01–D06 em sequência, com testes de concorrência, isolamento, consumo e regressão. Geoapify real 15/15 aprovado; staging corrigido versão 2822b631-4d63-443e-8ff5-07d4fbe6182f. D01 primeira prova Firestore Emulator 45590707005 aprovada. Prioridade imediata: ampliar prova do ciclo entrega/PDV e ligar componentes somente após validação. Sem produção, Floot ou serviços pagos. Limites FREE/PRO 10/600 ainda candidatos; não ativar comercialmente sem validação.
+
+Teste ampliado D01/D05 preparado para provar todo o ciclo, inclusive entrega com cronômetro fixo de 65s, confirmação explícita de caixa e cancelamento sem estoque fictício. Reconciliado com atualização concorrente do Log Mestre, sem sobrescrever o registro.

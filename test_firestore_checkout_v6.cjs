@@ -7,6 +7,7 @@ const now=Date.parse('2026-11-25T12:00:00Z');
 test('D01: multi-item basket, one reservation, same guard and pulse, quote redemption and concurrent checkout',{timeout:120000},async()=>{
  if(!/^(127\.0\.0\.1|localhost):\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||''))throw Error('Local emulator required');
  const {commitPublicCheckout}=await import('./workers/antifraud/src/checkout_transaction.mjs');
+ const {mutateDeliveryOrder,readDeliveryOrder}=await import('./workers/antifraud/src/delivery_transaction.mjs');
  const {createFirestoreRepository}=await import('./workers/antifraud/src/firestore.mjs');
  const {recordPath,quantities}=await import('./workers/antifraud/src/domain.mjs');
  const {confirmPaymentOnSaleCompletion,orderAmountCents}=await import('./pdv_cash_core.mjs');
@@ -60,6 +61,56 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
   await env.withSecurityRulesDisabled(async ctx=>{
    const db=ctx.firestore();const doc=await sdk.getDoc(sdk.doc(db,guard));assert.equal(doc.data().revision,2);
   });
+  // Authoritative delivery lifecycle uses the same order record, receipt and guard.
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const db=ctx.firestore();
+   await sdk.setDoc(sdk.doc(db,root+'/deliveryCouriersV6/courier-a'),{uid:'courier-a',active:true,accepted:true});
+   await sdk.setDoc(sdk.doc(db,rp('cashSessions','shift-a')),{record:{universe,group:'cashSessions',id:'shift-a',item:{id:'shift-a',status:'open',openingCash:0,openedAt:new Date(now).toISOString()},rank:0},updatedAt:sdk.serverTimestamp()});
+  });
+  let sequence=0;
+  const mutate=(actorUid,action,extra={},delta=0,op)=>mutateDeliveryOrder({repository,actorUid,id:first.id,action,operationId:op||'delivery-op-'+String(++sequence).padStart(20,'0'),now:now+delta,...extra});
+  await assert.rejects(()=>mutate('buyer-a','transition',{next:'em_producao'},1000),/order_unavailable/);
+  await assert.rejects(()=>mutate(uid,'assign',{courierUid:'unknown'},1000),/courier_not_verified/);
+  assert.equal((await mutate(uid,'assign',{courierUid:'courier-a'},1000)).revision,1);
+  await assert.rejects(()=>readDeliveryOrder({repository,actorUid:'buyer-b',id:first.id,now}),/order_unavailable/);
+  assert.equal((await readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now})).destination,undefined);
+  const produceOp='delivery-produce-00000000000001';
+  assert.equal((await mutate(uid,'transition',{next:'em_producao'},10000,produceOp)).status,'em_producao');
+  assert.equal((await mutate(uid,'transition',{next:'em_producao'},10000,produceOp)).alreadyApplied,true);
+  assert.equal((await mutate(uid,'transition',{next:'finalizado'},20000)).status,'finalizado');
+  await assert.rejects(()=>mutate(uid,'transition',{next:'entregue'},25000),/dispatch_required/);
+  assert.equal((await mutate('courier-a','transition',{next:'saiu_entrega'},30000)).status,'saiu_entrega');
+  const courierView=await readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now:now+30000});
+  assert.deepEqual(courierView.destination,{lat:-29,lon:-51});
+  assert.equal((await readDeliveryOrder({repository,actorUid:'buyer-a',id:first.id,now:now+40000})).elapsedSeconds,40);
+  await assert.rejects(()=>mutate('buyer-a','confirm_payment',{reference:'fake'},40000),/order_unavailable/);
+  const confirmed=await mutate(uid,'confirm_payment',{reference:'Comprovante conferido QA'},45000);
+  assert.equal(confirmed.paymentStatus,'confirmed');
+  await assert.rejects(()=>mutate(uid,'confirm_payment',{reference:'duplicado'},46000),/payment_confirmation_invalid/);
+  await assert.rejects(()=>mutate(uid,'transition',{next:'cancelado',decision:'return'},47000),/paid_order_requires_refund/);
+  const completed=await mutate('courier-a','transition',{next:'entregue'},65000);
+  assert.equal(completed.durationSeconds,65);
+  const view=await readDeliveryOrder({repository,actorUid:'buyer-a',id:first.id,now:now+120000});
+  assert.equal(view.elapsedSeconds,65);assert.equal(view.status,'entregue');assert.equal(view.paymentStatus,'confirmed');
+  await assert.rejects(()=>readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now:now+120000}),/order_unavailable/);
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const db=ctx.firestore(),get=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();
+   const order=(await get(rp('orders',first.orderId))).record.item,receipt=await get('publicOrderReceipts/'+first.id);
+   assert.equal(order.status,'entregue');assert.equal(order.durationSeconds,65);assert.equal(order.cashSessionId,'shift-a');
+   assert.equal(orderAmountCents(order),7300);assert.equal(receipt.destination,undefined);assert.equal(receipt.durationSeconds,65);
+   assert.equal((await get(rp('ingredients','base'))).record.item.stock,500);
+   assert.equal((await get(rp('ingredients','pote'))).record.item.stock,8);
+   assert.equal((await get(rp('beverages','refri'))).record.item.stock,9);
+  });
+  const winner=races.find(x=>x.status==='fulfilled').value;
+  const cancelled=await mutateDeliveryOrder({repository,actorUid:uid,id:winner.id,action:'transition',next:'cancelado',decision:'return',operationId:'delivery-cancel-00000000000001',now:now+70000});
+  assert.equal(cancelled.status,'cancelado');
+  await env.withSecurityRulesDisabled(async ctx=>{
+   const db=ctx.firestore(),get=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();
+   assert.equal((await get(rp('ingredients','base'))).record.item.stock,500,'Cancelling an undeducted reservation must not create stock');
+   assert.equal((await get(guard)).revision,9,'2 creates + assign/produce/finalize/dispatch/payment/delivered/cancel');
+  });
+  console.log('D01_D05_LIFECYCLE_EMULATOR_PASS stock=500g elapsed=65s cash=7300cent courier=bound cancellation=reservation_only');
   console.log('D01_EMULATOR_CHECKOUT_ATOMIC_PASS basket=7300 reserve=500g concurrent=1of2 duplicate=blocked payment=pending');
  }finally{await env.cleanup()}
 });
