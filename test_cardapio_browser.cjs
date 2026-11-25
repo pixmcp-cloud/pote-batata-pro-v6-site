@@ -121,14 +121,16 @@ async function tapProduct(page,selector){
         await page.click("#addToCart");
         assert.equal(await page.$eval("#productDialog",e=>e.open),true);
         assert.equal(await page.$eval("#productFacts",e=>e.open),true);
-        assert.deepEqual(await page.$$eval('input[name="drinkFlavor"]',nodes=>nodes.map(n=>n.value)),["Cola","Guaraná","Laranja"]);
+        assert.deepEqual(await page.$$eval('input[name="drinkFlavor"]',nodes=>nodes.map(n=>n.value)),["Cola","Guaraná","Laranja","Soda"]);
         await page.click('input[name="drinkFlavor"][value="Guaraná"]');
+        assert.equal(await page.$eval('input[name="drinkType"][value="Normal"]',e=>e.checked),true);
+        assert.equal(await page.$eval('input[name="drinkType"][value="Zero"]',e=>e.disabled),true);
         assert.deepEqual(await page.$$eval("#drinkTemperature option",nodes=>nodes.map(n=>n.value)),["Gelado","Fora do gelo"]);
         assert.equal(await page.$eval("#drinkTemperature",e=>e.value),"Gelado");
         await page.select("#drinkTemperature","Fora do gelo");
         await page.click("#addToCart");
         await page.click("#floatingCart");
-        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Temperatura: Fora do gelo/);
+        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Versão: Normal.*Temperatura: Fora do gelo/);
         await page.click("#closeCart");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);

@@ -29,6 +29,28 @@ export function recipeIngredientNames(recipe,data){
   const names=new Map((Array.isArray(data?.ingredients)?data.ingredients:[]).filter(i=>i?.id&&typeof i.name==="string"&&!/embalagem|descartável|descartavel/i.test(String(i.category||""))).map(i=>[i.id,i.name]));
   return safeIngredientNames((Array.isArray(recipe?.items)?recipe.items:[]).map(i=>names.get(i?.id)));
 }
+export const SODA_FLAVORS=["Cola","Guaraná","Laranja","Soda"];
+export function sodaVariant(name,size){
+  const key=String(name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  if(!/refrigerante|\bsoda\b/.test(key))return null;
+  const flavor=SODA_FLAVORS.find(x=>new RegExp("\\b"+x.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()+"\\b").test(key));
+  const pack=text(size,60);
+  if(!flavor||!pack)return null;
+  return {flavor,type:/\bzero\b|sem acucar/.test(key)?"Zero":"Normal",pack};
+}
+export function groupDrinkProducts(products){
+  const result=[],groups=new Map();
+  for(const p of products){
+    const v=p.category==="Bebidas"?sodaVariant(p.title,p.size):null;
+    if(!v){result.push(p);continue;}
+    const key=v.pack.toLowerCase().replace(/\s+/g,"");
+    let g=groups.get(key);
+    if(!g){g={...p,id:"soda-group-"+key,title:/lata/i.test(v.pack)?"Refrigerante Lata":"Refrigerante "+v.pack,description:"Escolha o sabor e a versão.",flavors:SODA_FLAVORS,drinkVariants:[],priceCents:p.priceCents,addons:[]};groups.set(key,g);result.push(g);}
+    g.drinkVariants.push({id:p.id,flavor:v.flavor,type:v.type,available:p.available===true,priceCents:p.priceCents});
+    if(p.available===true&&p.priceCents<g.priceCents)g.priceCents=p.priceCents;
+  }
+  return result;
+}
 export function buildMenuCandidates(snapshot,{priceFor,allowed,imageFor,includeIngredientNames=false,publishedPhotos}={}){
   const data=snapshot?.data||{},items=[];
   const business=text(data.businessType||"batataria",32);
@@ -53,11 +75,13 @@ const ownImage=(src,id)=>{
       category:safeCategory(r.category),priceCents:price,...(includeIngredientNames?{ingredientNames:recipeIngredientNames(r,data)}:{}),image:isPublishedPhoto(publishedPhotos?.get?.(id))?publishedPhotos.get(id):(typeof imageFor==="function"&&/^\.?\/?assets\/recipes\/[A-Za-z0-9_\-.]+\.(?:webp|png|jpg|jpeg)$/i.test(String(imageFor(r)||""))?publicImage(imageFor(r),defaultImage):ownImage(r.imageUrl||r.photoUrl||r.photo||r.image,id)),addons:[]});
   }
   for(const b of Array.isArray(data.beverages)?data.beverages:[]){
-    if(!b?.id||!b?.name||b.unavailable===true||b.suspended===true)continue;
+    if(!b?.id||!b?.name)continue;
+    const variant=sodaVariant(b.name,b.size);
+    if(!variant&&(b.unavailable===true||b.suspended===true))continue;
     const id="bev-"+text(b.id,68),price=cents(b.sellPrice);
     if(!price||items.some(p=>p.id===id))continue;
     items.push({id,title:text(b.name,80),description:text(b.size,60),
-      category:"Bebidas",priceCents:price,image:ownImage(b.imageUrl||b.photoUrl||b.photo||b.image,id),size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
+      category:"Bebidas",priceCents:price,...(variant?{available:b.unavailable!==true&&b.suspended!==true&&Number(b.stock)>0}:{}),image:ownImage(b.imageUrl||b.photoUrl||b.photo||b.image,id),size:text(b.size,60),flavors:safeIngredientNames(b.flavors).slice(0,12),addons:[]});
   }
   return items.slice(0, MENU_MAX_ITEMS);
 }
@@ -92,7 +116,7 @@ export function sanitizeReadMenu(raw,slug){
     Number.isSafeInteger(p.priceCents)&&p.priceCents>0&&p.priceCents<=9999999&&Array.isArray(p.addons))
     .slice(0,MENU_MAX_ITEMS).map(p=>({id:text(p.id,72),title:text(p.title,90),
       description:text(p.description,240),category:safeCategory(p.category),
-      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12)}:{}),addons:[]}));
+      priceCents:p.priceCents,image:publicImage(p.image),ingredientNames:safeIngredientNames(p.ingredientNames),...(safeCategory(p.category)==="Bebidas"?{size:text(p.size||p.description,60),flavors:safeIngredientNames(p.flavors).slice(0,12),...(sodaVariant(p.title,p.size||p.description)?{available:p.available===true}:{})}:{}),addons:[]}));
   if(!items.length)return null;
   return {title:text(raw.title,70),subtitle:text(raw.subtitle,110),items,slug};
 }

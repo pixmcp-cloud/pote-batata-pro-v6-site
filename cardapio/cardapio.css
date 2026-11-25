@@ -243,3 +243,5 @@ svg{width:22px;height:22px}
 
 /* Keep products reachable between fixed header and floating cart. Toasts are informative, never block taps. */
 html{scroll-padding-bottom:120px}.menu-section{padding-bottom:130px}.add-button{scroll-margin-block:105px 130px}.toast{pointer-events:none}.dialog-scroll{scroll-padding-bottom:110px}
+
+.drink-type{display:flex;gap:0;border:1px solid #70583b;padding:3px;border-radius:12px;margin:12px 0;min-width:0}.drink-type legend{font-size:12px;color:var(--goldLight);font-weight:800;padding:0 5px}.drink-type .drink-option{flex:1;justify-content:center;border:0;min-height:37px}.drink-type input{position:absolute;opacity:0;width:1px;height:1px}.drink-type .drink-option:has(input:focus-visible){outline:2px solid var(--gold)}.drink-type .drink-option:has(input:checked){background:#b88b46;color:#120d08;font-weight:800}.drink-option:has(input:disabled){background:#302e2b;color:#77736d;border-color:#514d48;cursor:not-allowed;opacity:.7}

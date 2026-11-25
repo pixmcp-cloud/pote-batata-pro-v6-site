@@ -39,7 +39,7 @@ export function lineKey(line) {
 }
 export function normalizeCart(raw, products) {
   if (!Array.isArray(raw)) return [];
-  const byId = new Map(products.filter(validProduct).map(p => [p.id, p]));
+  const byId = new Map(products.filter(p=>validProduct(p)&&p.available!==false).map(p => [p.id, p]));
   const merged = new Map();
   for (const entry of raw.slice(0, 80)) {
     if (!entry || typeof entry.id !== "string" || !byId.has(entry.id)) continue;

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {slugify,validSlug,cents,publicImage,buildMenuCandidates,makePublicMenu,sanitizeReadMenu,menuHeroSequence} from "./public_menu_core.mjs";
+import {slugify,validSlug,cents,publicImage,buildMenuCandidates,makePublicMenu,sanitizeReadMenu,menuHeroSequence,groupDrinkProducts} from "./public_menu_core.mjs";
 assert.equal(slugify("Potê Batata Pro!"),"pote-batata-pro");
 assert.equal(validSlug("pote-batata-a1020"),true);
 for(const slug of ["", "xx", "Pote Batata", "../../foo", "loja@"," aaaa","áaaa"])assert.equal(validSlug(slug),false);
@@ -80,3 +80,5 @@ assert.equal(menuHeroSequence([{image:"../assets/recipes/r05.webp",category:"Sal
 assert.equal(menuHeroSequence([{image:"../assets/recipes/r05.webp",category:"Salgados"}],{demo:true}).length,2);
 assert(!JSON.stringify(oa).includes("SECRET"));assert.equal(publicImage("data:image/webp;base64,"+"A".repeat(12001)),"../assets/generic/business-batataria.svg");
 console.log("PASS: carrossel por loja, fotos próprias e nenhum vazamento de fotos Potê");
+
+const sodaStore=structuredClone(state);sodaStore.data.beverages=[{id:"a",name:"Refrigerante Cola",size:"600 ml",sellPrice:9,stock:3},{id:"b",name:"Refrigerante Cola Zero Açúcar",size:"600 ml",sellPrice:10,stock:2},{id:"c",name:"Refrigerante Soda",size:"600 ml",sellPrice:9,stock:0}];const sodaDoc=makePublicMenu(sodaStore,{...options,selectedIds:["bev-a","bev-b","bev-c"]});const sg=groupDrinkProducts(sanitizeReadMenu(sodaDoc,sodaDoc.slug).items)[0];assert.deepEqual(sg.flavors,["Cola","Guaraná","Laranja","Soda"]);assert.deepEqual(sg.drinkVariants.map(v=>[v.type,v.available,v.priceCents]),[["Normal",true,900],["Zero",true,1000],["Normal",false,900]]);assert(!JSON.stringify(sodaDoc).includes("stock"));
