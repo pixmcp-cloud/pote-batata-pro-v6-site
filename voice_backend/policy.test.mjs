@@ -65,3 +65,10 @@ test('entrada e saída de franquias preservam uso e teto coletivo',()=>{
  assert.equal(q(2,2000,0).remaining,0);
  assert.throws(()=>q(0,0,0));assert.throws(()=>q(2,10,11));
 });
+
+test('valor de referência da moeda não supera R$1,10 líquido',()=>{
+ const cfg={providerMicroBrlPer1000:3000000,creditMicroBrl:2000000};
+ assert.equal(priceCredits('x'.repeat(500),cfg),3);
+ assert.equal(priceCredits('x'.repeat(777),cfg),5);
+ assert.equal(priceCredits('x'.repeat(500),{...cfg,creditMicroBrl:900000}),4);
+});
