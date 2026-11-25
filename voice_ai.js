@@ -131,7 +131,7 @@ universe.innerHTML=`
  </div>`;
 document.body.append(universe);
 const u=id=>universe.querySelector('#'+id);
-const coin=(i)=>'<div class="iau-coins" aria-hidden="true">'+Array.from({length:[1,3,5,7,9,12][i]},(_,j)=>'<i style="--i:'+j+';--n:'+([1,3,5,7,9,12][i])+'">IA</i>').join('')+'</div>';
+const coin=(i)=>'<div class="iau-coins" aria-hidden="true">'+Array.from({length:[1,3,5,7,9,12][i]},(_,j)=>'<i style="--x:'+((j%3-1)*28)+'px;--y:'+(21-Math.floor(j/3)*10)+'px">IA</i>').join('')+'</div>';
 u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>`<article class="iau-pack" data-tier="${i}"><small>ENERGIA CRIATIVA</small>${coin(i)}<strong>${amount}</strong><span>MOEDAS IA</span><b>${brl(cents)}</b><button type="button" data-package="${i}">Comprar</button></article>`).join('');
 let universeSeq=0;
 async function universeRefresh(){
