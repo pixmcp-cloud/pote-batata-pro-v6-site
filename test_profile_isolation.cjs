@@ -44,8 +44,10 @@ assert.match(element("poteFloatToggle").innerHTML,/M4 7h16/,"Menu fechado manté
 events.get("poteFloatToggle:click")(navEvent);
 assert.equal(element("poteFloatBackdrop").hidden,false,"Três riscos abrem menu mesmo com carteira disponível");
 assert.equal(walletOpens,0);
-events.get("poteFloatNavigation:click")({target:{closest(){return {dataset:{tab:"ia-wallet"}};}}});
-assert.equal(walletOpens,1,"Só a opção IA COIN abre a carteira");
+events.get("poteIaCoinToggle:click")(navEvent);
+assert.equal(walletOpens,1,"Só a esfera IA COIN abre a carteira");
+assert(!source.includes('["ia-wallet",'),"Não colocar IA dentro do menu");
+assert(source.includes('id="poteIaCoinToggle"'),"Esfera independente");
 assert.equal(element("poteFloatBackdrop").hidden,true);
 assert.equal(element("poteFloatName").textContent,"Canário Certo","A identidade vem do documento associado ao UID");
 assert.match(element("poteFloatAvatar").innerHTML,/canary.png/);
