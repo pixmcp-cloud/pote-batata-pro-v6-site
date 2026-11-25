@@ -10,6 +10,7 @@ import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120-track
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+window.POTE_CONNECT_TOKEN=async()=>{const user=auth.currentUser;if(!user||user.uid!==window.POTE_AUTH?.uid||window.POTE_APP_READY!==true)throw Error("Sessão indisponível.");return user.getIdToken()};
 const google = new GoogleAuthProvider();
 google.setCustomParameters({ prompt: "select_account" });
 

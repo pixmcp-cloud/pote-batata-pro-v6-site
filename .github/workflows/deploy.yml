@@ -15,6 +15,11 @@ jobs:
         run: |
           mkdir -p public
           cp -R cardapio public/cardapio
+          cp -R motoboy-connect public/motoboy-connect
+          cp motoboy_connect_merchant.mjs public/
+          node --check public/motoboy-connect/connect-client.mjs
+          node --check public/motoboy-connect/rider.mjs
+          node --check public/motoboy_connect_merchant.mjs
           cp public_menu_core.mjs public/public_menu_core.mjs
           cp public_menu_admin.mjs public/public_menu_admin.mjs
           cp public_menu_admin.css public/public_menu_admin.css

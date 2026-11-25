@@ -186,7 +186,7 @@ function renderPage(){
  'Cadastro, viagens, quilometragem e acertos — sem serviços externos pagos.</p></div>'+
  '<div class="moto-stats">'+[['Viagens',sum.trips],['Entregas',sum.orders],['Quilometragem',round(sum.km)+" km"],['Saldo a pagar',money(sum.balance)]].map(([k,v])=>
  '<div><small>'+k+'</small><strong>'+esc(v)+'</strong></div>').join("")+'</div>'+
- deliveryForm()+courierForm()+tripForm()+'<h3>Entregadores e acertos</h3><div class="moto-riders">'+riderCards()+'</div>'+
+ '<div class="moto-new"><h3>🏍️ MOTOBOY CONNECT</h3><p class="moto-note">Convide o entregador, acompanhe localização e mensagens durante a entrega.</p><button class="btn" onclick="window.POTE_MOTOBOY_CONNECT?.open()">Abrir Motoboy Connect</button></div>'+deliveryForm()+courierForm()+tripForm()+'<h3>Entregadores e acertos</h3><div class="moto-riders">'+riderCards()+'</div>'+
  '<h3>Viagens e histórico</h3><div class="moto-trips">'+tripCards()+'</div>'+
  '<p class="moto-note">Valores previstos. Acertos são lançamentos de controle e nunca realizam pagamentos reais. Taxa cobrada do cliente e remuneração do motoboy são valores diferentes.</p></section>';
 }

@@ -1,8 +1,10 @@
 import {terminal,elapsed,formatElapsed,orderCode,statusText} from "./tracking-core.mjs";
 export function createConsumerUI({slug,notify,money}){
  const $=id=>document.getElementById(id),bar=$("liveOrderBar"),dialog=$("consumerHistory");
- let api=null,user=null,unsubscribe=null,watch=null,tracked=null,active=[],live=false,epoch=0,selection=0,timer=null,loading=null;
+ let api=null,user=null,unsubscribe=null,watch=null,tracked=null,active=[],live=false,epoch=0,selection=0,timer=null,loading=null,connectPanel=null,connectDialog=null;
  function paint(){
+  $("consumerTrackCourier").hidden=!(tracked?.connectJobId&&tracked.status==="saiu_entrega");
+  if(connectDialog?.open&&(!tracked?.connectJobId||terminal(tracked))){connectPanel?.close();connectDialog.close()}
   bar.hidden=!tracked;document.body.classList.toggle("has-live-order",Boolean(tracked));
   if(!tracked){delete bar.dataset.status;return;}
   bar.dataset.status=["recebido","em_preparo","finalizado","saiu_entrega","entregue","cancelado"].includes(tracked.status)?tracked.status:"unknown";
@@ -15,12 +17,13 @@ export function createConsumerUI({slug,notify,money}){
   if(!terminal(tracked)&&timer===null)timer=setInterval(()=>{$("liveTimer").textContent=formatElapsed(elapsed(tracked))},1000);
  }
  function reset(){
-  epoch++;selection++;unsubscribe?.();watch?.();unsubscribe=watch=null;tracked=null;active=[];live=false;
+  connectPanel?.close();connectDialog?.close();connectPanel=null;epoch++;selection++;unsubscribe?.();watch?.();unsubscribe=watch=null;tracked=null;active=[];live=false;
   if(timer!==null){clearInterval(timer);timer=null}paint();
  }
  function follow(order){
   if(!order||!user)return;
   if(tracked?.checkoutId===order.checkoutId&&watch)return;
+  connectPanel?.close();if(connectDialog?.open)connectDialog.close();
   const selected=++selection;
   watch?.();watch=null;tracked=order;live=false;paint();
   const index=epoch,uid=user.uid,id=order.checkoutId;
@@ -74,6 +77,20 @@ export function createConsumerUI({slug,notify,money}){
   }catch(e){notify(e.message||"Não foi possível consultar seus pedidos.")}
  }
  $("consumerAccount").addEventListener("click",openHistory);
+ $("consumerTrackCourier").addEventListener("click",async()=>{
+  if(!tracked?.connectJobId||tracked.status!=="saiu_entrega"||!user)return;
+  const id=tracked.connectJobId,index=epoch,uid=user.uid;
+  try{
+   const module=await import("../motoboy-connect/connect-client.mjs?v=1");
+   if(index!==epoch||user?.uid!==uid||tracked?.connectJobId!==id)return;
+   if(!connectDialog){connectDialog=document.createElement("dialog");connectDialog.className="merchant-dialog";document.body.append(connectDialog);}
+   connectPanel?.close();connectDialog.replaceChildren();
+   const close=document.createElement("button");close.textContent="Fechar ×";close.className="button button-quiet";close.onclick=()=>connectDialog.close();
+   const holder=document.createElement("div");connectDialog.append(close,holder);
+   connectPanel=module.makeConnectPanel({role:"customer",id,container:holder,token:()=>{if(index!==epoch||user?.uid!==uid||tracked?.connectJobId!==id)throw Error("Sessão alterada.");return api.token(user)}});
+   connectDialog.onclose=()=>{connectPanel?.close();connectPanel=null};connectDialog.showModal();
+  }catch(e){notify(e.message)}
+ });
  $("liveOrderBar").addEventListener("click",openHistory);
  $("consumerClose").addEventListener("click",()=>dialog.close());
  $("consumerLogout").addEventListener("click",async()=>{try{await api.logout();accept(null);dialog.close()}catch(e){notify(e.message)}});

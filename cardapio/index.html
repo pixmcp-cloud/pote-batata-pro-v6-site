@@ -7,8 +7,8 @@
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
   <link rel="stylesheet" href="./cardapio.css?release=tracking16">
-  <script type="module" src="./cardapio.js?release=delivery17"></script>
-</head>
+  <script type="module" src="./cardapio.js?release=connect18"></script>
+<link rel="stylesheet" href="../motoboy-connect/panel.css"></head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
   <header class="site-header">
@@ -138,6 +138,7 @@
     </div>
   </dialog>
   <dialog id="settingsDialog" class="app-dialog merchant-dialog" aria-labelledby="merchantTitle"><header class="product-modal-header"><span>ÁREA DO LOJISTA</span><button class="dialog-close" id="closeSettings" aria-label="Fechar configurações" type="button">×</button></header><div class="merchant-body"><h2 id="merchantTitle">Personalize seu cardápio</h2><p>Gerencie sua loja com segurança. Entre com a conta Google proprietária do catálogo.</p><div class="merchant-options"><a data-merchant-action="link" href="../">🔗 Personalizar link da loja <small>Alterar endereço de compartilhamento</small></a><a data-merchant-action="products" href="../">👁 Produtos visíveis <small>Mostrar, ocultar e selecionar produtos</small></a><a data-merchant-action="publish" href="../">⚙ Publicação e detalhes <small>Atualizar preços, ingredientes ou retirar do ar</small></a><a data-merchant-action="brand" href="../">🎨 Marca e identidade <small>Nome, logotipo e contatos no PDV</small></a></div><p class="merchant-note">Somente o responsável autenticado pode alterar os dados. Não é necessário login para os clientes consultarem o menu.</p></div></dialog>
+  <button type="button" id="consumerTrackCourier" class="button button-gold" hidden style="position:fixed;bottom:calc(85px + env(safe-area-inset-bottom));right:12px;z-index:41">🏍️ Acompanhar trajeto do motoboy</button>
   <button type="button" id="liveOrderBar" class="live-order-bar" hidden aria-label="Acompanhamento e histórico do pedido"><span class="live-meta"><span id="liveConnection">OFFLINE</span><i id="liveDot"></i><span id="liveCode"></span><time id="liveTimer">--:--:--</time></span><span class="live-track"><span id="liveMessage">Aguardando pedido</span></span></button>
   <dialog id="consumerHistory" class="app-dialog merchant-dialog"><header class="product-modal-header"><span>MEUS PEDIDOS</span><button class="dialog-close" id="consumerClose" type="button" aria-label="Fechar histórico">×</button></header><div class="merchant-body"><div id="consumerList"></div><button class="button button-quiet" id="consumerLogout" type="button" hidden>Sair da conta Google</button></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
