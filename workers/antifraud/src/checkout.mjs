@@ -212,7 +212,7 @@ export async function submitCheckout({input,env,repository,at,consumerUid}){
    writes.push(put(path,{record:{universe,group:"orders",id:o.id,item:o,rank:-at.getTime()-index/100}},null));
    changed.push(path.split("/").at(-1));
   }
-  const result={ok:true,checkoutId:input.operationId,totalCents:total,orderNumbers:rows.map(o=>o.orderNumber),status:"recebido",paymentStatus:"pendente",alreadyApplied:false};
+  const result={ok:true,checkoutId:input.operationId,createdAt:at.toISOString(),totalCents:total,orderNumbers:rows.map(o=>o.orderNumber),status:"recebido",paymentStatus:"pendente",alreadyApplied:false};
   writes.push(put(metaPath,{...meta.data,state:nextState},meta),put(guardPath,{revision:guard.data.revision+1},guard),
    put(pulsePath,{eventId:"web-"+input.operationId,previousEventId:pulse.data.eventId,origin:"public-checkout",affected:changed.length,changedKeys:changed,metaChanged:true,sensitive:true},pulse),
    put(eventPath,{fingerprint,result,consumerUid,createdAt:at.toISOString()},null),

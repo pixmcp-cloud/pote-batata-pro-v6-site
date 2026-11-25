@@ -19,12 +19,12 @@ export function createConsumerUI({slug,notify,money}){
  }
  function follow(order){
   if(!order||!user)return;
-  if(tracked?.checkoutId===order.checkoutId){tracked=order;paint();return;}
-  watch?.();watch=null;tracked=order;paint();
+  if(tracked?.checkoutId===order.checkoutId&&watch){tracked=order;paint();return;}
+  watch?.();watch=null;tracked=order;live=false;paint();
   const index=epoch,uid=user.uid;
   if(!terminal(order))watch=api.watchOrder(user,order.checkoutId,(next,connected)=>{
    if(index!==epoch||user?.uid!==uid||!next)return;tracked=next;live=connected;paint();
-   if(terminal(next)){watch?.();watch=null;}
+   if(terminal(next)&&connected){watch?.();watch=null;}
   },()=>{if(index===epoch){live=false;paint()}});
  }
  function accept(next){
@@ -36,7 +36,7 @@ export function createConsumerUI({slug,notify,money}){
    if(index!==epoch||user?.uid!==uid)return;
    active=orders.filter(o=>o.slug===slug).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
    live=connected;
-   if(!tracked&&active.length)follow(active[0]);
+   if((!tracked||terminal(tracked))&&active.length)follow(active[0]);
    if(tracked){const current=active.find(o=>o.checkoutId===tracked.checkoutId);if(current)tracked=current;}
    paint();
   },()=>{if(index===epoch){live=false;paint()}});
@@ -57,7 +57,11 @@ export function createConsumerUI({slug,notify,money}){
     const article=document.createElement("article"),title=document.createElement("strong"),detail=document.createElement("p"),items=document.createElement("p");
     title.textContent=o.storeTitle+" · "+orderCode(o);detail.textContent=statusText(o)+" · "+money(o.totalCents)+" · "+formatElapsed(elapsed(o));
     items.textContent=(o.lines||[]).map(l=>l.qty+"x "+l.name+(l.status==="cancelado"?" (cancelado)":"")).join(" · ");
-    article.append(title,detail,items);
+    const dates=document.createElement("p");
+    const local=value=>{const d=new Date(value);return value&&Number.isFinite(d.getTime())?d.toLocaleString("pt-BR"):"—"};
+    dates.textContent="Recebido: "+local(o.createdAt)+(o.finishedAt?" · "+(o.status==="entregue"?"Entregue":"Encerrado")+": "+local(o.finishedAt):"");
+    article.append(title,detail,dates,items);
+    if(terminal(o)){const print=document.createElement("button");print.type="button";print.className="button button-quiet";print.textContent="Imprimir comprovante";print.onclick=()=>{article.classList.add("consumer-print");document.body.classList.add("printing-consumer");try{window.print()}finally{article.classList.remove("consumer-print");document.body.classList.remove("printing-consumer")}};article.append(print);}
     if(o.slug===slug){const b=document.createElement("button");b.type="button";b.className="button button-quiet";b.textContent="Ver no letreiro";b.onclick=()=>{follow(o);dialog.close()};article.append(b)}
     container.append(article);
    }
@@ -73,7 +77,7 @@ export function createConsumerUI({slug,notify,money}){
  void load().catch(()=>{});
  return {requireLogin,async confirmed(result){
   if(!user)return;
-  const now=new Date().toISOString(),provisional={checkoutId:result.checkoutId,slug,createdAt:result.createdAt||now,status:"recebido",totalCents:result.totalCents,lines:result.orderNumbers.map(n=>({orderNumber:n}))};
+  const provisional={checkoutId:result.checkoutId,slug,createdAt:result.createdAt||null,status:"recebido",totalCents:result.totalCents,lines:result.orderNumbers.map(n=>({orderNumber:n}))};
   // The server start is authoritative; no local estimate is retained if absent.
   if(!result.createdAt)provisional.createdAt=null;
   follow(provisional);

@@ -205,6 +205,7 @@ async function tapProduct(page,selector){
         await page.type("#customerName","Cliente QA");
         await page.$eval("#copyOrder",e=>e.scrollIntoView({block:"center"}));
         await page.click("#copyOrder");
+        await page.waitForFunction(()=>!!window.__orderLink);
         const link=new URL(await page.evaluate(()=>window.__orderLink));
         assert.equal(link.hostname,"wa.me");assert.equal(link.pathname,"/5548999951729");
         assert.match(link.searchParams.get("text"),/Receita QA/);
@@ -232,7 +233,7 @@ async function tapProduct(page,selector){
           if(req.method()==="OPTIONS")return req.respond({status:204,headers:cors});
           const b=JSON.parse(req.postData());assert.equal(req.headers().authorization,"Bearer qa-google-token");requests.push(b);
           if(requests.length===1)return req.abort("failed");
-          return req.respond({status:201,headers:cors,contentType:"application/json",body:JSON.stringify({ok:true,checkoutId:b.operationId,totalCents:b.expectedTotalCents,orderNumbers:[12],status:"recebido",paymentStatus:"pendente"})});
+          return req.respond({status:201,headers:cors,contentType:"application/json",body:JSON.stringify({ok:true,checkoutId:b.operationId,totalCents:b.expectedTotalCents,orderNumbers:[12],createdAt:new Date().toISOString(),status:"recebido",paymentStatus:"pendente"})});
         }
         if(url.hostname!=="127.0.0.1")return req.abort();return req.continue();
       });
