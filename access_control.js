@@ -1,4 +1,4 @@
-/* Permissões de serviços e universos. Ausência de bloqueio = FREE acessível.
+/* Permissões de serviços e universos. FREE tem um ramo específico; Lancheria é PRO.
    O Firestore contém a política do usuário, editável somente pelo ADM. */
 (function(){
 "use strict";
@@ -21,7 +21,16 @@ function allowsUniverse(type){
  if(!universeIds.includes(type))return false;
  if(admin())return true;
  if(window.POTE_AUTH?.franchiseActive)return type==="batataria";
- return !cleanList(policy().blockedUniverses).includes(type);
+ if(cleanList(policy().blockedUniverses).includes(type))return false;
+ if(window.POTE_AUTH?.proActive)return true;
+ const chosen=window.POTE_AUTH?.freeUniverse;
+ return type!=="lancheria"&&(!chosen||chosen===type);
+}
+function requiresChoice(){
+ const auth=window.POTE_AUTH;if(!auth?.uid||admin())return false;
+ if(auth.franchiseActive)return active()!=="batataria";
+ if(auth.proActive)return typeof state!=="undefined"&&!state.data?.businessType;
+ return !auth.freeUniverse||typeof state!=="undefined"&&state.data?.businessType!==auth.freeUniverse;
 }
 function allowsService(type,service){
  if(admin())return true;
@@ -45,7 +54,7 @@ function groupService(group){
  if(["cashSessions","cashMovements"].includes(group))return "orders";
  return group;
 }
-window.POTE_ACCESS={universeIds,services,policy,allowsUniverse,allowsService,requireService,requireTab,groupService};
+window.POTE_ACCESS={universeIds,services,policy,allowsUniverse,requiresChoice,allowsService,requireService,requireTab,groupService};
 window.addEventListener("pote:access-updated",()=>{
  window.POTE_BUSINESS?.refreshAccess?.();
  if(!allowsUniverse(active())&&typeof window.POTE_BUSINESS?.open==="function")
