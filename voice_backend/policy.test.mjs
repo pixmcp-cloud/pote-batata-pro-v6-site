@@ -1,9 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {authorized,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
-test('PRO, ADM e perfil ausente não autorizam por si; franquia oficial é exceção',()=>{
+import {authorized,priceCredits,durationQuote,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota,individualFranchiseQuota} from './policy.mjs';
+test('FREE e teste grátis ficam bloqueados; PRO válido, vitalício, franquia e ADM verificado autorizam',()=>{
  for(const p of [undefined,{}, {plan:'pro'}, {role:'admin'}, {franchise:{status:'active'}},{accessPolicy:{voiceAiEnabled:'true'}}])assert.equal(authorized(p),false);
- assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),true);
+ assert.equal(authorized({accessPolicy:{voiceAiEnabled:true}}),false);
+ const p={license:{kind:'pro',term:'month1',status:'active',expiresAt:{toMillis:()=>200}}};
+ assert.equal(authorized(p,100),true);assert.equal(authorized(p,200),false);
+ assert.equal(authorized({...p,accessPolicy:{voiceAiEnabled:false}},100),false);
+ assert.equal(authorized({license:{...p.license,kind:'trial',term:'trial24h'}},100),false);
+ assert.equal(authorized({license:{kind:'lifetime',term:'lifetime',status:'active'}},100),true);
+ assert.equal(authorized({},100,true),true);
+ assert.equal(authorized({accessPolicy:{voiceAiEnabled:false}},100,true),false);
  const f={franchise:{status:'active',brandId:'potebatata'}};
  assert.equal(authorized(f),true);assert.equal(authorized({...f,accessPolicy:{voiceAiEnabled:false}}),false);
  assert.equal(authorized({franchise:{status:'inactive',brandId:'potebatata'}}),false);
@@ -25,7 +32,7 @@ test('licença comercial positiva e plano gratuito sempre bloqueado',()=>{
  assert.equal(commercialReady({...s,max_credit_limit_extension:100},cfg),false);
 });
 test('reserva exige identidade, autorização, licença, saldo e cotação única válida',()=>{
- const a={profile:{accessPolicy:{voiceAiEnabled:true}},commercial:true,quote:{uid:'u',state:'quoted',credits:3,expiresAt:100},balance:5,uid:'u',now:10};
+ const a={profile:{license:{kind:'pro',term:'month1',status:'active',expiresAt:{toMillis:()=>200}}},commercial:true,quote:{uid:'u',state:'quoted',credits:3,expiresAt:100},balance:5,uid:'u',now:10};
  assert.equal(canReserve(a),true);
  for(const b of [{balance:2},{commercial:false},{profile:{}},{uid:'other'},{now:100},{quote:{...a.quote,state:'reserved'}}])assert.equal(canReserve({...a,...b}),false);
 });
@@ -57,4 +64,22 @@ test('entrada e saída de franquias preservam uso e teto coletivo',()=>{
  assert.equal(q(1,1900,100).remaining,100);
  assert.equal(q(2,2000,0).remaining,0);
  assert.throws(()=>q(0,0,0));assert.throws(()=>q(2,10,11));
+});
+
+test('valor de referência da moeda não supera R$1,10 líquido',()=>{
+ const cfg={providerMicroBrlPer1000:3000000,creditMicroBrl:2000000};
+ assert.equal(priceCredits('x'.repeat(500),cfg),3);
+ assert.equal(priceCredits('x'.repeat(777),cfg),5);
+ assert.equal(priceCredits('x'.repeat(500),{...cfg,creditMicroBrl:900000}),4);
+});
+
+test('tarifa fixa aprovada: uma moeda a cada 15 segundos até 75',()=>{
+ const cfg={providerMicroBrlPer1000:3000000,creditMicroBrl:1100000};
+ for(const seconds of [15,30,45,60,75]){
+  const q=durationQuote('x'.repeat(seconds*10),seconds,cfg);
+  assert.deepEqual(q,{seconds,credits:seconds/15,maxChars:seconds*10});
+  assert.throws(()=>durationQuote('x'.repeat(seconds*10+1),seconds,cfg));
+ }
+ for(const seconds of [0,14,16,90,'15'])assert.throws(()=>durationQuote('x',seconds,cfg));
+ assert.throws(()=>durationQuote('x'.repeat(150),15,{...cfg,providerMicroBrlPer1000:10000000}));
 });

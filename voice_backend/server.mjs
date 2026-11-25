@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {initializeApp,applicationDefault} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore,FieldValue} from 'firebase-admin/firestore';
-import {authorized,isFranchise,validateText,priceCredits,commercialReady,canReserve,franchiseQuota,individualFranchiseQuota} from './policy.mjs';
+import {authorized,isFranchise,validateText,durationQuote,commercialReady,canReserve,franchiseQuota,individualFranchiseQuota} from './policy.mjs';
 initializeApp({credential:applicationDefault(),projectId:'potobatata-b71f3'});
 const db=getFirestore(),auth=getAuth();
 const cfg={
@@ -39,9 +39,10 @@ async function session(req){
  if(!header.startsWith('Bearer '))fail('Autenticação obrigatória.',401);
  let user;try{user=await auth.verifyIdToken(header.slice(7),true)}catch{fail('Sessão inválida.',401)}
  if(user.email_verified!==true||user.firebase?.sign_in_provider!=='google.com')fail('Conta Google verificada obrigatória.',403);
+ const admin=user.potebatataAdmin===true&&user.email==='pixmcp@gmail.com';
  const snap=await account(user.uid).get();
- if(!snap.exists||!authorized(snap.data()))fail('Locução bloqueada pelo ADM.',403);
- return user.uid;
+ if(!snap.exists||!authorized(snap.data(),Date.now(),admin))fail('IA exclusiva para PRO ativo, vitalício e franquia. Verifique sua licença ou bloqueio ADM.',403);
+ return {uid:user.uid,admin};
 }
 async function read(req){
  const chunks=[];let bytes=0;
@@ -51,7 +52,8 @@ async function read(req){
 function send(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data))}
 async function balance(uid){
  const snapshot=await wallet(uid).get(),value=snapshot.data()?.balance;
- if(!snapshot.exists||!Number.isSafeInteger(value)||value<0)fail('Carteira IA não homologada ou indisponível.',423);
+ if(!snapshot.exists)return 0;
+ if(!Number.isSafeInteger(value)||value<0)fail('Carteira IA não homologada ou indisponível.',423);
  return value;
 }
 // Count every active official franchise, even when its access to voice is blocked by ADM.
@@ -69,14 +71,14 @@ async function franchiseAllocation(tx,s,uid){
  return {quota,quotaRef,memberRef,used,allocation};
 }
 function validateVoice(id){if(typeof id!=='string'||!voiceIds.includes(id))fail('Voz não autorizada.');return id;}
-async function generate(uid,id,res){
+async function generate(uid,id,res,admin=false){
  if(typeof id!=='string'||!/^[0-9a-f-]{36}$/.test(id))fail('Cotação inválida.');
  const s=await subscription(),ref=order(uid,id);
  const q=await db.runTransaction(async tx=>{
   const [a,w,o]=await Promise.all([tx.get(account(uid)),tx.get(wallet(uid)),tx.get(ref)]);
   const quote=o.data(),current=w.data()?.balance;
-  if(!canReserve({profile:a.data(),commercial:true,quote,balance:current,uid,now:Date.now()}))fail('Cotação expirada, usada, acesso revogado ou saldo insuficiente.',409);
-  if(priceCredits(quote.text,cfg)!==quote.credits)fail('Preço alterado, solicite nova cotação.',409);
+  if(!canReserve({profile:a.data(),commercial:true,quote,balance:current,uid,now:Date.now(),admin}))fail('Cotação expirada, usada, acesso revogado ou saldo insuficiente.',409);
+  if(durationQuote(quote.text,quote.seconds,cfg).credits!==quote.credits)fail('Preço alterado, solicite nova cotação.',409);
   validateVoice(quote.voiceId);
   if(!Number.isSafeInteger(s.character_limit)||!Number.isSafeInteger(s.character_count)||s.character_limit-s.character_count<quote.text.length)fail('Cota do provedor insuficiente.',423);
   let franchiseReservation=null;
@@ -88,7 +90,9 @@ async function generate(uid,id,res){
    tx.set(memberRef,{used:allocation.used+requested,updatedAt:FieldValue.serverTimestamp()},{merge:true});
    franchiseReservation={cycle:quota.cycle,requested};
   }
-  tx.update(wallet(uid),{balance:current-quote.credits,updatedAt:FieldValue.serverTimestamp()});
+  const debitId='voice-'+id+'-debit';
+  tx.update(wallet(uid),{balance:current-quote.credits,lastEventId:debitId,updatedAt:FieldValue.serverTimestamp()});
+  tx.create(wallet(uid).collection('entries').doc(debitId),{kind:'voice_debit',before:current,after:current-quote.credits,delta:-quote.credits,reason:'Reserva de locução',actorUid:uid,at:FieldValue.serverTimestamp()});
   tx.update(ref,{state:'reserved',franchiseReservation,reservedAt:FieldValue.serverTimestamp()});
   return {...quote,franchiseReservation};
  });
@@ -96,7 +100,7 @@ async function generate(uid,id,res){
  // Keep reservation for manual reconciliation; never issue a second POST for this quote.
  try{
   const current=await account(uid).get();
-  if(!authorized(current.data())||priceCredits(q.text,cfg)!==q.credits||isFranchise(current.data())!==Boolean(q.franchiseReservation)) {
+  if(!authorized(current.data(),Date.now(),admin)||durationQuote(q.text,q.seconds,cfg).credits!==q.credits||isFranchise(current.data())!==Boolean(q.franchiseReservation)) {
    await db.runTransaction(async tx=>{
     const o=await tx.get(ref),w=await tx.get(wallet(uid));
     const quotaRef=q.franchiseReservation?db.doc('voiceAiFranchiseQuota/'+q.franchiseReservation.cycle):null;
@@ -109,7 +113,9 @@ async function generate(uid,id,res){
       tx.update(quotaRef,{used:used-q.franchiseReservation.requested,updatedAt:FieldValue.serverTimestamp()});
       tx.update(memberRef,{used:memberUsed-q.franchiseReservation.requested,updatedAt:FieldValue.serverTimestamp()});
      }
-     tx.update(wallet(uid),{balance:w.data().balance+q.credits,updatedAt:FieldValue.serverTimestamp()});
+     const refundId='voice-'+id+'-refund',before=w.data().balance;
+     tx.update(wallet(uid),{balance:before+q.credits,lastEventId:refundId,updatedAt:FieldValue.serverTimestamp()});
+     tx.create(wallet(uid).collection('entries').doc(refundId),{kind:'voice_refund',before,after:before+q.credits,delta:q.credits,reason:'Estorno anterior à síntese',actorUid:uid,at:FieldValue.serverTimestamp()});
      tx.update(ref,{state:'refunded',reason:'access_revoked_before_provider'});
     }
    });
@@ -136,7 +142,7 @@ const server=createServer(async(req,res)=>{
  if(req.method==='OPTIONS'){res.writeHead(204);return res.end()}
  if(req.method!=='POST')return send(res,405,{error:'Método inválido.'});
  try{
-  const uid=await session(req),data=await read(req);
+  const {uid,admin}=await session(req),data=await read(req);
   if(req.url==='/status'){
    const s=await subscription(),profile=(await account(uid).get()).data();
    const franchiseAllocationView=isFranchise(profile)?await db.runTransaction(async tx=>(await franchiseAllocation(tx,s,uid)).allocation,{readOnly:true}):null;
@@ -146,18 +152,18 @@ const server=createServer(async(req,res)=>{
   if(req.url==='/quote'){
    const s=await subscription();
    const profile=(await account(uid).get()).data();
-   if(!authorized(profile))fail('Locução bloqueada pelo ADM.',403);
-   const text=validateText(data.text),voiceId=validateVoice(data.voiceId),credits=priceCredits(text,cfg),value=await balance(uid);
+   if(!authorized(profile,Date.now(),admin))fail('Locução bloqueada pelo ADM.',403);
+   const text=validateText(data.text),voiceId=validateVoice(data.voiceId),seconds=data.seconds,tariff=durationQuote(text,seconds,cfg),credits=tariff.credits,value=await balance(uid);
    let franchiseAllocationView=null;
    if(isFranchise(profile)){
     franchiseAllocationView=await db.runTransaction(async tx=>(await franchiseAllocation(tx,s,uid)).allocation,{readOnly:true});
     if(text.length>franchiseAllocationView.remaining)fail('Cota individual ou coletiva das franquias insuficiente.',409);
    }
    const quoteId=randomUUID();
-   await order(uid,quoteId).create({uid,text,voiceId,credits,state:'quoted',expiresAt:Date.now()+300000,createdAt:FieldValue.serverTimestamp()});
-   return send(res,200,{quoteId,credits,balance:value,franchiseAllocation:franchiseAllocationView});
+   await order(uid,quoteId).create({uid,text,voiceId,seconds,credits,state:'quoted',expiresAt:Date.now()+300000,createdAt:FieldValue.serverTimestamp()});
+   return send(res,200,{quoteId,credits,seconds,maxChars:tariff.maxChars,balance:value,franchiseAllocation:franchiseAllocationView});
   }
-  if(req.url==='/generate')return await generate(uid,data.quoteId,res);
+  if(req.url==='/generate')return await generate(uid,data.quoteId,res,admin);
   return send(res,404,{error:'Rota inexistente.'});
  }catch(e){if(!res.headersSent)send(res,e.status||400,{error:e.status?e.message:'Operação não concluída. Consulte o histórico.'});else res.end()}
 });

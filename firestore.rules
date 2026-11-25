@@ -263,6 +263,45 @@ service cloud.firestore {
       );
       allow delete: if isAdmin();
 
+      // AI wallet: only verified admin may adjust with an immutable event.
+      match /aiWallet/{walletId} {
+        function validWalletAdjustment(oldBalance) {
+          let v = request.resource.data;
+          let p = /databases/$(database)/documents/users/$(userId)/aiWallet/main/entries/$(v.lastEventId);
+          let e = getAfter(p).data;
+          return walletId == 'main' && isAdmin()
+            && v.keys().hasOnly(['balance','lastEventId','updatedAt'])
+            && v.balance is int && v.balance >= 0 && v.balance <= 100000000
+            && v.lastEventId is string && v.lastEventId.matches('^[A-Za-z0-9_-]{20,80}$')
+            && v.updatedAt == request.time
+            && !exists(p) && existsAfter(p)
+            && e.before == oldBalance && e.after == v.balance
+            && e.delta == v.balance - oldBalance;
+        }
+        allow get: if walletId == 'main' && canAccess(userId);
+        allow create: if validWalletAdjustment(0);
+        allow update: if resource.data.balance is int && validWalletAdjustment(resource.data.balance);
+        allow delete, list: if false;
+        match /entries/{eventId} {
+          allow read: if walletId == 'main' && canAccess(userId);
+          allow create: if walletId == 'main' && isAdmin()
+            && eventId.matches('^[A-Za-z0-9_-]{20,80}$')
+            && request.resource.data.keys().hasOnly(['kind','before','after','delta','reason','actorUid','at'])
+            && request.resource.data.kind == 'admin_adjustment'
+            && request.resource.data.actorUid == request.auth.uid
+            && request.resource.data.at == request.time
+            && request.resource.data.before is int && request.resource.data.before >= 0
+            && request.resource.data.after is int && request.resource.data.after >= 0
+            && request.resource.data.delta is int && request.resource.data.delta != 0
+            && request.resource.data.after == request.resource.data.before + request.resource.data.delta
+            && request.resource.data.reason is string && request.resource.data.reason.size() >= 3
+            && request.resource.data.reason.size() <= 180
+            && getAfter(/databases/$(database)/documents/users/$(userId)/aiWallet/main).data.lastEventId == eventId
+            && getAfter(/databases/$(database)/documents/users/$(userId)/aiWallet/main).data.balance == request.resource.data.after;
+          allow update, delete: if false;
+        }
+      }
+
       // V1/V2: todos os caminhos antigos desativados para clientes.
       match /recipes/{id} { allow read, write: if false; }
       match /ingredients/{id} { allow read, write: if false; }
