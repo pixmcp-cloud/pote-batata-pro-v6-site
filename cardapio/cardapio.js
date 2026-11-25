@@ -154,7 +154,7 @@ function heroSlide(p){
   const slide=el("div","menu-hero-slide "+(p?"menu-hero-food":"menu-hero-title"));
   slide.dataset.kind=p?"food":"title";slide.setAttribute("aria-hidden","true");
   const image=el("img",p?"menu-hero-product":"");
-  image.src=p?p.image:"./cardapio-abertura.svg?v=luminoso3";
+  image.src=p?p.image:"./cardapio-dourado.webp?v=4";
   image.alt=p?p.title:"CARDÁPIO";image.decoding="async";
   if(p){
     image.addEventListener("error",()=>{image.src=IMG;},{once:true});

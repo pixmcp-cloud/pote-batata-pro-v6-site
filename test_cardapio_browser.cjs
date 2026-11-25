@@ -53,6 +53,8 @@ async function tapProduct(page,selector){
       assert.equal(hero.slides.length,16);
       assert(hero.slides.every((s,i)=>s===(i%2===0?"title":"food")));
       assert.equal(hero.active,"title");
+      await page.waitForFunction(()=>{const i=document.querySelector(".menu-hero-title.is-active img");return i&&i.complete&&i.naturalWidth===512&&i.naturalHeight===288;});
+      assert.match(await page.$eval(".menu-hero-title img",e=>e.getAttribute("src")),/cardapio-dourado\.webp/);
       if(width===375){
         await page.click("#heroPause");
         await page.click("#heroNext");

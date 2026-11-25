@@ -59,3 +59,5 @@ Na prévia, refrigerante lata de 350 ml oferece Cola, Guaraná e Laranja, opçõ
 Correção de publicação: teste Chrome reproduz fechamento da sacola e toque real no produto seguinte, centralizando o alvo fora das barras fixas. Toast não intercepta toques. A QA de pull requests agora executa o mesmo teste de navegador que bloqueava o deploy, sem remover as verificações existentes.
 
 Capa luminosa v3: fundo âmbar mais claro, ouro iluminado, foto preenche 16:9 com posição vertical 9% (recorte predominantemente inferior), vapor branco reforçado com quatro camadas e movimento comprovado em Chrome. Vapor permanece animado ao pausar os slides; preferência de movimento reduzido mantém névoa estática.
+
+Abertura v4: arte CARDÁPIO dourada 3D enviada pelo proprietário em 25/11/2026, convertida para WebP local 512×288 (5.252 bytes) e exibida sem cortes. Mantém alternância e todas as melhorias da capa v3. Arte vetorial anterior preservada como arquivo histórico.
