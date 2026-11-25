@@ -124,10 +124,14 @@ console.log('PASS: Voice Studio opens independently; advanced settings bound to 
  const user={uid:'qa-admin',email:'pixmcp@gmail.com'},win={POTE_AUTH:{uid:user.uid,role:'admin'},addEventListener(){}};
  const docMock={getElementById:node,createElement:tag=>node('created-'+tag),body:{append(){}}};
  const prefix=iaSource.slice(0,iaSource.indexOf('window.POTE_VOICE_AI={open,shop,history};')).replace(/^import .*;\s*$/gm,'');
- vm.runInNewContext(prefix+'\nwindow.qa={open,settings,options,applyPreset,invalidate,voiceConsole};',{app:{},getAuth:()=>({currentUser:user}),getFirestore:()=>({}),getDoc:async()=>({exists:()=>true,data:()=>({balance:1000})}),doc:()=>({}),document:docMock,window:win,Option:function(t,v){this.text=t;this.value=v},URL:{revokeObjectURL(){}},console});
+ vm.runInNewContext(prefix+'\nwindow.qa={open,settings,options,applyPreset,invalidate,voiceConsole,loadVoiceCatalog,voicePreviewUrl,voiceCount:()=>displayedVoices.length};',{app:{},getAuth:()=>({currentUser:user}),getFirestore:()=>({}),getDoc:async()=>({exists:()=>true,data:()=>({balance:1000})}),doc:()=>({}),document:docMock,window:win,Option:function(t,v){this.text=t;this.value=v},URL:{revokeObjectURL(){}},console});
  await win.qa.open();
  assert.equal(win.qa.voiceConsole.open,true,'CTA opens dedicated modal even without endpoint');
  assert.equal(node('csVoiceForm').hidden,false);
+ assert.equal(win.qa.voiceCount(),15,'Official Infinity catalog is present offline');
+ assert.equal(node('pvVoiceName').textContent,'Darian');
+ assert.match(node('pvVoiceAvailability').textContent,/não confirmada/);
+ assert.equal(node('pvVoiceSample').hidden,true);
  assert.equal(node('csVoicePrice').disabled,true,'No provider means no quote');
  assert.equal(node('csVoiceGenerate').disabled,true,'No provider means no debit');
  assert.match(node('pvStatus').textContent,/Modo preparação/);
@@ -139,3 +143,7 @@ console.log('PASS: Voice Studio opens independently; advanced settings bound to 
  assert.equal(node('csVoiceText').maxLength,750);
  console.log('PASS Voice Studio runtime: opens offline safely, real balance, adjustable settings and fixed tariff');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
+assert(iaSource.includes('gOupLcAkjEnguROwi4oS')&&iaSource.includes('OZ0L6eISlOejga3XjDFt'));
+assert(iaSource.includes('!authorizedVoiceIds.has($("csVoiceSelect").value)'),'Reference catalog must not bypass server authorization');
+assert(iaSource.includes('previewUrl')&&iaSource.includes('pvVoiceSample'));
