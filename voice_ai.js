@@ -97,9 +97,10 @@ voiceConsole.addEventListener('cancel',e=>{if(busy)e.preventDefault();});
 voiceConsole.addEventListener('close',()=>{++consoleSeq;quote=null;consoleReady=false;$('csVoiceGenerate').disabled=true;});
 async function consoleBalance(user,seq){try{const snap=await getDoc(doc(db,'users',user.uid,'aiWallet','main'));if(seq!==consoleSeq||auth.currentUser?.uid!==user.uid||!voiceConsole.open)return;const n=snap.exists()?snap.data().balance:0;$('pvBalance').textContent=Number.isSafeInteger(n)&&n>=0?n.toLocaleString('pt-BR'):'—';}catch{if(seq===consoleSeq)$('pvBalance').textContent='—';}}
 async function open(){
+ if(busy)return;
  if(!permitted())return state('IA exclusiva para PRO ativo, vitalício e franquias. FREE e teste gratuito não podem usar IA. Bloqueios do ADM continuam válidos.');
  const user=auth.currentUser,seq=++consoleSeq;consoleReady=false;quote=null;uid=user.uid;
- if(draftOwner!==uid){clear();uid=user.uid;draftOwner=uid;importCreative();applyPreset({});}
+ if(draftOwner!==uid){clear();uid=user.uid;draftOwner=uid;$('pvOutputHint').textContent='O áudio aparecerá aqui após geração confirmada.';importCreative();applyPreset({});}
  $('csVoiceForm').hidden=false;$('pvBalance').textContent='—';$('csVoiceSelect').replaceChildren(new Option('Aguardando catálogo autorizado',''));
  if(!voiceConsole.open)voiceConsole.showModal();invalidate();void consoleBalance(user,seq);void refreshWallet();
  if(!endpoint()){studioStatus('Modo preparação · editor disponível. Geração, catálogo real de vozes e orçamento final aguardam servidor e licença comercial ElevenLabs. Nenhuma IA COIN será debitada.');return;}
@@ -132,16 +133,17 @@ async function price(){
 }
 async function generate(){
  if(busy||!quote||auth.currentUser?.uid!==uid||!permitted())return;
- const q=quote; if(q.text!==$("csVoiceText").value.trim()||q.voiceId!==$("csVoiceSelect").value||q.seconds!==Number($("csVoiceDuration").value)||JSON.stringify(q.opts)!==JSON.stringify(options()))return;
+ const q=quote,seq=consoleSeq,actor=auth.currentUser.uid; if(q.text!==$("csVoiceText").value.trim()||q.voiceId!==$("csVoiceSelect").value||q.seconds!==Number($("csVoiceDuration").value)||JSON.stringify(q.opts)!==JSON.stringify(options()))return;
  if(!confirm("Consumir "+q.credits+" IA para a locução de "+q.seconds+" segundos estimados?"))return;
- busy=true;quote=null;$("csVoiceGenerate").disabled=true;
+ busy=true;quote=null;$("csVoiceGenerate").disabled=true;$("csVoicePrice").disabled=true;
  try{
   const res=await api("/generate",{quoteId:q.id});
   if(!res.headers.get("content-type")?.startsWith("audio/mpeg"))throw Error("Resposta não contém MP3.");
-  if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(await res.blob());
+  const blob=await res.blob();if(seq!==consoleSeq||auth.currentUser?.uid!==actor||!permitted()||!voiceConsole.open)return;
+  if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(blob);
   $("csVoiceAudio").src=url;$("csVoiceAudio").hidden=false;$("csVoiceDownload").href=url;$("csVoiceDownload").hidden=false;
   studioStatus("Locução pronta. Ouça ou baixe o MP3.");$("pvOutputHint").textContent="Áudio gerado nesta sessão.";renderQuota(null);void consoleBalance(auth.currentUser,consoleSeq);void refreshWallet();
- }catch(e){studioStatus(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false}
+ }catch(e){if(seq===consoleSeq&&auth.currentUser?.uid===actor)studioStatus(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false;if(seq===consoleSeq)invalidate();}
 }
 window.POTE_VOICE_AI={open,shop,history};
 window.addEventListener("pote:profile-updated",()=>{if(!permitted()){consoleReady=false;draftOwner=null;++consoleSeq;if(voiceConsole.open)voiceConsole.close();$("csVoiceText").value="";clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
