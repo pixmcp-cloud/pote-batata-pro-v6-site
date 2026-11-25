@@ -1,5 +1,6 @@
 // Candidate public-order API. Independent of the published Geo Worker.
 // Disabled unless explicit canary flags AND Firebase administrative approval.
+import {firebaseProbe} from "./firebase_probe.mjs";
 import {requireLegalAcceptance} from "../../../legal_core.mjs";
 import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository} from "./firestore.mjs";
@@ -71,6 +72,7 @@ export function createCheckoutWorker({verify=verifyFirebaseToken,repository=crea
   const path=new URL(req.url).pathname;
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
   if(req.method==="GET"&&path==="/health")return reply({status:"ok",apiRevision:"v6-commercial-qa-20261125",checkoutEnabled:env.ENABLE_CHECKOUT==="true",trackingEnabled:env.ENABLE_TRACKING==="true"},200,cors);
+  if(path==="/internal/firebase-preflight")return firebaseProbe(req,env);
   if(req.method!=="POST"||!Object.hasOwn(fields,path))return reply({error:"not_found"},404,cors);
   try{
    if(env.ENABLE_CHECKOUT!=="true")fail("checkout_disabled",423);

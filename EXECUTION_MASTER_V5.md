@@ -208,3 +208,6 @@ Run 45606213409 aprovado: versão 83ae4e6c-3de8-43b1-9964-d9e99c72b1e1, 16 rotas
 
 ### C04 — conferência dos segredos adicionados pelo operador
 Solicitada verificação somente leitura via API Cloudflare de GCP_CLIENT_EMAIL e GCP_PRIVATE_KEY como secret_text, configuração e health bloqueados. Nenhum valor de segredo lido ou alterado; presença não comprova OAuth. Não executar novamente workflow de promoção antigo que exige ausência de segredos.
+
+### C04 — teste real de conexão Firebase
+Conferência 45610633412 aprovada: ambos os segredos presentes e checkout bloqueado. Rotina temporária no Worker dedicado com desafio SHA-256 aleatório, expiração máxima 10 minutos, flags fechadas, validação de identidade exata e apenas GET de metadados/política/índices. Workflow remove as variáveis do diagnóstico após execução e confirma preservação de segredos. Nenhuma escrita Firestore. Resultado depende da execução.
