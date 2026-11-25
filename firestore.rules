@@ -103,15 +103,17 @@ service cloud.firestore {
     }
     function canEditOperationalRecord(userId, record) {
       let profile = get(/databases/$(database)/documents/users/$(userId)).data;
-      return isAdmin() || !profile.keys().hasAny(['accessPolicy']) ||
-        (
+      return isAdmin() || (
+        (!profile.keys().hasAny(['freeUniverse']) || premiumProfile(userId)
+          || record.universe in [profile.freeUniverse, 'kitchen'])
+        && (!profile.keys().hasAny(['accessPolicy']) || (
           (!profile.accessPolicy.keys().hasAny(['blockedUniverses']) ||
             !profile.accessPolicy.blockedUniverses.hasAny([record.universe]))
           && (!profile.accessPolicy.keys().hasAny(['blockedServices']) ||
             !profile.accessPolicy.blockedServices.hasAny([
               record.universe + ':' + recordService(record.group)
             ]))
-        );
+        )));
     }
     // F02/F20: impedir saldos físicos negativos ou não numéricos diretamente no SDK.
     // A conferência transacional de consumo e reserva continua sendo requisito separado.
@@ -255,7 +257,10 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         isOwner(userId)
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['displayName', 'photoURL', 'updatedAt'])
+          .hasOnly(['displayName', 'photoURL', 'updatedAt', 'freeUniverse'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['freeUniverse'])
+          || (!resource.data.keys().hasAny(['freeUniverse'])
+            && request.resource.data.freeUniverse in ['batataria','pizzaria','hamburgueria','hotdog','pastelaria']))
         && (
           !resource.data.get('nameLocked', false)
           || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName'])
@@ -523,11 +528,13 @@ service cloud.firestore {
       allow create: if googleVerified()
         && request.resource.data.ownerUid == request.auth.uid
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && safeMenuShape();
+        && safeMenuShape()
+        && (isAdmin() || premiumProfile(request.auth.uid) || !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.keys().hasAny(['freeUniverse']) || request.resource.data.businessType == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.freeUniverse);
       allow update: if isOwner(resource.data.ownerUid)
         && resource.data.ownerUid == request.resource.data.ownerUid
         && resource.data.slug == request.resource.data.slug
-        && safeMenuShape();
+        && safeMenuShape()
+        && (request.resource.data.published == false || isAdmin() || premiumProfile(request.auth.uid) || !get(/databases/$(database)/documents/users/$(request.auth.uid)).data.keys().hasAny(['freeUniverse']) || request.resource.data.businessType == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.freeUniverse);
       allow delete: if false;
     }
 
