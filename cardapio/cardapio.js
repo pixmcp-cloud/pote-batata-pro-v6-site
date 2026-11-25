@@ -1,5 +1,5 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
-import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs?catalogo=bebidas-opcoes";
+import { sanitizeReadMenu, validSlug, menuHeroSequence } from "../public_menu_core.mjs?lojas=5";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
@@ -127,10 +127,7 @@ function productImage(product, className){
   return img;
 }
 // Cada foto é precedida pela abertura, inclusive ao reiniciar a sequência.
-export function heroSequence(products){
-  return products.filter(p=>p.category!=="Bebidas"&&p.image&&p.image!==IMG&&!/\/generic\//.test(p.image))
-    .flatMap(p=>[null,p]);
-}
+export function heroSequence(products){return menuHeroSequence(products,{demo:requestedSlug===null});}
 let heroTimer=null,heroIndex=0,heroSlides=[],heroPaused=false,heroVisible=true,heroHover=false,heroFocused=false;
 const heroMotion=matchMedia("(prefers-reduced-motion: reduce)");
 function heroStop(){clearTimeout(heroTimer);heroTimer=null;}
@@ -157,7 +154,7 @@ function heroSlide(p){
   image.src=p?p.image:"./cardapio-dourado.webp?v=4";
   image.alt=p?p.title:"CARDÁPIO";image.decoding="async";
   if(p){
-    image.addEventListener("error",()=>{image.src=IMG;},{once:true});
+    image.addEventListener("error",()=>{image.hidden=true;slide.classList.add("hero-photo-unavailable");},{once:true});
     slide.append(image);
     slide.append(el("div","menu-hero-name",p.title));
   }else slide.append(image);

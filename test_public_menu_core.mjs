@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {slugify,validSlug,cents,publicImage,buildMenuCandidates,makePublicMenu,sanitizeReadMenu} from "./public_menu_core.mjs";
+import {slugify,validSlug,cents,publicImage,buildMenuCandidates,makePublicMenu,sanitizeReadMenu,menuHeroSequence} from "./public_menu_core.mjs";
 assert.equal(slugify("Potê Batata Pro!"),"pote-batata-pro");
 assert.equal(validSlug("pote-batata-a1020"),true);
 for(const slug of ["", "xx", "Pote Batata", "../../foo", "loja@"," aaaa","áaaa"])assert.equal(validSlug(slug),false);
@@ -65,3 +65,18 @@ assert.equal(comboState.data.combos.length,1);
 console.log("PASS: combos fora do cardápio público, dados operacionais preservados");
 
 const drinkState=structuredClone(state);drinkState.data.beverages=[{id:"lata",name:"Refrigerante",size:"350 ml",sellPrice:7,flavors:["Cola","Guaraná","Laranja"]}];const drink=makePublicMenu(drinkState,{slug:"loja-bebidas",ownerUid:"uid-owner",selectedIds:["bev-lata"],priceFor});assert.deepEqual(sanitizeReadMenu(drink,drink.slug).items[0].flavors,["Cola","Guaraná","Laranja"]);assert.equal(sanitizeReadMenu(drink,drink.slug).items[0].size,"350 ml");
+
+// Two tenants with same recipe ids, different approved photos; never inherit Potê assets.
+const ownA=structuredClone(state),ownB=structuredClone(state);
+ownA.data.brand.name="Pizzaria A";ownB.data.brand.name="Hamburgueria B";
+ownA.data.recipes[0].imageUrl="./assets/recipes/r05.webp";ownA.data.recipes[0].photoUrl="https://private.test/?token=SECRET";
+const pa="data:image/webp;base64,UklGRg==",pb="data:image/webp;base64,V0VCUA==";
+const oa=makePublicMenu(ownA,{...options,slug:"pizzaria-a",publishedPhotos:new Map([["r01",pa]])});
+const ob=makePublicMenu(ownB,{...options,slug:"hamburgueria-b",publishedPhotos:new Map([["r01",pb]])});
+assert.deepEqual(menuHeroSequence(sanitizeReadMenu(oa,oa.slug).items).map(x=>x?.image??null),[null,pa]);
+assert.deepEqual(menuHeroSequence(sanitizeReadMenu(ob,ob.slug).items).map(x=>x?.image??null),[null,pb]);
+assert.equal(menuHeroSequence(buildMenuCandidates(ownA,{priceFor})).length,0);
+assert.equal(menuHeroSequence([{image:"../assets/recipes/r05.webp",category:"Salgados"}]).length,0);
+assert.equal(menuHeroSequence([{image:"../assets/recipes/r05.webp",category:"Salgados"}],{demo:true}).length,2);
+assert(!JSON.stringify(oa).includes("SECRET"));assert.equal(publicImage("data:image/webp;base64,"+"A".repeat(12001)),"../assets/generic/business-batataria.svg");
+console.log("PASS: carrossel por loja, fotos próprias e nenhum vazamento de fotos Potê");

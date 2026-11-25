@@ -3,7 +3,7 @@
 import {app} from "./firebase_app.mjs";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
 import {getFirestore,doc,getDoc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
-import {buildMenuCandidates,makePublicMenu,slugify,validSlug} from "./public_menu_core.mjs";
+import {buildMenuCandidates,makePublicMenu,slugify,validSlug,isPublishedPhoto} from "./public_menu_core.mjs?lojas=5";
 
 const auth=getAuth(app),db=getFirestore(app);
 const node=(tag,cls,text)=>{
@@ -123,6 +123,34 @@ function imageFor(recipe){
   const alt={r23:"ninho-nutella",r24:"brigadeiro",r25:"morango-preto",r26:"morango-branco"}[recipe.id];
   return (alt&&window.POTE_RECIPE_ALTERNATES?.[alt])||window.POTE_RECIPE_IMAGES?.[recipe.id]||null;
 }
+// Only owner-selected product images already stored in that account, never tokenized URLs.
+async function compressPublicPhoto(source){
+  if(typeof source!=="string"||source.length>12000000||!/^data:image\/(?:jpeg|jpg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(source))return null;
+  const img=new Image();img.src=source;
+  try{await img.decode();}catch{return null;}
+  if(!img.naturalWidth||!img.naturalHeight)return null;
+  for(const size of [480,384,320,256,192]){
+    const scale=Math.min(1,size/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+    for(const quality of [.68,.48,.30]){const data=canvas.toDataURL("image/webp",quality);if(isPublishedPhoto(data))return data;}
+  }
+  return null;
+}
+async function photosForPublication(state,ids,uid,epoch){
+  const photos=new Map(),selectedIds=new Set(ids),data=state.data;
+  let count=0;
+  for(const [prefix,items] of [["",data.recipes||[]],["bev-",data.beverages||[]]]){
+    for(const item of items){const id=prefix+item.id;if(!selectedIds.has(id))continue;
+      const source=[item.imageUrl,item.photoUrl,item.photo,item.image].find(value=>typeof value==="string"&&/^data:image\/(?:jpeg|jpg|png|webp);base64,/i.test(value));
+      if(!source)continue;
+      const photo=await compressPublicPhoto(source);
+      if(!validSession(uid,epoch))throw Error("Sessão alterada.");
+      if(photo)photos.set(id,photo);else count++;
+    }
+  }
+  return {photos,skipped:count};
+}
 function allowed(recipe){
   if(typeof window.allowed==="function")return Boolean(window.allowed(recipe));
   return !recipe.franchiseLocked;
@@ -180,7 +208,7 @@ function createDialog(){
   shell.append(node("p","public-menu-hint",
     "Compartilhe seus produtos e preços de venda. Custos, receitas de preparo, clientes, estoque e dados financeiros permanecem privados. O checkout real continua desativado."));
   addField(shell,"Endereço da loja (não altere após publicar)","publicMenuSlug","",{max:40});
-  shell.append(node("p","public-menu-hint","Marque somente os produtos que deseja expor na internet."));
+  shell.append(node("p","public-menu-hint","Marque somente os produtos que deseja expor na internet. As fotos próprias cadastradas dos produtos escolhidos serão publicadas e usadas automaticamente no carrossel, intercaladas com a abertura CARDÁPIO. Fotos privadas por link não serão copiadas."));
   const products=node("div","public-menu-products");products.id="publicMenuProducts";
   shell.append(products);
   const ingredientOpt=node("label","public-menu-choice");const ingredientCheck=node("input");ingredientCheck.type="checkbox";ingredientCheck.id="publicMenuIncludeIngredients";ingredientOpt.append(ingredientCheck,node("span","","Publicar também os nomes dos ingredientes revisados acima (sem quantidades e custos)."));shell.append(ingredientOpt);
@@ -219,10 +247,13 @@ async function publish(){
     const current=await loadExisting(slug,uid);
     if(!validSession(uid,epoch))return;
     if(published&&published.slug!==slug)throw Error("Para trocar endereço, retire o cardápio antigo do ar primeiro.");
-    const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:currentSelected(),
-      priceFor,allowed,imageFor,includeIngredientNames:$("publicMenuIncludeIngredients").checked,previous:current});
+    const ids=currentSelected();
+    const {photos,skipped}=await photosForPublication(state,ids,uid,epoch);
+    if(!validSession(uid,epoch))return;
+    const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:ids,
+      priceFor,allowed,imageFor,publishedPhotos:photos,includeIngredientNames:$("publicMenuIncludeIngredients").checked,previous:current});
     if(!confirm("Publicar "+result.items.length+" produto(s) de "+result.title+
-      " com preços"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? Nenhum pedido real será aceito por esta página."))return;
+      " com preços e fotos dos produtos selecionados"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? Nenhum pedido real será aceito por esta página."))return;
     if(!validSession(uid,epoch))return;
     await setDoc(doc(db,"publicMenus",slug),{...result,updatedAt:serverTimestamp()});
     if(!validSession(uid,epoch))return;
@@ -233,7 +264,7 @@ async function publish(){
     try{localStorage.setItem(localKey(uid),slug)}catch{}
     $("publicMenuSlug").readOnly=true;
     updateLink();
-    setMessage("Publicado. Compartilhe o link; preços e estoque deverão ser revisados antes de habilitar pedidos.");
+    setMessage("Publicado. O carrossel usa as fotos publicadas da sua loja."+(skipped?" "+skipped+" foto(s) não puderam ser otimizadas; revise-as no cadastro.":"")+" Compartilhe o link; preços e estoque deverão ser revisados antes de habilitar pedidos.");
   }catch(e){if(validSession(uid,epoch))setMessage(e.message||"Falha ao publicar.",true);}
   finally{if(validSession(uid,epoch))setBusy(false);}
 }
