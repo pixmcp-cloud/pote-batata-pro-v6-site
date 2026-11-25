@@ -12,6 +12,10 @@ assert(css.includes('body:has([role="dialog"][aria-modal="true"]:not([hidden])) 
 for(const id of ["potePendingSyncBackup","poteFullAccountBackup","poteSyncResolve"]){
  assert(mobile.includes(id),id+" deve caber na largura do cartão");
 }
-assert(builder.includes("notifications.css?v=inline-detail-20261117"),"Novo CSS precisa invalidar cache");
+assert(builder.includes("notifications.css?v=ia-header-20261125"),"Novo CSS precisa invalidar cache");
 assert(builder.includes("mobile.css?v=header-sync-20261116"),"Layout do backup precisa invalidar cache");
 console.log("PASS: menu+sininho alinhados, X de modais livre, backup responsivo e cache atualizado.");
+
+assert(css.includes('#poteIaCoinToggle{position:fixed;top:12px;right:136px'),"Esfera IA à esquerda do sininho desktop");
+assert(css.includes('#poteIaCoinToggle{top:11px;right:124px')&&css.includes('#poteIaCoinToggle{top:10px;right:116px'),"Esfera IA ao lado do sino em celular");
+assert(css.includes('padding-right:175px!important')&&css.includes('padding-right:166px!important'),"Reservar os três controles sem invadir a marca");
