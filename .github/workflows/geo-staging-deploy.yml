@@ -1,0 +1,83 @@
+name: V6 Geoapify - publicar Worker isolado e bloqueado
+on:
+  push:
+    branches: [feat/v6-geoapify-qa-20261125]
+    paths: ['.github/workflows/geo-staging-deploy.yml']
+permissions:
+  contents: read
+concurrency:
+  group: pote-batata-geo-staging-bootstrap
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'pixmcp-cloud/pote-batata-pro-v6-site' && github.ref == 'refs/heads/feat/v6-geoapify-qa-20261125'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: workers/antifraud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Testes antes de publicar
+        run: |
+          node --test test/geo_*.test.mjs test/public_checkout_core.test.mjs
+          grep -Fx 'name = "pote-batata-geo-staging"' wrangler.geoapify.toml
+          grep -Fx 'ENABLE_GEO = "false"' wrangler.geoapify.toml
+          grep -Fx 'GEO_CANARY_UIDS = ""' wrangler.geoapify.toml
+          grep -Fx 'new_sqlite_classes = ["GeoGate"]' wrangler.geoapify.toml
+          npx --no-install wrangler deploy --config wrangler.geoapify.toml --dry-run --outdir .wrangler/geo-qa
+      - name: Confirmar destino novo e credenciais
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GEO_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          const {CF_ACCOUNT,CF_TOKEN,GEO_KEY}=process.env;
+          if(!/^[a-f0-9]{32}$/i.test(CF_ACCOUNT||"")||!CF_TOKEN||!/^[a-f0-9]{32}$/i.test(GEO_KEY||""))throw Error("Credenciais ausentes ou formato inválido");
+          const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+CF_ACCOUNT+"/workers/scripts",{headers:{Authorization:"Bearer "+CF_TOKEN},redirect:"error",signal:AbortSignal.timeout(15000)});
+          const body=await r.json().catch(()=>({}));
+          if(!r.ok||!body.success||!Array.isArray(body.result))throw Error("Não foi possível verificar Workers existentes");
+          if(body.result.some(x=>x.id==="pote-batata-geo-staging"||x.name==="pote-batata-geo-staging"))throw Error("Worker de destino já existe; não sobrescrever");
+          console.log("DESTINO_NOVO_CONFIRMADO");
+          NODE
+      - name: Criar exclusivamente Worker de homologação desativado
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: npx --no-install wrangler deploy --config wrangler.geoapify.toml
+      - name: Instalar segredo exclusivamente no novo Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEOAPIFY_API_KEY: ${{ secrets.GEOAPIFY_API_KEY }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          set +x
+          printf '%s' "$GEOAPIFY_API_KEY" | npx --no-install wrangler secret put GEOAPIFY_API_KEY --config wrangler.geoapify.toml
+          npx --no-install wrangler secret list --config wrangler.geoapify.toml > "$RUNNER_TEMP/geo-secret-names.json"
+          node --input-type=module -e 'import fs from "node:fs"; const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/geo-secret-names.json","utf8")); if(!a.some(x=>x.name==="GEOAPIFY_API_KEY"))throw Error("Secret ausente");console.log("GEO_SECRET_INSTALLED");'
+      - name: Verificar HTTPS e bloqueios reais do endpoint
+        run: |
+          node --input-type=module <<'NODE'
+          const base="https://pote-batata-geo-staging.pixmcp.workers.dev";
+          const request=(path,opts={})=>fetch(base+path,{...opts,redirect:"error",signal:AbortSignal.timeout(12000)});
+          let ok=false;
+          for(let i=0;i<6;i++){
+            try{const r=await request("/health");const b=await r.json();if(r.ok&&b.status==="ok"&&b.enabled===false&&b.checkoutEnabled===false){ok=true;break}}catch{}
+            await new Promise(r=>setTimeout(r,3000));
+          }
+          if(!ok)throw Error("Health não confirmou staging desativado");
+          const p=await request("/v1/geo/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+          if(p.status!==423||(await p.json()).error!=="geo_disabled")throw Error("Cotação não está bloqueada");
+          const cross=await request("/health",{headers:{Origin:"https://invalid.example"}});
+          if(cross.status!==403)throw Error("CORS não está bloqueando origens externas");
+          const checkout=await request("/v1/orders/create",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+          if(checkout.status!==404)throw Error("Checkout real exposto");
+          console.log("STAGING_HEALTH_OK; QUOTE_LOCKED; CORS_DENIED; CHECKOUT_ABSENT");
+          NODE
