@@ -3,7 +3,7 @@ import vm from "node:vm";
 import {readFileSync} from "node:fs";
 import {notificationState,mergeNotifications,unreadCount,markRead} from "./notification_core.mjs";
 const uid="test-google-account-123";
-const listeners=new Map(),elements=new Map();let noticesListener,disconnectCount=0,saved=0;
+const listeners=new Map(),elements=new Map();let noticesListener,safetyListener,saved=0;const disconnected=[];
 function element(id){
  if(!elements.has(id)){
   const bound=new Map(),classes=new Set();
@@ -32,8 +32,8 @@ const state={data:{deliveryHub:{orders:[{
 const context={
  document,window,app:{},auth,state,console,Date,JSON,Map,Set,Number,String,Array,Event,
  getApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),
- collection:()=>({}),query:()=>({}),orderBy:()=>({}),limit:()=>({}),
- onSnapshot:(q,cb)=>{noticesListener=cb;return ()=>disconnectCount++},
+ collection:(_db,...segments)=>segments.join('/'),query:(path)=>path,orderBy:()=>({}),limit:()=>({}),
+ onSnapshot:(q,cb)=>{if(q==='announcements')noticesListener=cb;else if(q===`users/${uid}/deliverySafetyAlertsV6`)safetyListener=cb;else throw Error('unexpected collection '+q);return ()=>disconnected.push(q)},
  notificationState,mergeNotifications,unreadCount,markRead,
  persist:()=>{saved++;window.dispatchEvent(new Event("pote:changed"))},
  go:()=>{},navigator:{}
@@ -66,6 +66,7 @@ assert(!element("poteBell").classList.contains("has-unread"));
 window.POTE_AUTH=null;auth.currentUser=null;
 listeners.get("pote:user-logout")();
 assert(root.hidden,"Após logout nenhuma notificação pode vazar visualmente");
-assert.equal(disconnectCount,1,"Desinscrever a escuta do usuário anterior");
+assert.equal(typeof safetyListener,'function');
+assert.deepEqual(disconnected.sort(),['announcements',`users/${uid}/deliverySafetyAlertsV6`].sort(),"Desinscrever ambas as escutas do usuário anterior");
 assert.equal(window.POTE_NOTIFY.unread,0);
 console.log("PASS: sininho fixo, importação de pedido, broadcast realtime, contador, lidas persistidas e logout isolado.");

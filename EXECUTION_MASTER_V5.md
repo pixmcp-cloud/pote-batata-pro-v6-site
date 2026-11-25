@@ -235,3 +235,5 @@ Sessão secundária TinyFish permitiu acesso ao Firebase. Primeira execução f8
 
 ### C09 — publicação oficial solicitada pelo operador
 Run 45625148796: cinco índices READY, API HTTP 200, OAuth e banco aprovados, política legal MISSING. Preparação do Hosting: build completo sem publicar, regras e banco inalterados. Endpoints checkout/geo vazios, registro legal não ativado enquanto a política e permissões de leitura não estiverem publicadas; exigência legal do servidor mantida. Validar artefato e estado de produção antes de promover. Não usar Floot, não contratar serviços. Não publicar se QA falhar.
+
+C09: auditoria TinyFish a539ccf5-cf06-43a9-a2d8-dd82063b904e confirma domínio conectado, live 039507 (21/11), rollback de versão disponível, publicação por CLI. QA 45625704382 falhou no teste antigo de desinscrição de uma escuta; a V6 tem duas. Atualizado teste para conferir especificamente o cancelamento das duas coleções (announcements e alertas do próprio UID), sem suprimir checagem. Nenhum deploy oficial executado.

@@ -1,4 +1,4 @@
-name: V6 Hosting - validar candidato oficial sem publicação
+name: V6 Hosting - revalidar candidato oficial
 on:
   push:
     branches: [feat/v6-geoapify-qa-20261125]
