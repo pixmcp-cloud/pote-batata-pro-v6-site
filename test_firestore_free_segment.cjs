@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const {initializeEmulator,assertSucceeds,assertFails,sdk}=require('./qa/firestore/environment.cjs');
-const {doc,getDoc,setDoc,updateDoc,deleteField,runTransaction,serverTimestamp}=sdk;
+const {doc,getDoc,getDocFromServer,setDoc,updateDoc,deleteField,runTransaction,serverTimestamp}=sdk;
 test('F10: segmento FREE atômico, imutável e validado no servidor',{timeout:90000},async()=>{
  const hardened=process.env.POTE_HARDENED_RULES==='1',cutover=process.env.POTE_F05_CUTOVER_RULES==='1';
  const env=await initializeEmulator({hardened,cutover});
@@ -21,7 +21,7 @@ test('F10: segmento FREE atômico, imutável e validado no servidor',{timeout:90
    const ref=profile(db),snap=await tx.get(ref),existing=snap.data().freeUniverse;
    if(existing)return existing;
    tx.update(ref,{freeUniverse:type,updatedAt:serverTimestamp()});return type;
-  });}catch(error){const snap=await getDoc(profile(db));const chosen=snap.data()?.freeUniverse;if(!['pizzaria','hamburgueria'].includes(chosen))throw error;return chosen;}};
+  });}catch(error){const snap=await getDocFromServer(profile(db));const chosen=snap.data()?.freeUniverse;if(!['pizzaria','hamburgueria'].includes(chosen))throw error;return chosen;}};
   const result=await Promise.all([bind(a,'pizzaria'),bind(b,'hamburgueria')]);
   assert.equal(result[0],result[1],'As duas sessões devem convergir para uma única escolha');
   const selected=result[0],wrong=selected==='pizzaria'?'hamburgueria':'pizzaria';

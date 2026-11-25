@@ -27,7 +27,8 @@ for(const marker of ["observeProfile","onSnapshot(profileRef","rawUserLicense","
 const rules=readFileSync("firestore.rules","utf8");
 assert(rules.includes("allow list: if isAdmin()"),"A lista de usuários deve ser exclusiva do ADM");
 assert(rules.includes("allow create: if isOwner(userId)"),"Cadastro de usuário deve ser protegido");
-assert(rules.includes(".hasOnly(['displayName', 'photoURL', 'updatedAt'])"),"Titular não pode alterar licença");
+assert(rules.includes(".hasOnly(['displayName', 'photoURL', 'updatedAt', 'freeUniverse'])"),"Titular não pode alterar licença");
+assert(rules.includes("!resource.data.keys().hasAny(['freeUniverse'])"),"Titular não pode reescrever segmento");
 assert(rules.includes("match /licenseAudit/{eventId}"),"O histórico deve ser protegido");
 assert(rules.includes("allow update, delete: if false"),"O histórico deve ser imutável");
 const admin=readFileSync("admin_console.js","utf8");

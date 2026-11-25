@@ -39,11 +39,13 @@ function ensure(){
  <div class="pote-offer-segments"><span>🥔 Batataria</span><span>🍕 Pizzaria</span><span>🍔 Hamburgueria</span><span>🌭 Hot Dog</span><span>🥟 Pastelaria</span><span>🍽 Lancheria</span></div>
  <div class="pote-offer-benefits"><div>✓ Receitas e fichas técnicas ampliadas</div><div>✓ Estoque e gestão de desperdícios</div><div>✓ PDV, vendas e gestão financeira</div><div>✓ Precificação e margem de lucro</div><div>✓ Criativos e ferramentas de IA</div><div>✓ Radar de fornecedores e Delivery Hub</div></div>
  <p class="pote-offer-note">Consulte as condições da assinatura e a disponibilidade dos recursos. Integrações de pedidos e outros módulos em homologação não são anunciados como disponíveis.</p>
+ <button type="button" id="poteOfferPlans" class="pote-offer-cta">Comparar FREE e PRO</button>
  <a id="poteOfferContact" class="pote-offer-cta" href="https://wa.me/5548999951729?text=Ol%C3%A1%21%20Quero%20conhecer%20o%20plano%20PRO%20do%20PDV." target="_blank" rel="noopener noreferrer">Quero conhecer o PRO →</a>
  <progress id="poteOfferProgress" value="0" max="30" aria-label="Progresso da contagem regressiva"></progress><p id="poteOfferWait" class="pote-offer-wait">Você poderá fechar em instantes.</p>
  <button type="button" id="poteOfferLogout">Sair da conta</button></div></div>`;
  document.body.append(dialog);
  dialog.querySelector("#poteOfferClose").addEventListener("click",()=>{if(remaining()!==0)return;finish();});
+ dialog.querySelector("#poteOfferPlans").addEventListener("click",()=>window.POTE_PLANS?.open());
  dialog.querySelector("#poteOfferLogout").addEventListener("click",()=>document.getElementById("poteExit")?.click());
  dialog.addEventListener("cancel",event=>{event.preventDefault();if(remaining()===0)finish();});
  return dialog;

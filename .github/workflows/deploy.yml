@@ -134,6 +134,7 @@ jobs:
           cp release_news.js public/release_news.js
           cp release_news.css public/release_news.css
           cp pro_offer.js public/pro_offer.js
+          cp pro_plans.js public/pro_plans.js
           cp pro_offer.css public/pro_offer.css
           cp business_setup.css public/business_setup.css
           cp franchise_sync.js public/franchise_sync.js
@@ -203,6 +204,7 @@ jobs:
           node test_hardening_concurrent_clients.mjs
           node test_auth_v5_integration.js
           node test_pro_offer.cjs
+          node test_pro_plans.cjs
           node test_v5_startup_contract.cjs
           node test_v5_stress.mjs
           node test_finance_core.js

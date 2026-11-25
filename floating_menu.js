@@ -30,7 +30,7 @@ wrap.innerHTML=`
     <div class="pote-profile-license-top"><small>MEU PLANO</small><strong id="poteProfileLicenseType">FREE</strong></div>
     <span id="poteProfileCountdownLabel">Validade do acesso</span>
     <strong id="poteProfileCountdown" role="timer" aria-live="off">Sem vencimento</strong>
-    <p id="poteProfileLicenseHint">Suas informações de licença serão carregadas após entrar com Google.</p>
+    <p id="poteProfileLicenseHint">Suas informações de licença serão carregadas após entrar com Google.</p><button type="button" id="poteProfilePlans">Comparar planos / renovar</button>
    </section>
    <div class="pote-profile-actions"><button type="button" id="poteProfileCancel">Cancelar</button><button type="submit" id="poteProfileSave">Salvar perfil</button></div>
   </form>
@@ -134,6 +134,7 @@ $('poteFloatProfile').addEventListener('click',()=>showProfile(true));
 $('poteFloatSettings').addEventListener('click',()=>showProfile(true));
 $('poteProfileClose').addEventListener('click',()=>showProfile(false));
 $('poteProfileCancel').addEventListener('click',()=>showProfile(false));
+$('poteProfilePlans')?.addEventListener('click',()=>window.POTE_PLANS?.open());
 $('poteProfileOverlay').addEventListener('click',e=>{if(e.target===$('poteProfileOverlay'))showProfile(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('poteProfileOverlay').hidden)showProfile(false);else if(opened)setOpen(false)}});
 $('poteProfilePhoto').addEventListener('change',async e=>{
