@@ -98,6 +98,8 @@ jobs:
           cp losses.js public/losses.js
           cp motoboy.js public/motoboy.js
           cp motoboy_core.mjs public/motoboy_core.mjs
+          mkdir -p public/workers/antifraud/src
+          cp workers/antifraud/src/delivery_pricing.mjs public/workers/antifraud/src/delivery_pricing.mjs
           cp motoboy.css public/motoboy.css
           cp delivery_hub.js public/delivery_hub.js
           cp delivery_hub_core.mjs public/delivery_hub_core.mjs

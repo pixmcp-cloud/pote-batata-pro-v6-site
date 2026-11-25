@@ -19,3 +19,6 @@ assert.equal(canAssign({id:"x",universe:"batataria"},[trip]),false);
 assert.equal(canAssign({id:"z",universe:"pastelaria"},[trip]),true);
 assert.equal(tripAmount(c,{...trip,status:"cancelled"}),0);
 console.log("PASS: Motoboy, viagens agrupadas, km ida/volta, diária única, acertos e isolamento dos pedidos.");
+
+const grouped={status:"delivered",km:6,orderRefs:[{universe:"batataria",id:"a",checkoutId:"checkout-a"},{universe:"batataria",id:"b",checkoutId:"checkout-a"},{universe:"batataria",id:"c",checkoutId:"checkout-b"}]};
+assert.equal(tripAmount({paymentModel:"delivery",rateDelivery:5},grouped),10,"dois destinos, três linhas de cozinha");

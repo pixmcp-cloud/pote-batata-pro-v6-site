@@ -5,9 +5,10 @@ export function effectiveKm(trip){
  const km=finite(trip.km);
  return km*(trip.distanceMode==="oneWayReturn"?2:1);
 }
+export function deliveryCount(trip){return new Set((trip.orderRefs||[]).map(x=>String(x.universe)+"/"+String(x.checkoutId?"checkout:"+x.checkoutId:x.id))).size;}
 export function tripAmount(courier,trip){
  if(trip?.status!=="delivered"||!courier)return 0;
- const count=new Set((trip.orderRefs||[]).map(x=>String(x.universe)+"/"+String(x.id))).size;
+ const count=deliveryCount(trip);
  const km=effectiveKm(trip);
  switch(courier.paymentModel){
  case "delivery":return round(finite(courier.rateDelivery)*count);
@@ -25,7 +26,7 @@ export function courierStatement(courier,trips=[],settlements=[]){
  const variable=completed.reduce((a,t)=>a+tripAmount(courier,t),0);
  const due=round(daily+variable);
  const paid=round(settlements.filter(s=>s.courierId===courier.id).reduce((a,s)=>a+finite(s.amount),0));
- const count=completed.reduce((a,t)=>a+new Set((t.orderRefs||[]).map(x=>x.universe+"/"+x.id)).size,0);
+ const count=completed.reduce((a,t)=>a+deliveryCount(t),0);
  return {trips:completed.length,orders:count,km:round(completed.reduce((a,t)=>a+effectiveKm(t),0)),days:dates.size,
   due,paid,balance:round(Math.max(0,due-paid)),overpaid:round(Math.max(0,paid-due))};
 }

@@ -27,3 +27,5 @@
 .moto-order-choices input{width:17px;align-self:center;flex-shrink:0}
 .moto-order-choices small{display:block;color:#bbccdc;line-height:1.4;margin-top:2px}
 @media(max-width:740px){.moto-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.moto-riders,.moto-trips,.moto-fields,.moto-order-choices{grid-template-columns:1fr}}
+
+.moto-zone{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto auto;gap:8px;align-items:end;margin:9px 0;padding:10px;background:#0e1b2c;border-radius:10px}.moto-zone label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#d4e0ef}.moto-zone input:not([type=checkbox]){width:100%;min-width:0;box-sizing:border-box;padding:9px;border-radius:8px;background:#172838;color:#fff2dd;border:1px solid #96aec7b0}.moto-zone-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px;color:#d4e0ef;font-size:12px}.moto-zone-check input{width:17px!important;min-height:0!important}.moto-zone .btn{white-space:nowrap}@media(max-width:740px){.moto-zone{grid-template-columns:1fr 1fr}.moto-zone label:first-child{grid-column:1/-1}}

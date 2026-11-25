@@ -1,5 +1,6 @@
 /* Central Motoboy — dados privados por conta, acessíveis nos seis universos. */
-import {MODELS,round,effectiveKm,tripAmount,courierStatement,normalizedPhone,canAssign} from "./motoboy_core.mjs";
+import {MODELS,round,effectiveKm,tripAmount,courierStatement,normalizedPhone,canAssign,deliveryCount} from "./motoboy_core.mjs?v=2";
+import {DEFAULT_DELIVERY_POLICY,validateDeliveryPolicy,quoteDelivery} from "./workers/antifraud/src/delivery_pricing.mjs?v=1";
 (function(){
 "use strict";
 if(window.POTE_MOTOBOY)return;
@@ -41,6 +42,65 @@ function ready(service="motoboy"){
 }
 function field(id,label,value="",type="text"){
  return '<label>'+esc(label)+'<input id="'+esc(id)+'" type="'+esc(type)+'" value="'+esc(value)+'" autocomplete="off"></label>';
+}
+function deliveryPolicy(){
+ try{return validateDeliveryPolicy(state.data.settings?.deliveryPolicy??DEFAULT_DELIVERY_POLICY)}
+ catch{return validateDeliveryPolicy(DEFAULT_DELIVERY_POLICY)}
+}
+const brlInput=cents=>(cents/100).toFixed(2).replace(".",",");
+function feeInput(id,label,value){
+ return '<label>'+esc(label)+'<input id="'+esc(id)+'" inputmode="decimal" value="'+esc(value)+'" autocomplete="off"></label>';
+}
+function zoneRow(row){
+ return '<div class="moto-zone" data-zone-id="'+esc(row.id)+'"><label>Bairro<input data-zone-name maxlength="80" value="'+esc(row.name)+'"></label><label>Frete fixo (R$)<input data-zone-fee inputmode="decimal" value="'+esc(brlInput(row.feeCents))+'"></label><label class="moto-zone-check"><input type="checkbox" data-zone-enabled '+(row.enabled?'checked':'')+'> Atender</label><button type="button" class="btn mini danger" onclick="this.closest(\'.moto-zone\').remove()">Remover</button></div>';
+}
+function deliveryForm(){
+ const p=deliveryPolicy();
+ return '<details class="moto-new" open><summary>🚚 Frete cobrado do cliente · '+esc((state.data.businessType||"batataria").toUpperCase())+'</summary>'+
+ '<p class="moto-note">Configuração por ramo. Não altera a remuneração dos motoboys nem ativa o checkout. A rota e o bairro precisam ser verificados pelo servidor antes da cobrança automática.</p>'+
+ '<div class="moto-fields"><label>Modalidade<select id="motoFeeMode">'+[["hybrid","Híbrido · bairro prevalece"],["distance","Por km"],["fixed","Somente bairros cadastrados"]].map(([id,label])=>'<option value="'+id+'" '+(p.mode===id?'selected':'')+'>'+label+'</option>').join("")+'</select></label>'+
+ feeInput("motoFeeKm","R$ por km",brlInput(p.perKmCents))+feeInput("motoFeeMin","Taxa mínima por km (R$)",brlInput(p.minFeeCents))+
+ feeInput("motoFeeMax","Distância máxima (km, opcional)",p.maxDistanceMeters===null?"":String(p.maxDistanceMeters/1000).replace(".",","))+
+ feeInput("motoFeeFree","Frete grátis a partir de (R$, opcional)",p.freeAboveCents===null?"":brlInput(p.freeAboveCents))+
+ feeInput("motoFeeCost","Custo previsto por entrega (R$)",brlInput(Math.round((Number(state.data.settings?.deliveryCostPerOrder)||0)*100)))+
+ '</div><label class="moto-zone-check"><input type="checkbox" id="motoFeeEnabled" '+(p.enabled?'checked':'')+'> Habilitar política de entrega neste ramo</label>'+
+ '<h3>Bairros e tarifas</h3><div id="motoFeeZones">'+p.neighborhoods.map(zoneRow).join("")+'</div>'+
+ '<div class="actions"><button type="button" class="btn line" onclick="POTE_MOTOBOY.addZone()">+ Cadastrar bairro</button><button type="button" class="btn" onclick="POTE_MOTOBOY.saveDelivery()">Salvar frete</button></div>'+
+ '<p class="moto-note">A taxa fixa prevalece no modo híbrido. Desmarque Atender para bloquear um bairro. O custo previsto será substituído pelo rateio real da viagem, não somado a ele.</p></details>';
+}
+function addZone(){
+ if(!ready())return;
+ const holder=$("motoFeeZones");if(!holder)return;
+ if(holder.querySelectorAll(".moto-zone").length>=100)return alerts("Limite de 100 bairros por ramo.");
+ holder.insertAdjacentHTML("beforeend",zoneRow({id:ident("zone"),name:"",feeCents:0,enabled:true}));
+ holder.lastElementChild?.querySelector("[data-zone-name]")?.focus();
+}
+function decimal(raw,scale,optional=false){
+ const text=String(raw??"").trim();
+ if(!text&&optional)return null;
+ if(!/^\\d+(?:[.,]\\d{1,3})?$/.test(text))throw Error("Informe valores numéricos válidos.");
+ const v=Number(text.replace(",","."));
+ const result=Math.round(v*scale);
+ if(!Number.isSafeInteger(result)||Math.abs(v*scale-result)>1e-6)throw Error("Precisão inválida.");
+ return result;
+}
+function saveDelivery(){
+ if(!ready())return;
+ try{
+  const val=id=>$(id)?.value;
+  const neighborhoods=[...($("motoFeeZones")?.querySelectorAll(".moto-zone")||[])].map(row=>({
+   id:row.dataset.zoneId,name:row.querySelector("[data-zone-name]").value,
+   feeCents:decimal(row.querySelector("[data-zone-fee]").value,100),enabled:row.querySelector("[data-zone-enabled]").checked
+  }));
+  const next=validateDeliveryPolicy({enabled:$("motoFeeEnabled")?.checked===true,mode:val("motoFeeMode"),
+   perKmCents:decimal(val("motoFeeKm"),100),minFeeCents:decimal(val("motoFeeMin"),100),
+   maxDistanceMeters:decimal(val("motoFeeMax"),1000,true),freeAboveCents:decimal(val("motoFeeFree"),100,true),neighborhoods});
+  const cost=decimal(val("motoFeeCost"),100);
+  if(cost>10000000)throw Error("Custo de entrega fora do limite.");
+  const settings=state.data.settings??(state.data.settings={});
+  settings.deliveryPolicy=next;settings.deliveryCostPerOrder=cost/100;
+  changed();alerts("Configuração de frete salva no ramo atual. Checkout automático ainda em homologação.");
+ }catch(error){alerts(error.message)}
 }
 function courierForm(){
  if(!premium()&&couriers().length>=1)return '<p class="moto-note">🔒 FREE: 1 motoboy cadastrado. PRO libera múltiplos.</p>';
@@ -106,7 +166,7 @@ function tripCards(){
   const c=courier(t.courierId),amount=c?tripAmount(c,t):0,refs=t.orderRefs||[];
   return '<article class="moto-trip"><div class="moto-row"><strong>Viagem '+esc(t.id.slice(-7))+
    '</strong><span>'+esc(t.at?.slice(0,10)||"")+' · '+esc(t.status==="delivered"?"Entregue":t.status==="cancelled"?"Cancelada":"Pendente")+'</span></div>'+
-   '<div>'+esc(c?.name||"Motoboy removido")+' · '+refs.length+' pedido(s) · '+effectiveKm(t).toLocaleString("pt-BR")+
+   '<div>'+esc(c?.name||"Motoboy removido")+' · '+deliveryCount(t)+' entrega(s) · '+effectiveKm(t).toLocaleString("pt-BR")+
    ' km · '+money(amount)+'</div>'+
    (t.note?'<small>'+esc(t.note)+'</small>':"")+
    '<div class="actions">'+(t.status==="planned"?'<button class="btn mini" data-id="'+esc(t.id)+'" onclick="POTE_MOTOBOY.deliver(this.dataset.id)">Confirmar entrega</button>'+
@@ -123,7 +183,7 @@ function renderPage(){
  'Cadastro, viagens, quilometragem e acertos — sem serviços externos pagos.</p></div>'+
  '<div class="moto-stats">'+[['Viagens',sum.trips],['Entregas',sum.orders],['Quilometragem',round(sum.km)+" km"],['Saldo a pagar',money(sum.balance)]].map(([k,v])=>
  '<div><small>'+k+'</small><strong>'+esc(v)+'</strong></div>').join("")+'</div>'+
- courierForm()+tripForm()+'<h3>Entregadores e acertos</h3><div class="moto-riders">'+riderCards()+'</div>'+
+ deliveryForm()+courierForm()+tripForm()+'<h3>Entregadores e acertos</h3><div class="moto-riders">'+riderCards()+'</div>'+
  '<h3>Viagens e histórico</h3><div class="moto-trips">'+tripCards()+'</div>'+
  '<p class="moto-note">Valores previstos. Acertos são lançamentos de controle e nunca realizam pagamentos reais. Taxa cobrada do cliente e remuneração do motoboy são valores diferentes.</p></section>';
 }
@@ -157,9 +217,21 @@ function createTrip(){
  const current=accountOrders();
  if(refs.some(ref=>!current.some(o=>o.id===ref.id&&o.universe===ref.universe&&canAssign(o,trips()))))
   return alerts("Pedido inexistente ou já atribuído a outra viagem.");
+ // One online checkout may contain multiple kitchen rows. Assign all of
+ // them together so the courier is paid for one destination, not each item.
+ const selected=new Map(refs.map(ref=>[ref.universe+"/"+ref.id,ref]));
+ for(const ref of refs){
+  const order=current.find(o=>o.id===ref.id&&o.universe===ref.universe)?.order;
+  if(order?.source!=="public-checkout"||!order.checkoutId)continue;
+  for(const o of current.filter(x=>x.universe===ref.universe&&x.order.source==="public-checkout"&&x.order.checkoutId===order.checkoutId)){
+   if(!canAssign(o,trips()))return alerts("Pedido online já atribuído a outra viagem.");
+   selected.set(o.universe+"/"+o.id,{universe:o.universe,id:o.id,checkoutId:order.checkoutId});
+  }
+ }
+ const grouped=[...selected.values()];
  const at=String($("motoTripDate")?.value||today());
  if(!/^\d{4}-\d\d-\d\d$/.test(at))return alerts("Data inválida.");
- trips().push({id:ident("trip"),courierId,at,orderRefs:refs,km,
+ trips().push({id:ident("trip"),courierId,at,orderRefs:grouped,km,
   distanceMode:$("motoTripDistance")?.value==="oneWayReturn"?"oneWayReturn":"actual",
   note:String($("motoTripNote")?.value||"").trim().slice(0,700),status:"planned",createdAt:new Date().toISOString()});
  changed();alerts("Viagem registrada. O mesmo trajeto pode conter vários pedidos.");
@@ -220,5 +292,5 @@ async function copyPix(id){
  catch(e){window.prompt("Copie a chave PIX:",c.pixKey)}
 }
 window.POTE_MOTOBOY={render:renderPage,saveCourier,createTrip,deliver,cancel,allocate,settle,copyPix,
- accountOrders,stats,refresh:()=>{if(state.tab==="motoboy")render()}};
+ accountOrders,stats,addZone,saveDelivery,deliveryPolicy,refresh:()=>{if(state.tab==="motoboy")render()}};
 })();
