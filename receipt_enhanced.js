@@ -65,10 +65,11 @@ function render(order,type,data){
   '<small>Documento não fiscal · identificação interna</small></header>'+
   '<div class="pote-receipt-block">'+line("Pedido","№ "+(code||"—"))+
    line("Data e hora",formatDate(order))+line("Situação",status[order.status]||order.status||"Não informada")+
-   line("Canal",order.channel==="marketplace"?"Marketplace":"Venda direta / balcão")+'</div>'+
+   line("Canal",order.publicCheckoutV6===true?"Cardápio online":order.channel==="marketplace"?"Marketplace":"Venda direta / balcão")+
+   (Number.isSafeInteger(order.durationSeconds)&&order.durationSeconds>=0?line("Tempo total",[Math.floor(order.durationSeconds/3600),Math.floor(order.durationSeconds%3600/60),order.durationSeconds%60].map(x=>String(x).padStart(2,"0")).join(":")):"")+'</div>'+
   '<div class="pote-receipt-block"><h3>Cliente e entrega</h3>'+
    line("Cliente",client)+(order.clientPhone?line("WhatsApp",order.clientPhone):"")+
-   line("Modalidade",order.deliveryType||((Number(order.deliveryFee)||0)>0?"Tele-entrega":"Retirada"))+
+   line("Modalidade",order.fulfillment==="entrega"?"Tele-entrega":order.deliveryType||((Number(order.deliveryFee)||0)>0?"Tele-entrega":"Retirada"))+
    line("Endereço / referência",order.clientAddress||"Retirada no balcão")+
    (kitchen?line("Taxa de tele-entrega",money(delivery)):"")+
    (!kitchen?line("Pagamento",payment)+

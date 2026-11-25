@@ -4,7 +4,8 @@ export function statusPresentation(view,{connected=false,now=Date.now(),received
  if(!view||!Object.hasOwn(labels,view.status)||!Number.isSafeInteger(view.elapsedSeconds)||view.elapsedSeconds<0)return null;
  const terminal=["entregue","cancelado"].includes(view.status);
  const extra=terminal||!connected?0:Math.max(0,Math.floor((now-receivedAt)/1000));
- const n=view.elapsedSeconds+extra;
+ const localElapsed=Date.parse(view.createdAt||"");
+ const n=terminal||!connected||!Number.isFinite(localElapsed)?view.elapsedSeconds+extra:Math.max(view.elapsedSeconds+extra,Math.floor((now-localElapsed)/1000));
  const clock=[Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(x=>String(x).padStart(2,"0")).join(":");
  return {label:labels[view.status],clock,live:connected&&!terminal,terminal};
 }

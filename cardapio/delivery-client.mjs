@@ -105,7 +105,7 @@ export function mountDeliveryCheckout({slug,host,addressInput,feeNode,totalNode,
   finally{busy=false;sync();}
  });
  // Reading the menu never launches OAuth. Existing session is read only upon checkout entry.
- const controller={sync,reset(){invalidate();sync()},activate(){if(hasCart()&&onMode()==="entrega")void setup().catch(()=>tell("Entre com Google para calcular."));sync();}};
+ const controller={sync,getQuote(){return quoteCurrent(quote,{identity:uid,slug,address:addressInput.value})?{...quote}:null},reset(){invalidate();sync()},activate(){if(hasCart()&&onMode()==="entrega")void setup().catch(()=>tell("Entre com Google para calcular."));sync();}};
  sync();return controller;
 }
 export function mountMerchantDelivery({host,slugFor,ownerFor,token}){

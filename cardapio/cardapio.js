@@ -1,5 +1,6 @@
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary } from "./cardapio-core.mjs";
 import {mountDeliveryCheckout} from "./delivery-client.mjs";
+import {mountCustomerOrders} from "./customer-orders.mjs";
 import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=8";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
@@ -102,7 +103,7 @@ if(requestedSlug!==null){catalogue=[];byId.clear();}
 const STORAGE_KEY = requestedSlug===null ? "pote-cardapio-premium-preview-cart-v1" : "pote-public-menu-cart:"+requestedSlug;
 const $ = id => document.getElementById(id);
 const catTabs = $("categoryTabs"), grid = $("menuGrid"), productDialog = $("productDialog"), cartDialog = $("cartDialog");
-let deliveryController=null,deliveryMode=null;
+let deliveryController=null,deliveryMode=null,checkoutController=null;
 let cart = restoreCart(), category = "Todos", search = "", selected = null, quantity = 1;
 const chosenExtras = new Set();
 let pendingProduct=[];let pendingDirty=false;
@@ -373,7 +374,7 @@ function renderCart(){
   $("subtotal").textContent=money(totals.subtotalCents);
   $("total").textContent=money(totals.subtotalCents);
   $("copyOrder").disabled=totals.count===0;
-  deliveryController?.sync();
+  deliveryController?.sync();checkoutController?.sync();
   const holder=$("cartItems");
   holder.replaceChildren();
   if(!cart.length){
@@ -415,6 +416,7 @@ async function copyText(text){
   const ok=document.execCommand("copy");box.remove();return ok;
 }
 async function copyOrder(){
+  if(checkoutController){await checkoutController.submit();return;}
   if(!cart.length){toast("Escolha um produto primeiro.");return;}
   const summary=demoSummary({
     cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,
@@ -505,6 +507,8 @@ async function loadPublicMenu(slug){
     const strip=document.querySelector(".preview-strip");
     if(strip)strip.textContent="CATÁLOGO PUBLICADO • PEDIDOS E PAGAMENTOS AINDA NÃO HABILITADOS";
     deliveryController=mountDeliveryCheckout({slug,host:$("addressLabel"),addressInput:$("customerAddress"),feeNode:$("deliveryFee"),totalNode:$("total"),totalLabel:$("totalLabel"),subtotal:()=>cartTotals(cart,catalogue).subtotalCents,hasCart:()=>cart.length>0,onMode:()=>document.querySelector('input[name="fulfillment"]:checked')?.value||"retirada"});
+    checkoutController=mountCustomerOrders({slug,checkoutButton:$("copyOrder"),historyButton:$("historyBtn"),getCart:()=>cart,subtotal:()=>cartTotals(cart,catalogue).subtotalCents,quoteFor:()=>deliveryController?.getQuote?.()||null,getForm:()=>({fulfillment:document.querySelector('input[name="fulfillment"]:checked')?.value||"retirada",payment:$("paymentMethod").value,customerName:$("customerName").value,customerPhone:$("customerPhone").value}),onSuccess:()=>{cart=[];saveCart();renderCart();deliveryController?.reset();cartDialog.close()},toast});
+    if(checkoutController){const warning=document.querySelector(".demo-warning");if(warning)warning.textContent="Checkout de homologação restrito a contas autorizadas. Não realiza cobrança automática.";}
     categories();renderMenu();renderCart();
   }catch(error){
     console.warn("Cardápio público indisponível",error.code||error.message||error);
