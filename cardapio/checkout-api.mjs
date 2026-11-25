@@ -1,3 +1,4 @@
+import {ensureLegalAcceptance} from "../legal_ui.mjs";
 import {CHECKOUT_ENDPOINT} from "./checkout-config.mjs";
 const routes=["orders/create","orders/resolve","orders/read","orders/assign","orders/invite","orders/accept-invite","orders/safety-alert","orders/safety-location","tracking/merchant-read","tracking/merchant-consent","orders/transition","orders/confirm-payment","tracking/start","tracking/publish","tracking/read","tracking/clear"];
 export function createCheckoutApi({endpoint=CHECKOUT_ENDPOINT,token,requestFetch=fetch}={}){

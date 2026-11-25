@@ -1,5 +1,6 @@
 // Candidate public-order API. Independent of the published Geo Worker.
 // Disabled unless explicit canary flags AND Firebase administrative approval.
+import {requireLegalAcceptance} from "../../../legal_core.mjs";
 import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository} from "./firestore.mjs";
 import {commitPublicCheckout,resolvePublicCheckout} from "./checkout_transaction.mjs";
@@ -81,6 +82,8 @@ export function createCheckoutWorker({verify=verifyFirebaseToken,repository=crea
    const b=await readBody(req);
    if(Object.keys(b).some(k=>!fields[path].includes(k)))fail("unexpected_field",400);
    const actorUid=user.uid,now=clock();
+   // Do not prevent a safety report or retrieval during a legal version change.
+   if(env.REQUIRE_LEGAL_TERMS==="true"&&!["/v1/orders/safety-alert","/v1/orders/safety-location","/v1/tracking/clear"].includes(path))await requireLegalAcceptance(repository(env),actorUid);
    if(path==="/v1/orders/create"){
     if(!slugOk(b.slug))fail("invalid_store",400);
     if(!Number.isSafeInteger(b.expectedTotalCents)||b.expectedTotalCents<1||b.expectedTotalCents>999999999)fail("invalid_expected_total",400);

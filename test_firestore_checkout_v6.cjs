@@ -164,6 +164,25 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
    assert.equal((await get(rp('ingredients','base'))).record.item.stock,500,'Cancelling an undeducted reservation must not create stock');
    assert.equal((await get(guard)).revision,9,'2 creates + assign/produce/finalize/dispatch/payment/delivered/cancel');
   });
+  const {policyDigest,requireLegalAcceptance}=await import('./legal_core.mjs');
+  const policyText='PDV MULTIVERSAL - TESTE SINTETICO. '.repeat(8),sha256=await policyDigest(policyText);
+  const policy={active:true,brand:'PDV MULTIVERSAL',version:'qa-legal-1',sha256,text:policyText,controller:'Controlador ficticio QA',privacyContact:'qa@example.test'};
+  await env.withSecurityRulesDisabled(async ctx=>{const db=ctx.firestore();await sdk.setDoc(sdk.doc(db,'legalPolicy/current'),policy)});
+  const accepted=sdk.doc(buyer,'users/buyer-a/legalAcceptances/qa-legal-1'),payload={uid:'buyer-a',version:policy.version,sha256,accepted:true,acceptedAt:sdk.serverTimestamp()};
+  await assertFails(sdk.getDoc(sdk.doc(buyer,'publicOrderViews/'+first.id)));
+  await assert.rejects(()=>requireLegalAcceptance(repository,'buyer-a'),/legal_acceptance_required/);
+  await assertFails(sdk.setDoc(accepted,{...payload,sha256:'0'.repeat(64)}));
+  await assertFails(sdk.setDoc(accepted,{...payload,acceptedAt:new Date(0)}));
+  await assertFails(sdk.setDoc(sdk.doc(outsider,'users/buyer-a/legalAcceptances/qa-legal-1'),payload));
+  await assertSucceeds(sdk.setDoc(accepted,payload));
+  await assertSucceeds(sdk.getDoc(sdk.doc(buyer,'publicOrderViews/'+first.id)));
+  await assertFails(sdk.updateDoc(accepted,{accepted:false}));
+  await assertFails(sdk.deleteDoc(accepted));
+  await requireLegalAcceptance(repository,'buyer-a');
+  await env.withSecurityRulesDisabled(async ctx=>{const db=ctx.firestore();await sdk.updateDoc(sdk.doc(db,'legalPolicy/current'),{version:'qa-legal-2'})});
+  await assert.rejects(()=>requireLegalAcceptance(repository,'buyer-a'),/legal_acceptance_required/);
+  await assertFails(sdk.getDoc(sdk.doc(buyer,'publicOrderViews/'+first.id)));
+  console.log('LEGAL_ACCEPTANCE_IMMUTABLE_VERSION_SERVER_TIME_PASS');
   console.log('D01_D05_LIFECYCLE_EMULATOR_PASS stock=500g elapsed=956s cash=7300cent courier=bound cancellation=reservation_only');
   console.log('D01_EMULATOR_CHECKOUT_ATOMIC_PASS basket=7300 reserve=500g concurrent=1of2 duplicate=blocked payment=pending');
  }finally{await env.cleanup()}
