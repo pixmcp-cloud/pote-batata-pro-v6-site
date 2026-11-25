@@ -35,8 +35,11 @@ export function fromOrders(orders=[]){
    source:"Hub de Delivery",href:"",cta:"Abrir Hub"
   }));
 }
-export function mergeNotifications(announcements=[],orders=[],read={},now=Date.now()){
- const merged=[...fromOrders(orders),...fromAnnouncements(announcements,now)].sort((a,b)=>b.at-a.at||a.id.localeCompare(b.id));
+export function fromSafetyAlerts(alerts=[]){
+ return alerts.filter(x=>x&&typeof x.id==="string"&&["possible_accident","help_requested"].includes(x.kind)&&Number.isSafeInteger(x.atMs)).map(x=>({id:"safety:"+x.id+":"+x.atMs,kind:"safety",priority:"urgent",title:x.kind==="help_requested"?"⚠ Motoboy pediu ajuda":"⚠ Alerta de possível acidente",body:"Pedido "+text(x.orderCode,24)+". "+(x.kind==="help_requested"?"Entregador solicitou ajuda.":"Parada brusca detectada; ocorrência não confirmada.")+" Contate o entregador quando for seguro. Em emergência, acione 192 ou 193.",at:x.atMs,source:"Segurança da entrega",href:""}));
+}
+export function mergeNotifications(announcements=[],orders=[],read={},now=Date.now(),safety=[]){
+ const merged=[...fromSafetyAlerts(safety),...fromOrders(orders),...fromAnnouncements(announcements,now)].sort((a,b)=>b.at-a.at||a.id.localeCompare(b.id));
  const seen=new Set();
  return merged.filter(x=>{
   if(seen.has(x.id))return false;seen.add(x.id);return true;

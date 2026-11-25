@@ -545,6 +545,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Safety alerts: only the affected merchant may read; all SDK writes denied.
+    match /users/{userId}/deliverySafetyAlertsV6/{alertId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId) && request.query.limit != null && request.query.limit <= 30;
+      allow create, update, delete: if false;
+    }
+
     // Deny everything not explicitly listed.
     match /{document=**} {
       allow read, write: if false;

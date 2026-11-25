@@ -9,6 +9,7 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
  const {commitPublicCheckout,resolvePublicCheckout}=await import('./workers/antifraud/src/checkout_transaction.mjs');
  const {mutateDeliveryOrder,readDeliveryOrder}=await import('./workers/antifraud/src/delivery_transaction.mjs');
  const {issueCourierInvite,acceptCourierInvite}=await import('./workers/antifraud/src/courier_invitation.mjs');
+ const {reportCourierSafety}=await import('./workers/antifraud/src/courier_safety.mjs');
  const {createFirestoreRepository}=await import('./workers/antifraud/src/firestore.mjs');
  const {recordPath,quantities}=await import('./workers/antifraud/src/domain.mjs');
  const {confirmPaymentOnSaleCompletion,orderAmountCents}=await import('./pdv_cash_core.mjs');
@@ -103,6 +104,16 @@ test('D01: multi-item basket, one reservation, same guard and pulse, quote redem
   assert.equal((await mutate(uid,'transition',{next:'finalizado'},20000)).status,'finalizado');
   await assert.rejects(()=>mutate(uid,'transition',{next:'entregue'},25000),/dispatch_required/);
   assert.equal((await mutate('courier-a','transition',{next:'saiu_entrega'},30000)).status,'saiu_entrega');
+  const safety=(actorUid,kind='possible_accident')=>reportCourierSafety({repository,actorUid,id:first.id,kind,now:now+31000});
+  await assert.rejects(()=>safety('buyer-a'),/safety_alert_forbidden/);
+  await assert.rejects(()=>safety(uid),/safety_alert_forbidden/);
+  assert.equal((await safety('courier-a')).duplicate,false);
+  assert.equal((await safety('courier-a')).duplicate,true);
+  const safetyDoc=root+'/deliverySafetyAlertsV6/'+first.id+'-possible_accident';
+  await assertSucceeds(sdk.getDoc(sdk.doc(merchant,safetyDoc)));
+  await assertFails(sdk.getDoc(sdk.doc(buyer,safetyDoc)));
+  await assertFails(sdk.setDoc(sdk.doc(merchant,safetyDoc),{kind:'fake'}));
+  console.log('D02_SAFETY_ALERT_AUTH_DEDUP_PASS');
   const courierView=await readDeliveryOrder({repository,actorUid:'courier-a',id:first.id,now:now+30000});
   assert.deepEqual(courierView.destination,{lat:-29,lon:-51});
   assert.equal((await readDeliveryOrder({repository,actorUid:'buyer-a',id:first.id,now:now+40000})).elapsedSeconds,40);

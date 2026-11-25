@@ -28,13 +28,13 @@ if(!mountBell()){
 }
 
 const $=id=>document.getElementById(id),bell=$("poteBell"),drawer=$("poteNoticeDrawer");
-let messages=[],items=[],connectedUid=null,unsub=null,listenerError="",selectedId=null;
+let messages=[],safetyAlerts=[],safetyUnsub=null,safetyPopup=null,safetySeen=new Set(),items=[],connectedUid=null,unsub=null,listenerError="",selectedId=null;
 function logged(){return !!window.POTE_AUTH?.uid&&auth.currentUser?.uid===window.POTE_AUTH.uid}
 function safeData(){return typeof state!=="undefined"&&state?.data?state.data:null}
 function readStore(){return safeData()?notificationState(state.data).read:{}}
 function currentNotifications(){
  if(!logged()||!safeData())return [];
- return mergeNotifications(messages,state.data.deliveryHub?.orders||[],readStore());
+ return mergeNotifications(messages,state.data.deliveryHub?.orders||[],readStore(),Date.now(),safetyAlerts);
 }
 function fmt(value){
  return value?new Date(value).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
@@ -124,6 +124,7 @@ function toggle(force){
  paint();
 }
 function disconnect(){
+ if(safetyUnsub){safetyUnsub();safetyUnsub=null} safetyAlerts=[];safetySeen.clear();safetyPopup?.remove();safetyPopup=null;
  if(unsub){unsub();unsub=null}
  connectedUid=null;messages=[];items=[];listenerError="";selectedId=null;drawer.hidden=true;bell.setAttribute("aria-expanded","false");
  root.hidden=true;
@@ -135,7 +136,18 @@ function connect(){
  const uid=window.POTE_AUTH.uid;
  if(connectedUid===uid){paint();return}
  if(unsub){unsub();unsub=null}
+ if(safetyUnsub){safetyUnsub();safetyUnsub=null} safetyAlerts=[];safetySeen.clear();safetyPopup?.remove();safetyPopup=null;
  connectedUid=uid;messages=[];listenerError="";root.hidden=false;paint();
+ const safetyQuery=query(collection(db,"users",uid,"deliverySafetyAlertsV6"),orderBy("atMs","desc"),limit(30));
+ safetyUnsub=onSnapshot(safetyQuery,snapshot=>{
+  if(!logged()||window.POTE_AUTH?.uid!==uid)return;
+  safetyAlerts=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));paint();
+  if(snapshot.metadata.fromCache)return;
+  const latest=currentNotifications().find(x=>x.kind==="safety"&&x.unread&&!safetySeen.has(x.id)&&Date.now()-x.at<86400000);
+  if(!latest||safetyPopup)return;safetySeen.add(latest.id);
+  const box=document.createElement("aside");box.setAttribute("role","alert");Object.assign(box.style,{position:"fixed",top:"16px",left:"12px",right:"12px",maxWidth:"480px",margin:"auto",zIndex:"2147483000",background:"#441414",color:"#fff",padding:"18px",border:"2px solid #f59e0b",borderRadius:"12px"});
+  const title=document.createElement("strong");title.textContent=latest.title;const msg=document.createElement("p");msg.textContent=latest.body;const b=document.createElement("button");b.type="button";b.textContent="Ciente — verificar entregador";b.onclick=()=>{mark(latest.id);box.remove();safetyPopup=null;};box.append(title,msg,b);document.body.append(box);safetyPopup=box;
+ },()=>{});
  const q=query(collection(db,"announcements"),orderBy("createdAt","desc"),limit(60));
  unsub=onSnapshot(q,snapshot=>{
   if(window.POTE_AUTH?.uid!==uid)return;

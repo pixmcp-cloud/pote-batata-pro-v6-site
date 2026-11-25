@@ -32,7 +32,7 @@ export async function openMerchantOrder({order,ownerUid,onChanged,notify}){
    const email=el("input");email.type="email";email.placeholder="E-mail Google do motoboy";email.maxLength=254;actions.append(email);
    const invitation=el("input");invitation.readOnly=true;invitation.hidden=true;invitation.setAttribute("aria-label","Link privado de convite");actions.append(invitation);
    const generate=add("Gerar convite privado (30 min)",async()=>{if(busy||!email.value.trim()||!email.checkValidity()||auth.currentUser?.uid!==ownerUid)return;busy=true;generate.disabled=true;
-    try{const result=await api.request("orders/invite",{id,email:email.value.trim()});if(!alive||auth.currentUser?.uid!==ownerUid)return;if(!result.ok||!/^\\w{64}$/.test(result.token||""))throw Error("invalid invite");
+    try{const result=await api.request("orders/invite",{id,email:email.value.trim()});if(!alive||auth.currentUser?.uid!==ownerUid)return;if(!result.ok||!/^[a-f0-9]{64}$/.test(result.token||""))throw Error("invalid invite");
      const url=new URL("./entrega.html?pedido="+encodeURIComponent(id),import.meta.url);url.hash="convite="+result.token;invitation.value=url.href;invitation.hidden=false;invitation.select();
      try{await navigator.clipboard.writeText(url.href);notify("Convite copiado. Envie apenas ao motoboy indicado.");}catch{notify("Convite gerado. Copie o link e envie apenas ao motoboy indicado.");}
     }catch{if(alive)status.textContent="Não foi possível gerar o convite.";}finally{busy=false;generate.disabled=false;}});

@@ -5,6 +5,7 @@ import {createFirestoreRepository} from "./firestore.mjs";
 import {commitPublicCheckout,resolvePublicCheckout} from "./checkout_transaction.mjs";
 import {readDeliveryOrder,mutateDeliveryOrder} from "./delivery_transaction.mjs";
 import {issueCourierInvite,acceptCourierInvite} from "./courier_invitation.mjs";
+import {reportCourierSafety} from "./courier_safety.mjs";
 import {DeliveryTrackingGate} from "./delivery_tracking_gate.mjs";
 import {uidOk,slugOk} from "./geo_core.mjs";
 export {DeliveryTrackingGate};
@@ -46,6 +47,7 @@ const fields={
  "/v1/orders/create":["slug","operationId","lines","fulfillment","payment","customerName","customerPhone","quoteId","expectedTotalCents"],
  "/v1/orders/resolve":["slug","operationId"],
  "/v1/orders/read":["id"],
+ "/v1/orders/safety-alert":["id","kind"],
  "/v1/orders/invite":["id","email"],
  "/v1/orders/accept-invite":["id","token"],
  "/v1/orders/assign":["id","operationId","courierUid"],
@@ -83,6 +85,7 @@ export function createCheckoutWorker({verify=verifyFirebaseToken,repository=crea
    }
    if(path==="/v1/orders/resolve")return reply(await resolvePublicCheckout({repository:repository(env),buyerUid:actorUid,slug:b.slug,operationId:b.operationId}),200,cors);
    if(!idOk(b.id))fail("invalid_order",400);
+   if(path==="/v1/orders/safety-alert")return reply(await reportCourierSafety({repository:repository(env),actorUid,id:b.id,kind:b.kind,now}),200,cors);
    if(path==="/v1/orders/invite")return reply(await issueCourierInvite({repository:repository(env),actorUid,id:b.id,email:b.email,now}),200,cors);
    if(path==="/v1/orders/accept-invite")return reply(await acceptCourierInvite({repository:repository(env),actorUid,verifiedEmail:user.email,id:b.id,token:b.token,now}),200,cors);
    if(path==="/v1/orders/read")return reply(await readDeliveryOrder({repository:repository(env),actorUid,id:b.id,now}),200,cors);

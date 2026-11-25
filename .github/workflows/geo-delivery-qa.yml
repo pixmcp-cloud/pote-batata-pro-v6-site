@@ -69,3 +69,5 @@ jobs:
       - run: node --check cardapio/customer-orders.mjs && node --check cardapio/cardapio.js && node --check receipt_enhanced.js
 
       - run: node --test cardapio/courier-stop.test.mjs && node --check cardapio/courier-delivery.mjs
+
+      - run: node --test cardapio/courier-safety.test.mjs && node --check cardapio/courier-delivery.mjs && node --check notifications.js

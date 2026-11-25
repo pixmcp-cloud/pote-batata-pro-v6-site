@@ -1,10 +1,29 @@
 import {CHECKOUT_ENDPOINT} from "./checkout-config.mjs";
 import {createCheckoutApi,signInForOrder} from "./checkout-api.mjs";
 import {observeStop,distanceMeters} from "./courier-stop.mjs";
+import {observeAbruptStop} from "./courier-safety.mjs";
 const $=id=>document.getElementById(id),id=new URLSearchParams(location.search).get("pedido"),say=t=>{$("courierStatus").textContent=t};
 const inviteToken=new URLSearchParams(location.hash.slice(1)).get("convite");
 let api,identity,auth,watch=null,lastSent=0,lastPoint=null,requesting=false,epoch=0,view=null,stopState=null,stopTimer=null,lastFixAt=0,fixPending=false;
-let stopNotice=null;
+let stopNotice=null,safetyState=null,safetyNotice=null,safetyTimer=null,safetyBusy=false,lastSafetyAt=0;
+function clearSafety(){clearTimeout(safetyTimer);safetyTimer=null;safetyState=null;safetyNotice?.remove();safetyNotice=null;}
+async function sendSafety(kind){
+ if(!active()||safetyBusy)return;safetyBusy=true;
+ try{await api.request("orders/safety-alert",{id,kind});lastSafetyAt=Date.now();say("Alerta enviado à loja. Se houver emergência, ligue 192 ou 193 quando for seguro.");}
+ catch{say("Alerta NÃO confirmado. Tente novamente quando for seguro ou ligue para a loja.");}
+ finally{safetyBusy=false;}
+}
+function possibleAccident(){
+ if(safetyNotice||Date.now()-lastSafetyAt<300000||!active()||document.hidden)return;
+ const box=document.createElement("aside");box.setAttribute("role","alert");
+ Object.assign(box.style,{position:"fixed",bottom:"12px",left:"12px",right:"12px",zIndex:"10000",maxWidth:"460px",margin:"auto",background:"#401212",color:"#fff",padding:"16px",border:"2px solid #f59e0b",borderRadius:"12px"});
+ const title=document.createElement("strong");title.textContent="⚠️ Possível acidente — parada brusca detectada";
+ const msg=document.createElement("p");msg.textContent="Se estiver bem, confirme somente quando for seguro. A loja será avisada em 20 segundos. Em emergência, ligue 192 ou 193.";
+ const ok=document.createElement("button");ok.type="button";ok.textContent="Estou bem";ok.onclick=()=>clearSafety();
+ const sos=document.createElement("button");sos.type="button";sos.textContent="Preciso de ajuda";sos.onclick=()=>{clearSafety();void sendSafety("help_requested")};
+ box.append(title,msg,ok,sos);document.body.append(box);safetyNotice=box;
+ safetyTimer=setTimeout(()=>{clearSafety();void sendSafety("possible_accident")},20000);
+}
 function dismissStopNotice(){if(stopNotice){stopNotice.remove();stopNotice=null;}}
 function showStopNotice(){
  if(stopNotice||document.hidden||!active())return;
@@ -20,13 +39,13 @@ const active=()=>view?.role==="courier"&&view.status==="saiu_entrega"&&auth?.cur
 function controls(){
  $("courierDispatch").hidden=view?.role!=="courier"||view.status!=="finalizado";
  $("courierConsent").hidden=!active();$("courierStart").hidden=!active()||watch!==null;
- $("courierStop").hidden=watch===null;$("courierDone").hidden=!active();
+ $("courierSOS").hidden=!active();$("courierStop").hidden=watch===null;$("courierDone").hidden=!active();
  $("courierAddress").hidden=!active()||!view?.address;$("courierAddress").textContent=active()?view.address||"":"";
  const map=$("courierMap");map.hidden=!active()||!view?.destination;
  if(!map.hidden)map.href="https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(view.destination.lat+","+view.destination.lon);else map.removeAttribute("href");
 }
 async function stop({clear=true}={}){
- epoch++;if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;lastSent=0;lastPoint=null;clearStopDetection();controls();
+ epoch++;if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;lastSent=0;lastPoint=null;clearStopDetection();clearSafety();controls();
  if(clear&&api&&identity===auth?.currentUser?.uid){try{await api.request("tracking/clear",{id})}catch{}}
 }
 async function refresh(){
@@ -58,6 +77,8 @@ $("courierStart").onclick=async()=>{
    const now=Date.now(),point={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};
    if(!Number.isFinite(p.timestamp)||now-p.timestamp>30000||p.timestamp>now+5000)return;
    lastFixAt=now;
+   const impact=observeAbruptStop(safetyState,{speed:p.coords.speed,accuracy:point.accuracy},p.timestamp);safetyState=impact.state;
+   if(impact.suspect)possibleAccident();
    const observed=observeStop(stopState,{...point,speed:p.coords.speed},now);stopState=observed.state;
    if(observed.alert)showStopNotice();else if(!observed.stationary)dismissStopNotice();
    if(requesting)return;
@@ -79,6 +100,7 @@ $("courierStart").onclick=async()=>{
 };
 $("courierConsentCheck").onchange=()=>{if(!$("courierConsentCheck").checked)void stop()};
 $("courierStop").onclick=()=>void stop();
+$("courierSOS").onclick=()=>{if(active()&&confirm("Enviar pedido de ajuda à loja? Use somente quando for seguro.")){clearSafety();void sendSafety("help_requested")}};
 $("courierDispatch").onclick=async()=>{try{await api.request("orders/transition",{id,operationId:crypto.randomUUID(),next:"saiu_entrega"});await refresh()}catch{say("Saída não confirmada.")}};
 $("courierDone").onclick=async()=>{if(!active())return;
  const deliveryCode=prompt("Peça ao cliente o código de 4 dígitos após entregar o pedido.");
