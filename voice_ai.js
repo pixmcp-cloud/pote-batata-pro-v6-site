@@ -127,15 +127,15 @@ universe.setAttribute('aria-labelledby','poteAiUniverseTitle');
 universe.innerHTML=`
  <div class="iau-shell">
   <header class="iau-header"><button class="iau-back iau-orb" type="button" data-iau-close aria-label="Voltar ao PDV"><span>IA</span></button><span class="iau-brand"><strong>PDV</strong><small>MULTIVERSAL</small></span><button class="iau-back iau-close" type="button" data-iau-close aria-label="Fechar carteira">×</button></header>
-  <section class="iau-hero"><h1 id="poteAiUniverseTitle"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 9V7l15-5 2 6M4 9h18a3 3 0 0 1 3 3v12H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Zm21 5h-7a3 3 0 0 0 0 6h7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg> Carteira <span>IA</span></h1><p>Seus créditos para usar os recursos de IA</p></section>
+  <section class="iau-hero"><h1 id="poteAiUniverseTitle"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 9V7l15-5 2 6M4 9h18a3 3 0 0 1 3 3v12H4a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Zm21 5h-7a3 3 0 0 0 0 6h7" fill="none" stroke="currentColor" stroke-width="1.8"/></svg> Carteira <span>IA COIN</span></h1><p>Sua moeda para usar os recursos de IA</p></section>
   <div id="iauGate" role="status"></div>
   <div id="iauContent" hidden>
-   <section class="iau-wallet"><div id="iauWalletArt" aria-hidden="true"></div><div class="iau-wallet-info"><small>Saldo disponível</small><div class="iau-balance-line"><strong id="iauBalance">—</strong><span>créditos IA</span></div><div class="iau-wallet-actions"><button type="button" id="iauBuyScroll">Comprar créditos</button><button type="button" id="iauHistoryBtn">Histórico</button><button type="button" id="iauRefresh" class="iau-refresh" aria-label="Atualizar saldo">↻</button></div></div></section><section class="iau-rules"><strong>ⓘ FREE não usa IA</strong><span>Acesso à IA disponível para <b>PRO, Vitalício e Franquia</b></span></section>
+   <section class="iau-wallet"><div id="iauWalletArt" aria-hidden="true"></div><div class="iau-wallet-info"><small>Saldo disponível</small><div class="iau-balance-line"><strong id="iauBalance">—</strong><span>IA COIN</span></div><div class="iau-wallet-actions"><button type="button" id="iauBuyScroll">Comprar IA COIN</button><button type="button" id="iauHistoryBtn">Histórico</button><button type="button" id="iauRefresh" class="iau-refresh" aria-label="Atualizar saldo">↻</button></div></div></section><section class="iau-rules"><strong>ⓘ FREE não usa IA</strong><span>Acesso à IA disponível para <b>PRO, Vitalício e Franquia</b></span></section>
    <section id="iauHistory" hidden aria-label="Extrato de créditos"></section>
-   <section class="iau-store" id="iauStore"><h2><span aria-hidden="true">▱</span> Loja de créditos</h2><p>Escolha um pacote e adicione créditos à sua Carteira IA</p><div class="iau-grid" id="iauPackages"></div><div id="iauPurchase" role="status" hidden></div></section>
+   <section class="iau-store" id="iauStore"><h2><span aria-hidden="true">▱</span> Loja de IA COIN</h2><p>Escolha um pacote e abasteça sua carteira IA COIN</p><div class="iau-grid" id="iauPackages"></div><div id="iauPurchase" role="status" hidden></div></section>
    <section class="iau-services"><h2>Seu poder criativo</h2><button type="button" id="iauVoice">Locução profissional <span>›</span></button><p>Chef IA e imagens: integração de consumo em preparação.</p></section>
   </div>
-  <footer class="iau-footer">Moedas de uso interno · Não transferíveis · Sem conversão em dinheiro</footer>
+  <footer class="iau-footer">IA COIN · Uso interno · Não transferível · Sem conversão em dinheiro</footer>
  </div>`;
 document.body.append(universe);
 const u=id=>universe.querySelector('#'+id);
@@ -149,7 +149,7 @@ const coin=(tier,prefix='pack'+tier)=>{
  return '<svg class="iau-coin-art" viewBox="0 0 180 132" aria-hidden="true"><defs><linearGradient id="'+id+'-edge"><stop stop-color="#663507"/><stop offset=".23" stop-color="#f4cb73"/><stop offset=".43" stop-color="#7f420e"/><stop offset=".65" stop-color="#ffdc83"/><stop offset="1" stop-color="#7b3c19"/></linearGradient><radialGradient id="'+id+'-face" cx=".28" cy=".22" r=".86"><stop stop-color="#765df4"/><stop offset=".42" stop-color="#251651"/><stop offset=".8" stop-color="#130c2d"/><stop offset="1" stop-color="#30267b"/></radialGradient><linearGradient id="'+id+'-rim" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#00e8ff"/><stop offset=".35" stop-color="#9868ff"/><stop offset=".65" stop-color="#f853ed"/><stop offset="1" stop-color="#ffd789"/></linearGradient></defs><ellipse cx="90" cy="116" rx="69" ry="9" fill="none" stroke="#00deff" opacity=".52"/>'+stack+'<g transform="translate('+ (n===1?90:109)+' 63) rotate(-17)"><ellipse cx="5" cy="5" rx="38" ry="48" fill="url(#'+id+'-edge)" stroke="#f8d27b" stroke-width="2"/><ellipse rx="38" ry="48" fill="url(#'+id+'-face)" stroke="#ffe19a" stroke-width="3"/><ellipse rx="33" ry="43" fill="none" stroke="url(#'+id+'-rim)" stroke-width="5"/><ellipse rx="28" ry="37" fill="none" stroke="#b79dff" stroke-dasharray="1 5" stroke-width="2"/><ellipse rx="23" ry="31" fill="none" stroke="#9774e2" opacity=".5"/><text y="9" text-anchor="middle" fill="#f7d8ff" stroke="#c490ff" stroke-width=".6" font-family="system-ui,sans-serif" font-size="29" font-weight="900">IA</text><path d="M-24 -31Q-10 -45 6 -43" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></g></svg>';
 };
 u('iauWalletArt').innerHTML=coin(3,'wallet');
-u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>'<article class="iau-pack" data-tier="'+i+'"><div class="iau-coins">'+coin(i)+'</div><div class="iau-amount"><strong>'+amount+'</strong> <span>créditos</span></div><b>'+brl(cents)+'</b><button type="button" data-package="'+i+'"><span aria-hidden="true">＋</span> Comprar</button></article>').join('');
+u('iauPackages').innerHTML=packages.map(([amount,cents],i)=>'<article class="iau-pack" data-tier="'+i+'"><div class="iau-coins">'+coin(i)+'</div><div class="iau-amount"><strong>'+amount+'</strong> <span>IA COIN</span></div><b>'+brl(cents)+'</b><button type="button" data-package="'+i+'"><span aria-hidden="true">＋</span> Comprar</button></article>').join('');
 u('iauBuyScroll').addEventListener('click',()=>{if(permitted())u('iauStore').scrollIntoView({block:'start'});});
 let universeSeq=0;
 async function universeRefresh(){
@@ -177,7 +177,7 @@ u('iauRefresh').addEventListener('click',universeRefresh);
 u('iauPackages').addEventListener('click',e=>{
  const b=e.target.closest('[data-package]');if(!b||!permitted())return;
  const pack=packages[Number(b.dataset.package)];if(!pack)return;
- const panel=u('iauPurchase');panel.hidden=false;panel.textContent=pack[0]+' moedas IA por '+brl(pack[1])+'. Checkout PIX ainda não homologado. Nenhum pagamento ou crédito foi registrado.';panel.scrollIntoView({block:'nearest'});
+ const panel=u('iauPurchase');panel.hidden=false;panel.textContent=pack[0]+' IA COIN por '+brl(pack[1])+'. Checkout PIX ainda não homologado. Nenhum pagamento ou crédito foi registrado.';panel.scrollIntoView({block:'nearest'});
 });
 u('iauHistoryBtn').addEventListener('click',async()=>{
  const user=auth.currentUser,panel=u('iauHistory');if(!user||!permitted())return;
@@ -188,7 +188,7 @@ u('iauHistoryBtn').addEventListener('click',async()=>{
   if(seq!==universeSeq||!universe.open||auth.currentUser?.uid!==user.uid||!permitted())return;
   panel.replaceChildren();
   if(snap.empty)panel.textContent='Nenhuma movimentação.';
-  for(const entry of snap.docs){const d=entry.data(),row=document.createElement('p');row.textContent=(d.delta>0?'+':'')+d.delta+' IA · '+String(d.reason||'Movimentação')+' · saldo '+d.after;panel.append(row);}
+  for(const entry of snap.docs){const d=entry.data(),row=document.createElement('p');row.textContent=(d.delta>0?'+':'')+d.delta+' IA COIN · '+String(d.reason||'Movimentação')+' · saldo '+d.after;panel.append(row);}
  }catch{if(seq===universeSeq)panel.textContent='Extrato indisponível.';}
 });
 u('iauVoice').addEventListener('click',()=>{if(!permitted())return;closeUniverse();if(typeof go==='function'){go('creative');requestAnimationFrame(()=>document.getElementById('csVoiceStudio')?.scrollIntoView({block:'start'}));}});
