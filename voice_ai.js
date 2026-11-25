@@ -17,7 +17,12 @@ function renderQuota(q){
  $("csVoiceProgress").max=Math.max(1,q.share);$("csVoiceProgress").value=Math.min(q.share,q.used);
  $("csVoiceShare").textContent=q.count+" franquia(s) ativa(s) · "+(20/q.count).toLocaleString("pt-BR",{maximumFractionDigits:3})+"% da cota total por franquia. Limite coletivo: 20%.";
 }
-function renderChars(){if($("csVoiceChars")&&$("csVoiceText"))$("csVoiceChars").textContent=$("csVoiceText").value.length+" / 777 caracteres";}
+function renderChars(){
+ const field=$("csVoiceText"),label=$("csVoiceChars"),seconds=Number($("csVoiceDuration")?.value||15);
+ if(!field||!label)return;
+ const cap=seconds*10;field.maxLength=cap;
+ label.textContent=field.value.length+" / "+cap+" caracteres · "+seconds/15+" IA"+(field.value.length>cap?" · Reduza o texto ou escolha outra duração.":"");
+}
 function clear(){quote=null;uid=null;if($("csAiWallet"))$("csAiWallet").hidden=true;if($("csAiPackages"))$("csAiPackages").hidden=true;if($("csAiHistory")){$("csAiHistory").replaceChildren();$("csAiHistory").hidden=true;}renderQuota(null);if($("csVoiceAudio")){$("csVoiceAudio").pause();$("csVoiceAudio").removeAttribute("src");$("csVoiceAudio").hidden=true;}if($("csVoiceDownload")){$("csVoiceDownload").removeAttribute("href");$("csVoiceDownload").hidden=true;}if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
 const permitted=()=>{
  const p=window.POTE_AUTH,flag=p?.accessPolicy?.voiceAiEnabled;
@@ -75,12 +80,13 @@ async function open(){
   if(data.commercialReady!==true||data.authorized!==true)return state("Serviço comercial indisponível.");
   uid=auth.currentUser.uid;
   const select=$("csVoiceSelect");select.replaceChildren(...data.voices.map(v=>new Option(v.name,v.id)));
-  $("csVoiceText").value=["creativeHeadline","creativeBody","creativeCta"].map(id=>$(id)?.value||"").filter(Boolean).join(". ").slice(0,777);
+  $("csVoiceText").value=["creativeHeadline","creativeBody","creativeCta"].map(id=>$(id)?.value||"").filter(Boolean).join(". ").slice(0,750);
+  $("csVoiceDuration").value=String(Math.min(75,Math.max(15,Math.ceil($("csVoiceText").value.length/150)*15)));
   $("csVoiceForm").hidden=false;renderQuota(data.franchiseAllocation);renderChars();
   state("Saldo de IA: "+data.balance+" créditos. "+allocationText(data.franchiseAllocation)+" Confira o orçamento antes de gerar.");
   $("csVoicePrice").onclick=price;
   $("csVoiceGenerate").onclick=generate;
-  for(const id of ["csVoiceText","csVoiceSelect"])$(id).oninput=()=>{quote=null;$("csVoiceGenerate").disabled=true;$("csVoiceQuote").textContent="Recalcule o orçamento."};
+  for(const id of ["csVoiceText","csVoiceSelect","csVoiceDuration"])$(id).oninput=()=>{renderChars();quote=null;$("csVoiceGenerate").disabled=true;$("csVoiceQuote").textContent="Recalcule o orçamento."};
  }catch(e){clear();state(e.message)}
 }
 function allocationText(q){return q?" Sua cota: "+q.share+" créditos do provedor · usados/reservados: "+q.used+" · disponíveis: "+q.remaining+" · "+q.count+" franquias ativas.":"";}
@@ -88,17 +94,19 @@ async function price(){
  if(busy)return;busy=true;quote=null;$("csVoiceGenerate").disabled=true;
  try{
   const text=$("csVoiceText").value.trim(),voiceId=$("csVoiceSelect").value;
-  const data=await(await api("/quote",{text,voiceId})).json();
-  if(!Number.isSafeInteger(data.credits)||data.credits<1||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
-  quote={id:data.quoteId,credits:data.credits,text,voiceId};renderQuota(data.franchiseAllocation);
+  const seconds=Number($("csVoiceDuration").value);
+  if(![15,30,45,60,75].includes(seconds)||!text||text.length>seconds*10)throw Error("Ajuste o texto ao limite da duração escolhida.");
+  const data=await(await api("/quote",{text,voiceId,seconds})).json();
+  if(!Number.isSafeInteger(data.credits)||data.credits!==seconds/15||data.seconds!==seconds||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
+  quote={id:data.quoteId,credits:data.credits,text,voiceId,seconds};renderQuota(data.franchiseAllocation);
   $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+allocationText(data.franchiseAllocation);
   $("csVoiceGenerate").disabled=data.balance<data.credits;if(data.balance<data.credits){$("csAiWallet").hidden=false;state("Saldo insuficiente. Consulte os pacotes na carteira IA.");}
  }catch(e){state(e.message)}finally{busy=false}
 }
 async function generate(){
  if(busy||!quote||auth.currentUser?.uid!==uid||!permitted())return;
- const q=quote; if(q.text!==$("csVoiceText").value.trim()||q.voiceId!==$("csVoiceSelect").value)return;
- if(!confirm("Consumir "+q.credits+" créditos IA para gerar a locução?"))return;
+ const q=quote; if(q.text!==$("csVoiceText").value.trim()||q.voiceId!==$("csVoiceSelect").value||q.seconds!==Number($("csVoiceDuration").value))return;
+ if(!confirm("Consumir "+q.credits+" IA para a locução de "+q.seconds+" segundos estimados?"))return;
  busy=true;quote=null;$("csVoiceGenerate").disabled=true;
  try{
   const res=await api("/generate",{quoteId:q.id});
