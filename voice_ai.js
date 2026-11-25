@@ -73,17 +73,47 @@ async function api(path,body){
 // Dedicated studio opens independently of commercial provider availability.
 const voiceConsole=document.createElement('dialog');
 voiceConsole.id='poteVoiceConsole';voiceConsole.setAttribute('aria-labelledby','pvTitle');
-voiceConsole.innerHTML=`<div class="pv-shell"><header class="pv-header"><button id="pvBack" type="button" aria-label="Voltar">‹</button><div><small>PDV MULTIVERSAL · AUDIO LAB</small><strong>VOICE STUDIO</strong></div><button id="pvWallet" type="button" aria-label="Abrir carteira IA COIN"><span id="pvBalance">—</span> IA COIN</button></header><section class="pv-intro"><small>ESTÚDIO PROFISSIONAL</small><h1 id="pvTitle">Sua marca. Sua voz.</h1><p>Produza chamadas, ofertas e anúncios falados com ElevenLabs.</p><div id="pvStatus" role="status" aria-live="polite"></div></section><div id="csVoiceForm" class="pv-layout"><main class="pv-editor"><div class="pv-panel"><div class="pv-line"><h2>01 · Roteiro</h2><button id="pvImport" type="button" class="pv-secondary">Importar criativo</button></div><textarea id="csVoiceText" maxlength="750" rows="9" placeholder="Digite o anúncio que será narrado..."></textarea><div class="pv-line"><small id="csVoiceChars">0 / 150 caracteres</small><button id="pvClear" type="button" class="pv-secondary">Limpar</button></div><p class="pv-hint">A pontuação e as quebras de frase ajudam a definir o ritmo. A duração é estimada.</p></div><div class="pv-panel"><h2>02 · Duração e orçamento</h2><div class="pv-tiers" id="pvTiers"></div><label class="pv-sr">Duração estimada<select id="csVoiceDuration"><option value="15">15 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option><option value="60">60 segundos</option><option value="75">75 segundos</option></select></label><p id="csVoiceQuote" aria-live="polite">Selecione a duração e escreva o roteiro.</p></div></main><aside class="pv-panel pv-settings"><h2>03 · Configuração da voz</h2><label>Voz<select id="csVoiceSelect"><option value="">Aguardando catálogo autorizado</option></select></label><label>Modelo<select id="pvModel"><option value="eleven_flash_v2_5">Eleven Flash v2.5 · econômico</option></select></label><label>Idioma<select id="pvLanguage"><option value="pt">Português</option><option value="">Detecção automática</option><option value="en">Inglês</option><option value="es">Espanhol</option></select></label><div class="pv-presets"><small>Presets de configuração</small><div><button type="button" data-pv-preset="natural">Natural</button><button type="button" data-pv-preset="commercial">Comercial</button><button type="button" data-pv-preset="calm">Suave</button></div></div><div id="pvSliders"></div><label class="pv-check"><input type="checkbox" id="pvBoost" checked> Reforço de similaridade do locutor (Speaker Boost)</label><button class="pv-secondary" id="pvReset" type="button">Restaurar padrão</button><p class="pv-hint">Apenas opções do modelo configurado. Vozes e modelos adicionais dependem da licença e do catálogo autorizado.</p></aside><section class="pv-panel pv-output"><div class="pv-line"><h2>04 · Áudio final</h2><span>MP3 · 44,1 kHz / 128 kbps</span></div><div id="pvWave" aria-hidden="true"></div><p id="pvOutputHint">O áudio aparecerá aqui após geração confirmada.</p><audio id="csVoiceAudio" controls hidden></audio><a id="csVoiceDownload" download="locucao-pdv.mp3" hidden>Baixar MP3</a></section></div><footer class="pv-footer"><div><small>Custo da modalidade</small><strong id="pvCost">1 IA COIN</strong></div><button type="button" id="csVoicePrice" disabled>Validar orçamento</button><button type="button" id="csVoiceGenerate" disabled>Gerar áudio</button></footer></div>`;
+voiceConsole.innerHTML=`<div class="pv-shell"><header class="pv-header"><button id="pvBack" type="button" aria-label="Voltar">‹</button><div><small>PDV MULTIVERSAL · AUDIO LAB</small><strong>VOICE STUDIO</strong></div><button id="pvWallet" type="button" aria-label="Abrir carteira IA COIN"><span id="pvBalance">—</span> IA COIN</button></header><section class="pv-intro"><small>ESTÚDIO PROFISSIONAL</small><h1 id="pvTitle">Sua marca. Sua voz.</h1><p>Produza chamadas, ofertas e anúncios falados com ElevenLabs.</p><div id="pvStatus" role="status" aria-live="polite"></div></section><div id="csVoiceForm" class="pv-layout"><main class="pv-editor"><div class="pv-panel"><div class="pv-line"><h2>01 · Roteiro</h2><button id="pvImport" type="button" class="pv-secondary">Importar criativo</button></div><textarea id="csVoiceText" maxlength="750" rows="9" placeholder="Digite o anúncio que será narrado..."></textarea><div class="pv-line"><small id="csVoiceChars">0 / 150 caracteres</small><button id="pvClear" type="button" class="pv-secondary">Limpar</button></div><p class="pv-hint">A pontuação e as quebras de frase ajudam a definir o ritmo. A duração é estimada.</p></div><div class="pv-panel"><h2>02 · Duração e orçamento</h2><div class="pv-tiers" id="pvTiers"></div><label class="pv-sr">Duração estimada<select id="csVoiceDuration"><option value="15">15 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option><option value="60">60 segundos</option><option value="75">75 segundos</option></select></label><p id="csVoiceQuote" aria-live="polite">Selecione a duração e escreva o roteiro.</p></div></main><aside class="pv-panel pv-settings"><h2>03 · Configuração da voz</h2><label>Voz<select id="csVoiceSelect"></select></label><div class="pv-voice-meta"><strong id="pvVoiceName"></strong><p id="pvVoiceDescription"></p><small id="pvVoiceAvailability"></small><audio id="pvVoiceSample" controls preload="none" hidden></audio><a href="https://elevenlabs.io/pt/voice-library" target="_blank" rel="noopener noreferrer">Ouvir e explorar vozes na biblioteca oficial ↗</a></div><label>Modelo<select id="pvModel"><option value="eleven_flash_v2_5">Eleven Flash v2.5 · econômico</option></select></label><label>Idioma<select id="pvLanguage"><option value="pt">Português</option><option value="">Detecção automática</option><option value="en">Inglês</option><option value="es">Espanhol</option></select></label><div class="pv-presets"><small>Presets de configuração</small><div><button type="button" data-pv-preset="natural">Natural</button><button type="button" data-pv-preset="commercial">Comercial</button><button type="button" data-pv-preset="calm">Suave</button></div></div><div id="pvSliders"></div><label class="pv-check"><input type="checkbox" id="pvBoost" checked> Reforço de similaridade do locutor (Speaker Boost)</label><button class="pv-secondary" id="pvReset" type="button">Restaurar padrão</button><p class="pv-hint">Apenas opções do modelo configurado. Vozes e modelos adicionais dependem da licença e do catálogo autorizado.</p></aside><section class="pv-panel pv-output"><div class="pv-line"><h2>04 · Áudio final</h2><span>MP3 · 44,1 kHz / 128 kbps</span></div><div id="pvWave" aria-hidden="true"></div><p id="pvOutputHint">O áudio aparecerá aqui após geração confirmada.</p><audio id="csVoiceAudio" controls hidden></audio><a id="csVoiceDownload" download="locucao-pdv.mp3" hidden>Baixar MP3</a></section></div><footer class="pv-footer"><div><small>Custo da modalidade</small><strong id="pvCost">1 IA COIN</strong></div><button type="button" id="csVoicePrice" disabled>Validar orçamento</button><button type="button" id="csVoiceGenerate" disabled>Gerar áudio</button></footer></div>`;
 document.body.append(voiceConsole);
 const voiceSettingsSpec=[['stability','Estabilidade',0,1,.01,.5,'Menor: mais variação · maior: mais constante'],['similarity_boost','Similaridade',0,1,.01,.75,'Fidelidade à voz original'],['style','Exagero de estilo',0,1,.01,0,'Intensidade da interpretação'],['speed','Velocidade',.7,1.2,.01,1,'Mais lenta ou mais rápida']];
 $('pvSliders').innerHTML=voiceSettingsSpec.map(([key,label,min,max,step,value,hint])=>'<label class="pv-slider"><span>'+label+' <output id="pvOut_'+key+'">'+value.toFixed(2)+'</output></span><input id="pv_'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+value+'"><small>'+hint+'</small></label>').join('');
 $('pvTiers').innerHTML=[15,30,45,60,75].map(n=>'<button type="button" data-pv-seconds="'+n+'"><b>'+n+' s</b><small>'+n/15+' IA COIN</small></button>').join('');
 $('pvWave').innerHTML=Array.from({length:44},(_,i)=>'<i style="height:'+(8+Math.round(25*Math.abs(Math.sin(i*1.7)*Math.cos(i*.29))))+'px"></i>').join('');
+// Official Infinity replacements; references only until commercial status approves the voice.
+// Source: https://elevenlabs.io/docs/pt/help-center/product/voices/my-voices/what-are-default-voices
+const infinityCatalog=Object.freeze([["gOupLcAkjEnguROwi4oS","Darian","Narração acolhedora"],["OZ0L6eISlOejga3XjDFt","Talia","Tom suave e acolhedor"],["WQP7cQUF5aAS6Axh5yaa","Elara","Narração profissional"],["6WwXjDDEMyNmFG95zycZ","Eldrin","Barítono britânico"],["dvbL7qkNGZY1IqPGZAjM","Elowen","Narração animada"],["ktkP7Nsj67dw2zcplQYt","Lawrence","Tom claro e informativo"],["BFd5oBc2DDna33pSi4Gf","Alicia","Apresentação sofisticada"],["QtY3JBOUKEB5xzrRfOKc","Maisie","Tom amigável"],["7QN34D2r3hCNwbOYIeK0","Warren","Estilo natural"],["g7LVvkPWALzPxOQbF6OE","Jade","Interpretação animada"],["l7kNoIfnJKPg7779LI2t","Eddie","Tom natural"],["AaOhDHYJ1XLZk74lXhdE","Caleb","Tom confiável"],["fnYMz3F5gMEDGMWcH1ex","Finley","Apresentação articulada"],["22N9cF8z0o7y23njdyaY","Florence","Narração atmosférica"],["FrS6cKLB1wg4WYgPa9GW","Wyatt","Tom experiente"]].map(([id,name,description])=>Object.freeze({id,name,description})));
+let displayedVoices=[],authorizedVoiceIds=new Set();
+function voicePreviewUrl(raw){
+ try{const u=new URL(raw);if(u.protocol!=='https:'||u.username||u.password)return null;
+ const host=u.hostname.toLowerCase();return host==='storage.googleapis.com'&&u.pathname.startsWith('/eleven-public-')||host==='eleven-public-cdn.elevenlabs.io'||host.endsWith('.elevenlabs.io')?u.href:null;}catch{return null;}
+}
+function renderSelectedVoice(){
+ const selected=displayedVoices.find(v=>v.id===$('csVoiceSelect').value),sample=$('pvVoiceSample');
+ sample.pause();sample.removeAttribute('src');sample.hidden=true;
+ $('pvVoiceName').textContent=selected?.name||'Escolha uma voz';
+ $('pvVoiceDescription').textContent=selected?.description||'';
+ const ready=!!selected&&authorizedVoiceIds.has(selected.id);
+ $('pvVoiceAvailability').textContent=ready?'Liberada pelo servidor':'Referência oficial · disponibilidade comercial ainda não confirmada';
+ const preview=ready?voicePreviewUrl(selected.previewUrl):null;
+ if(preview){sample.src=preview;sample.hidden=false;}
+}
+function loadVoiceCatalog(live=[]){
+ const select=$('csVoiceSelect'),previous=select.value;
+ const refs=new Map(infinityCatalog.map(v=>[v.id,v]));authorizedVoiceIds=new Set();
+ for(const v of live){
+  if(!v||typeof v.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(v.id)||typeof v.name!=='string')continue;
+  authorizedVoiceIds.add(v.id);refs.set(v.id,{...refs.get(v.id),id:v.id,name:v.name,description:typeof v.description==='string'?v.description.slice(0,250):refs.get(v.id)?.description||'',previewUrl:v.previewUrl});
+ }
+ displayedVoices=[...refs.values()].sort((a,b)=>Number(authorizedVoiceIds.has(b.id))-Number(authorizedVoiceIds.has(a.id)));
+ select.replaceChildren(...displayedVoices.map(v=>new Option(v.name+' — '+(v.description||'Voz do catálogo')+(authorizedVoiceIds.has(v.id)?'':' · referência'),v.id)));
+ select.value=displayedVoices.some(v=>v.id===previous)?previous:displayedVoices[0]?.id||'';
+ renderSelectedVoice();
+}
 let consoleReady=false,consoleSeq=0,draftOwner=null;
 function studioStatus(message){$('pvStatus').textContent=message;state(message);}
 function settings(){return Object.fromEntries([...voiceSettingsSpec.map(([key])=>[key,Number($('pv_'+key).value)]),['use_speaker_boost',$('pvBoost').checked]]);}
 function options(){return {modelId:$('pvModel').value,languageCode:$('pvLanguage').value||null,voiceSettings:settings()};}
-function invalidate(){quote=null;$('csVoiceGenerate').disabled=true;$('csVoicePrice').disabled=!consoleReady||busy||!$('csVoiceSelect').value;renderChars();const n=Number($('csVoiceDuration').value);$('pvCost').textContent=n/15+' IA COIN';$('pvTiers').querySelectorAll('[data-pv-seconds]').forEach(el=>el.setAttribute('aria-pressed',String(Number(el.dataset.pvSeconds)===n)));for(const [key] of voiceSettingsSpec)$('pvOut_'+key).textContent=Number($('pv_'+key).value).toFixed(2);$('csVoiceQuote').textContent='Custo previsto: '+n/15+' IA COIN · '+n*10+' caracteres. Validação no servidor obrigatória.';}
+function invalidate(){quote=null;$('csVoiceGenerate').disabled=true;$('csVoicePrice').disabled=!consoleReady||busy||!authorizedVoiceIds.has($('csVoiceSelect').value);renderChars();const n=Number($('csVoiceDuration').value);$('pvCost').textContent=n/15+' IA COIN';$('pvTiers').querySelectorAll('[data-pv-seconds]').forEach(el=>el.setAttribute('aria-pressed',String(Number(el.dataset.pvSeconds)===n)));for(const [key] of voiceSettingsSpec)$('pvOut_'+key).textContent=Number($('pv_'+key).value).toFixed(2);$('csVoiceQuote').textContent='Custo previsto: '+n/15+' IA COIN · '+n*10+' caracteres. Validação no servidor obrigatória.';}
 function applyPreset(vals){for(const [key,,,,def] of voiceSettingsSpec)$('pv_'+key).value=String(vals[key]??def);$('pvBoost').checked=true;invalidate();}
 function importCreative(){const value=['creativeHeadline','creativeBody','creativeCta'].map(id=>$(id)?.value||'').filter(Boolean).join('. ').slice(0,750);$('csVoiceText').value=value;$('csVoiceDuration').value=String(Math.min(75,Math.max(15,Math.ceil(value.length/150)*15)));invalidate();}
 $('pvImport').onclick=importCreative;$('pvClear').onclick=()=>{$('csVoiceText').value='';invalidate();};
@@ -92,32 +122,33 @@ $('pvWallet').onclick=()=>{if(!busy){voiceConsole.close();shop();}};
 $('pvReset').onclick=()=>applyPreset({});
 voiceConsole.addEventListener('click',e=>{const tier=e.target.closest('[data-pv-seconds]'),preset=e.target.closest('[data-pv-preset]');if(tier){$('csVoiceDuration').value=tier.dataset.pvSeconds;invalidate();}if(preset){const p={natural:{},commercial:{stability:.45,similarity_boost:.8,style:.25,speed:1.05},calm:{stability:.7,similarity_boost:.75,style:.05,speed:.85}};applyPreset(p[preset.dataset.pvPreset]||{});}});
 for(const id of ['csVoiceText','csVoiceSelect','csVoiceDuration','pvModel','pvLanguage','pvBoost',...voiceSettingsSpec.map(([key])=>'pv_'+key)])$(id).addEventListener('input',invalidate);
+$('csVoiceSelect').addEventListener('change',()=>{renderSelectedVoice();invalidate();});
 $('csVoicePrice').onclick=price;$('csVoiceGenerate').onclick=generate;
 voiceConsole.addEventListener('cancel',e=>{if(busy)e.preventDefault();});
-voiceConsole.addEventListener('close',()=>{++consoleSeq;quote=null;consoleReady=false;$('csVoiceGenerate').disabled=true;});
+voiceConsole.addEventListener('close',()=>{$('pvVoiceSample').pause();++consoleSeq;quote=null;consoleReady=false;$('csVoiceGenerate').disabled=true;});
 async function consoleBalance(user,seq){try{const snap=await getDoc(doc(db,'users',user.uid,'aiWallet','main'));if(seq!==consoleSeq||auth.currentUser?.uid!==user.uid||!voiceConsole.open)return;const n=snap.exists()?snap.data().balance:0;$('pvBalance').textContent=Number.isSafeInteger(n)&&n>=0?n.toLocaleString('pt-BR'):'—';}catch{if(seq===consoleSeq)$('pvBalance').textContent='—';}}
 async function open(){
  if(busy)return;
  if(!permitted())return state('IA exclusiva para PRO ativo, vitalício e franquias. FREE e teste gratuito não podem usar IA. Bloqueios do ADM continuam válidos.');
  const user=auth.currentUser,seq=++consoleSeq;consoleReady=false;quote=null;uid=user.uid;
  if(draftOwner!==uid){clear();uid=user.uid;draftOwner=uid;$('pvOutputHint').textContent='O áudio aparecerá aqui após geração confirmada.';importCreative();applyPreset({});}
- $('csVoiceForm').hidden=false;$('pvBalance').textContent='—';$('csVoiceSelect').replaceChildren(new Option('Aguardando catálogo autorizado',''));
+ $('csVoiceForm').hidden=false;$('pvBalance').textContent='—';loadVoiceCatalog();
  if(!voiceConsole.open)voiceConsole.showModal();invalidate();void consoleBalance(user,seq);void refreshWallet();
- if(!endpoint()){studioStatus('Modo preparação · editor disponível. Geração, catálogo real de vozes e orçamento final aguardam servidor e licença comercial ElevenLabs. Nenhuma IA COIN será debitada.');return;}
+ if(!endpoint()){studioStatus('Modo preparação · editor disponível. As vozes Infinity são referências oficiais. A síntese e o orçamento final aguardam servidor e licença comercial ElevenLabs. Nenhuma IA COIN será debitada.');return;}
  studioStatus('Consultando serviço autorizado…');
  try{
   const data=await(await api('/status',{})).json();
   if(seq!==consoleSeq||auth.currentUser?.uid!==user.uid||!voiceConsole.open)return;
   if(data.commercialReady!==true||data.authorized!==true)throw Error('Serviço comercial indisponível.');
   const voices=Array.isArray(data.voices)?data.voices:[];
-  $('csVoiceSelect').replaceChildren(...voices.map(v=>new Option(v.name,v.id)));
-  consoleReady=voices.length>0;renderQuota(data.franchiseAllocation);invalidate();
+  loadVoiceCatalog(voices);
+  consoleReady=authorizedVoiceIds.size>0;renderQuota(data.franchiseAllocation);invalidate();
   studioStatus(consoleReady?'Catálogo autorizado conectado. Valide o orçamento antes de gerar.':'Nenhuma voz autorizada disponível.');
  }catch(e){if(seq===consoleSeq)studioStatus(e.message);}
 }
 function allocationText(q){return q?" Sua cota: "+q.share+" créditos do provedor · usados/reservados: "+q.used+" · disponíveis: "+q.remaining+" · "+q.count+" franquias ativas.":"";}
 async function price(){
- if(busy||!consoleReady||!voiceConsole.open)return;busy=true;quote=null;$("csVoiceGenerate").disabled=true;
+ if(busy||!consoleReady||!voiceConsole.open||!authorizedVoiceIds.has($("csVoiceSelect").value))return;busy=true;quote=null;$("csVoiceGenerate").disabled=true;
  try{
   const text=$("csVoiceText").value.trim(),voiceId=$("csVoiceSelect").value;
   const seconds=Number($("csVoiceDuration").value);
@@ -129,7 +160,7 @@ async function price(){
   quote={id:data.quoteId,credits:data.credits,text,voiceId,seconds,opts};renderQuota(data.franchiseAllocation);
   $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+allocationText(data.franchiseAllocation);
   $("csVoiceGenerate").disabled=data.balance<data.credits;if(data.balance<data.credits){$("csAiWallet").hidden=false;state("Saldo insuficiente. Consulte os pacotes na carteira IA.");}
- }catch(e){studioStatus(e.message)}finally{busy=false;$("csVoicePrice").disabled=!consoleReady||!$("csVoiceSelect").value;}
+ }catch(e){studioStatus(e.message)}finally{busy=false;$("csVoicePrice").disabled=!consoleReady||!authorizedVoiceIds.has($("csVoiceSelect").value);}
 }
 async function generate(){
  if(busy||!quote||auth.currentUser?.uid!==uid||!permitted())return;

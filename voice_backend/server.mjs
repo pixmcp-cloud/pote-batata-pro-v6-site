@@ -149,7 +149,7 @@ const server=createServer(async(req,res)=>{
    const s=await subscription(),profile=(await account(uid).get()).data();
    const franchiseAllocationView=isFranchise(profile)?await db.runTransaction(async tx=>(await franchiseAllocation(tx,s,uid)).allocation,{readOnly:true}):null;
    const list=await(await provider('/v2/voices?page_size=100')).json();
-   return send(res,200,{authorized:true,commercialReady:true,balance:await balance(uid),franchiseAllocation:franchiseAllocationView,voices:(list.voices||[]).filter(v=>voiceIds.includes(v.voice_id)).map(v=>({id:v.voice_id,name:v.name}))});
+   return send(res,200,{authorized:true,commercialReady:true,balance:await balance(uid),franchiseAllocation:franchiseAllocationView,voices:(list.voices||[]).filter(v=>voiceIds.includes(v.voice_id)).map(v=>({id:v.voice_id,name:v.name,description:typeof v.description==='string'?v.description.slice(0,250):'',previewUrl:typeof v.preview_url==='string'?v.preview_url:null}))});
   }
   if(req.url==='/quote'){
    const s=await subscription();
