@@ -85,7 +85,7 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
     // A bounded result must never be mistaken for a complete inventory.
     async listRecords(uid,universe,group,{limit=501}={}){
      if(!/^[A-Za-z0-9:_-]{1,128}$/.test(uid)||!/^[a-z0-9_-]{1,64}$/.test(universe)||
-        !["orders","ingredients","beverages","recipes"].includes(group)||
+        !["orders","ingredients","beverages","recipes","cashSessions"].includes(group)||
         !Number.isSafeInteger(limit)||limit<1||limit>501)throw Error("Invalid transactional query");
      const result=await api("/documents/users/"+encodeURIComponent(uid)+":runQuery",{method:"POST",body:{
       transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],

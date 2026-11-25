@@ -46,7 +46,7 @@ function pdvOrder(plan,{id,stock,settings,now}){
  const deliveryCost=plan.fulfillment==="entrega"?Number(settings.deliveryCostPerOrder||0):0;
  if(!Number.isFinite(deliveryCost)||deliveryCost<0)fail("invalid_delivery_cost");
  const price=plan.subtotalCents/100,firstRecipe=plan.lines.find(x=>!x.id.startsWith("bev-"));
- return {...provisional,publicCheckoutV6:true,publicCheckoutId:id,
+ return {...provisional,publicCheckoutV6:true,publicCheckoutId:id.slice(4),fulfillment:plan.fulfillment,
   name:plan.lines.map(x=>x.qty+"x "+x.name).join(" + ").slice(0,180),
   recipeId:firstRecipe?.id||"",businessType:plan.businessType,orderNumber:plan.orderNumber,
   price,deliveryFee:plan.feeCents/100,deliveryCost,unitVariableCost:cost,unitContribution:price-cost,
@@ -108,7 +108,7 @@ export async function commitPublicCheckout({repository,buyerUid,request,quote=nu
   const nextMeta=structuredClone(meta.data);
   nextMeta.state.data.orderSequenceLast=plan.orderNumber;
   const result={ok:true,id:hash,orderId:order.id,code:plan.code,subtotalCents:plan.subtotalCents,feeCents:plan.feeCents,totalCents:plan.totalCents,paymentStatus:"pending",status:"recebido"};
-  const privateReceipt={...plan,id:hash,pdvOrderId:order.id,lines:plan.lines.map(({name,id,qty,unitPriceCents,note})=>({name,id,qty,unitPriceCents,note}))};
+  const privateReceipt={...plan,id:hash,pdvOrderId:order.id,deliveryRevision:0,...(plan.fulfillment==='entrega'?{destination:quote.destination}:{}),lines:plan.lines.map(({name,id,qty,unitPriceCents,note})=>({name,id,qty,unitPriceCents,note}))};
   delete privateReceipt.reservation;
   const writes=[
    put(orderPath,{record:{universe,group:"orders",id:order.id,item:order,rank}},null),
