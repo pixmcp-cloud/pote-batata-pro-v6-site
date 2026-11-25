@@ -81,3 +81,5 @@ jobs:
           const b=await r.json();if(!r.ok||b.enabled!==false||b.checkoutEnabled!==false)throw Error("Staging não está bloqueado");
           console.log("ORIGINAL_STAGING_LOCKED");
           NODE
+
+# Re-execute after runtime compatibility fix; staging remains disabled.

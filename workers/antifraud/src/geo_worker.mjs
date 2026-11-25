@@ -18,7 +18,7 @@ async function body(req){
 async function readMenu(env,slug,token,requestFetch){
  if(!/^[a-z][a-z0-9-]{2,50}$/.test(env.FIREBASE_PROJECT_ID||""))error("not_configured",503);
  const url="https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/publicMenus/"+encodeURIComponent(slug);
- const r=await requestFetch(url,{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(8000),redirect:"error"});
+ const r=await requestFetch(url,{headers:{Authorization:"Bearer "+token},signal:AbortSignal.timeout(8000),redirect:"manual"});
  if([403,404].includes(r.status))error("store_unavailable",404);
  if(!r.ok)error("store_lookup_failed",503);
  const fields=(await r.json()).fields||{};
@@ -71,7 +71,7 @@ export class GeoGate {
   }catch(e){return reply({error:e instanceof GeoError?e.code:"geo_gate_unavailable"},e instanceof GeoError?e.status:503)}
  }
 }
-export function createGeoWorker({verify=verifyFirebaseToken,requestFetch=fetch,menuReader=readMenu,gate=internal,clock=()=>Date.now()}={}){
+export function createGeoWorker({verify=verifyFirebaseToken,requestFetch=(...args)=>fetch(...args),menuReader=readMenu,gate=internal,clock=()=>Date.now()}={}){
  const cache=new Map();
  async function call(env,scope,path,params,cost){
   if(!keyOk(env.GEOAPIFY_API_KEY))error("not_configured",503);
@@ -80,7 +80,7 @@ export function createGeoWorker({verify=verifyFirebaseToken,requestFetch=fetch,m
   await gate(env,"day:"+new Date(now).toISOString().slice(0,10),"quota",{...scope,cost});
   const url=new URL("https://api.geoapify.com/v1/"+path);
   url.search=new URLSearchParams({...params,apiKey:env.GEOAPIFY_API_KEY});
-  let response;try{response=await requestFetch(url,{redirect:"error",signal:AbortSignal.timeout(10000)})}
+  let response;try{response=await requestFetch(url,{redirect:"manual",signal:AbortSignal.timeout(10000)})}
   catch{error("geo_provider_unavailable",503)}
   if(!response.ok)error(response.status===429?"geo_provider_quota":"geo_provider_unavailable",response.status===429?429:503);
   let raw;try{raw=await response.json()}catch{error("invalid_geo_response",502)}

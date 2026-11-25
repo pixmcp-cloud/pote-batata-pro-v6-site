@@ -61,3 +61,9 @@ test("origin allowlist and unsupported path",async()=>{
  assert.equal((await h.app.fetch(new Request("https://worker.test/health",{headers:{Origin:"https://evil.test"}}),h.env)).status,403);
  assert.equal((await h.post("orders/create")).status,404);
 });
+
+test("provider redirects fail closed without forwarding the key",async()=>{
+ const app=createGeoWorker({verify:async()=>({uid:"owner"}),menuReader:async(_e,slug)=>({slug,ownerUid:"owner",published:true}),gate:async()=>({ok:true,config:null}),requestFetch:async(_url,opts)=>{assert.equal(opts.redirect,"manual");return new Response(null,{status:302,headers:{Location:"https://evil.example"}})}});
+ const r=await app.fetch(new Request("https://worker.test/v1/geo/geocode",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer token"},body:JSON.stringify({slug:"loja-a",text:"Rua Teste, Brasil"})}),{ENABLE_GEO:"true",GEO_CANARY_UIDS:"owner",GEOAPIFY_API_KEY:"a".repeat(32)});
+ assert.equal(r.status,503);assert.equal((await r.json()).error,"geo_provider_unavailable");
+});
