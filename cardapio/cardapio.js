@@ -265,8 +265,8 @@ function openProduct(p){
   for(const flavor of flavors){const label=el("label","drink-option");const radio=el("input");radio.type="radio";radio.name="drinkFlavor";radio.value=flavor;label.append(radio,el("span","",flavor));$("productFlavors").append(label);}
   $("productFlavorHint").hidden=!hasFlavors;
   $("productTemperature").hidden=!isDrink;
-  $("drinkTemperature").value="";
-  $("productNote").placeholder=isDrink?"Ex.: gelado, fora do gelo, temperatura ambiente":"Ex.: sem cebola";
+  $("drinkTemperature").value="Gelado";
+  $("productNote").placeholder=isDrink?"Ex.: gelado ou fora do gelo":"Ex.: sem cebola";
   const names=Array.isArray(p.ingredientNames)?p.ingredientNames:[];
   const list=$("productIngredients");
   list.replaceChildren();

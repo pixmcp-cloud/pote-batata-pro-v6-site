@@ -102,10 +102,12 @@ const server=http.createServer((req,res)=>{
         assert.equal(await page.$eval("#productFacts",e=>e.open),true);
         assert.deepEqual(await page.$$eval('input[name="drinkFlavor"]',nodes=>nodes.map(n=>n.value)),["Cola","Guaraná","Laranja"]);
         await page.click('input[name="drinkFlavor"][value="Guaraná"]');
-        await page.select("#drinkTemperature","Gelado");
+        assert.deepEqual(await page.$$eval("#drinkTemperature option",nodes=>nodes.map(n=>n.value)),["Gelado","Fora do gelo"]);
+        assert.equal(await page.$eval("#drinkTemperature",e=>e.value),"Gelado");
+        await page.select("#drinkTemperature","Fora do gelo");
         await page.click("#addToCart");
         await page.click("#floatingCart");
-        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Temperatura: Gelado/);
+        assert.match(await page.$eval("#cartItems",e=>e.textContent),/Sabor: Guaraná.*Temperatura: Fora do gelo/);
         await page.click("#closeCart");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);
