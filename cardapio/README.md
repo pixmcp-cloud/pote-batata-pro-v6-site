@@ -46,3 +46,6 @@ Ajuste de UX: a ficha inicia recolhida em todos os produtos; os ingredientes apa
 
 ## Combos
 A vitrine pública não apresenta categoria ou itens de combo. O módulo interno de combos e os cadastros do PDV permanecem intactos, reservados para um fluxo futuro. O carrinho de demonstração remove referências a produtos que já não constam no catálogo.
+
+## Imagens de bebidas
+As artes novas de refrigerante (lata vermelha 350 ml) e água mineral (garrafa azul 500 ml) substituem as fotografias externas na demonstração. WebP local 256×256, arquivos originais preservados. Nenhuma alteração nos preços ou estoque.
