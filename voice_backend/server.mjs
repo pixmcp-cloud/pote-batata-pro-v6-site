@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {initializeApp,applicationDefault} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore,FieldValue} from 'firebase-admin/firestore';
-import {authorized,isFranchise,validateText,priceCredits,commercialReady,canReserve,franchiseQuota,canUseFranchiseQuota} from './policy.mjs';
+import {authorized,isFranchise,validateText,priceCredits,commercialReady,canReserve,franchiseQuota,individualFranchiseQuota} from './policy.mjs';
 initializeApp({credential:applicationDefault(),projectId:'potobatata-b71f3'});
 const db=getFirestore(),auth=getAuth();
 const cfg={
@@ -54,6 +54,20 @@ async function balance(uid){
  if(!snapshot.exists||!Number.isSafeInteger(value)||value<0)fail('Carteira IA não homologada ou indisponível.',423);
  return value;
 }
+// Count every active official franchise, even when its access to voice is blocked by ADM.
+const activeFranchises=()=>db.collection('users').where('franchise.status','==','active');
+async function franchiseAllocation(tx,s,uid){
+ const quota=franchiseQuota(s),quotaRef=db.doc('voiceAiFranchiseQuota/'+quota.cycle);
+ const memberRef=quotaRef.collection('members').doc(uid);
+ const [all,global,member]=await Promise.all([tx.get(activeFranchises()),tx.get(quotaRef),tx.get(memberRef)]);
+ const active=all.docs.filter(d=>isFranchise(d.data()));
+ if(!active.some(d=>d.id===uid))fail('Franquia ativa não encontrada.',403);
+ const used=global.exists?global.data().used:0,individualUsed=member.exists?member.data().used:0;
+ // Old aggregate-only counters cannot be allocated fairly: reconcile before commercial activation.
+ if(global.exists&&used>0&&global.data().allocationVersion!==2)fail('Cota anterior requer conciliação.',423);
+ const allocation=individualFranchiseQuota({limit:quota.limit,count:active.length,used,individualUsed});
+ return {quota,quotaRef,memberRef,used,allocation};
+}
 function validateVoice(id){if(typeof id!=='string'||!voiceIds.includes(id))fail('Voz não autorizada.');return id;}
 async function generate(uid,id,res){
  if(typeof id!=='string'||!/^[0-9a-f-]{36}$/.test(id))fail('Cotação inválida.');
@@ -67,11 +81,11 @@ async function generate(uid,id,res){
   if(!Number.isSafeInteger(s.character_limit)||!Number.isSafeInteger(s.character_count)||s.character_limit-s.character_count<quote.text.length)fail('Cota do provedor insuficiente.',423);
   let franchiseReservation=null;
   if(isFranchise(a.data())){
-   const quota=franchiseQuota(s),quotaRef=db.doc('voiceAiFranchiseQuota/'+quota.cycle);
-   const quotaSnap=await tx.get(quotaRef),used=quotaSnap.exists?quotaSnap.data().used:0;
+   const {quota,quotaRef,memberRef,used,allocation}=await franchiseAllocation(tx,s,uid);
    const requested=quote.text.length;
-   if(!canUseFranchiseQuota({limit:quota.limit,used,requested}))fail('Cota coletiva de 20% das franquias esgotada.',409);
-   tx.set(quotaRef,{used:used+requested,limit:quota.limit,updatedAt:FieldValue.serverTimestamp()},{merge:true});
+   if(requested>allocation.remaining)fail('Cota individual ou coletiva das franquias insuficiente.',409);
+   tx.set(quotaRef,{used:used+requested,limit:quota.limit,allocationVersion:2,updatedAt:FieldValue.serverTimestamp()},{merge:true});
+   tx.set(memberRef,{used:allocation.used+requested,updatedAt:FieldValue.serverTimestamp()},{merge:true});
    franchiseReservation={cycle:quota.cycle,requested};
   }
   tx.update(wallet(uid),{balance:current-quote.credits,updatedAt:FieldValue.serverTimestamp()});
@@ -86,12 +100,14 @@ async function generate(uid,id,res){
    await db.runTransaction(async tx=>{
     const o=await tx.get(ref),w=await tx.get(wallet(uid));
     const quotaRef=q.franchiseReservation?db.doc('voiceAiFranchiseQuota/'+q.franchiseReservation.cycle):null;
-    const quotaSnap=quotaRef?await tx.get(quotaRef):null;
+    const memberRef=quotaRef?quotaRef.collection('members').doc(uid):null;
+    const [quotaSnap,memberSnap]=quotaRef?await Promise.all([tx.get(quotaRef),tx.get(memberRef)]):[null,null];
     if(o.data()?.state==='reserved'&&Number.isSafeInteger(w.data()?.balance)){
      if(quotaRef){
-      const used=quotaSnap.data()?.used;
-      if(!Number.isSafeInteger(used)||used<q.franchiseReservation.requested)fail('Cota requer conciliação.',409);
+      const used=quotaSnap.data()?.used,memberUsed=memberSnap.data()?.used;
+      if(!Number.isSafeInteger(used)||!Number.isSafeInteger(memberUsed)||used<q.franchiseReservation.requested||memberUsed<q.franchiseReservation.requested)fail('Cota requer conciliação.',409);
       tx.update(quotaRef,{used:used-q.franchiseReservation.requested,updatedAt:FieldValue.serverTimestamp()});
+      tx.update(memberRef,{used:memberUsed-q.franchiseReservation.requested,updatedAt:FieldValue.serverTimestamp()});
      }
      tx.update(wallet(uid),{balance:w.data().balance+q.credits,updatedAt:FieldValue.serverTimestamp()});
      tx.update(ref,{state:'refunded',reason:'access_revoked_before_provider'});
@@ -122,25 +138,24 @@ const server=createServer(async(req,res)=>{
  try{
   const uid=await session(req),data=await read(req);
   if(req.url==='/status'){
-   await subscription();
+   const s=await subscription(),profile=(await account(uid).get()).data();
+   const franchiseAllocationView=isFranchise(profile)?await db.runTransaction(async tx=>(await franchiseAllocation(tx,s,uid)).allocation,{readOnly:true}):null;
    const list=await(await provider('/v2/voices?page_size=100')).json();
-   return send(res,200,{authorized:true,commercialReady:true,balance:await balance(uid),voices:(list.voices||[]).filter(v=>voiceIds.includes(v.voice_id)).map(v=>({id:v.voice_id,name:v.name}))});
+   return send(res,200,{authorized:true,commercialReady:true,balance:await balance(uid),franchiseAllocation:franchiseAllocationView,voices:(list.voices||[]).filter(v=>voiceIds.includes(v.voice_id)).map(v=>({id:v.voice_id,name:v.name}))});
   }
   if(req.url==='/quote'){
    const s=await subscription();
    const profile=(await account(uid).get()).data();
    if(!authorized(profile))fail('Locução bloqueada pelo ADM.',403);
    const text=validateText(data.text),voiceId=validateVoice(data.voiceId),credits=priceCredits(text,cfg),value=await balance(uid);
-   let franchiseQuotaRemaining=null;
+   let franchiseAllocationView=null;
    if(isFranchise(profile)){
-    const quota=franchiseQuota(s),snap=await db.doc('voiceAiFranchiseQuota/'+quota.cycle).get();
-    const used=snap.exists?snap.data().used:0;
-    if(!canUseFranchiseQuota({limit:quota.limit,used,requested:text.length}))fail('Cota coletiva de 20% das franquias esgotada.',409);
-    franchiseQuotaRemaining=quota.limit-used;
+    franchiseAllocationView=await db.runTransaction(async tx=>(await franchiseAllocation(tx,s,uid)).allocation,{readOnly:true});
+    if(text.length>franchiseAllocationView.remaining)fail('Cota individual ou coletiva das franquias insuficiente.',409);
    }
    const quoteId=randomUUID();
    await order(uid,quoteId).create({uid,text,voiceId,credits,state:'quoted',expiresAt:Date.now()+300000,createdAt:FieldValue.serverTimestamp()});
-   return send(res,200,{quoteId,credits,balance:value,franchiseQuotaRemaining});
+   return send(res,200,{quoteId,credits,balance:value,franchiseAllocation:franchiseAllocationView});
   }
   if(req.url==='/generate')return await generate(uid,data.quoteId,res);
   return send(res,404,{error:'Rota inexistente.'});
