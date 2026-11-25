@@ -296,7 +296,7 @@
 .iau-pack button{width:100%;max-width:220px;padding:10px 4px;color:#151122;background:linear-gradient(110deg,#e4bc65,#fff0bd);border:1px solid #ffe2a1;border-radius:10px;font-weight:900!important}
 .iau-coins{position:relative;width:100%;height:103px;margin:5px 0;display:grid;place-items:center;isolation:isolate}
 .iau-coins:before{content:"";position:absolute;bottom:8px;width:84%;height:23px;border:1px solid var(--glow);border-radius:50%;box-shadow:0 0 13px var(--glow);opacity:.6}
-.iau-coins i{position:absolute;width:49px;height:49px;display:grid;place-items:center;border-radius:50%;border:2px solid #fff0b2;background:radial-gradient(circle at 32% 25%,#fff8bf,#d5a33c 40%,#785016 67%,#eeb74a 88%);box-shadow:inset 0 0 0 3px #ad711f,inset 0 0 0 5px #eac36d,3px 5px 0 #8c5715,4px 6px 0 #f2b94a,0 8px 14px #0008;color:#51300a;font:900 19px system-ui;font-style:normal;transform:translate(calc((mod(var(--i),3) - 1)*28px),calc(21px - round(down,var(--i)/3,1)*10px)) rotate(-12deg)}
+.iau-coins i{position:absolute;width:49px;height:49px;display:grid;place-items:center;border-radius:50%;border:2px solid #fff0b2;background:radial-gradient(circle at 32% 25%,#fff8bf,#d5a33c 40%,#785016 67%,#eeb74a 88%);box-shadow:inset 0 0 0 3px #ad711f,inset 0 0 0 5px #eac36d,3px 5px 0 #8c5715,4px 6px 0 #f2b94a,0 8px 14px #0008;color:#51300a;font:900 19px system-ui;font-style:normal;transform:translate(var(--x,0px),var(--y,0px)) rotate(-12deg)}
 .iau-coins i:last-child{z-index:2;transform:translate(0,-4px) rotate(-14deg) scale(1.17)}
 #iauGate,#iauPurchase,#iauHistory{padding:15px;border:1px solid #9164e6;border-radius:13px;background:#1a1731;color:#ddd7ff;margin:14px 0;overflow-wrap:anywhere}
 #iauHistory p{padding:8px 0;border-bottom:1px solid #66608050;font-size:12px}
