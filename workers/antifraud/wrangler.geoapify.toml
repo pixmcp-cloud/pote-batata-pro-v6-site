@@ -1,0 +1,19 @@
+name = "pote-batata-geo-staging"
+main = "src/geo_worker.mjs"
+compatibility_date = "2026-11-20"
+workers_dev = true
+preview_urls = false
+
+[vars]
+FIREBASE_PROJECT_ID = "potobatata-b71f3"
+ALLOWED_ORIGINS = "https://pdv.livresom.com,https://potobatata-b71f3.web.app"
+ENABLE_GEO = "false"
+GEO_CANARY_UIDS = ""
+
+[[durable_objects.bindings]]
+name = "GEO_GATE"
+class_name = "GeoGate"
+
+[[migrations]]
+tag = "geo-v1"
+new_sqlite_classes = ["GeoGate"]

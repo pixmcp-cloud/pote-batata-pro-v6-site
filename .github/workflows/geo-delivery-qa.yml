@@ -1,0 +1,30 @@
+name: V6 Entregas Geoapify - testes e build sem deploy
+on:
+  push:
+    branches: [feat/v6-geoapify-qa-20261125]
+  pull_request:
+    paths:
+      - 'workers/antifraud/src/geo_*.mjs'
+      - 'workers/antifraud/test/geo_*.test.mjs'
+      - 'workers/antifraud/wrangler.geoapify.toml'
+      - 'cardapio/**'
+      - '.github/workflows/geo-delivery-qa.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: workers/antifraud
+      - run: node --test test/geo_*.test.mjs
+        working-directory: workers/antifraud
+      - run: npx wrangler deploy --config wrangler.geoapify.toml --dry-run --outdir .wrangler/geo-qa
+        working-directory: workers/antifraud
+      - run: grep -q 'ENABLE_GEO = "false"' workers/antifraud/wrangler.geoapify.toml
+      - run: node test_cardapio_core.mjs
