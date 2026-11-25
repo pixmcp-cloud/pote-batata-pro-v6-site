@@ -522,7 +522,8 @@ service cloud.firestore {
           && (request.resource.data.get('checkoutEnabled', false) == false
             ? !request.resource.data.keys().hasAny(['checkoutSiteKey'])
             : request.resource.data.get('checkoutSiteKey', '') is string
-              && request.resource.data.checkoutSiteKey.matches('^[A-Za-z0-9_-]{10,120}
+              && request.resource.data.checkoutSiteKey.matches('^[A-Za-z0-9_-]{10,120}$'))
+          && request.resource.data.schemaVersion == 1
           && request.resource.data.slug == slug
           && request.resource.data.ownerUid is string
           && request.resource.data.ownerUid.size() >= 1
