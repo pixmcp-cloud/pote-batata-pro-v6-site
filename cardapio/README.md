@@ -49,3 +49,6 @@ A vitrine pública não apresenta categoria ou itens de combo. O módulo interno
 
 ## Imagens de bebidas
 As artes novas de refrigerante (lata vermelha 350 ml) e água mineral (garrafa azul 500 ml) substituem as fotografias externas na demonstração. WebP local 256×256, arquivos originais preservados. Nenhuma alteração nos preços ou estoque.
+
+## Capa animada V6
+Carrossel 16:9 com arte vetorial CARDÁPIO antes de cada foto de salgado/doce, 2,4 s de abertura e 4,2 s por sabor. Vapor animado com SVG/CSS, pausa manual, anterior/próximo, pausa fora da tela e respeito a movimento reduzido. Cada loja usa somente seu catálogo público. Não usa vídeo ou serviço pago.

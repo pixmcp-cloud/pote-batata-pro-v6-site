@@ -36,6 +36,21 @@ const server=http.createServer((req,res)=>{
       const officialImages=await page.$$eval(".product-media img",nodes=>nodes.filter(n=>n.getAttribute("src").includes("/assets/recipes/")).map(n=>n.getAttribute("src")));
       assert.equal(officialImages.length,10);
       if(width===375){for(const url of officialImages){const response=await page.evaluate(async url=>(await fetch(url)).ok,url);assert(response,"Foto ausente: "+url);}}
+      const hero=await page.$eval("#menuHero",e=>{const r=e.getBoundingClientRect();return {ratio:r.width/r.height,slides:[...e.querySelectorAll(".menu-hero-slide")].map(s=>s.dataset.kind),active:e.querySelector(".is-active").dataset.kind}});
+      assert(Math.abs(hero.ratio-16/9)<.03,"capa 16:9");
+      assert.equal(hero.slides.length,16);
+      assert(hero.slides.every((s,i)=>s===(i%2===0?"title":"food")));
+      assert.equal(hero.active,"title");
+      if(width===375){
+        await page.click("#heroPause");
+        await page.click("#heroNext");
+        assert.equal(await page.$eval("#menuHero .is-active",e=>e.dataset.kind),"food");
+        assert.equal(await page.$eval("#menuHero",e=>e.classList.contains("is-food")),true);
+        await page.click("#heroNext");
+        assert.equal(await page.$eval("#menuHero .is-active",e=>e.dataset.kind),"title");
+        await page.click("#heroPrev");
+        assert.equal(await page.$eval("#menuHero .is-active",e=>e.dataset.kind),"food");
+      }
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
       assert(overflow<=1,"Rolar horizontalmente em "+width+": "+overflow+"px");
       if(width===375){

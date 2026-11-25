@@ -126,6 +126,78 @@ function productImage(product, className){
   },{once:true});
   return img;
 }
+// Cada foto é precedida pela abertura, inclusive ao reiniciar a sequência.
+export function heroSequence(products){
+  return products.filter(p=>p.category!=="Bebidas"&&p.image&&p.image!==IMG&&!/\/generic\//.test(p.image))
+    .flatMap(p=>[null,p]);
+}
+let heroTimer=null,heroIndex=0,heroSlides=[],heroPaused=false,heroVisible=true,heroHover=false,heroFocused=false;
+const heroMotion=matchMedia("(prefers-reduced-motion: reduce)");
+function heroStop(){clearTimeout(heroTimer);heroTimer=null;}
+function heroSchedule(){
+  heroStop();
+  if(heroSlides.length<2||heroPaused||heroMotion.matches||document.hidden||!heroVisible||heroHover||heroFocused)return;
+  heroTimer=setTimeout(()=>heroShow(heroIndex+1),heroSlides[heroIndex]?.dataset.kind==="title"?2400:4200);
+}
+function heroShow(index){
+  if(!heroSlides.length)return;
+  heroIndex=(index+heroSlides.length)%heroSlides.length;
+  heroSlides.forEach((slide,i)=>{
+    slide.classList.toggle("is-active",i===heroIndex);
+    slide.setAttribute("aria-hidden",String(i!==heroIndex));
+  });
+  $("heroCounter").textContent=(heroIndex+1)+" / "+heroSlides.length;
+  $("menuHero").classList.toggle("is-food",heroSlides[heroIndex].dataset.kind==="food");
+  heroSchedule();
+}
+function heroSlide(p){
+  const slide=el("div","menu-hero-slide "+(p?"menu-hero-food":"menu-hero-title"));
+  slide.dataset.kind=p?"food":"title";slide.setAttribute("aria-hidden","true");
+  const image=el("img",p?"menu-hero-product":"");
+  image.src=p?p.image:"./cardapio-abertura.svg";
+  image.alt=p?p.title:"CARDÁPIO";image.decoding="async";
+  if(p){
+    const bg=el("img","menu-hero-backdrop");bg.src=p.image;bg.alt="";bg.setAttribute("aria-hidden","true");bg.decoding="async";
+    bg.addEventListener("error",()=>bg.hidden=true,{once:true});
+    image.addEventListener("error",()=>{image.src=IMG;},{once:true});
+    slide.append(bg,image);
+    slide.append(el("div","menu-hero-name",p.title));
+  }else slide.append(image);
+  return slide;
+}
+function renderHero(){
+  heroStop();
+  const stage=$("menuHeroStage"),sequence=heroSequence(catalogue);
+  heroSlides=(sequence.length?sequence:[null]).map(heroSlide);
+  stage.replaceChildren(...heroSlides);
+  const controls=$("menuHero").querySelector(".menu-hero-controls");
+  controls.hidden=heroSlides.length<2;
+  heroShow(0);
+}
+function initHero(){
+  const root=$("menuHero");
+  $("heroPrev").addEventListener("click",()=>heroShow(heroIndex-1));
+  $("heroNext").addEventListener("click",()=>heroShow(heroIndex+1));
+  $("heroPause").addEventListener("click",()=>{
+    heroPaused=!heroPaused;
+    $("heroPause").textContent=heroPaused?"▶":"Ⅱ";
+    $("heroPause").setAttribute("aria-label",heroPaused?"Reproduzir carrossel":"Pausar carrossel");
+    $("heroPause").setAttribute("aria-pressed",String(heroPaused));
+    root.classList.toggle("is-paused",heroPaused);
+    heroSchedule();
+  });
+  root.addEventListener("mouseenter",()=>{heroHover=true;heroSchedule()});
+  root.addEventListener("mouseleave",()=>{heroHover=false;heroSchedule()});
+  root.addEventListener("focusin",()=>{heroFocused=true;heroSchedule()});
+  root.addEventListener("focusout",e=>{if(!root.contains(e.relatedTarget)){heroFocused=false;heroSchedule()}});
+  document.addEventListener("visibilitychange",heroSchedule);
+  heroMotion.addEventListener("change",heroSchedule);
+  if("IntersectionObserver" in window)new IntersectionObserver(entries=>{
+    heroVisible=entries[0].isIntersecting;
+    root.classList.toggle("is-offscreen",!heroVisible);heroSchedule();
+  },{threshold:.1}).observe(root);
+  renderHero();
+}
 function toast(message){
   const node=$("toast"); node.textContent=message;node.hidden=false;
   clearTimeout(toast.timeout);
@@ -339,18 +411,11 @@ async function loadPublicMenu(slug){
     if(storeStatus)storeStatus.textContent="Catálogo publicado • pedidos em breve";
     const subtitle=document.querySelector(".brand-text small");
     if(subtitle)subtitle.textContent=menu.subtitle||"CARDÁPIO DIGITAL";
-    const hero=document.getElementById("heroTitle");
-    if(hero)hero.textContent="Seu sabor, seu momento.";
-    const heroP=document.querySelector(".hero-content p");
-    if(heroP)heroP.textContent="Conheça os produtos e preços publicados por "+menu.title+".";
-    const heroTag=document.querySelector(".hero .eyebrow");
-    if(heroTag)heroTag.textContent="CARDÁPIO DA LOJA";
+    renderHero();
     const footerCaption=document.querySelector(".site-footer small");
     if(footerCaption)footerCaption.textContent="Catálogo público • checkout ainda não habilitado";
     const logo=document.querySelector(".brand-mark img");
     if(logo)logo.hidden=true;
-    const heroPic=document.querySelector(".hero-plate");
-    if(heroPic)heroPic.alt="Imagem ilustrativa da categoria gastronômica";
     const reminder=document.querySelector(".demo-warning");
     if(reminder)reminder.textContent="Catálogo público da loja. Esta versão permite somente montar uma simulação: não envia pedidos, não reserva estoque nem processa pagamentos.";
     const strip=document.querySelector(".preview-strip");
@@ -362,5 +427,5 @@ async function loadPublicMenu(slug){
     $("emptyState").hidden=false;
   }
 }
-categories();renderMenu();renderCart();fulfill();
+initHero();categories();renderMenu();renderCart();fulfill();
 if(requestedSlug!==null)loadPublicMenu(requestedSlug);

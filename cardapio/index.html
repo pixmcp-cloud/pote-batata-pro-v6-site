@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?ficha=20261125-2">
-  <script type="module" src="./cardapio.js?catalogo=bebidas-20261125"></script>
+  <link rel="stylesheet" href="./cardapio.css?capa=20261125">
+  <script type="module" src="./cardapio.js?capa=20261125"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -31,22 +31,18 @@
   </header>
 
   <main id="inicio">
-    <section class="hero" aria-labelledby="heroTitle">
-      <div class="hero-content">
-        <span class="eyebrow"><span class="sparkle">✦</span> UMA EXPERIÊNCIA GOURMET</span>
-        <h1 id="heroTitle">Sabor que<br><em>surpreende.</em></h1>
-        <p>Seu momento favorito começa aqui. Escolha, personalize e prepare-se para se apaixonar por cada colherada.</p>
-        <div class="hero-actions">
-          <a href="#cardapio" class="button button-gold">Explorar cardápio <span aria-hidden="true">↗</span></a>
-          <span class="hero-trust">Feito com carinho, servido com sabor.</span>
-        </div>
+    <section class="menu-hero" id="menuHero" aria-roledescription="carrossel" aria-label="Destaques do cardápio">
+      <h1 class="sr-only">Cardápio digital</h1>
+      <div class="menu-hero-stage" id="menuHeroStage">
+        <div class="menu-hero-slide menu-hero-title is-active" aria-hidden="false" data-kind="title"><img src="./cardapio-abertura.svg" alt="CARDÁPIO" width="1600" height="900" fetchpriority="high"></div>
       </div>
-      <div class="hero-visual" aria-hidden="true">
-        <div class="halo"></div>
-        <img src="../assets/generic/business-batataria.svg" alt="" class="hero-plate">
-        <span class="hero-stamp"><b>100%</b><small>FEITO COM<br>CARINHO</small></span>
+      <div class="menu-hero-steam" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="menu-hero-controls">
+        <button id="heroPrev" type="button" aria-label="Imagem anterior">‹</button>
+        <span id="heroCounter" aria-hidden="true">1 / 1</span>
+        <button id="heroNext" type="button" aria-label="Próxima imagem">›</button>
+        <button id="heroPause" type="button" aria-label="Pausar carrossel" aria-pressed="false">Ⅱ</button>
       </div>
-      <div class="hero-glow" aria-hidden="true"></div>
     </section>
 
     <section class="benefits" aria-label="Informações do cardápio">
