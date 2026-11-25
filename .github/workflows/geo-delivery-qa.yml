@@ -35,10 +35,27 @@ jobs:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -n "$CF_TOKEN" ] && [ -n "$CF_ACCOUNT" ]; then
-            echo "CLOUDFLARE_STAGING_CREDENTIALS_PRESENT"
-          else
-            echo "CLOUDFLARE_STAGING_CREDENTIALS_MISSING"
-          fi
+          node --input-type=module <<'NODE'
+          const token = process.env.CF_TOKEN || "";
+          const account = process.env.CF_ACCOUNT || "";
+          const accountOK = /^[a-fA-F0-9]{32}$/.test(account);
+          console.log("CF_ACCOUNT_ID_" + (accountOK ? "FORMAT_OK" : account ? "INVALID_FORMAT" : "MISSING"));
+          console.log("CF_API_TOKEN_" + (token ? "PRESENT" : "MISSING"));
+          if (!token || !accountOK) {
+            console.log("CF_WORKERS_AUTH_NOT_TESTED");
+          } else {
+            try {
+              const r = await fetch("https://api.cloudflare.com/client/v4/accounts/" + account + "/workers/scripts", {
+                headers: { Authorization: "Bearer " + token },
+                redirect: "error", signal: AbortSignal.timeout(15000)
+              });
+              const body = await r.json().catch(() => ({}));
+              console.log("CF_WORKERS_AUTH_HTTP_" + r.status);
+              console.log("CF_WORKERS_AUTH_" + (r.ok && body.success === true ? "OK" : "FAILED"));
+            } catch {
+              console.log("CF_WORKERS_AUTH_NETWORK_ERROR");
+            }
+          }
+          NODE
       - run: node --test test/public_checkout_core.test.mjs
         working-directory: workers/antifraud
