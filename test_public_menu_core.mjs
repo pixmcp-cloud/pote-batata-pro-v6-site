@@ -37,3 +37,9 @@ assert.equal(sanitizeReadMenu({...doc,slug:"outra-loja-a1234"},doc.slug),null);
 assert.throws(()=>makePublicMenu(state,{ownerUid:"uid-owner",slug:"pote-batata-a1020",selectedIds:[],priceFor}),/Selecione/);
 assert.throws(()=>makePublicMenu(state,{ownerUid:"uid-owner",slug:"pote-batata-a1020",selectedIds:["r01"],priceFor,previous:{ownerUid:"outro"}}),/pertence/);
 console.log("PASS: menu comercial isolado dos dados privados, preço, slugs e publicação explícita");
+
+const withOfficial=buildMenuCandidates(state,{priceFor,imageFor:r=>r.id==="r01"?"./assets/recipes/r05.webp":null});
+assert.equal(withOfficial[0].image,"../assets/recipes/r05.webp");
+const withPrivate=buildMenuCandidates(state,{priceFor,imageFor:()=>"https://example.test/private?token=SECRET"});
+assert.equal(withPrivate[0].image,"../assets/generic/business-batataria.svg");
+assert.equal(buildMenuCandidates(state,{priceFor})[0].image,"../assets/generic/business-batataria.svg");

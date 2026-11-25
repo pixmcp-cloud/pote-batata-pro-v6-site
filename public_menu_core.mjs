@@ -18,7 +18,7 @@ export const publicImage = (image,fallback="../assets/generic/business-batataria
   return fallback;
 };
 const safeCategory = c=>text(c||"Cardápio",40);
-export function buildMenuCandidates(snapshot,{priceFor,allowed}={}){
+export function buildMenuCandidates(snapshot,{priceFor,allowed,imageFor}={}){
   const data=snapshot?.data||{},items=[];
   const business=text(data.businessType||"batataria",32);
   const defaultImage=publicImage("./assets/generic/business-"+business+".svg");
@@ -36,7 +36,7 @@ const ownImage=(src)=>{
     const id=text(r.id,72),price=cents(calc(r));
     if(!price||!id||items.some(p=>p.id===id))continue;
     items.push({id,title:text(r.name,90),description:text(r.tagline||r.description,240),
-      category:safeCategory(r.category),priceCents:price,image:ownImage(r.photoUrl||r.photo||r.image),addons:[]});
+      category:safeCategory(r.category),priceCents:price,image:ownImage((typeof imageFor==="function"?imageFor(r):null)||r.imageUrl||r.photoUrl||r.photo||r.image),addons:[]});
   }
   for(const b of Array.isArray(data.beverages)?data.beverages:[]){
     if(!b?.id||!b?.name||b.unavailable===true||b.suspended===true)continue;
@@ -47,13 +47,13 @@ const ownImage=(src)=>{
   }
   return items.slice(0, MENU_MAX_ITEMS);
 }
-export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allowed,previous}={}){
+export function makePublicMenu(snapshot,{slug,ownerUid,selectedIds,priceFor,allowed,imageFor,previous}={}){
   if(!validSlug(slug))throw Error("Endereço inválido: use 4 a 40 caracteres, letras, números e hífen.");
   if(typeof ownerUid!=="string"||!ownerUid||ownerUid.length>128)throw Error("Usuário não autenticado.");
   if(previous && previous.ownerUid!==ownerUid)throw Error("Este endereço já pertence a outro estabelecimento.");
   const data=snapshot?.data||{},brand=data.brand||{};
   const selected=new Set(Array.isArray(selectedIds)?selectedIds:[]);
-  const items=buildMenuCandidates(snapshot,{priceFor,allowed}).filter(p=>selected.has(p.id));
+  const items=buildMenuCandidates(snapshot,{priceFor,allowed,imageFor}).filter(p=>selected.has(p.id));
   if(!items.length)throw Error("Selecione ao menos um produto com preço positivo.");
   const title=text(brand.name||"Meu Negócio",70);
   const subtitle=text(brand.subtitle||"",110);
