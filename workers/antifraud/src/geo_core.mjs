@@ -57,5 +57,5 @@ export function quotaDecision({total=0,user=0,shop=0,cost=1}={}){
  if(!int(cost,1,5)||!int(total,0,100000)||!int(user,0,100000)||!int(shop,0,100000))
  return false;
  // Conservative allocation: leaves headroom for manual tests and other projects.
- return total+cost<=1800&&user+cost<=50&&shop+cost<=600;
+ return total+cost<=2500&&user+cost<=50&&shop+cost<=600;
 }

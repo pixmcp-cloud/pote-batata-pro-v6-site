@@ -19,8 +19,8 @@ test("coordinates and Brazilian filter",()=>{
  assert.throws(()=>addressQuery("abc"));
 });
 test("quotas fail closed and quote bound to user, store and current config",()=>{
- assert.ok(quotaDecision({total:1798,cost:2,user:48,shop:598}));
- for(const state of [{total:1800},{user:50},{shop:600},{cost:-1}])assert.equal(quotaDecision(state),false);
+ assert.ok(quotaDecision({total:2498,cost:2,user:48,shop:598}));
+ for(const state of [{total:2500},{total:2499,cost:2},{user:50},{shop:600},{cost:-1}])assert.equal(quotaDecision(state),false);
  const q={uid:"buyer",slug:"loja-a",version:"v",expiresAt:100,feeCents:500,destination:c.origin,address:"Rua teste"};
  assert.equal(validQuote(q,{uid:"buyer",slug:"loja-a",version:"v",now:99}),true);
  assert.equal(validQuote(q,{uid:"other",slug:"loja-a",version:"v",now:99}),false);
