@@ -87,6 +87,7 @@ function renderChoices(){
     const checkbox=node("input");checkbox.type="checkbox";checkbox.value=p.id;checkbox.checked=selected.has(p.id);
     const label=node("span");
     label.append(node("strong","",p.title),node("small","",p.category));
+    if(p.ingredientNames?.length)label.append(node("small","","Ingredientes: "+p.ingredientNames.join(", ")));
     const price=node("b","",(p.priceCents/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}));
     checkbox.addEventListener("change",()=>{
       checkbox.checked?selected.add(p.id):selected.delete(p.id);
@@ -142,7 +143,7 @@ async function refresh({load=true}={}){
   setBusy(true);
   try{
     const current=snapshot();
-    candidates=buildMenuCandidates(current,{priceFor,allowed,imageFor});
+    candidates=buildMenuCandidates(current,{priceFor,allowed,imageFor,includeIngredientNames:true});
     const name=current.data?.brand?.name||"meu-negocio";
     let slug=$("publicMenuSlug").value.trim().toLowerCase();
     if(!slug){
@@ -155,6 +156,7 @@ async function refresh({load=true}={}){
       if(!validSession(uid,epoch))return;
       published=existing;
       selected=new Set(published?.items?.map(p=>p.id)||[]);
+      $("publicMenuIncludeIngredients").checked=Boolean(published?.items?.some(p=>Array.isArray(p.ingredientNames)&&p.ingredientNames.length));
       $("publicMenuSlug").readOnly=Boolean(published);
     }
     renderChoices();
@@ -181,6 +183,7 @@ function createDialog(){
   shell.append(node("p","public-menu-hint","Marque somente os produtos que deseja expor na internet."));
   const products=node("div","public-menu-products");products.id="publicMenuProducts";
   shell.append(products);
+  const ingredientOpt=node("label","public-menu-choice");const ingredientCheck=node("input");ingredientCheck.type="checkbox";ingredientCheck.id="publicMenuIncludeIngredients";ingredientOpt.append(ingredientCheck,node("span","","Publicar também os nomes dos ingredientes revisados acima (sem quantidades e custos)."));shell.append(ingredientOpt);
   const count=node("div","public-menu-count");count.id="publicMenuCount";shell.append(count);
   const msg=node("p","public-menu-message");msg.id="publicMenuMessage";msg.setAttribute("role","status");shell.append(msg);
   const link=node("a","public-menu-link");link.id="publicMenuLink";link.href="#";link.target="_blank";link.rel="noopener noreferrer";
@@ -217,9 +220,9 @@ async function publish(){
     if(!validSession(uid,epoch))return;
     if(published&&published.slug!==slug)throw Error("Para trocar endereço, retire o cardápio antigo do ar primeiro.");
     const result=makePublicMenu(state,{slug,ownerUid:uid,selectedIds:currentSelected(),
-      priceFor,allowed,imageFor,previous:current});
+      priceFor,allowed,imageFor,includeIngredientNames:$("publicMenuIncludeIngredients").checked,previous:current});
     if(!confirm("Publicar "+result.items.length+" produto(s) de "+result.title+
-      " com preços visíveis a qualquer pessoa? Nenhum pedido real será aceito por esta página."))return;
+      " com preços"+($("publicMenuIncludeIngredients").checked?" e nomes dos ingredientes":"")+" visíveis a qualquer pessoa? Nenhum pedido real será aceito por esta página."))return;
     if(!validSession(uid,epoch))return;
     await setDoc(doc(db,"publicMenus",slug),{...result,updatedAt:serverTimestamp()});
     if(!validSession(uid,epoch))return;

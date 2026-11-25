@@ -18,3 +18,4 @@ jobs:
           node test_public_menu_core.mjs
           node test_cardapio_core.mjs
           node test_cardapio_images.cjs
+          node test_cardapio_ingredients.cjs

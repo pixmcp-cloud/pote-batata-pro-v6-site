@@ -3,6 +3,78 @@ import { sanitizeReadMenu, validSlug } from "../public_menu_core.mjs";
 
 // Catálogo de apresentação, isolado do banco e do estoque operacional.
 // Fotos oficiais locais da Potê Batata quando disponíveis; preços e horários da prévia são demonstrativos.
+const DEMO_INGREDIENTS = {
+  "estrogonofe": [
+    "Batata inglesa",
+    "Leite integral",
+    "Manteiga",
+    "Sal e temperos secos",
+    "Frango desfiado cozido",
+    "Creme de leite",
+    "Molho de tomate",
+    "Champignon",
+    "Muçarela",
+    "Batata palha"
+  ],
+  "pizza": [
+    "Batata inglesa",
+    "Leite integral",
+    "Manteiga",
+    "Sal e temperos secos",
+    "Presunto",
+    "Muçarela",
+    "Molho de tomate",
+    "Cebola refogada",
+    "Orégano",
+    "Azeitona fatiada"
+  ],
+  "hotdog": [
+    "Batata inglesa",
+    "Leite integral",
+    "Manteiga",
+    "Sal e temperos secos",
+    "Salsicha",
+    "Molho de tomate",
+    "Cebola refogada",
+    "Milho verde",
+    "Muçarela",
+    "Batata palha"
+  ],
+  "ninho": [
+    "Batata-doce",
+    "Leite condensado",
+    "Creme de leite",
+    "Leite em pó",
+    "Creme de avelã (tipo Nutella)"
+  ],
+  "brigadeiro": [
+    "Batata-doce",
+    "Leite condensado",
+    "Creme de leite",
+    "Cacau em pó",
+    "Granulado de chocolate"
+  ],
+  "chocolate-morango": [
+    "Batata-doce",
+    "Chocolate meio amargo",
+    "Creme de leite",
+    "Morango fresco"
+  ],
+  "chocolate-morango-branco": [
+    "Batata-doce",
+    "Chocolate branco",
+    "Creme de leite",
+    "Morango fresco"
+  ],
+  "carne-cheddar": [
+    "Batata",
+    "Carne desfiada",
+    "Cheddar"
+  ],
+  "agua": [
+    "Água mineral"
+  ]
+};
 const IMG = "../assets/generic/business-batataria.svg";
 let catalogue = [
   { id:"carne-cheddar",title:"Carne com Cheddar",category:"Salgados",description:"Uma combinação irresistível de carne suculenta, queijo cremoso e muito sabor.",priceCents:3850,tag:"Mais pedido",image:"../assets/recipes/carne-cheddar.webp",addons:["cheddar","bacon","requeijao"] },
@@ -16,7 +88,7 @@ let catalogue = [
   { id:"refrigerante",title:"Refrigerante Lata",category:"Bebidas",description:"Bebida gelada para acompanhar seu sabor favorito.",priceCents:700,tag:"Acompanhamento",image:"https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=78",addons:[] },
   { id:"agua",title:"Água Mineral",category:"Bebidas",description:"Água mineral sem gás, 500 ml.",priceCents:400,tag:"Para refrescar",image:"https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=900&q=78",addons:[] },
   { id:"combo",title:"Combo do Sabor",category:"Combos",description:"Uma opção de demonstração com um salgado e uma bebida. Personalizações reais serão configuradas no PDV.",priceCents:4090,tag:"Combo",image:IMG,addons:[] }
-].map(product => ({ ...product, addons:product.addons.map(id => ({
+].map(product => ({ ...product, ingredientNames:DEMO_INGREDIENTS[product.id]||[], addons:product.addons.map(id => ({
   cheddar:{id:"cheddar",label:"Cheddar extra",priceCents:490},
   bacon:{id:"bacon",label:"Bacon crocante",priceCents:590},
   requeijao:{id:"requeijao",label:"Requeijão cremoso",priceCents:450},
@@ -112,7 +184,15 @@ function openProduct(p){
     Bebidas:"Embalagem e volume a confirmar",
     Combos:"Composição sujeita à configuração da loja"
   })[p.category] || "A confirmar pela loja";
-  $("productFacts").open=false;
+  const names=Array.isArray(p.ingredientNames)?p.ingredientNames:[];
+  const list=$("productIngredients");
+  list.replaceChildren();
+  for(const name of names)list.append(el("li","",name));
+  $("productIngredientsEmpty").hidden=names.length>0;
+  $("productIngredientNote").textContent=requestedSlug===null
+    ?(p.id==="carne-cheddar"?"Ingredientes principais; ficha completa ainda precisa ser revisada pela loja.":"Ingredientes da receita de referência; confirmar composição final com a loja.")
+    :"Ingredientes informados pelo estabelecimento. Confirme composição e alergênicos antes de consumir.";
+  $("productFacts").open=true;
   $("productNote").value="";
   $("addonList").replaceChildren();
   $("addonFieldset").hidden=!p.addons.length;
