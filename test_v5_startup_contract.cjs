@@ -13,7 +13,7 @@ for(const name of ["admin_console.js","admin_permissions.js","franchise_sync.js"
  assert(builder.includes(name+"?v="+(name==="admin_console.js"?"adm-popup-20261121":name==="admin_permissions.js"?"ia-coin-neon-20261125-adm-saldo-carrinho":"firebase-order-v5-20261120")),"Cache desatualizado: "+name);
 }
 for(const name of ["creative_studio.css","creative_studio.js","voice_ai.js"]){
- assert(builder.includes(name+"?v=voice-studio-20261125"),"Cache desatualizado: "+name);
+ assert(builder.includes(name+"?v=voice-studio-20261125-infinity"),"Cache desatualizado: "+name);
  assert(fs.existsSync(path.join("public",name)),"Ativo de locução ausente: "+name);
 }
 assert(read("voice_ai.js").includes('from "./firebase_app.mjs?v=init-20261120"'),"Locução deve usar Firebase compartilhado");
