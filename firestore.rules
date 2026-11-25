@@ -263,6 +263,594 @@ service cloud.firestore {
       );
       allow delete: if isAdmin();
 
+      // Carteira IA: saldo somente pelo ADM verificado, acompanhado de evento imutável.
+      // O backend Admin SDK executa débitos de consumo; clientes jamais escrevem saldo.
+      match /aiWallet/{walletId} {
+        function validWalletAdjustment(oldBalance) {
+          let v = request.resource.data;
+          let p = /databases/$(database)/documents/users/$(userId)/aiWallet/main/entries/$(v.lastEventId);
+          let e = getAfter(p).data;
+          return walletId == 'main' && isAdmin()
+            && v.keys().hasOnly(['balance','lastEventId','updatedAt'])
+            && v.balance is int && v.balance >= 0 && v.balance <= 100000000
+            && v.lastEventId is string && v.lastEventId.matches('^[A-Za-z0-9_-]{20,80}
+      match /recipes/{id} { allow read, write: if false; }
+      match /ingredients/{id} { allow read, write: if false; }
+      match /suppliers/{id} { allow read, write: if false; }
+      match /products/{id} { allow read, write: if false; }
+      match /clients/{id} { allow read, write: if false; }
+      match /orders/{id} { allow read, write: if false; }
+      match /inventory/{id} { allow read, write: if false; }
+      match /expenses/{id} { allow read, write: if false; }
+      match /records/{recordId} { allow read, write: if false; }
+      match /appState/{id} {
+        allow read: if canAccess(userId) && id in ['v5','v5Pulse','v5InventoryGuard'];
+        allow create, update: if canAccess(userId) && (
+          (id == 'v5'
+            && request.resource.data.schemaVersion == 5
+            && request.resource.data.state is map
+            && request.resource.data.updatedAt == request.time)
+          || (id == 'v5Pulse'
+            && request.resource.data.eventId is string
+            && request.resource.data.updatedAt == request.time)
+        );
+        allow create: if id == 'v5InventoryGuard' && canAccess(userId)
+          && validInventoryRevision(request.resource.data)
+          && request.resource.data.revision in [0, 1];
+        allow update: if id == 'v5InventoryGuard' && canAccess(userId)
+          && validInventoryRevision(request.resource.data)
+          && resource.data.get('revision', null) is int && resource.data.revision >= 0
+          && request.resource.data.revision == resource.data.revision + 1;
+        allow delete: if false;
+      }
+      // V5: um documento por entidade, com isolamento por conta e negócio.
+      match /recordsV5/{recordId} {
+        function validCreate(document) {
+          let record = document.get('record', null);
+          return validRecordDocument(document, record)
+            && canWriteOperationalRecord(userId, recordId, record)
+            && (record.group != 'cashSessions' || record.item.status == 'open')
+            // Pedidos, movimentos, compras e perdas não podem ser criados fora
+            // da transação de inventário: evita gravações soltas pelo SDK.
+            && (!(record.group in ['orders','stockMovements','purchases','losses','prepBatches'])
+              || validAtomicInventoryGuard(userId, recordId));
+        }
+        function validUpdate(document, oldDocument) {
+          let record = document.get('record', null);
+          let oldRecord = oldDocument.record;
+          return validRecordDocument(document, record)
+            && canWriteOperationalRecord(userId, recordId, record)
+            && preservesRecordIdentity(userId, recordId, record, oldRecord)
+            && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
+            // Movimentos são imutáveis. Turnos abertos só podem ser fechados.
+            && (record.group == 'cashMovements' ? record == oldRecord
+              : record.group == 'stockMovements' ? record.item == oldRecord.item
+              : record.group != 'cashSessions' || validSessionClose(record, oldRecord));
+        }
+        allow get, list: if canAccess(userId);
+        allow create: if canAccess(userId) && validCreate(request.resource.data);
+        allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
+        allow delete: if canAccess(userId)
+          && canEditOperationalRecord(userId,resource.data.record)
+          && !isFinancialGroup(resource.data.record.group)
+          && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
+      }
+    }
+
+    // Only the verified administrator can create immutable license change events.
+    match /licenseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromTerm', 'toTerm', 'expiresAt',
+          'paymentMethod', 'paymentAmountCents', 'paymentReference', 'paymentConfirmedAt'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.action in ['promover', 'renovar', 'revogar']
+        && request.resource.data.at == request.time
+        && (!request.resource.data.keys().hasAny(['paymentMethod','paymentAmountCents','paymentReference','paymentConfirmedAt']) || (
+          request.resource.data.action in ['promover','renovar']
+          && request.resource.data.keys().hasAll(['paymentMethod','paymentAmountCents','paymentReference','paymentConfirmedAt'])
+          && request.resource.data.paymentMethod in ['pix_manual','courtesy']
+          && request.resource.data.paymentAmountCents is int
+          && request.resource.data.paymentAmountCents >= 0
+          && request.resource.data.paymentAmountCents <= 9999999
+          && ((request.resource.data.paymentMethod == 'pix_manual' && request.resource.data.paymentAmountCents > 0)
+              || (request.resource.data.paymentMethod == 'courtesy' && request.resource.data.paymentAmountCents == 0))
+          && request.resource.data.paymentReference is string
+          && request.resource.data.paymentReference.size() >= 6
+          && request.resource.data.paymentReference.size() <= 120
+          && request.resource.data.paymentConfirmedAt == request.time
+        ));
+      allow update, delete: if false;
+    }
+
+    // Um catálogo publicado pela matriz. As franquias recebem apenas as fichas
+    // aprovadas, nunca o appState, vendas ou custos privados da conta mestre.
+    function isActivePoteFranchise() {
+      return googleVerified()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.status == 'active'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.brandId == 'potebatata';
+    }
+    match /franchiseCatalog/{catalogId} {
+      allow get: if catalogId == 'potebatata'
+        && (isAdmin() || isActivePoteFranchise());
+      allow list: if false;
+      allow create, update: if catalogId == 'potebatata'
+        && isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'brandId', 'version', 'branding', 'recipes', 'ingredients',
+          'publisherUid', 'fingerprint', 'updatedAt'
+        ])
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.publisherUid == request.auth.uid
+        && request.resource.data.recipes.size() > 0
+         && request.resource.data.ingredients.size() > 0
+         && request.resource.data.recipes.size() <= 150
+        && request.resource.data.ingredients.size() <= 250
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /franchiseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail',
+          'targetUid', 'targetEmail', 'brandId', 'status'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.action in ['ativar', 'revogar']
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Histórico imutável de moderação da identidade pública. Somente ADM com
+    // Google verificado e custom claim pode alterar e consultar.
+    // A transação exige que o perfil e o evento concordem no mesmo commit.
+    match /profileAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromName', 'toName', 'fromLocked', 'toLocked', 'reason'
+        ])
+        && request.resource.data.keys().hasAll([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromName', 'toName', 'fromLocked', 'toLocked', 'reason'
+        ])
+        && request.resource.data.action == 'moderate_name'
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.at == request.time
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid.size() > 0
+        && request.resource.data.targetUid.size() <= 128
+        && request.resource.data.targetEmail is string
+        && request.resource.data.targetEmail.size() <= 320
+        && request.resource.data.fromName is string
+        && request.resource.data.fromName.size() <= 200
+        && request.resource.data.toName is string
+        && request.resource.data.toName.size() >= 2
+        && request.resource.data.toName.size() <= 65
+        && request.resource.data.fromLocked is bool
+        && request.resource.data.toLocked is bool
+        && request.resource.data.reason in ['nome_improprio','correcao','solicitacao','seguranca']
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+        && get(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.get('displayName', '') == request.resource.data.fromName
+        && get(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.get('nameLocked', false) == request.resource.data.fromLocked
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.displayName == request.resource.data.toName
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.nameLocked == request.resource.data.toLocked;
+      allow update, delete: if false;
+    }
+
+    // Comunicados globais. Não armazenam dados de clientes nem destinatários.
+    // Somente a conta Google administradora pode publicar ou desativar.
+    match /announcements/{noticeId} {
+      allow get, list: if googleVerified();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.keys().hasAll([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 4
+        && request.resource.data.title.size() <= 110
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 8
+        && request.resource.data.body.size() <= 700
+        && request.resource.data.type in ['info', 'promo', 'urgent']
+        && request.resource.data.url is string
+        && request.resource.data.url.size() <= 350
+        && (request.resource.data.url == '' ||
+            request.resource.data.url.matches('https://.*'))
+        && (request.resource.data.expiresAt == null ||
+            (request.resource.data.expiresAt is timestamp
+             && request.resource.data.expiresAt > request.time))
+        && request.resource.data.active == true
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['active', 'updatedAt'])
+        && request.resource.data.active == false
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+
+    // Publicacao voluntaria de cardapios comerciais. Nao expoe dados financeiros.
+    match /publicMenus/{slug} {
+      function safeMenuShape() {
+        return slug.matches('^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]$')
+          && request.resource.data.keys().hasOnly([
+            'schemaVersion','ownerUid','slug','published','title','subtitle',
+            'businessType','color','items','updatedAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'schemaVersion','ownerUid','slug','published','title','subtitle',
+            'businessType','color','items','updatedAt'
+          ])
+          && request.resource.data.schemaVersion == 1
+          && request.resource.data.slug == slug
+          && request.resource.data.ownerUid is string
+          && request.resource.data.ownerUid.size() >= 1
+          && request.resource.data.ownerUid.size() <= 128
+          && request.resource.data.published is bool
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 2
+          && request.resource.data.title.size() <= 70
+          && request.resource.data.subtitle is string
+          && request.resource.data.subtitle.size() <= 110
+          && request.resource.data.businessType is string
+          && request.resource.data.businessType.size() <= 32
+          && request.resource.data.color is string
+          && request.resource.data.color.matches('^#[0-9a-fA-F]{6}$')
+          && request.resource.data.items is list
+          && request.resource.data.items.size() >= 1
+          && request.resource.data.items.size() <= 60
+          && request.resource.data.updatedAt == request.time;
+      }
+      // Consulta inexistente nao revela dados, mas possibilita checar slug livre.
+      allow get: if resource == null || resource.data.published == true
+        || isOwner(resource.data.ownerUid) || isAdmin();
+      allow list: if false;
+      allow create: if googleVerified()
+        && request.resource.data.ownerUid == request.auth.uid
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && safeMenuShape();
+      allow update: if isOwner(resource.data.ownerUid)
+        && resource.data.ownerUid == request.resource.data.ownerUid
+        && resource.data.slug == request.resource.data.slug
+        && safeMenuShape();
+      allow delete: if false;
+    }
+
+    // Deny everything not explicitly listed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+            && v.updatedAt == request.time
+            && !exists(p) && existsAfter(p)
+            && e.before == oldBalance && e.after == v.balance
+            && e.delta == v.balance - oldBalance;
+        }
+        allow get: if walletId == 'main' && canAccess(userId);
+        allow create: if validWalletAdjustment(0);
+        allow update: if resource.data.balance is int && validWalletAdjustment(resource.data.balance);
+        allow delete, list: if false;
+        match /entries/{eventId} {
+          allow read: if walletId == 'main' && canAccess(userId);
+          allow create: if walletId == 'main' && isAdmin()
+            && eventId.matches('^[A-Za-z0-9_-]{20,80}
+      match /recipes/{id} { allow read, write: if false; }
+      match /ingredients/{id} { allow read, write: if false; }
+      match /suppliers/{id} { allow read, write: if false; }
+      match /products/{id} { allow read, write: if false; }
+      match /clients/{id} { allow read, write: if false; }
+      match /orders/{id} { allow read, write: if false; }
+      match /inventory/{id} { allow read, write: if false; }
+      match /expenses/{id} { allow read, write: if false; }
+      match /records/{recordId} { allow read, write: if false; }
+      match /appState/{id} {
+        allow read: if canAccess(userId) && id in ['v5','v5Pulse','v5InventoryGuard'];
+        allow create, update: if canAccess(userId) && (
+          (id == 'v5'
+            && request.resource.data.schemaVersion == 5
+            && request.resource.data.state is map
+            && request.resource.data.updatedAt == request.time)
+          || (id == 'v5Pulse'
+            && request.resource.data.eventId is string
+            && request.resource.data.updatedAt == request.time)
+        );
+        allow create: if id == 'v5InventoryGuard' && canAccess(userId)
+          && validInventoryRevision(request.resource.data)
+          && request.resource.data.revision in [0, 1];
+        allow update: if id == 'v5InventoryGuard' && canAccess(userId)
+          && validInventoryRevision(request.resource.data)
+          && resource.data.get('revision', null) is int && resource.data.revision >= 0
+          && request.resource.data.revision == resource.data.revision + 1;
+        allow delete: if false;
+      }
+      // V5: um documento por entidade, com isolamento por conta e negócio.
+      match /recordsV5/{recordId} {
+        function validCreate(document) {
+          let record = document.get('record', null);
+          return validRecordDocument(document, record)
+            && canWriteOperationalRecord(userId, recordId, record)
+            && (record.group != 'cashSessions' || record.item.status == 'open')
+            // Pedidos, movimentos, compras e perdas não podem ser criados fora
+            // da transação de inventário: evita gravações soltas pelo SDK.
+            && (!(record.group in ['orders','stockMovements','purchases','losses','prepBatches'])
+              || validAtomicInventoryGuard(userId, recordId));
+        }
+        function validUpdate(document, oldDocument) {
+          let record = document.get('record', null);
+          let oldRecord = oldDocument.record;
+          return validRecordDocument(document, record)
+            && canWriteOperationalRecord(userId, recordId, record)
+            && preservesRecordIdentity(userId, recordId, record, oldRecord)
+            && (!requiresInventoryGuard(oldRecord, record) || validAtomicInventoryGuard(userId, recordId))
+            // Movimentos são imutáveis. Turnos abertos só podem ser fechados.
+            && (record.group == 'cashMovements' ? record == oldRecord
+              : record.group == 'stockMovements' ? record.item == oldRecord.item
+              : record.group != 'cashSessions' || validSessionClose(record, oldRecord));
+        }
+        allow get, list: if canAccess(userId);
+        allow create: if canAccess(userId) && validCreate(request.resource.data);
+        allow update: if canAccess(userId) && validUpdate(request.resource.data, resource.data);
+        allow delete: if canAccess(userId)
+          && canEditOperationalRecord(userId,resource.data.record)
+          && !isFinancialGroup(resource.data.record.group)
+          && (!isInventoryRecord(resource.data.record) || validAtomicInventoryGuard(userId, recordId));
+      }
+    }
+
+    // Only the verified administrator can create immutable license change events.
+    match /licenseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromTerm', 'toTerm', 'expiresAt',
+          'paymentMethod', 'paymentAmountCents', 'paymentReference', 'paymentConfirmedAt'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.action in ['promover', 'renovar', 'revogar']
+        && request.resource.data.at == request.time
+        && (!request.resource.data.keys().hasAny(['paymentMethod','paymentAmountCents','paymentReference','paymentConfirmedAt']) || (
+          request.resource.data.action in ['promover','renovar']
+          && request.resource.data.keys().hasAll(['paymentMethod','paymentAmountCents','paymentReference','paymentConfirmedAt'])
+          && request.resource.data.paymentMethod in ['pix_manual','courtesy']
+          && request.resource.data.paymentAmountCents is int
+          && request.resource.data.paymentAmountCents >= 0
+          && request.resource.data.paymentAmountCents <= 9999999
+          && ((request.resource.data.paymentMethod == 'pix_manual' && request.resource.data.paymentAmountCents > 0)
+              || (request.resource.data.paymentMethod == 'courtesy' && request.resource.data.paymentAmountCents == 0))
+          && request.resource.data.paymentReference is string
+          && request.resource.data.paymentReference.size() >= 6
+          && request.resource.data.paymentReference.size() <= 120
+          && request.resource.data.paymentConfirmedAt == request.time
+        ));
+      allow update, delete: if false;
+    }
+
+    // Um catálogo publicado pela matriz. As franquias recebem apenas as fichas
+    // aprovadas, nunca o appState, vendas ou custos privados da conta mestre.
+    function isActivePoteFranchise() {
+      return googleVerified()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.status == 'active'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.franchise.brandId == 'potebatata';
+    }
+    match /franchiseCatalog/{catalogId} {
+      allow get: if catalogId == 'potebatata'
+        && (isAdmin() || isActivePoteFranchise());
+      allow list: if false;
+      allow create, update: if catalogId == 'potebatata'
+        && isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'brandId', 'version', 'branding', 'recipes', 'ingredients',
+          'publisherUid', 'fingerprint', 'updatedAt'
+        ])
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.publisherUid == request.auth.uid
+        && request.resource.data.recipes.size() > 0
+         && request.resource.data.ingredients.size() > 0
+         && request.resource.data.recipes.size() <= 150
+        && request.resource.data.ingredients.size() <= 250
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /franchiseAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail',
+          'targetUid', 'targetEmail', 'brandId', 'status'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.brandId == 'potebatata'
+        && request.resource.data.action in ['ativar', 'revogar']
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Histórico imutável de moderação da identidade pública. Somente ADM com
+    // Google verificado e custom claim pode alterar e consultar.
+    // A transação exige que o perfil e o evento concordem no mesmo commit.
+    match /profileAudit/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromName', 'toName', 'fromLocked', 'toLocked', 'reason'
+        ])
+        && request.resource.data.keys().hasAll([
+          'action', 'at', 'actorUid', 'actorEmail', 'targetUid',
+          'targetEmail', 'fromName', 'toName', 'fromLocked', 'toLocked', 'reason'
+        ])
+        && request.resource.data.action == 'moderate_name'
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.at == request.time
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid.size() > 0
+        && request.resource.data.targetUid.size() <= 128
+        && request.resource.data.targetEmail is string
+        && request.resource.data.targetEmail.size() <= 320
+        && request.resource.data.fromName is string
+        && request.resource.data.fromName.size() <= 200
+        && request.resource.data.toName is string
+        && request.resource.data.toName.size() >= 2
+        && request.resource.data.toName.size() <= 65
+        && request.resource.data.fromLocked is bool
+        && request.resource.data.toLocked is bool
+        && request.resource.data.reason in ['nome_improprio','correcao','solicitacao','seguranca']
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+        && get(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.get('displayName', '') == request.resource.data.fromName
+        && get(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.get('nameLocked', false) == request.resource.data.fromLocked
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.displayName == request.resource.data.toName
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.targetUid))
+             .data.nameLocked == request.resource.data.toLocked;
+      allow update, delete: if false;
+    }
+
+    // Comunicados globais. Não armazenam dados de clientes nem destinatários.
+    // Somente a conta Google administradora pode publicar ou desativar.
+    match /announcements/{noticeId} {
+      allow get, list: if googleVerified();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.keys().hasAll([
+          'title', 'body', 'url', 'type', 'expiresAt', 'active',
+          'createdAt', 'actorUid', 'actorEmail'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 4
+        && request.resource.data.title.size() <= 110
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 8
+        && request.resource.data.body.size() <= 700
+        && request.resource.data.type in ['info', 'promo', 'urgent']
+        && request.resource.data.url is string
+        && request.resource.data.url.size() <= 350
+        && (request.resource.data.url == '' ||
+            request.resource.data.url.matches('https://.*'))
+        && (request.resource.data.expiresAt == null ||
+            (request.resource.data.expiresAt is timestamp
+             && request.resource.data.expiresAt > request.time))
+        && request.resource.data.active == true
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.actorEmail == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['active', 'updatedAt'])
+        && request.resource.data.active == false
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+
+    // Publicacao voluntaria de cardapios comerciais. Nao expoe dados financeiros.
+    match /publicMenus/{slug} {
+      function safeMenuShape() {
+        return slug.matches('^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]$')
+          && request.resource.data.keys().hasOnly([
+            'schemaVersion','ownerUid','slug','published','title','subtitle',
+            'businessType','color','items','updatedAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'schemaVersion','ownerUid','slug','published','title','subtitle',
+            'businessType','color','items','updatedAt'
+          ])
+          && request.resource.data.schemaVersion == 1
+          && request.resource.data.slug == slug
+          && request.resource.data.ownerUid is string
+          && request.resource.data.ownerUid.size() >= 1
+          && request.resource.data.ownerUid.size() <= 128
+          && request.resource.data.published is bool
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 2
+          && request.resource.data.title.size() <= 70
+          && request.resource.data.subtitle is string
+          && request.resource.data.subtitle.size() <= 110
+          && request.resource.data.businessType is string
+          && request.resource.data.businessType.size() <= 32
+          && request.resource.data.color is string
+          && request.resource.data.color.matches('^#[0-9a-fA-F]{6}$')
+          && request.resource.data.items is list
+          && request.resource.data.items.size() >= 1
+          && request.resource.data.items.size() <= 60
+          && request.resource.data.updatedAt == request.time;
+      }
+      // Consulta inexistente nao revela dados, mas possibilita checar slug livre.
+      allow get: if resource == null || resource.data.published == true
+        || isOwner(resource.data.ownerUid) || isAdmin();
+      allow list: if false;
+      allow create: if googleVerified()
+        && request.resource.data.ownerUid == request.auth.uid
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && safeMenuShape();
+      allow update: if isOwner(resource.data.ownerUid)
+        && resource.data.ownerUid == request.resource.data.ownerUid
+        && resource.data.slug == request.resource.data.slug
+        && safeMenuShape();
+      allow delete: if false;
+    }
+
+    // Deny everything not explicitly listed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+            && request.resource.data.keys().hasOnly(['kind','before','after','delta','reason','actorUid','at'])
+            && request.resource.data.kind == 'admin_adjustment'
+            && request.resource.data.actorUid == request.auth.uid
+            && request.resource.data.at == request.time
+            && request.resource.data.before is int && request.resource.data.before >= 0
+            && request.resource.data.after is int && request.resource.data.after >= 0
+            && request.resource.data.delta is int && request.resource.data.delta != 0
+            && request.resource.data.after == request.resource.data.before + request.resource.data.delta
+            && request.resource.data.reason is string && request.resource.data.reason.size() >= 3
+            && request.resource.data.reason.size() <= 180
+            && getAfter(/databases/$(database)/documents/users/$(userId)/aiWallet/main).data.lastEventId == eventId
+            && getAfter(/databases/$(database)/documents/users/$(userId)/aiWallet/main).data.balance == request.resource.data.after;
+          allow update, delete: if false;
+        }
+      }
+
       // V1/V2: todos os caminhos antigos desativados para clientes.
       match /recipes/{id} { allow read, write: if false; }
       match /ingredients/{id} { allow read, write: if false; }
