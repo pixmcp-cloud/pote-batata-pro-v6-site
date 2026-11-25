@@ -3,7 +3,8 @@
  * Sem endpoint comercial homologado: falha fechada. */
 import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-const auth=getAuth(app),$=id=>document.getElementById(id);
+import {getFirestore,doc,getDoc} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+const auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
 let quote=null,busy=false,url=null,uid=null;
 const endpoint=()=>null; // configuração versionada somente após homologação de servidor comercial
 function state(message){if($("csVoiceState"))$("csVoiceState").textContent=message;}
@@ -17,8 +18,38 @@ function renderQuota(q){
  $("csVoiceShare").textContent=q.count+" franquia(s) ativa(s) · "+(20/q.count).toLocaleString("pt-BR",{maximumFractionDigits:3})+"% da cota total por franquia. Limite coletivo: 20%.";
 }
 function renderChars(){if($("csVoiceChars")&&$("csVoiceText"))$("csVoiceChars").textContent=$("csVoiceText").value.length+" / 777 caracteres";}
-function clear(){quote=null;uid=null;renderQuota(null);if($("csVoiceAudio")){$("csVoiceAudio").pause();$("csVoiceAudio").removeAttribute("src");$("csVoiceAudio").hidden=true;}if($("csVoiceDownload")){$("csVoiceDownload").removeAttribute("href");$("csVoiceDownload").hidden=true;}if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
-const permitted=()=>{const p=window.POTE_AUTH,flag=p?.accessPolicy?.voiceAiEnabled;return !!auth.currentUser&&p?.uid===auth.currentUser.uid&&(flag===true||(flag!==false&&p?.franchiseActive===true));};
+function clear(){quote=null;uid=null;if($("csAiWallet"))$("csAiWallet").hidden=true;if($("csAiPackages"))$("csAiPackages").hidden=true;renderQuota(null);if($("csVoiceAudio")){$("csVoiceAudio").pause();$("csVoiceAudio").removeAttribute("src");$("csVoiceAudio").hidden=true;}if($("csVoiceDownload")){$("csVoiceDownload").removeAttribute("href");$("csVoiceDownload").hidden=true;}if($("csVoiceForm"))$("csVoiceForm").hidden=true;if($("csVoiceGenerate"))$("csVoiceGenerate").disabled=true;if(url)URL.revokeObjectURL(url);url=null;}
+const permitted=()=>{
+ const p=window.POTE_AUTH,flag=p?.accessPolicy?.voiceAiEnabled;
+ if(!auth.currentUser||p?.uid!==auth.currentUser.uid||flag===false)return false;
+ if(p.role==="admin"||p.franchiseActive===true)return true;
+ return p.proActive===true&&(p.plan==="lifetime"||(p.plan==="pro"&&Number.isFinite(p.expiresAt)&&p.expiresAt>Date.now()));
+};
+const packages=[50,100,250,500,1000];
+async function refreshWallet(){
+ const user=auth.currentUser,root=$("csAiWallet"),label=$("csAiBalance"),status=$("csAiWalletStatus");
+ if(!user||!root||!permitted())return;
+ root.hidden=false;label.textContent="Consultando…";status.textContent="";
+ try{
+  const snap=await getDoc(doc(db,"users",user.uid,"aiWallet","main"));
+  if(auth.currentUser?.uid!==user.uid||!permitted()||root!==$("csAiWallet"))return;
+  const n=snap.exists()?snap.data().balance:0;
+  if(!Number.isSafeInteger(n)||n<0)throw Error("Saldo inválido.");
+  label.textContent=n.toLocaleString("pt-BR")+" créditos";
+ }catch(e){if(auth.currentUser?.uid===user.uid&&root===$("csAiWallet")){label.textContent="Indisponível";status.textContent="Carteira aguardando publicação das regras ou sincronização.";}}
+}
+function shop(){
+ if(!permitted())return state("IA exclusiva para PRO ativo, vitalício e franquias.");
+ const panel=$("csAiPackages");if(!panel)return;
+ panel.hidden=!panel.hidden;if(panel.hidden)return;
+ panel.replaceChildren();
+ const intro=document.createElement("p");intro.textContent="Pacotes de créditos IA · compra PIX em preparação. Nenhum pagamento será solicitado nesta etapa.";panel.append(intro);
+ for(const amount of packages){
+  const row=document.createElement("div");row.className="cs-voice-state";
+  const price=(amount/10).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});row.textContent=amount.toLocaleString("pt-BR")+" créditos IA · "+price;
+  panel.append(row);
+ }
+}
 async function api(path,body){
  const user=auth.currentUser,root=endpoint();
  if(!permitted()||!root)throw Error("Locução indisponível: autorização e servidor comercial obrigatórios.");
@@ -30,8 +61,9 @@ async function api(path,body){
 }
 async function open(){
  clear();
- if(!permitted())return state("🔒 Locução bloqueada pelo ADM. O plano PRO não concede acesso automático; franquias ativas têm acesso padrão.");
- if(!endpoint())return state("🔓 Acesso reconhecido. Geração bloqueada até a ativação de uma licença comercial e servidor seguro. Nenhum crédito será debitado.");
+ if(!permitted())return state("IA exclusiva para PRO ativo, vitalício e franquias. FREE e teste gratuito não podem usar IA. Bloqueios do ADM continuam válidos.");
+ void refreshWallet();
+ if(!endpoint())return state("Acesso ao plano reconhecido. Carteira disponível conforme regras publicadas; geração depende de licença comercial e servidor. Nenhum crédito será debitado.");
  try{
   const data=await(await api("/status",{})).json();
   if(data.commercialReady!==true||data.authorized!==true)return state("Serviço comercial indisponível.");
@@ -54,7 +86,7 @@ async function price(){
   if(!Number.isSafeInteger(data.credits)||data.credits<1||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
   quote={id:data.quoteId,credits:data.credits,text,voiceId};renderQuota(data.franchiseAllocation);
   $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+allocationText(data.franchiseAllocation);
-  $("csVoiceGenerate").disabled=data.balance<data.credits;
+  $("csVoiceGenerate").disabled=data.balance<data.credits;if(data.balance<data.credits){$("csAiWallet").hidden=false;state("Saldo insuficiente. Consulte os pacotes na carteira IA.");}
  }catch(e){state(e.message)}finally{busy=false}
 }
 async function generate(){
@@ -70,6 +102,6 @@ async function generate(){
   state("Locução pronta. Consulte novamente o saldo antes de outra geração.");renderQuota(null);
  }catch(e){state(e.message+" Consulte o histórico antes de tentar novamente.")}finally{busy=false}
 }
-window.POTE_VOICE_AI={open};
-window.addEventListener("pote:profile-updated",()=>{if(!permitted()){clear();state("🔒 Locução bloqueada pelo ADM.");}});
+window.POTE_VOICE_AI={open,shop};
+window.addEventListener("pote:profile-updated",()=>{if(!permitted()){clear();state("IA bloqueada: confira seu plano ou permissão ADM.");}});
 window.addEventListener("pote:user-logout",clear);
