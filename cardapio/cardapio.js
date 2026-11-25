@@ -387,9 +387,9 @@ function renderCart(){
     if(line.note)info.append(el("small","", "Obs.: "+line.note));
     const controls=el("div","cart-item-controls");
     controls.append(el("b","",money(itemUnitCents(product,line.addonIds)*line.quantity)));
-    const remove=el("button","","Remover");
+    const remove=el("button","cart-remove","🗑 Remover");
     remove.type="button";remove.setAttribute("aria-label","Remover "+product.title);
-    remove.addEventListener("click",()=>{cart.splice(index,1);saveCart();renderCart();});
+    remove.addEventListener("click",()=>{cart.splice(index,1);saveCart();renderCart();toast("Item removido da sacola.");});
     controls.append(remove);row.append(info,controls);holder.append(row);
   });
 }
@@ -438,8 +438,8 @@ $("confirmProduct").addEventListener("click",confirmProduct);
 productDialog.addEventListener("close",()=>{pendingProduct=[];selected=null;updatePendingStatus();});
 $("closeProduct").addEventListener("click",()=>productDialog.close());
 $("closeCart").addEventListener("click",()=>cartDialog.close());
-$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);});
-$("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog);});
+$("cartTopBtn").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
+$("floatingCart").addEventListener("click",()=>{renderCart();safeShow(cartDialog);cartDialog.querySelector(".cart-scroll").scrollTop=0;});
 $("keepShopping").addEventListener("click",()=>cartDialog.close());
 $("copyOrder").addEventListener("click",copyOrder);
 $("shareBtn").addEventListener("click",share);

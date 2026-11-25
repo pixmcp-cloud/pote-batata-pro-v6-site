@@ -86,3 +86,6 @@ Repositório canônico: `pixmcp-cloud/pote-batata-pro-v6-site`, branch `main`. E
 
 ## Cardápio V6 — confirmação e água (25/11/2026)
 Modal aprovado: X fixo cancela os itens ainda não confirmados, Adicionar prepara a seleção e Confirmar grava uma única vez na sacola e fecha; Confirmar direto também inclui seleção válida. Cabeçalho/rodapé fixos fora da rolagem. Água mineral agrupada por volume com seletor Sem gás/Com gás; SKU e preço próprios (demonstração R$4/R$5 por 500 ml), bloqueio de variante sem estoque publicado. Sem pedidos reais, cobrança ou alteração do estoque. Correção em PR independente da arquitetura de planos.
+
+## Cardápio V6 — remoção visível na sacola (25/11/2026)
+Diagnóstico: lista flexível de produtos e formulário com rolagens independentes comprimiam as linhas em telas móveis, escondendo Remover. Correção: uma única rolagem abaixo do cabeçalho, itens sem compressão, botão vermelho Remover por linha, atualização imediata dos totais e aviso. Teste Chrome inclui hit-test real e remoção de duas águas com gás, preservando os outros itens. PR separada; publicação somente após testes.

@@ -165,7 +165,12 @@ async function tapProduct(page,selector){
         await page.click('label:has(input[name="waterType"][value="Com gás"])');
         await page.click("#qtyPlus");await page.click("#confirmProduct");
         await page.waitForSelector("#productDialog[open]",{hidden:true});
-        await page.click("#floatingCart");assert.match(await page.$eval("#cartItems",e=>e.textContent),/2x Água Mineral com gás.*10,00/s);await page.click("#closeCart");
+        await page.click("#floatingCart");assert.match(await page.$eval("#cartItems",e=>e.textContent),/2x Água Mineral com gás.*10,00/s);
+        const removeSel='button[aria-label="Remover Água Mineral com gás"]';
+        const remove=await page.$(removeSel);assert(remove);await remove.evaluate(e=>e.scrollIntoView({block:"center"}));
+        assert(await remove.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),"Remover deve estar visível e clicável");
+        await page.click(removeSel);assert.equal(await page.$(removeSel),null);assert.match(await page.$eval("#total",e=>e.textContent),/103,80/);
+        await page.click("#closeCart");
       }
       assert.deepEqual(errs,[],"Erros JS na viewport "+width);
       await page.close();

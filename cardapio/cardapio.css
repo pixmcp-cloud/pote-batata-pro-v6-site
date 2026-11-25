@@ -256,3 +256,10 @@ html{scroll-padding-bottom:120px}.menu-section{padding-bottom:130px}.add-button{
 .product-modal-footer .confirm-product{width:100%;min-height:48px;font-size:17px;font-weight:900;border:1px solid #ffe2a0;background:linear-gradient(125deg,#f4ca73,#ca8b29);box-shadow:0 4px 18px #dda74224}
 .pending-product-status{font-size:11px;margin:0;color:var(--goldLight);text-align:center}
 @media(max-width:480px){.product-modal-header{padding:8px 12px}.product-modal-footer{padding:9px 12px 12px}.product-dialog-media{height:160px}.product-dialog .product-dialog-body{padding:16px}.product-modal-footer .qty-counter{gap:9px}.product-modal-footer .dialog-bottom{gap:8px}.product-modal-footer .dialog-bottom .button{padding:10px 8px}.product-modal-footer .confirm-product{min-height:46px}}
+
+/* Sacola: uma única rolagem; produtos não podem ser comprimidos pelo formulário. */
+.cart-shell{min-height:0}.cart-head{flex:none}.cart-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scroll-padding:12px}
+.cart-product-section{padding-top:12px}.cart-product-section h3{margin:0 23px 4px;font-size:14px;color:var(--goldLight)}
+.cart-scroll .cart-items{flex:none;overflow:visible;min-height:0;padding-bottom:12px}.cart-scroll .checkout-box{overflow:visible}
+.cart-item{align-items:flex-start}.cart-item-controls{flex:none}.cart-item-controls .cart-remove{min-height:40px;min-width:88px;border:1px solid #a95049;border-radius:10px;background:#47211e;color:#ffd5cc;text-decoration:none;font-weight:800;padding:8px 10px;font-size:12px;cursor:pointer}.cart-item-controls .cart-remove:hover{background:#64312b}.cart-item-controls .cart-remove:focus-visible{outline:2px solid #f2c779;outline-offset:2px}
+@media(max-width:480px){.cart-product-section h3{margin-inline:16px}.cart-item{gap:10px}.cart-item-main strong{overflow-wrap:anywhere}.cart-head{padding-top:14px;padding-bottom:10px}.cart-head h2{font-size:26px}}
