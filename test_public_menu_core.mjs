@@ -43,3 +43,7 @@ assert.equal(withOfficial[0].image,"../assets/recipes/r05.webp");
 const withPrivate=buildMenuCandidates(state,{priceFor,imageFor:()=>"https://example.test/private?token=SECRET"});
 assert.equal(withPrivate[0].image,"../assets/generic/business-batataria.svg");
 assert.equal(buildMenuCandidates(state,{priceFor})[0].image,"../assets/generic/business-batataria.svg");
+
+const menuWithPhoto=makePublicMenu(state,{ownerUid:"uid-owner",slug:"pote-batata-a1020",selectedIds:["r01"],priceFor,imageFor:()=>"./assets/recipes/r05.webp"});
+assert.equal(sanitizeReadMenu(menuWithPhoto,menuWithPhoto.slug).items[0].image,"../assets/recipes/r05.webp","caminho publicado deve sobreviver à leitura pública");
+assert.equal(publicImage("../../assets/recipes/r05.webp"),"../assets/generic/business-batataria.svg");
