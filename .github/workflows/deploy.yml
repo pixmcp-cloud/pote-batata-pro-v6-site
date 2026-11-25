@@ -60,7 +60,8 @@ jobs:
           cp supplier_directory.js public/supplier_directory.js
           cp supplier_directory.css public/supplier_directory.css
           cp garimpo.js public/garimpo.js
-          python3 -m pip install -q requests beautifulsoup4
+          python3 -m pip install -q requests beautifulsoup4 cairosvg Pillow
+          python3 render_multiversal_brand.py public/assets/brand
           python3 build_price_catalog.py
           cp garimpo.css public/garimpo.css
           cp pote_notice.js public/pote_notice.js

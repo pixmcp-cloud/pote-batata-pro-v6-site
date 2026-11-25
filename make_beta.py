@@ -30,7 +30,7 @@ if n != 1:
     raise SystemExit("Previous localStorage guest state pattern changed; stopping")
 once("function persist(){window.POTE_KITCHEN?.capture?.(state);try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}",
      "function persist(){window.POTE_KITCHEN?.capture?.(state);if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
-once("V6 • DEMONSTRAÇÃO FREE", "POTÊ BATATA PRO V5 • ONLINE")
+once("V6 • DEMONSTRAÇÃO FREE", "PDV MULTIVERSAL • ONLINE")
 once("🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.",
      "🔐 Beta conectado ao Firebase: dados por conta Google. Contas FREE e PRO com licença vinculada à sua conta Google.")
 once("Todos os dados de teste são armazenados somente no navegador deste aparelho.",
@@ -45,7 +45,7 @@ html, n = re.subn(r'<button class="btn danger" onclick="resetAll\(\)">[^<]*</but
 if n != 1: raise SystemExit("Botão de zerar conta não encontrado")
 once("Pesquisa habilitada nesta simulação. Nenhuma chamada externa será enviada.",
      "Busca piloto de estabelecimentos reais no OpenStreetMap. Confirme os dados antes de comprar.")
-once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="noindex,nofollow,noarchive"><meta name="description" content="Gestão Pro: plataforma para batatarias, pizzarias, hamburguerias e lancherias.">')
+once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="noindex,nofollow,noarchive"><meta name="description" content="PDV MULTIVERSAL: plataforma para batatarias, pizzarias, hamburguerias e lancherias.">')
 
 head = """<style>
 #poteAuthGate{position:fixed;inset:0;z-index:10000;background:#120e0b;display:flex;align-items:center;
@@ -68,30 +68,30 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 #poteSyncStatus{font-size:12px;color:#b9dabe;margin-left:auto}
 @media(max-width:550px){#poteLoggedAs{font-size:10px}.pote-login-card{padding:22px}}
 .pote-brand-logo{height:118px;width:118px;margin:0 auto 12px;border:2px solid #ba9359;border-radius:50%;overflow:hidden;background:#120b07;box-shadow:0 5px 18px #0007}
-.pote-brand-logo img{width:100%;height:100%;display:block;object-fit:cover;transform:scale(1.48)}
+.pote-brand-logo img{width:100%;height:100%;display:block;object-fit:cover;transform:none}
 #poteBrowserHint{font-size:13px;line-height:1.5;color:#ffe2aa;margin:12px 0 0}
 #poteBrowserHint a{color:#f1c47c;text-decoration:underline}
 </style>"""
 HEAD_ASSETS = (
     '<script src="./finance_core.js?v=core-20261116"></script>'
     '<link rel="stylesheet" href="./franchise_shopping_list.css?v=shopping-close-20261118">'
-    '<link rel="icon" href="./assets/brand/pdv-64.png" type="image/png" sizes="64x64">'
-    '<link rel="icon" href="./assets/brand/pdv-icon.svg" type="image/svg+xml">'
-    '<link rel="apple-touch-icon" href="./assets/brand/pdv-180.png" sizes="180x180">'
-    '<link rel="manifest" href="./assets/brand/manifest.webmanifest">'
+    '<link rel="icon" href="./assets/brand/pdv-64.png?v=multiversal-20261125" type="image/png" sizes="64x64">'
+    '<link rel="icon" href="./assets/brand/pdv-icon.svg?v=multiversal-20261125" type="image/svg+xml">'
+    '<link rel="apple-touch-icon" href="./assets/brand/pdv-180.png?v=multiversal-20261125" sizes="180x180">'
+    '<link rel="manifest" href="./assets/brand/manifest.webmanifest?v=multiversal-20261125">'
     '<meta name="theme-color" content="#090a0b">'
-    '<meta name="description" content="PDV Potê Batata: gestão de vendas, estoque, pedidos e financeiro.">'
+    '<meta name="description" content="PDV MULTIVERSAL: gestão de vendas, estoque, pedidos e financeiro.">'
     '<meta property="og:type" content="website">'
     '<meta property="og:locale" content="pt_BR">'
-    '<meta property="og:site_name" content="PDV Potê Batata">'
-    '<meta property="og:title" content="PDV — Potê Batata">'
+    '<meta property="og:site_name" content="PDV MULTIVERSAL">'
+    '<meta property="og:title" content="PDV MULTIVERSAL">'
     '<meta property="og:description" content="Gestão de vendas, estoque, pedidos e financeiro em um só lugar.">'
     '<meta property="og:url" content="https://pdv.livresom.com/">'
     '<meta property="og:image" content="https://potobatata-b71f3.web.app/assets/brand/pdv-share.jpg">'
     '<meta property="og:image:type" content="image/jpeg">'
     '<meta property="og:image:width" content="1200">'
     '<meta property="og:image:height" content="630">'
-    '<meta property="og:image:alt" content="Esfera de vidro preta com PDV e Potê Batata">'
+    '<meta property="og:image:alt" content="Emblema preto metálico PDV MULTIVERSAL">'
     '<meta name="twitter:card" content="summary_large_image">'
 
     '<link rel="stylesheet" href="./mobile.css?v=header-sync-20261116">'
@@ -104,7 +104,7 @@ HEAD_ASSETS = (
     '<link rel="stylesheet" href="./image_responsive.css?v=square-recipe-20261116">'
     '<link rel="stylesheet" href="./admin_console.css?v=adm-popup-20261121">'
     '<link rel="stylesheet" href="./gallery.css?v=galeria-42h">'
-    '<link rel="stylesheet" href="./business_setup.css?v=business-universes-20261115-free-lock-1-v6-layout-20261125">'
+    '<link rel="stylesheet" href="./business_setup.css?v=business-universes-20261115-free-lock-1-v6-layout-20261125-multiversal">'
     '<link rel="stylesheet" href="./stock_ui.css?v=stock-clear-20261115">'
     '<link rel="stylesheet" href="./order_ui.css?v=orders-v2-20261115">'
     '<link rel="stylesheet" href="./order_customization.css?v=custom-20261115">'
@@ -123,9 +123,9 @@ HEAD_ASSETS = (
 )
 once("</head>", head + HEAD_ASSETS + "</head>")
 
-gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no Potê Batata Pro">
+gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no PDV MULTIVERSAL">
  <div class="pote-login-card">
-  <div class="pote-brand-logo"><img src="./assets/generic/business-neutral.svg" alt="Identidade genérica de estabelecimento"></div><h1>Gestão Pro</h1>
+  <div class="pote-brand-logo"><img src="./assets/brand/pdv-icon.svg?v=multiversal-20261125" alt="PDV MULTIVERSAL"></div><h1>PDV MULTIVERSAL</h1><p>Todos os segmentos. Uma única plataforma.</p>
   <p>Entre com sua conta Google para acessar seu espaço de receitas, preços, pedidos e estoque.</p>
   <button id="poteGoogleLogin" type="button">Entrar com Google</button>
   <div id="poteLoginMessage" role="status">Preparando autenticação...</div>
@@ -138,7 +138,7 @@ gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Ent
 </div>"""
 once("<body>", "<body class=\"pote-auth-locked\">" + gate)
 brand_markup = ('<div class="brand"><img id="poteHeadLogo" src="./assets/generic/business-neutral.svg" alt="Ícone do negócio">'
-                '<span><span id="poteHeadName">GESTÃO PRO</span><small id="poteHeadSubtitle">ESCOLHA SEU NEGÓCIO</small></span></div>')
+                '<span><span id="poteHeadName">PDV MULTIVERSAL</span><small id="poteHeadSubtitle">ESCOLHA SEU NEGÓCIO</small></span></div>')
 html, n = re.subn(r'<div class="brand">[^<]*<small>[^<]*</small></div>', brand_markup, html, count=1)
 if n != 1:
     raise SystemExit("Cabeçalho da marca não encontrado")
@@ -335,7 +335,7 @@ BODY_ASSETS = (
     '<script src="./pastelaria_templates.js?v=pastelaria-20261116"></script>'
     '<script src="./universe_core.js?v=kitchen-motoboy-20261116"></script>'
     '<script src="./access_control.js?v=delivery-hub-20261116-free-lock-1"></script>'
-    '<script src="./business_setup.js?v=company-label-20261117-v6-artes-20261125-layout-2"></script>'
+    '<script src="./business_setup.js?v=company-label-20261117-v6-artes-20261125-layout-2-multiversal"></script>'
     '<script src="./beverage_catalog.js?v=commerce-20261115"></script>'
     '<script src="./payment_flow.js?v=exact-cash-safe-sync-20261118"></script>'
     '<script src="./stock_inventory.js?v=stock-priority-20261115"></script>'
@@ -388,10 +388,10 @@ BODY_ASSETS = (
 )
 once("</body>", BODY_ASSETS + "</body>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
-html, title_count = re.subn(r"<title>.*?</title>", "<title>Gestão Pro · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
+html, title_count = re.subn(r"<title>.*?</title>", "<title>PDV MULTIVERSAL · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")
 # Ensure beta is not confused with the public offline demo.
-once("Potê Batata Pro V6 • Simulação offline completa", "Potê Batata Pro • Gestão Online")
+once("Potê Batata Pro V6 • Simulação offline completa", "PDV MULTIVERSAL • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:
     raise SystemExit("Exposed role switch remained")
 if not all(x in html for x in ["id=\"poteAuthGate\"", "id=\"poteSyncStatus\"", "id=\"poteExit\"", "id=\"poteLoggedAs\"", "poteFreshAccount", "simulation_panel.js", "poteOriginalRender", "firebase_integration.js"]):

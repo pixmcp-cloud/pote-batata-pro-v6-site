@@ -1,7 +1,7 @@
 {
-  "name": "PDV Potê Batata | Gestão Pro",
-  "short_name": "PDV",
-  "description": "Sistema de gestão de vendas, estoque e financeiro.",
+  "name": "PDV MULTIVERSAL",
+  "short_name": "PDV MULTIVERSAL",
+  "description": "Todos os segmentos. Uma única plataforma.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

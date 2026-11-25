@@ -130,7 +130,7 @@ assert(menu.includes('["business","Negócio"]'));
 const result=fs.readFileSync("public/index.html","utf8");
 assert(result.includes("business_setup.js?v=company-label-20261117"));
 assert(result.includes("business_setup.css?v=business-universes-20261115"));
-assert(result.includes("GESTÃO PRO"),"Identidade neutra ausente");
+assert(result.includes("PDV MULTIVERSAL"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));
 console.log("PASS: cinco universos, Pizzaria e Hamburgueria com 30 receitas cada, Hot Dog com 20 e Lancheria sem receitas.");
 
@@ -153,13 +153,13 @@ for(const account of [companyAccount,neutral,admin,pizza,burger,dog,pastel,snack
  account.window.POTE_BUSINESS.refresh();
  const key=account.window.POTE_BUSINESS.current();
  assert.equal(account.document.getElementById("poteBusinessImage").src,"./assets/generic/business-"+(key||"negocio")+".webp");
- assert.equal(account.document.getElementById("poteBusinessHeroHint").textContent,key?"Ramo "+businessLabels[key]:"Escolha seu ramo");
+ assert.equal(account.document.getElementById("poteBusinessHeroHint").textContent,key?businessLabels[key].toUpperCase():"ESCOLHA SEU RAMO");
 }
 for(const key of [...businessCovers,""]){
  companyAccount.state.data.businessType=key;
  companyAccount.window.POTE_BUSINESS.refresh();
  assert.equal(companyAccount.document.getElementById("poteBusinessImage").src,"./assets/generic/business-"+(key||"negocio")+".webp");
- assert.equal(companyAccount.document.getElementById("poteBusinessHeroHint").textContent,key?"Ramo "+businessLabels[key]:"Escolha seu ramo");
+ assert.equal(companyAccount.document.getElementById("poteBusinessHeroHint").textContent,key?businessLabels[key].toUpperCase():"ESCOLHA SEU RAMO");
 }
 const businessCss=fs.readFileSync("business_setup.css","utf8");
 assert(businessCss.includes("#poteOpsCards>.ops-business-card>strong"));
