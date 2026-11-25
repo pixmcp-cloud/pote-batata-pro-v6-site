@@ -2,7 +2,7 @@
    Nenhuma ação comercial/serviço pago é criada aqui. */
 import {app} from "./firebase_app.mjs?v=init-20261120";
 import {getAuth,getIdTokenResult} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.js";
-import {getFirestore,doc,getDoc,updateDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+import {getFirestore,doc,getDoc,updateDoc,serverTimestamp,runTransaction} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 const auth=getAuth(app),db=getFirestore(app);
 const types=[["batataria","Batataria"],["pizzaria","Pizzaria"],["hamburgueria","Hamburgueria"],
  ["hotdog","Hot Dog"],["lancheria","Lancheria"],["pastelaria","Pastelaria"]];
@@ -20,7 +20,8 @@ root.innerHTML='<h3>🔐 Permissões por universo e serviço</h3>'+
  '<div class="pote-access-universes" id="poteAccessUniverses"></div>'+
  '<label class="pote-adm-label">Serviços do universo<select id="poteAccessType"></select></label>'+
  '<div class="pote-access-services" id="poteAccessServices"></div>'+
- '<h4>Locução IA premium · autorização independente</h4><p>Bloqueada por padrão para FREE e PRO. Franquias ativas têm liberação automática e cota de 20% do total dividida igualmente entre todas as franquias ativas, salvo bloqueio do ADM. Liberar uma conta não ativa cobrança nem substitui a licença comercial do provedor.</p><button type="button" id="poteVoicePermission" class="pote-access-toggle is-locked" disabled>🔒 Locução IA bloqueada</button>'+
+ '<h4>Locução IA premium · autorização independente</h4><p>FREE e teste gratuito não utilizam IA. PRO ativo, vitalício e franquia podem usar mediante créditos, salvo bloqueio individual pelo ADM. A licença comercial do provedor continua obrigatória.</p><button type="button" id="poteVoicePermission" class="pote-access-toggle is-locked" disabled>🔒 Locução IA bloqueada</button>'+
+ '<section class="pote-adm-franchise"><h4>Carteira de créditos IA</h4><p>Saldo virtual não expira. Ajustes manuais registrados em histórico.</p><strong id="poteAiBalance">Selecione uma conta</strong><div class="pote-adm-label"><label>Quantidade<input id="poteAiAmount" type="number" min="1" max="1000000" step="1" inputmode="numeric"></label><label>Motivo<input id="poteAiReason" type="text" maxlength="180" placeholder="Ex.: cortesia autorizada"></label></div><div class="pote-adm-actions"><button type="button" id="poteAiAdd" disabled>Adicionar créditos</button><button type="button" id="poteAiRemove" disabled>Remover créditos</button></div><p id="poteAiStatus" role="status" aria-live="polite"></p></section>'+
  '<p id="poteAccessMessage" role="status" aria-live="polite">Selecione uma conta para alterar permissões.</p>';
 const host=document.querySelector("#poteAdmOverlay .pote-adm-editor");
 if(host)host.appendChild(root);
@@ -29,11 +30,11 @@ const universes=root.querySelector("#poteAccessUniverses"),serviceGrid=root.quer
 selector.innerHTML=types.map(([id,label])=>'<option value="'+id+'">'+esc(label)+'</option>').join("");
 const voiceButton=root.querySelector('#poteVoicePermission');
 let user=null,saving=false;
-const voiceAllowed=u=>u?.accessPolicy?.voiceAiEnabled===true||(u?.accessPolicy?.voiceAiEnabled!==false&&u?.franchise?.status==='active'&&u.franchise.brandId==='potebatata');
+const voiceAllowed=u=>!!u&&u.accessPolicy?.voiceAiEnabled!==false;
 const safeSet=v=>new Set(Array.isArray(v)?v.filter(x=>typeof x==="string"):[]);
 function paint(){
  if(!universes||!serviceGrid)return;
- if(voiceButton){const granted=voiceAllowed(user);voiceButton.disabled=!user||saving;voiceButton.className='pote-access-toggle '+(granted?'is-open':'is-locked');voiceButton.textContent=granted?'🔓 Locução IA autorizada — bloquear':'🔒 Locução IA bloqueada — autorizar';}
+ if(voiceButton){const granted=voiceAllowed(user);voiceButton.disabled=!user||saving;voiceButton.className='pote-access-toggle '+(granted?'is-open':'is-locked');voiceButton.textContent=granted?'🔓 IA sem bloqueio ADM — bloquear':'🔒 IA bloqueada pelo ADM — liberar';}
  if(!user){universes.innerHTML="";serviceGrid.innerHTML="";message.textContent="Selecione uma conta.";return}
  const self=user.uid===auth.currentUser?.uid,disabled=saving||self?"disabled":"";
  const policy=user.accessPolicy||{},blockedU=safeSet(policy.blockedUniverses),blockedS=safeSet(policy.blockedServices);
@@ -49,7 +50,7 @@ function paint(){
     ' class="pote-access-toggle '+(blocked?"is-locked":"is-open")+'">'+
     (blocked?"🔒 ":"🔓 ")+esc(label)+'<small>'+(blocked?"Bloqueado":"Liberado")+'</small></button>';
  }).join("");
- if(self)message.textContent="Conta ADM: a locução IA também exige autorização explícita.";
+ if(self)message.textContent="Conta ADM: a locução IA exige saldo e serviço comercial ativo.";
  else if(!saving)message.textContent="Selecione um cadeado para alterar o acesso desta conta.";
 }
 async function toggle(kind,key){
@@ -104,4 +105,40 @@ voiceButton?.addEventListener('click',async()=>{
  }catch(e){message.textContent='Falha: '+(e.code||e.message)}finally{saving=false;paint()}
 });
 selector?.addEventListener("change",paint);
-window.POTE_ADMIN_PERMISSIONS={renderAccount(account){user=account||null;paint()},get state(){return {selected:user?.uid,saving}}};
+const wBalance=root.querySelector('#poteAiBalance'),wAmount=root.querySelector('#poteAiAmount'),wReason=root.querySelector('#poteAiReason'),wStatus=root.querySelector('#poteAiStatus'),wAdd=root.querySelector('#poteAiAdd'),wRemove=root.querySelector('#poteAiRemove');
+let wBusy=false,wReady=false,wSeq=0;
+function wButtons(){wAdd.disabled=wRemove.disabled=!user||wBusy||!wReady;}
+async function verifiedAdmin(){
+ const actor=auth.currentUser;if(!actor||actor.email?.toLowerCase()!=='pixmcp@gmail.com')throw Error('Somente ADM');
+ const token=await getIdTokenResult(actor,true);
+ if(token.claims.email_verified!==true||token.signInProvider!=='google.com'||token.claims.potebatataAdmin!==true||auth.currentUser?.uid!==actor.uid)throw Error('ADM não verificado');
+ return actor;
+}
+async function loadWallet(){
+ const seq=++wSeq,uid=user?.uid;wReady=false;wButtons();wBalance.textContent=uid?'Consultando saldo...':'Selecione uma conta';wStatus.textContent='';
+ if(!uid)return;
+ try{await verifiedAdmin();const snap=await getDoc(doc(db,'users',uid,'aiWallet','main'));if(seq!==wSeq||user?.uid!==uid)return;const n=snap.exists()?snap.data().balance:0;if(!Number.isSafeInteger(n)||n<0)throw Error('Saldo inválido');wBalance.textContent=n.toLocaleString('pt-BR')+' créditos IA';wReady=true;}
+ catch(e){if(seq===wSeq){wBalance.textContent='Carteira indisponível';wStatus.textContent=e.code||e.message;}}
+ finally{if(seq===wSeq)wButtons();}
+}
+async function adjustWallet(sign){
+ if(wBusy||!wReady||!user)return;
+ const uid=user.uid,amount=Number(wAmount.value),reason=wReason.value.trim();
+ if(!Number.isSafeInteger(amount)||amount<1||amount>1000000||reason.length<3||reason.length>180){wStatus.textContent='Informe quantidade inteira e motivo.';return;}
+ if(!confirm((sign>0?'Adicionar ':'Remover ')+amount+' créditos IA para '+(user.email||uid)+'?'))return;
+ wBusy=true;wButtons();const seq=wSeq;wStatus.textContent='Registrando ajuste...';
+ try{
+  const actor=await verifiedAdmin(),walletRef=doc(db,'users',uid,'aiWallet','main'),eventId=crypto.randomUUID(),eventRef=doc(db,'users',uid,'aiWallet','main','entries',eventId);
+  const next=await runTransaction(db,async tx=>{
+   const snap=await tx.get(walletRef),old=snap.exists()?snap.data().balance:0,delta=sign*amount,after=old+delta;
+   if(!Number.isSafeInteger(old)||old<0||!Number.isSafeInteger(after)||after<0||after>100000000)throw Error('Saldo insuficiente ou inválido');
+   tx.set(walletRef,{balance:after,lastEventId:eventId,updatedAt:serverTimestamp()});
+   tx.set(eventRef,{kind:'admin_adjustment',before:old,after,delta,reason,actorUid:actor.uid,at:serverTimestamp()});
+   return after;
+  });
+  if(seq===wSeq&&user?.uid===uid){wBalance.textContent=next.toLocaleString('pt-BR')+' créditos IA';wStatus.textContent='Ajuste registrado com sucesso.';wAmount.value='';wReason.value='';}
+ }catch(e){if(seq===wSeq)wStatus.textContent='Não foi possível ajustar: '+(e.code||e.message);}
+ finally{wBusy=false;wButtons();}
+}
+wAdd.addEventListener('click',()=>adjustWallet(1));wRemove.addEventListener('click',()=>adjustWallet(-1));
+window.POTE_ADMIN_PERMISSIONS={renderAccount(account){const changed=user?.uid!==account?.uid;user=account||null;paint();if(changed)void loadWallet();},get state(){return {selected:user?.uid,saving}}};
