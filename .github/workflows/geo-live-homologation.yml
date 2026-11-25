@@ -55,7 +55,7 @@ jobs:
           if(denied.status!==404)throw Error("QA sem autenticação não está bloqueado");
           const r=await fetch(endpoint,{method:"POST",headers:{Authorization:"Bearer "+process.env.QA_PROBE_SECRET},redirect:"error",signal:AbortSignal.timeout(90000)});
           const b=await r.json().catch(()=>({}));
-          console.log("QA_RESULT "+JSON.stringify({status:r.status,ok:b.ok,phase:b.phase,checks:b.checks,meters:b.meters,seconds:b.seconds,feeCents:b.feeCents}));
+          console.log("QA_RESULT "+JSON.stringify({status:r.status,ok:b.ok,phase:b.phase,checks:b.checks,meters:b.meters,seconds:b.seconds,feeCents:b.feeCents,diagnostics:b.diagnostics}));
           if(!r.ok||!b.ok)throw Error("Homologação real não aprovada");
           NODE
       - name: Remover somente o worker temporário criado pelo teste

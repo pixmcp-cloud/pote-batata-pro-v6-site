@@ -13,16 +13,18 @@ export default {async fetch(req,env){
  !same(req.headers.get("Authorization"),"Bearer "+(env.QA_PROBE_SECRET||"")))return reply({error:"not_found"},404);
  if(env.QA_PROBE_SECRET?.length!==64)return reply({error:"not_found"},404);
  const slug="qa-"+crypto.randomUUID().slice(0,8),owner="qa-owner",buyer="qa-buyer";
+ const diagnostics={provider:[]};
  const app=createGeoWorker({
+  requestFetch:async(url,opts)=>{const response=await fetch(url,opts);diagnostics.provider.push({path:new URL(url).pathname,status:response.status});return response;},
   verify:async(token)=>{if(![owner,buyer,"qa-outsider"].includes(token))throw Error("invalid");return {uid:token}},
   menuReader:async(_e,s)=>({slug:s,ownerUid:owner,published:s===slug})
  });
- const e={...env,ENABLE_GEO:"true",GEO_CANARY_UIDS:owner+","+buyer,ALLOWED_ORIGINS:"https://qa.example"};
+ const e={GEO_GATE:env.GEO_GATE,GEOAPIFY_API_KEY:env.GEOAPIFY_API_KEY,ENABLE_GEO:"true",GEO_CANARY_UIDS:owner+","+buyer,ALLOWED_ORIGINS:"https://qa.example"};
  let phase="start";const checks=[];
  const must=(ok,label)=>{if(!ok)throw Error(label);checks.push(label)};
  const call=async(path,data={},who=buyer,origin="https://qa.example")=>{
   const r=await app.fetch(new Request("https://qa.internal/v1/geo/"+path,{method:"POST",headers:{"Content-Type":"application/json",Origin:origin,...(who?{Authorization:"Bearer "+who}:{})},body:JSON.stringify({slug,...data})}),e);
-  return {status:r.status,body:await r.json()};
+  const body=await r.json();diagnostics.last={path,status:r.status,error:body.error};return {status:r.status,body};
  };
  const gate=async(name,action,data)=>{
   const r=await env.GEO_GATE.get(env.GEO_GATE.idFromName(name)).fetch("https://internal/"+action,{method:"POST",body:JSON.stringify(data),headers:{"Content-Type":"application/json"}});
@@ -37,6 +39,7 @@ export default {async fetch(req,env){
   phase="geocode";
   const a=await call("geocode",{text:"Rua Sinimbu, 1500, Caxias do Sul, Rio Grande do Sul, Brasil"},owner);
   const b=await call("geocode",{text:"Rua Pinheiro Machado, 2000, Caxias do Sul, Rio Grande do Sul, Brasil"},owner);
+  diagnostics.geocode=[a,b].map(x=>({status:x.status,error:x.body.error,count:x.body.results?.length,streetCount:x.body.results?.filter(p=>p.street).length}));
   const origin=a.body.results?.find(p=>p.street),dest=b.body.results?.find(p=>p.street);
   must(a.status===200&&b.status===200&&origin&&dest,"geocode_real_br");
   const point=p=>({lat:p.lat,lon:p.lon});
@@ -67,5 +70,5 @@ export default {async fetch(req,env){
   const order=await call("orders/create",{},buyer);
   must(order.status===404,"checkout_not_exposed");
   return reply({ok:true,checks,meters:q.body.meters,seconds:q.body.seconds,feeCents:q.body.feeCents});
- }catch(err){return reply({ok:false,phase,checks},500)}
+ }catch(err){return reply({ok:false,phase,checks,diagnostics},500)}
 }};
