@@ -214,3 +214,6 @@ Conferência 45610633412 aprovada: ambos os segredos presentes e checkout bloque
 
 ### C04 — correção do diagnóstico real
 Run 45612539382 não chegou ao OAuth: desafio indisponível, cleanup aprovado e segredos preservados. Causa identificada no workflow: GITHUB_ENV só é carregado em etapas subsequentes, mas implantação ocorria na mesma etapa de geração. Separadas as etapas, adicionada validação de formato e comparação das duas variáveis por metadados antes da chamada autenticada. Sem alteração de credencial nem banco. Reteste obrigatório.
+
+### C04 — OAuth real aprovado e leitura em diagnóstico
+Run 45612853645 aprovado OAuth da identidade instalada no Cloudflare; cleanup preservou segredos e travas. Todas as leituras retornaram UNKNOWN, sem afirmar índices ausentes. A rotina usava referência solta fetch (risco de illegal invocation no Workers), corrigida para wrapper e classificação explícita de erro de transporte/timeout/HTTP e status por grupo. Paginação limitada a dez páginas por grupo para preservar cota. Reteste somente leitura, sem promoção comercial.
