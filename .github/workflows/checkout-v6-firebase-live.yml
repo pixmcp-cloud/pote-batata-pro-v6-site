@@ -1,4 +1,4 @@
-name: V6 Checkout - confirmar leitura Firestore após OAuth
+name: V6 Checkout - retestar transporte Firestore sem redirects
 on:
   push:
     branches: [feat/v6-geoapify-qa-20261125]

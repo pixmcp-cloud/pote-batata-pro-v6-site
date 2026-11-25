@@ -217,3 +217,6 @@ Run 45612539382 não chegou ao OAuth: desafio indisponível, cleanup aprovado e 
 
 ### C04 — OAuth real aprovado e leitura em diagnóstico
 Run 45612853645 aprovado OAuth da identidade instalada no Cloudflare; cleanup preservou segredos e travas. Todas as leituras retornaram UNKNOWN, sem afirmar índices ausentes. A rotina usava referência solta fetch (risco de illegal invocation no Workers), corrigida para wrapper e classificação explícita de erro de transporte/timeout/HTTP e status por grupo. Paginação limitada a dez páginas por grupo para preservar cota. Reteste somente leitura, sem promoção comercial.
+
+### C04 — diagnóstico de transporte
+Run 45612994849: OAuth real novamente aprovado; Firestore retornou TRANSPORT_ERROR em todas as leituras, sem status HTTP. Não confirma falha IAM nem ausência de índices. Ajustado redirect manual como no adaptador transacional, preservando bloqueio de redirecionamento (nenhum 3xx seguido), classificação de erros sem mensagens sensíveis. Reteste obrigatório. Nenhuma alteração de dados ou índices.

@@ -3,8 +3,8 @@ const base="https://firestore.googleapis.com/v1/projects/"+PROJECT+"/databases/(
 const normal=fields=>JSON.stringify((fields||[]).filter(x=>x.fieldPath!=="__name__").map(x=>({fieldPath:x.fieldPath,order:x.order})));
 export async function auditFirebase({token,expected,requestFetch=(...args)=>fetch(...args)}){
  if(typeof token!=="string"||!token)throw Error("missing_token");
- const get=async path=>requestFetch(base+path,{method:"GET",headers:{Authorization:"Bearer "+token},redirect:"error",signal:AbortSignal.timeout(15000)});
- const failure=e=>e?.name==="TimeoutError"||e?.name==="AbortError"?"TIMEOUT":e?.name==="TypeError"?"TRANSPORT_ERROR":"REQUEST_ERROR";
+ const get=async path=>requestFetch(base+path,{method:"GET",headers:{Authorization:"Bearer "+token},redirect:"manual",signal:AbortSignal.timeout(15000)});
+ const failure=e=>{const m=String(e?.message||"");return e?.name==="TimeoutError"||e?.name==="AbortError"?"TIMEOUT":/illegal invocation/i.test(m)?"ILLEGAL_INVOCATION":/redirect/i.test(m)?"REDIRECT_ERROR":/fetch|network|connect/i.test(m)?"NETWORK_ERROR":/header|authorization/i.test(m)?"HEADER_ERROR":e?.name==="TypeError"?"TRANSPORT_ERROR":"REQUEST_ERROR";};
  const report={database:"UNKNOWN",policy:"UNKNOWN",indexes:[],indexReads:{}};
  try{const r=await get("");report.database=r.ok?"READABLE":"HTTP_"+r.status;}catch(e){report.database=failure(e);}
  try{
