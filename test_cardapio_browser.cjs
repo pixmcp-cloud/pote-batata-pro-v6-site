@@ -189,6 +189,7 @@ async function tapProduct(page,selector){
       await page.setRequestInterception(true);
       page.on("request",req=>{
         const url=new URL(req.url());
+        if(url.pathname.endsWith("/consumer-session.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"const u={uid:'qa-consumer'};let cb;export const observe=f=>{cb=f;f(null);return()=>{}};export const login=async()=>{window.__qaLogins=(window.__qaLogins||0)+1;cb(u);return u};export const token=async()=> 'qa-google-token';export const logout=async()=>cb(null);export const listen=(u,f)=>{f([],true);return()=>{}};export const history=async()=>[];export const watchOrder=(u,id,f)=>{window.__qaTrack=(status,seconds)=>f({checkoutId:id,slug:'qa-checkout-web',createdAt:new Date(Date.now()-5000).toISOString(),status,durationSeconds:seconds,lines:[{orderNumber:12}]},true);return()=>{}};"});
         if(url.pathname.endsWith("/firebase_app.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"export const app={};"});
         if(url.hostname==="www.gstatic.com"&&url.pathname.endsWith("/firebase-firestore.js"))return req.respond({status:200,headers:{"Access-Control-Allow-Origin":"*"},contentType:"text/javascript",body:"export const getFirestore=()=>({});export const doc=(...a)=>a;export const getDoc=async()=>({exists:()=>true,data:()=>("+JSON.stringify(data)+")});"});
         if(url.hostname!=="127.0.0.1")return req.abort();
@@ -223,12 +224,13 @@ async function tapProduct(page,selector){
       await page.setRequestInterception(true);
       page.on("request",req=>{
         const url=new URL(req.url()),cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type","Access-Control-Allow-Methods":"POST, OPTIONS"};
+        if(url.pathname.endsWith("/consumer-session.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"const u={uid:'qa-consumer'};let cb;export const observe=f=>{cb=f;f(null);return()=>{}};export const login=async()=>{window.__qaLogins=(window.__qaLogins||0)+1;cb(u);return u};export const token=async()=> 'qa-google-token';export const logout=async()=>cb(null);export const listen=(u,f)=>{f([],true);return()=>{}};export const history=async()=>[];export const watchOrder=(u,id,f)=>{window.__qaTrack=(status,seconds)=>f({checkoutId:id,slug:'qa-checkout-web',createdAt:new Date(Date.now()-5000).toISOString(),status,durationSeconds:seconds,lines:[{orderNumber:12}]},true);return()=>{}};"});
         if(url.pathname.endsWith("/firebase_app.mjs"))return req.respond({status:200,contentType:"text/javascript",body:"export const app={};"});
         if(url.hostname==="www.gstatic.com"&&url.pathname.endsWith("/firebase-firestore.js"))return req.respond({status:200,headers:cors,contentType:"text/javascript",body:"export const getFirestore=()=>({});export const doc=(...a)=>a;export const getDoc=async()=>({exists:()=>true,data:()=>("+JSON.stringify(data)+")});"});
         if(url.hostname==="challenges.cloudflare.com")return req.respond({status:200,contentType:"text/javascript",body:"window.turnstile={render:(s,o)=>{window.__qaTurnstile=o; o.callback('qa-token');return 1;},reset:()=>window.__qaTurnstile.callback('qa-token-2')};"});
         if(url.hostname==="pote-batata-guard-staging.pixmcp.workers.dev"&&url.pathname==="/v1/checkout"){
           if(req.method()==="OPTIONS")return req.respond({status:204,headers:cors});
-          const b=JSON.parse(req.postData());requests.push(b);
+          const b=JSON.parse(req.postData());assert.equal(req.headers().authorization,"Bearer qa-google-token");requests.push(b);
           if(requests.length===1)return req.abort("failed");
           return req.respond({status:201,headers:cors,contentType:"application/json",body:JSON.stringify({ok:true,checkoutId:b.operationId,totalCents:b.expectedTotalCents,orderNumbers:[12],status:"recebido",paymentStatus:"pendente"})});
         }
@@ -239,6 +241,7 @@ async function tapProduct(page,selector){
       await page.click("#confirmProduct");await page.waitForSelector("#productDialog[open]",{hidden:true});
       await page.click("#floatingCart");
       await page.waitForFunction(()=>!!window.__qaTurnstile);
+      assert.equal(await page.evaluate(()=>window.__qaLogins||0),0,"Browsing must not request login");
       await page.type("#customerName","Cliente QA");await page.type("#customerPhone","48999990000");
       assert.equal(await page.$eval('input[name="fulfillment"][value="entrega"]',e=>e.disabled),true);
       await page.$eval("#copyOrder",e=>e.scrollIntoView({block:"center"}));await page.click("#copyOrder");
@@ -249,6 +252,14 @@ async function tapProduct(page,selector){
       await page.waitForFunction(()=>document.getElementById("checkoutResult").textContent.includes("#P0000012"));
       assert.equal(requests.length,2);assert.equal(requests[0].operationId,requests[1].operationId);assert.equal(requests[1].expectedTotalCents,1250);assert.equal(requests[1].payment,"pix");
       assert.equal(await page.$eval("#cartCount",e=>e.textContent),"0");assert.equal(await page.evaluate(()=>window.__orderLink),null);
+      await page.click("#closeCart");
+      await page.waitForFunction(()=>typeof window.__qaTrack==="function");
+      await page.evaluate(()=>window.__qaTrack("em_preparo",null));
+      await page.waitForFunction(()=>document.getElementById("liveConnection").textContent==="AO VIVO");
+      assert.match(await page.$eval("#liveMessage",e=>e.textContent),/Em preparo/);
+      await page.evaluate(()=>window.__qaTrack("entregue",125));
+      assert.equal(await page.$eval("#liveTimer",e=>e.textContent),"00:02:05");
+      assert.equal(await page.$eval("#liveConnection",e=>e.textContent),"REGISTRADO");
       assert.deepEqual(errors,[]);await page.close();
       console.log("PASS: checkout automático no Chrome, perda de conexão, UUID único, confirmação e sacola limpa; nenhum acesso externo.");
     }

@@ -10,17 +10,18 @@ export function createCheckoutClient({endpoint,fetcher=fetch,storage,randomId=()
  return {
   hasPending(slug){try{return Boolean(read(slug))}catch{return true}},
   complete(slug){try{store().removeItem(key(slug))}catch{}},
-  async submit(input,challenge){
+  async submit(input,challenge,identity){
+   if(!identity?.uid||typeof identity.token!=="string"||!identity.token)throw Error("Entre com Google para confirmar seu pedido.");
    if(inFlight)throw Error("Pedido já está sendo confirmado.");
    inFlight=true;
    try{
-    const fingerprint=await digest(JSON.stringify(input)),prior=read(input.slug);
+    const fingerprint=await digest(JSON.stringify({uid:identity.uid,input})),prior=read(input.slug);
     if(prior&&prior.fingerprint!==fingerprint)throw Error("Existe uma confirmação pendente. Restaure os itens, nome e telefone originais e tente novamente; não crie outro pedido.");
     if(prior?.result)return prior.result;
     const operationId=prior?.operationId||randomId(),pending={fingerprint,operationId};
     write(input.slug,pending);
     let response;
-    try{response=await fetcher(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...input,operationId,challenge}),signal:AbortSignal.timeout(25000)});}
+    try{response=await fetcher(endpoint,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+identity.token},body:JSON.stringify({...input,operationId,challenge}),signal:AbortSignal.timeout(25000)});}
     catch{throw Error("Resposta não confirmada. Mantenha a sacola e tente novamente com os mesmos dados. O pedido não será duplicado.")}
     const result=await response.json().catch(()=>null);
     if(!response.ok||result?.ok!==true){

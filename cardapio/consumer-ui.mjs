@@ -1,0 +1,81 @@
+import {terminal,elapsed,formatElapsed,orderCode,statusText} from "./tracking-core.mjs";
+export function createConsumerUI({slug,notify,money}){
+ const $=id=>document.getElementById(id),bar=$("liveOrderBar"),dialog=$("consumerHistory");
+ let api=null,user=null,unsubscribe=null,watch=null,tracked=null,active=[],live=false,epoch=0,timer=null,loading=null;
+ function paint(){
+  bar.hidden=!tracked;document.body.classList.toggle("has-live-order",Boolean(tracked));
+  if(!tracked)return;
+  $("liveConnection").textContent=terminal(tracked)?"REGISTRADO":live?"AO VIVO":"OFFLINE";
+  $("liveDot").classList.toggle("is-live",live&&!terminal(tracked));
+  $("liveCode").textContent=orderCode(tracked);
+  const text=statusText(tracked);if($("liveMessage").textContent!==text)$("liveMessage").textContent=text;
+  $("liveTimer").textContent=formatElapsed(elapsed(tracked));
+  if(terminal(tracked)&&timer!==null){clearInterval(timer);timer=null}
+  if(!terminal(tracked)&&timer===null)timer=setInterval(()=>{$("liveTimer").textContent=formatElapsed(elapsed(tracked))},1000);
+ }
+ function reset(){
+  epoch++;unsubscribe?.();watch?.();unsubscribe=watch=null;tracked=null;active=[];live=false;
+  if(timer!==null){clearInterval(timer);timer=null}paint();
+ }
+ function follow(order){
+  if(!order||!user)return;
+  if(tracked?.checkoutId===order.checkoutId){tracked=order;paint();return;}
+  watch?.();watch=null;tracked=order;paint();
+  const index=epoch,uid=user.uid;
+  if(!terminal(order))watch=api.watchOrder(user,order.checkoutId,(next,connected)=>{
+   if(index!==epoch||user?.uid!==uid||!next)return;tracked=next;live=connected;paint();
+   if(terminal(next)){watch?.();watch=null;}
+  },()=>{if(index===epoch){live=false;paint()}});
+ }
+ function accept(next){
+  if(user?.uid===next?.uid)return;
+  reset();user=next;$("consumerLogout").hidden=!user;
+  if(!user){$("consumerList").replaceChildren();return}
+  const index=epoch,uid=user.uid;
+  unsubscribe=api.listen(user,(orders,connected)=>{
+   if(index!==epoch||user?.uid!==uid)return;
+   active=orders.filter(o=>o.slug===slug).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+   live=connected;
+   if(!tracked&&active.length)follow(active[0]);
+   if(tracked){const current=active.find(o=>o.checkoutId===tracked.checkoutId);if(current)tracked=current;}
+   paint();
+  },()=>{if(index===epoch){live=false;paint()}});
+ }
+ async function load(){
+  if(!loading)loading=import("./consumer-session.mjs?v=1").then(module=>{api=module;api.observe(accept);return api;}).catch(e=>{loading=null;throw e});
+  return loading;
+ }
+ async function requireLogin(){const service=await load();const account=await service.login();accept(account);return {uid:account.uid,token:await service.token(account)}}
+ async function openHistory(){
+  try{
+   await requireLogin();const index=epoch,uid=user.uid;
+   const rows=await api.history(user);
+   if(index!==epoch||user?.uid!==uid)return;
+   const container=$("consumerList");container.replaceChildren();
+   if(!rows.length){const p=document.createElement("p");p.textContent="Nenhum pedido registrado.";container.append(p)}
+   for(const o of rows){
+    const article=document.createElement("article"),title=document.createElement("strong"),detail=document.createElement("p"),items=document.createElement("p");
+    title.textContent=o.storeTitle+" · "+orderCode(o);detail.textContent=statusText(o)+" · "+money(o.totalCents)+" · "+formatElapsed(elapsed(o));
+    items.textContent=(o.lines||[]).map(l=>l.qty+"x "+l.name+(l.status==="cancelado"?" (cancelado)":"")).join(" · ");
+    article.append(title,detail,items);
+    if(o.slug===slug){const b=document.createElement("button");b.type="button";b.className="button button-quiet";b.textContent="Ver no letreiro";b.onclick=()=>{follow(o);dialog.close()};article.append(b)}
+    container.append(article);
+   }
+   if(!dialog.open)dialog.showModal();
+  }catch(e){notify(e.message||"Não foi possível consultar seus pedidos.")}
+ }
+ $("consumerAccount").addEventListener("click",openHistory);
+ $("liveOrderBar").addEventListener("click",openHistory);
+ $("consumerClose").addEventListener("click",()=>dialog.close());
+ $("consumerLogout").addEventListener("click",async()=>{try{await api.logout();accept(null);dialog.close()}catch(e){notify(e.message)}});
+ window.addEventListener("offline",()=>{live=false;paint()});
+ // Restore an existing session silently; never initiate login while browsing.
+ void load().catch(()=>{});
+ return {requireLogin,async confirmed(result){
+  if(!user)return;
+  const now=new Date().toISOString(),provisional={checkoutId:result.checkoutId,slug,createdAt:result.createdAt||now,status:"recebido",totalCents:result.totalCents,lines:result.orderNumbers.map(n=>({orderNumber:n}))};
+  // The server start is authoritative; no local estimate is retained if absent.
+  if(!result.createdAt)provisional.createdAt=null;
+  follow(provisional);
+ }};
+}

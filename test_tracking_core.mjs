@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import {elapsed,formatElapsed,statusText} from "./cardapio/tracking-core.mjs";
+import {initialTracking,updateTracking,planLifecycle} from "./workers/antifraud/src/tracking.mjs";
+const start="2026-11-25T12:00:00Z",ready="2026-11-25T12:10:00Z",end="2026-11-25T12:12:05Z";
+const rows=[{id:"a",orderNumber:1,name:"Batata",qty:2,price:30,status:"recebido",createdAt:start,deliveryType:"Retirada"},{id:"b",orderNumber:2,name:"Bebida",qty:1,price:5,status:"recebido",createdAt:start,deliveryType:"Retirada"}];
+let tracking=initialTracking({rows,slug:"loja",title:"Loja",total:6500,at:start,checkoutId:"qa"});
+assert.equal(elapsed(tracking,Date.parse(ready)),600);
+const produced=rows.map(o=>({...o,status:"em_producao",stockDeducted:true}));
+tracking=updateTracking(tracking,produced,ready);assert.equal(tracking.status,"em_preparo");
+assert.throws(()=>planLifecycle(produced,"deliver",end));
+const done=planLifecycle(produced,"ready",ready);tracking=updateTracking(tracking,done,ready);assert.equal(tracking.status,"finalizado");assert.equal(tracking.durationSeconds,null);
+assert.throws(()=>planLifecycle(done,"dispatch",end));
+const delivered=planLifecycle(done,"deliver",end);tracking=updateTracking(tracking,delivered,end);assert.equal(tracking.status,"entregue");assert.equal(tracking.durationSeconds,725);assert(delivered.every(o=>o.durationSeconds===725));assert.equal(formatElapsed(elapsed(tracking,Date.parse(end)+100000)),"00:12:05");assert.match(statusText(tracking),/entregue/);
+console.log("PASS tracking: server start, preparation, ready, delivered, frozen duration and common receipt time");

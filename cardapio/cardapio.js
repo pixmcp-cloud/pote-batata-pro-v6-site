@@ -1,4 +1,5 @@
-import {createCheckoutClient} from "./checkout-client.mjs?v=1";
+import {createCheckoutClient} from "./checkout-client.mjs?v=2";
+import {createConsumerUI} from "./consumer-ui.mjs?v=1";
 import { money, makeLine, addLine, normalizeCart, itemUnitCents, cartTotals, demoSummary, whatsappOrder } from "./cardapio-core.mjs?v=whatsapp12";
 import { sanitizeReadMenu, validSlug, menuHeroSequence, groupDrinkProducts } from "../public_menu_core.mjs?lojas=13";
 
@@ -416,6 +417,7 @@ async function copyText(text){
   document.body.append(box);box.select();
   const ok=document.execCommand("copy");box.remove();return ok;
 }
+let consumerUI=null;
 let publicStore=null,checkoutBusy=false,challengeToken="",widgetId=null,challengePromise=null;
 const checkoutClient=createCheckoutClient({endpoint:"https://pote-batata-guard-staging.pixmcp.workers.dev/v1/checkout"});
 async function prepareChallenge(){
@@ -444,7 +446,9 @@ async function transactionalOrder(){
  if(!input.customerName.trim()||!input.customerPhone.trim()){toast("Informe nome e celular.");return;}
  checkoutBusy=true;renderCart();$("checkoutResult").textContent="Confirmando seu pedido no servidor...";
  try{
-  const result=await checkoutClient.submit(input,challengeToken);
+  const identity=await consumerUI.requireLogin();
+  const result=await checkoutClient.submit(input,challengeToken,identity);
+  await consumerUI.confirmed(result);
   const codes=result.orderNumbers.map(n=>"#P"+String(n).padStart(7,"0")).join(", ");
   $("checkoutResult").textContent="Pedido recebido: "+codes+" · "+money(result.totalCents)+". Pagamento pendente, na retirada.";
   cart=[];if(saveCart())checkoutClient.complete(input.slug);toast("Pedido registrado no PDV.");
@@ -457,7 +461,7 @@ async function copyOrder(){
     if(publicStore?.checkoutSiteKey&&fulfill()==="retirada")return transactionalOrder();
     if(publicStore?.checkoutSiteKey&&checkoutClient.hasPending(requestedSlug)){toast("Resolva primeiro a confirmação do pedido automático. Não envie outro pedido.");return;}
     if(!publicStore?.whatsapp){toast("A loja não habilitou pedidos pelo WhatsApp.");return;}
-    try{const url=whatsappOrder({cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,customerName:$("customerName").value,customerPhone:$("customerPhone").value,address:$("customerAddress").value,whatsapp:publicStore.whatsapp,storeTitle:publicStore.title});window.open(url,"_blank","noopener,noreferrer");toast("Confira a mensagem no WhatsApp e aguarde confirmação da loja.");}catch(e){toast(e.message);}return;
+    try{await consumerUI.requireLogin();const url=whatsappOrder({cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,customerName:$("customerName").value,customerPhone:$("customerPhone").value,address:$("customerAddress").value,whatsapp:publicStore.whatsapp,storeTitle:publicStore.title});window.open(url,"_blank","noopener,noreferrer");toast("Confira a mensagem no WhatsApp e aguarde confirmação da loja.");}catch(e){toast(e.message);}return;
   }
   const summary=demoSummary({
     cart,products:catalogue,fulfillment:fulfill(),payment:$("paymentMethod").value,
@@ -526,6 +530,8 @@ async function loadPublicMenu(slug){
     const menu=snap.exists()?sanitizeReadMenu(snap.data(),slug):null;
     if(!menu)throw Error("Loja indisponível");
     publicStore=menu;
+    $("settingsBtn").hidden=true;$("consumerAccount").hidden=false;
+    consumerUI=createConsumerUI({slug,notify:toast,money});
     catalogue=menu.items;
     cart=restoreCart();
     byId.clear();for(const p of catalogue)byId.set(p.id,p);
@@ -552,7 +558,7 @@ async function loadPublicMenu(slug){
     if(menu.checkoutSiteKey){
      if(storeStatus)storeStatus.textContent="Pedidos de retirada online";
      if(footerCaption)footerCaption.textContent="Pagamento na retirada; sem cobrança online.";
-     if(reminder)reminder.textContent="Pedidos de retirada entram no PDV após confirmação. Pagamento somente na retirada. "+(menu.whatsapp?"Entregas pelo WhatsApp.":"Entregas indisponíveis.");
+     if(reminder)reminder.textContent="Entre com Google somente ao confirmar. Pedidos de retirada entram no PDV; acompanhamento em tempo real. Pagamento na retirada. "+(menu.whatsapp?"Entregas pelo WhatsApp.":"Entregas indisponíveis.");
      if(strip)strip.textContent="CARDÁPIO DIGITAL • PEDIDOS ONLINE PARA RETIRADA";
      $("checkoutResult").hidden=false;
      if(!menu.whatsapp)document.querySelector('input[name="fulfillment"][value="entrega"]').disabled=true;

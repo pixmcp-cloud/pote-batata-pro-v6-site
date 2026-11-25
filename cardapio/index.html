@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#100e0c">
   <meta name="description" content="Prévia do cardápio digital premium do Potê Batata Pro.">
   <title>Potê Batata • Cardápio Digital (Prévia)</title>
-  <link rel="stylesheet" href="./cardapio.css?release=checkout13">
-  <script type="module" src="./cardapio.js?release=checkout13"></script>
+  <link rel="stylesheet" href="./cardapio.css?release=tracking14">
+  <script type="module" src="./cardapio.js?release=tracking14"></script>
 </head>
 <body>
   <div class="preview-strip" role="status">PRÉVIA DE LAYOUT · Produtos e preços demonstrativos · Nenhum pedido será enviado</div>
@@ -23,6 +23,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.82-4M8 13a3 3 0 1 0-2.82-4M18 22a3 3 0 1 0-2.82-4M8 11l8-5M8 14l8 5"/></svg>
         </button>
         <button type="button" class="icon-button" id="settingsBtn" aria-label="Configurações do lojista" title="Configurações do lojista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4l.6 3 2 .9 2.6-1.6 2.8 2.8-1.6 2.6.9 2 3 .6v4l-3 .6-.9 2 1.6 2.6-2.8 2.8-2.6-1.6-2 .9-.6 3h-4l-.6-3-2-.9-2.6 1.6-2.8-2.8 1.6-2.6-.9-2-3-.6v-4l3-.6.9-2-1.6-2.6 2.8-2.8L7.4 6l2-.9z" transform="translate(2 0) scale(.83)"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="icon-button" id="consumerAccount" aria-label="Meus pedidos" title="Meus pedidos" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/></svg></button>
         <button type="button" class="icon-button cart-top" id="cartTopBtn" aria-label="Abrir sacola de compras">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8ZM9 9V6a3 3 0 0 1 6 0v3"/></svg>
           <span id="cartCount" class="cart-count" hidden>0</span>
@@ -136,6 +137,8 @@
     </div>
   </dialog>
   <dialog id="settingsDialog" class="app-dialog merchant-dialog" aria-labelledby="merchantTitle"><header class="product-modal-header"><span>ÁREA DO LOJISTA</span><button class="dialog-close" id="closeSettings" aria-label="Fechar configurações" type="button">×</button></header><div class="merchant-body"><h2 id="merchantTitle">Personalize seu cardápio</h2><p>Gerencie sua loja com segurança. Entre com a conta Google proprietária do catálogo.</p><div class="merchant-options"><a data-merchant-action="link" href="../">🔗 Personalizar link da loja <small>Alterar endereço de compartilhamento</small></a><a data-merchant-action="products" href="../">👁 Produtos visíveis <small>Mostrar, ocultar e selecionar produtos</small></a><a data-merchant-action="publish" href="../">⚙ Publicação e detalhes <small>Atualizar preços, ingredientes ou retirar do ar</small></a><a data-merchant-action="brand" href="../">🎨 Marca e identidade <small>Nome, logotipo e contatos no PDV</small></a></div><p class="merchant-note">Somente o responsável autenticado pode alterar os dados. Não é necessário login para os clientes consultarem o menu.</p></div></dialog>
+  <button type="button" id="liveOrderBar" class="live-order-bar" hidden aria-label="Acompanhamento e histórico do pedido"><span class="live-meta"><span id="liveConnection">OFFLINE</span><i id="liveDot"></i><span id="liveCode"></span><time id="liveTimer">--:--:--</time></span><span class="live-track"><span id="liveMessage">Aguardando pedido</span></span></button>
+  <dialog id="consumerHistory" class="app-dialog merchant-dialog"><header class="product-modal-header"><span>MEUS PEDIDOS</span><button class="dialog-close" id="consumerClose" type="button" aria-label="Fechar histórico">×</button></header><div class="merchant-body"><div id="consumerList"></div><button class="button button-quiet" id="consumerLogout" type="button" hidden>Sair da conta Google</button></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>
