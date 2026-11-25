@@ -111,7 +111,7 @@ function loadVoiceCatalog(live=[]){
 }
 let consoleReady=false,consoleSeq=0,draftOwner=null;
 let cloneBusy=false,cloneSampleUrl=null,cloneRequestId=null,cloneEpoch=0;
-const cloneAdmin=()=>isOwnAdmin()&&permitted();
+const cloneAdmin=()=>{const p=window.POTE_AUTH,user=auth.currentUser;return permitted()&&!!user&&p?.uid===user.uid&&p.role==='admin'&&user.email?.toLowerCase()==='pixmcp@gmail.com';};
 function cloneStatus(message){$('pvCloneStatus').textContent=message;}
 function resetCloneDraft(){
  ++cloneEpoch;cloneRequestId=null;
@@ -173,21 +173,21 @@ function invalidate(){quote=null;$('csVoiceGenerate').disabled=true;$('csVoicePr
 function applyPreset(vals){for(const [key,,,,def] of voiceSettingsSpec)$('pv_'+key).value=String(vals[key]??def);$('pvBoost').checked=true;invalidate();}
 function importCreative(){const value=['creativeHeadline','creativeBody','creativeCta'].map(id=>$(id)?.value||'').filter(Boolean).join('. ').slice(0,750);$('csVoiceText').value=value;$('csVoiceDuration').value=String(Math.min(75,Math.max(15,Math.ceil(value.length/150)*15)));invalidate();}
 $('pvImport').onclick=importCreative;$('pvClear').onclick=()=>{$('csVoiceText').value='';invalidate();};
-$('pvBack').onclick=()=>{if(!busy)voiceConsole.close();};
-$('pvWallet').onclick=()=>{if(!busy){voiceConsole.close();shop();}};
+$('pvBack').onclick=()=>{if(!busy&&!cloneBusy)voiceConsole.close();};
+$('pvWallet').onclick=()=>{if(!busy&&!cloneBusy){voiceConsole.close();shop();}};
 $('pvReset').onclick=()=>applyPreset({});
 voiceConsole.addEventListener('click',e=>{const tier=e.target.closest('[data-pv-seconds]'),preset=e.target.closest('[data-pv-preset]');if(tier){$('csVoiceDuration').value=tier.dataset.pvSeconds;invalidate();}if(preset){const p={natural:{},commercial:{stability:.45,similarity_boost:.8,style:.25,speed:1.05},calm:{stability:.7,similarity_boost:.75,style:.05,speed:.85}};applyPreset(p[preset.dataset.pvPreset]||{});}});
 for(const id of ['csVoiceText','csVoiceSelect','csVoiceDuration','pvModel','pvLanguage','pvBoost',...voiceSettingsSpec.map(([key])=>'pv_'+key)])$(id).addEventListener('input',invalidate);
 $('csVoiceSelect').addEventListener('change',()=>{renderSelectedVoice();invalidate();});
 $('csVoicePrice').onclick=price;$('csVoiceGenerate').onclick=generate;
-voiceConsole.addEventListener('cancel',e=>{if(busy)e.preventDefault();});
-voiceConsole.addEventListener('close',()=>{$('pvVoiceSample').pause();++consoleSeq;quote=null;consoleReady=false;$('csVoiceGenerate').disabled=true;});
+voiceConsole.addEventListener('cancel',e=>{if(busy||cloneBusy)e.preventDefault();});
+voiceConsole.addEventListener('close',()=>{$('pvVoiceSample').pause();$('pvCloneSample').pause();++consoleSeq;quote=null;consoleReady=false;$('csVoiceGenerate').disabled=true;});
 async function consoleBalance(user,seq){try{const snap=await getDoc(doc(db,'users',user.uid,'aiWallet','main'));if(seq!==consoleSeq||auth.currentUser?.uid!==user.uid||!voiceConsole.open)return;const n=snap.exists()?snap.data().balance:0;$('pvBalance').textContent=Number.isSafeInteger(n)&&n>=0?n.toLocaleString('pt-BR'):'—';}catch{if(seq===consoleSeq)$('pvBalance').textContent='—';}}
 async function open(){
  if(busy)return;
  if(!permitted())return state('IA exclusiva para PRO ativo, vitalício e franquias. FREE e teste gratuito não podem usar IA. Bloqueios do ADM continuam válidos.');
  const user=auth.currentUser,seq=++consoleSeq;consoleReady=false;quote=null;uid=user.uid;
- if(draftOwner!==uid){clear();uid=user.uid;draftOwner=uid;$('pvOutputHint').textContent='O áudio aparecerá aqui após geração confirmada.';importCreative();applyPreset({});}
+ if(draftOwner!==uid){resetCloneDraft();clear();uid=user.uid;draftOwner=uid;$('pvOutputHint').textContent='O áudio aparecerá aqui após geração confirmada.';importCreative();applyPreset({});}
  $('csVoiceForm').hidden=false;$('pvBalance').textContent='—';loadVoiceCatalog();
  if(!voiceConsole.open)voiceConsole.showModal();invalidate();void consoleBalance(user,seq);void refreshWallet();void refreshClones();
  if(!endpoint()){studioStatus('Modo preparação · editor disponível. As vozes Infinity são referências oficiais. A síntese e o orçamento final aguardam servidor e licença comercial ElevenLabs. Nenhuma IA COIN será debitada.');return;}
