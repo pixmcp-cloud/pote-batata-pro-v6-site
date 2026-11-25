@@ -114,3 +114,28 @@ assert(iaSource.includes("voiceConsole.showModal();invalidate()")&&iaSource.inde
 for(const marker of ['pvSliders','pvLanguage','pvModel','pvBoost','pvTiers','pvImport','pvWallet','pvOutputHint','csVoiceDownload','voiceSettings:settings()','...opts','JSON.stringify(q.opts)'])assert(iaSource.includes(marker),'Voice Studio: '+marker);
 assert(iaCss.includes('#poteVoiceConsole{position:fixed;inset:0'),'Full-screen dedicated editor');
 console.log('PASS: Voice Studio opens independently; advanced settings bound to quote');
+
+;(async function checkVoiceStudio(){
+ const vm=require('node:vm'),nodes=new Map(),events=new Map();
+ const node=id=>{
+  if(!nodes.has(id))nodes.set(id,{id,value:id==='csVoiceDuration'?'15':id==='pvModel'?'eleven_flash_v2_5':id==='pvLanguage'?'pt':'',checked:true,hidden:false,disabled:false,open:false,textContent:'',innerHTML:'',setAttribute(){},removeAttribute(){},replaceChildren(){},querySelectorAll(){return []},addEventListener(k,fn){events.set(id+':'+k,fn)},showModal(){this.open=true},close(){this.open=false},pause(){}});
+  return nodes.get(id);
+ };
+ const user={uid:'qa-admin',email:'pixmcp@gmail.com'},win={POTE_AUTH:{uid:user.uid,role:'admin'},addEventListener(){}};
+ const docMock={getElementById:node,createElement:tag=>node('created-'+tag),body:{append(){}}};
+ const prefix=iaSource.slice(0,iaSource.indexOf('window.POTE_VOICE_AI={open,shop,history};')).replace(/^import .*;\s*$/gm,'');
+ vm.runInNewContext(prefix+'\nwindow.qa={open,settings,options,applyPreset,invalidate,voiceConsole};',{app:{},getAuth:()=>({currentUser:user}),getFirestore:()=>({}),getDoc:async()=>({exists:()=>true,data:()=>({balance:1000})}),doc:()=>({}),document:docMock,window:win,Option:function(t,v){this.text=t;this.value=v},URL:{revokeObjectURL(){}},console});
+ await win.qa.open();
+ assert.equal(win.qa.voiceConsole.open,true,'CTA opens dedicated modal even without endpoint');
+ assert.equal(node('csVoiceForm').hidden,false);
+ assert.equal(node('csVoicePrice').disabled,true,'No provider means no quote');
+ assert.equal(node('csVoiceGenerate').disabled,true,'No provider means no debit');
+ assert.match(node('pvStatus').textContent,/Modo preparação/);
+ assert.match(node('pvBalance').textContent,/1[.,]?000/);
+ win.qa.applyPreset({speed:1.05,style:.25});
+ assert.equal(win.qa.settings().speed,1.05);
+ node('csVoiceDuration').value='75';win.qa.invalidate();
+ assert.equal(node('pvCost').textContent,'5 IA COIN');
+ assert.equal(node('csVoiceText').maxLength,750);
+ console.log('PASS Voice Studio runtime: opens offline safely, real balance, adjustable settings and fixed tariff');
+})().catch(e=>{console.error(e);process.exitCode=1;});
