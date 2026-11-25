@@ -16,18 +16,28 @@ export async function auditFirebase({token,expected,requestFetch=(...args)=>fetc
    report.policy=f.active?.booleanValue===true?"ACTIVE_REQUIRES_REVIEW":"INACTIVE";
   }
  }catch(e){report.policy=failure(e);}
- for(const group of [...new Set(expected.map(x=>x.collectionGroup))]){
-  let all=[],page="",complete=false,readStatus="UNKNOWN";const seen=new Set();
-  try{
-   for(let n=0;n<10;n++){
-    const r=await get("/collectionGroups/"+encodeURIComponent(group)+"/indexes?pageSize=100"+(page?"&pageToken="+encodeURIComponent(page):""));
-    readStatus="HTTP_"+r.status;if(!r.ok)break;const b=await r.json();all.push(...(b.indexes||[]));page=b.nextPageToken||"";
-    if(!page){complete=true;break;}if(seen.has(page))break;seen.add(page);
+ // The Firestore Admin list API uses the wildcard collection group for the
+ // database-wide index inventory. Classify only after a complete enumeration.
+ let all=[],page="",complete=false,readStatus="UNKNOWN";const seen=new Set();
+ try{
+  for(let n=0;n<10;n++){
+   const r=await get("/collectionGroups/-/indexes"+(page?"?pageToken="+encodeURIComponent(page):""));
+   readStatus="HTTP_"+r.status;
+   if(!r.ok){
+    const body=await r.json().catch(()=>({})),status=body?.error?.status;
+    if(typeof status==="string"&&/^[A-Z_]{1,40}$/.test(status))readStatus+="_"+status;
+    break;
    }
-  }catch(e){readStatus=failure(e);}
+   const b=await r.json();
+   if(b.indexes!==undefined&&!Array.isArray(b.indexes)){readStatus="INVALID_RESPONSE";break;}
+   all.push(...(b.indexes||[]));page=b.nextPageToken||"";
+   if(!page){complete=true;break;}if(seen.has(page))break;seen.add(page);
+  }
+ }catch(e){readStatus=failure(e);}
+ for(const group of [...new Set(expected.map(x=>x.collectionGroup))]){
   report.indexReads[group]=readStatus;
   for(const i of expected.filter(x=>x.collectionGroup===group)){
-   const matches=all.filter(x=>x.queryScope===i.queryScope&&normal(x.fields)===normal(i.fields));
+   const matches=all.filter(x=>typeof x.name==="string"&&x.name.startsWith("projects/"+PROJECT+"/databases/(default)/collectionGroups/"+group+"/indexes/")&&x.queryScope===i.queryScope&&normal(x.fields)===normal(i.fields));
    const state=matches.some(x=>x.state==="READY")?"READY":matches.some(x=>x.state==="CREATING")?"CREATING":matches.length?"NOT_READY":complete?"MISSING":"UNKNOWN";
    report.indexes.push({collectionGroup:group,fields:i.fields,state});
   }

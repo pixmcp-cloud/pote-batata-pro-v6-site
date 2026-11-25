@@ -1,4 +1,4 @@
-name: V6 Checkout - retestar transporte Firestore sem redirects
+name: V6 Checkout - inventário real de índices Firestore
 on:
   push:
     branches: [feat/v6-geoapify-qa-20261125]

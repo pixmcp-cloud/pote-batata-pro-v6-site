@@ -220,3 +220,6 @@ Run 45612853645 aprovado OAuth da identidade instalada no Cloudflare; cleanup pr
 
 ### C04 — diagnóstico de transporte
 Run 45612994849: OAuth real novamente aprovado; Firestore retornou TRANSPORT_ERROR em todas as leituras, sem status HTTP. Não confirma falha IAM nem ausência de índices. Ajustado redirect manual como no adaptador transacional, preservando bloqueio de redirecionamento (nenhum 3xx seguido), classificação de erros sem mensagens sensíveis. Reteste obrigatório. Nenhuma alteração de dados ou índices.
+
+### C07 — conexão real Firestore confirmada
+Run 45613126538: OAuth aprovado, metadados do banco READABLE, legalPolicy/current MISSING, listagem por coleção HTTP 400. Todas as demais verificações 0acc5331 aprovadas. Corrigida consulta Admin para inventário global collectionGroups/-/indexes, sem pageSize explícito e com filtragem de nome/campos/escopo; classificação MISSING apenas após enumeração completa. Testes ajustados. Não conceder indexAdmin ao Worker de execução: criação de índices pelo administrador autorizado, exclusivamente aditiva. Nenhuma escrita nesta etapa.
