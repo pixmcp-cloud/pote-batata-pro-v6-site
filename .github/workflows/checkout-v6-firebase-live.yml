@@ -1,4 +1,4 @@
-name: V6 Checkout - validação exata dos índices instalados
+name: V6 Checkout - confirmar índices após instalação administrativa
 on:
   push:
     branches: [feat/v6-geoapify-qa-20261125]
