@@ -1,11 +1,12 @@
 // B02.14: local synthetic harness only. No live service credentials or deployment.
+import {createCheckoutRecovery} from "./checkout_recovery_lab.mjs";
 import {queueRow,orderPrintText} from "./pdv_checkout_queue.mjs";
 import {checkoutDrawer} from "./checkout_cash_lab.mjs";
 import {mountOrderTicker} from "./order_ticker.mjs";
 if(location.hostname!=="127.0.0.1"&&location.hostname!=="localhost")throw Error("Local lab only");
 const $=id=>document.getElementById(id),money=n=>(n/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}),op=()=>crypto.randomUUID();
 const el=(tag,text)=>{const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x};
-let cfg,tab="counter",quote=null,pendingSubmit=null,snapshot=null,activeOrder=null,stopTicker=null,busy=false,cashAction=null,cashRetry=null,stockRetry=null;
+let cfg,tab="counter",quote=null,snapshot=null,activeOrder=null,stopTicker=null,busy=false,cashAction=null,cashRetry=null,stockRetry=null;
 const feedback=t=>$("feedback").textContent=t;
 const labels={prepare:"Iniciar preparo",ready:"Finalizar preparo",dispatch:"Saiu para entrega",deliver:"Confirmar entrega",cancel:"Cancelar e repor",confirm_payment:"Confirmar recebimento"};
 async function request(path,body,token){
@@ -20,14 +21,21 @@ function show(tabName){
  $("receipt").hidden=true;$("ticker").hidden=tab!=="online"||!activeOrder;
  if(["counter","online"].includes(tab)){clearQuote();$("sale-title").textContent=tab==="counter"?"Venda de balcão":"Cardápio digital";$("customer-note").hidden=tab!=="online";$("method").value=tab==="counter"?"cash":"pix";$("fulfillment").value="pickup";$("fulfillment").disabled=tab==="counter";$("address-label").hidden=true}
  else refresh().catch(e=>feedback(e.message));
+ if(journals[tab]&&pending())guard(()=>consult());
 }
-function clearQuote(){quote=null;pendingSubmit=null;$("quote-total").textContent="";$("submit").disabled=true}
+const journals={};
+function pending(){return ["counter","online"].includes(tab)&&journals[tab]?.pending()}
+function syncRecovery(){const p=pending();$("recover").hidden=!p;$("retry-order").hidden=!p;$("quote").disabled=!!p;$("submit").disabled=!!p||!quote}
+function clearQuote(){quote=null;$("quote-total").textContent="";syncRecovery()}
+function resolved(result,channel){if(result.state==="committed"){clearQuote();for(const e of document.querySelectorAll("[data-product],[data-extra]"))e.value="0";feedback("Pedido #"+result.order.id+" registrado.");if(channel==="online")track(result.order.id)}else if(result.state==="unconfirmed"){feedback("Tentativa não confirmada. Consulte novamente ou repita a mesma confirmação.");}syncRecovery()}
+async function consult(retry=false){const channel=tab,j=journals[channel];if(!j)return;resolved(await (retry?j.retry():j.recover()),channel)}
+
 function productView(){
  const parent=$("products");parent.replaceChildren();
  for(const p of cfg.products){const row=el("article");row.className="product";const desc=el("div");desc.append(el("strong",p.title),el("div",money(p.priceCents)));for(const extra of p.extras??[]){const l=el("label",extra.title+" · "+money(extra.priceCents)),q=el("input");q.type="number";q.min=0;q.max=10;q.step=1;q.value="0";q.dataset.extra=extra.id;q.dataset.forProduct=p.id;q.setAttribute("aria-label","Adicional "+extra.title+" em "+p.title);q.oninput=clearQuote;l.append(q);desc.append(l)}const qty=el("input");qty.type="number";qty.min=0;qty.max=99;qty.step=1;qty.value="0";qty.dataset.product=p.id;qty.setAttribute("aria-label","Quantidade "+p.title);qty.oninput=clearQuote;row.append(desc,qty);parent.append(row)}
 }
 function input(){return {lines:[...document.querySelectorAll("[data-product]")].filter(e=>Number(e.value)>0).map(e=>({productId:e.dataset.product,quantity:Number(e.value),extras:[...document.querySelectorAll("[data-extra]")].filter(a=>a.dataset.forProduct===e.dataset.product&&Number(a.value)>0).map(a=>({id:a.dataset.extra,quantity:Number(a.value)}))})),fulfillment:$("fulfillment").value,paymentMethod:$("method").value,...($("fulfillment").value==="delivery"?{address:$("address").value}:{})}}
-async function guard(fn){if(busy)return;busy=true;feedback("");for(const b of document.querySelectorAll("nav button,#quote,#submit,#method,#fulfillment,#address,[data-product],[data-extra]"))b.disabled=true;try{await fn()}catch(e){feedback("Não concluído: "+e.message)}finally{busy=false;for(const b of document.querySelectorAll("nav button,#quote,#method,#fulfillment,#address,[data-product],[data-extra]"))b.disabled=false;$("fulfillment").disabled=tab==="counter";$("submit").disabled=!quote}}
+async function guard(fn){if(busy)return;busy=true;feedback("");for(const b of document.querySelectorAll("nav button,#quote,#submit,#method,#fulfillment,#address,[data-product],[data-extra]"))b.disabled=true;try{await fn()}catch(e){feedback("Não concluído: "+e.message)}finally{busy=false;for(const b of document.querySelectorAll("nav button,#quote,#method,#fulfillment,#address,[data-product],[data-extra]"))b.disabled=false;$("fulfillment").disabled=tab==="counter";syncRecovery()}}
 function track(orderId){
  activeOrder=orderId;if(stopTicker)stopTicker();
  stopTicker=mountOrderTicker($("ticker"),{subscribe:emit=>{let closed=false,timer;
@@ -35,8 +43,10 @@ function track(orderId){
   timer=setInterval(poll,1000);poll();return()=>{closed=true;clearInterval(timer)};
  }});$("ticker").hidden=tab!=="online";
 }
-$("quote").onclick=()=>guard(async()=>{clearQuote();const payload=input(),role=tab==="counter"?"owner":"buyer";const q=await api("quote",{storeId:cfg[tab],operationId:op(),input:payload},role);quote={q,payload,channel:tab,role};$("quote-total").textContent="Total confirmado pelo servidor: "+money(q.totalCents);feedback("Confira o valor antes de confirmar.");});
-$("submit").onclick=()=>guard(async()=>{if(!quote)return;const {q,payload,channel,role}=quote;pendingSubmit??={storeId:cfg[channel],operationId:op(),quoteId:q.quoteId,input:payload,expectedRevision:q.revision,expectedTotalCents:q.totalCents};const result=await api("submit",pendingSubmit,role);clearQuote();for(const e of document.querySelectorAll("[data-product],[data-extra]"))e.value="0";feedback("Pedido #"+result.id+" registrado.");if(channel==="online")track(result.id);});
+$("quote").onclick=()=>guard(async()=>{if(pending())throw Error("Recupere o pedido anterior.");clearQuote();const payload=input(),role=tab==="counter"?"owner":"buyer";const q=await api("quote",{storeId:cfg[tab],operationId:op(),input:payload},role);quote={q,payload,channel:tab,role};$("quote-total").textContent="Total confirmado pelo servidor: "+money(q.totalCents);feedback("Confira o valor antes de confirmar.");});
+$("submit").onclick=()=>guard(async()=>{if(!quote||pending())return;const {q,channel}=quote;resolved(await journals[channel].begin(q),channel)});
+$("recover").onclick=()=>guard(()=>consult());
+$("retry-order").onclick=()=>guard(()=>consult(true));
 $("method").onchange=clearQuote;$("fulfillment").onchange=()=>{$("address-label").hidden=$("fulfillment").value!=="delivery";clearQuote()};$("address").oninput=clearQuote;
 for(const b of document.querySelectorAll("[data-tab]"))b.onclick=()=>{if(!busy)show(b.dataset.tab)};
 async function refresh(){snapshot=await ownerSnapshot();renderQueue();renderCash();renderInventory()}
@@ -67,7 +77,7 @@ $("cash-form").onsubmit=async e=>{e.preventDefault();if(busy)return;busy=true;$(
 $("cash-cancel").onclick=()=>{if(!busy&&!cashRetry)$("cash-dialog").close();else if(!busy)$("cash-error").textContent="Confirme novamente a tentativa anterior antes de sair."};
 $("cash-dialog").addEventListener("cancel",e=>{if(busy||cashRetry)e.preventDefault()});
 $("refresh").onclick=()=>guard(refresh);$("print").onclick=()=>window.print();
-try{cfg=await request("/lab/bootstrap",{});productView();show("counter");await refresh();document.body.dataset.ready="true"}catch(e){feedback("Laboratório indisponível: "+e.message)}
+try{cfg=await request("/lab/bootstrap",{});for(const channel of ["counter","online"]){const role=channel==="counter"?"owner":"buyer";journals[channel]=createCheckoutRecovery({storage:sessionStorage,storeId:cfg[channel],getUid:()=>cfg[role+"Uid"],newOperationId:op,send:(kind,body,uid)=>{if(uid!==cfg[role+"Uid"])throw Error("session_changed");return api(kind,body,role)}})}productView();show("counter");await refresh();document.body.dataset.ready="true"}catch(e){feedback("Laboratório indisponível: "+e.message)}
 
 function renderInventory(){
  const rows=snapshot.inventory??[],list=$("inventory-list"),select=$("inventory-item"),old=select.value;list.replaceChildren();select.replaceChildren();
