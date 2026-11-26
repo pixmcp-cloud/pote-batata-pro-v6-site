@@ -7,20 +7,20 @@ const allowedVoiceIds=new Set(['gOupLcAkjEnguROwi4oS','OZ0L6eISlOejga3XjDFt','WQ
 const cfg={commercialApproved:true,licensedTiers:['starter'],providerMicroBrlPer1000:1500000,creditMicroBrl:1100000};
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{publicStatus:status});};
 const put=(path,data,previous,serverTimestamps=[])=>({path,data,precondition:previous?{updateTime:previous.updateTime}:{exists:false},serverTimestamps});
-export function createVoicePilot({verify=verifyFirebaseToken,repo=createFirestoreRepository,serviceToken=serviceAccessToken,providerFetch=fetch,clock=()=>Date.now(),uuid=()=>crypto.randomUUID()}={}){
+export function createVoicePilot({verify=verifyFirebaseToken,repo=createFirestoreRepository,serviceToken=serviceAccessToken,providerFetch=(...args)=>globalThis.fetch(...args),clock=()=>Date.now(),uuid=()=>crypto.randomUUID()}={}){
  async function provider(env,path,body){
   if(!env.ELEVENLABS_API_KEY||env.VOICE_PILOT_ENABLED!=='true')fail('Serviço de voz não ativado.',423);
-  const r=await providerFetch('https://api.elevenlabs.io'+path,{method:body?'POST':'GET',headers:{'xi-api-key':env.ELEVENLABS_API_KEY,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(25000),redirect:'error'});
+  let r;try{r=await providerFetch('https://api.elevenlabs.io'+path,{method:body?'POST':'GET',headers:{'xi-api-key':env.ELEVENLABS_API_KEY,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(25000),redirect:'error'});}catch(e){fail('ELEVENLABS_TRANSPORT_'+(e instanceof TypeError?'TYPE_ERROR':e?.name==='TimeoutError'?'TIMEOUT':'FAILED'),502);}
   if(!r.ok)fail('ElevenLabs indisponível; operação não será repetida automaticamente.',502);
   return r;
  }
  async function subscription(env){
-  const s=await(await provider(env,'/v1/user/subscription')).json();
+  let s;try{s=await(await provider(env,'/v1/user/subscription')).json();}catch(e){if(e.publicStatus)throw e;fail('ELEVENLABS_SUBSCRIPTION_INVALID_RESPONSE',502);}
   if(!commercialReady(s,cfg)||!Number.isSafeInteger(s.character_limit)||!Number.isSafeInteger(s.character_count)||s.character_count<0||s.character_count>s.character_limit)fail('Plano ou cota comercial não validada.',423);
   return s;
  }
  async function voices(env){
-  const v=await(await provider(env,'/v2/voices?page_size=100')).json();
+  let v;try{v=await(await provider(env,'/v2/voices?page_size=100')).json();}catch(e){if(e.publicStatus)throw e;fail('ELEVENLABS_CATALOG_INVALID_RESPONSE',502);}
   return (Array.isArray(v.voices)?v.voices:[]).filter(x=>allowedVoiceIds.has(x.voice_id)).map(x=>({id:x.voice_id,name:String(x.name||'Voz').slice(0,120),description:String(x.description||'').slice(0,250),previewUrl:typeof x.preview_url==='string'?x.preview_url:null}));
  }
  async function transaction(env,fn){const t=await repo(env).transaction();try{return await fn(t)}finally{await t.rollback();}}
@@ -43,7 +43,7 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=createFirestor
     const s=await subscription(env),catalog=await voices(env);
     if(!catalog.length)fail('VOICE_CATALOG_NO_ALLOWLIST_MATCH',503);
     let bearer;try{bearer=await serviceToken(env,providerFetch)}catch{fail('FIREBASE_SERVICE_AUTH_FAILED',503);}
-    const g=await providerFetch('https://firestore.googleapis.com/v1/projects/'+env.FIREBASE_PROJECT_ID+'/databases/(default)',{headers:{Authorization:'Bearer '+bearer},signal:AbortSignal.timeout(15000)});
+    let g;try{g=await providerFetch('https://firestore.googleapis.com/v1/projects/'+env.FIREBASE_PROJECT_ID+'/databases/(default)',{headers:{Authorization:'Bearer '+bearer},signal:AbortSignal.timeout(15000)});}catch{fail('FIREBASE_METADATA_TRANSPORT_FAILED',503);}
     if(!g.ok)fail('FIREBASE_METADATA_HTTP_'+g.status,503);
     return json({ready:true,tier:s.tier,providerRemaining:s.character_limit-s.character_count,allowedVoices:catalog.length,overageOff:true,firestoreMetadata:true,scope:'adm-only'});
    }
