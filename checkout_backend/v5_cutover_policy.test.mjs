@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import {checkoutAuthorityMode,legacyWritesAllowed,requireCheckoutAuthority,assessCutover} from "./v5_cutover_policy.mjs";
+import {candidateCutoverRules} from "./v5_cutover_rules_lab.mjs";
+import fs from "node:fs";
+let n=0;const eq=(a,b)=>{assert.deepEqual(a,b);n++};const epoch="checkout_epoch_001";
+for(const profile of [{},{accessPolicy:{}},{accessPolicy:{checkoutAuthority:"legacy"}}])eq(legacyWritesAllowed(profile),true);
+for(const value of ["frozen","server-only","typo",null,true,0])eq(legacyWritesAllowed({accessPolicy:{checkoutAuthority:value}}),false);
+eq(checkoutAuthorityMode({accessPolicy:{checkoutAuthority:"server-only"}}),"server-only");
+eq(requireCheckoutAuthority({accessPolicy:{checkoutAuthority:"server-only",checkoutEpoch:epoch}},epoch),undefined);
+for(const profile of [{},{accessPolicy:{checkoutAuthority:"frozen",checkoutEpoch:epoch}},{accessPolicy:{checkoutAuthority:"server-only",checkoutEpoch:"different_epoch_01"}}]){assert.throws(()=>requireCheckoutAuthority(profile,epoch),e=>e.code==="cutover_not_ready");n++}
+const good={pendingOrders:0,unresolvedFinancial:0,divergentStocks:0,unmappedWriters:0,backupVerified:true,restoreTested:true,clientRulesVerified:true,legacyWorkerFenced:true};
+eq(assessCutover(good),{ready:true,reasons:[]});
+for(const key of ["pendingOrders","unresolvedFinancial","divergentStocks","unmappedWriters"])eq(assessCutover({...good,[key]:1}).ready,false);
+for(const key of ["backupVerified","restoreTested","clientRulesVerified","legacyWorkerFenced"])eq(assessCutover({...good,[key]:false}).ready,false);
+assert.throws(()=>assessCutover({...good,pendingOrders:-1}));n++;
+const rules=fs.readFileSync("firestore.rules","utf8"),candidate=candidateCutoverRules(rules);
+eq((candidate.match(/&& legacyAuthority\(userId\)/g)||[]).length,6);
+eq(rules.includes("function legacyAuthority("),false);
+assert.throws(()=>candidateCutoverRules(candidate));n++;
+console.log("PASS B02.11 cutover",n,"assertivas");
