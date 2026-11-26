@@ -24,6 +24,15 @@ async function run({compile,finance,quote,baseline,advance,shared},log){
  const records=[rec("batataria","r1","potato"),rec("pizzaria","r2","pz-potato")],args={ownerUid:"owner1",meta,records,requests:[{link:"batata|g",units:200,scale:1},{link:"batata|g",units:300,scale:1}],listingComplete:true};
  const plan=shared(args);eq(plan.meta.state.data.kitchenStock.inventory["batata|g"].stock,500);eq(plan.updates.map(d=>d.data.record.item.stock),[500,500]);eq(meta.state.data.kitchenStock.inventory["batata|g"].stock,1000);eq(records[0].data.record.item.stock,1000);
  reject(()=>shared({...args,listingComplete:false}),"shared_kitchen_not_ready");reject(()=>shared({...args,requests:[{link:"batata|g",units:1001,scale:1}]}),"insufficient_stock");reject(()=>shared({...args,records:[records[0],{...records[1],ownerUid:"other"}]}),"invalid_stock_mapping");const divergent=copy(records);divergent[1].data.record.item.stock=999;reject(()=>shared({...args,records:divergent}),"shared_kitchen_divergent");reject(()=>shared({...args,records:[...records,rec("pizzaria","r3","dup")]}),"shared_kitchen_divergent");
- log("PASS B02.9",n,"assertivas");
+ const reserved=shared({...args,requests:[{link:"batata|g",units:500,scale:1}]});
+ const afterRecords=reserved.updates.map(x=>({...x,ownerUid:"owner1"}));
+ const returned=shared({...args,meta:reserved.meta,records:afterRecords,requests:[{link:"batata|g",units:-500,scale:1}]});
+ eq(returned.meta.state.data.kitchenStock.inventory["batata|g"].stock,1000);
+ eq(returned.updates.map(x=>x.data.record.item.stock),[1000,1000]);
+ const checked=shared({...args,requests:[{link:"batata|g",units:0,scale:1}]});
+ eq(checked.updates.length,0);eq(checked.balances[0].beforeUnits,1000);eq(checked.balances[0].aliasKeys,["r1","r2"]);
+ reject(()=>shared({...args,requests:[{link:"batata|g",units:-1000000000,scale:1}]}),"invalid_stock_precision");
+ reject(()=>shared({...args,requests:[{link:"batata|g",units:200,scale:1},{link:"batata|g",units:300,scale:10}]}),"invalid_stock_precision");
+ log("PASS B02.10",n,"assertivas");
 }
 await run({compile:compileV5Catalog,finance:globalThis.POTE_FINANCE,quote:quoteCheckout,baseline:v5SequenceBaseline,advance:advanceV5Sequence,shared:planSharedKitchen},console.log);
