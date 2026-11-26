@@ -18,3 +18,18 @@ export function checkFreeUniverseDelta(before,after,universe){
  }
  return {ok:true};
 }
+
+// Only a persisted canonical slot grants a retained original. Never infer it
+// from array order, a browser flag, or an expired premium record.
+export function retainedFreeSlots(records){
+ const result={};
+ for(const [key,record] of records??[]){
+  const slot=freeSlotKey(record);
+  if(slot&&key===slot)result[slot]={universe:record.universe,group:record.group,id:record.id};
+ }
+ return result;
+}
+export function retainedOriginalAllowed(slots,record){
+ const slot=freeSlotKey(record),selected=slot&&slots?.[slot];
+ return Boolean(selected&&selected.universe===record.universe&&selected.group===record.group&&selected.id===record.id);
+}
