@@ -6,6 +6,7 @@ let n=0;const eq=(a,b)=>{assert.deepEqual(a,b);n++};const epoch="checkout_epoch_
 for(const profile of [{},{accessPolicy:{}},{accessPolicy:{checkoutAuthority:"legacy"}}])eq(legacyWritesAllowed(profile),true);
 for(const value of ["frozen","server-only","typo",null,true,0])eq(legacyWritesAllowed({accessPolicy:{checkoutAuthority:value}}),false);
 eq(checkoutAuthorityMode({accessPolicy:{checkoutAuthority:"server-only"}}),"server-only");
+for(const accessPolicy of [null,true,[],42])eq(legacyWritesAllowed({accessPolicy}),false);
 eq(requireCheckoutAuthority({accessPolicy:{checkoutAuthority:"server-only",checkoutEpoch:epoch}},epoch),undefined);
 for(const profile of [{},{accessPolicy:{checkoutAuthority:"frozen",checkoutEpoch:epoch}},{accessPolicy:{checkoutAuthority:"server-only",checkoutEpoch:"different_epoch_01"}}]){assert.throws(()=>requireCheckoutAuthority(profile,epoch),e=>e.code==="cutover_not_ready");n++}
 const good={pendingOrders:0,unresolvedFinancial:0,divergentStocks:0,unmappedWriters:0,backupVerified:true,restoreTested:true,clientRulesVerified:true,legacyWorkerFenced:true};
