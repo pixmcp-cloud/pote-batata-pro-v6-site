@@ -19,7 +19,7 @@ export function orderPrintText(order){
  const money=c=>{if(!int(c))throw Error("invalid_total");return (c/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})};
  const seconds=Math.floor(row.elapsedMs/1000),pad=n=>String(n).padStart(2,"0"),elapsed=pad(Math.floor(seconds/3600))+":"+pad(Math.floor(seconds/60)%60)+":"+pad(seconds%60);
  const clean=x=>String(x??"").replace(/[\r\n\x00-\x1f]/g," ").slice(0,220);
- return ["PDV NÚCLEOBIT — PEDIDO ONLINE","COMPROVANTE NÃO FISCAL — LABORATÓRIO","#"+row.id,...row.lines.map(l=>clean(l.quantity)+"x "+clean(l.title)+" — "+money(l.totalCents)),"Total: "+money(row.totalCents),"Pagamento: "+(row.paymentStatus==="confirmed"?"Confirmado pelo lojista":"Pendente"),"Recebido: "+new Date(order.createdAt).toISOString(),"Entregue: "+new Date(order.deliveredAt).toISOString(),"Tempo total: "+elapsed].join("\n");
+ return [order.channel==="counter"?"PDV NÚCLEOBIT — VENDA DE BALCÃO":"PDV NÚCLEOBIT — PEDIDO ONLINE","COMPROVANTE NÃO FISCAL — LABORATÓRIO","#"+row.id,...row.lines.map(l=>clean(l.quantity)+"x "+clean(l.title)+" — "+money(l.totalCents)),"Total: "+money(row.totalCents),"Pagamento: "+(row.paymentStatus==="confirmed"?"Confirmado pelo lojista":"Pendente"),"Recebido: "+new Date(order.createdAt).toISOString(),"Entregue: "+new Date(order.deliveredAt).toISOString(),"Tempo total: "+elapsed].join("\n");
 }
 // Owner-only read subscription and transition transport are injected. Auth/rules
 // and server transactions enforce authorization, not this UI controller.
