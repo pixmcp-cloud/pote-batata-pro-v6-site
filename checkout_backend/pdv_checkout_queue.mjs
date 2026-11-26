@@ -6,12 +6,12 @@ const int=(n,min=0)=>Number.isSafeInteger(n)&&n>=min;
 const actions={received:["prepare","cancel"],preparing:["ready"],ready:["dispatch","deliver"],out_for_delivery:["deliver"],delivered:[],cancelled:[]};
 const clone=x=>JSON.parse(JSON.stringify(x));
 export function queueRow(order,now){
- if(!order||!id(order.id)||!id(order.storeId)||!Object.hasOwn(statuses,order.status)||!["pending","confirmed"].includes(order.paymentStatus)||!int(order.createdAt,1)||!int(order.totalCents,1)||!int(now,1)||!Array.isArray(order.lines))throw Error("invalid_order");
+ if(!order||!id(order.id)||!id(order.storeId)||!Object.hasOwn(statuses,order.status)||!["pending","confirmed","refunded"].includes(order.paymentStatus)||!int(order.createdAt,1)||!int(order.totalCents,1)||!int(now,1)||!Array.isArray(order.lines))throw Error("invalid_order");
  const end=order.status==="delivered"?order.deliveredAt:order.status==="cancelled"?order.events?.at(-1)?.at:now;
  if(!int(end,order.createdAt))throw Error("invalid_time");
  const available=actions[order.status].filter(a=>(a!=="dispatch"||order.fulfillment==="delivery")&&(a!=="deliver"||order.status!=="ready"||order.fulfillment==="pickup")&&(a!=="cancel"||(order.paymentStatus==="pending"&&order.stockState==="reserved")));
  if(order.status!=="cancelled"&&order.paymentStatus==="pending")available.push("confirm_payment");
- return {id:order.id,storeId:order.storeId,label:statuses[order.status],status:order.status,totalCents:order.totalCents,paymentStatus:order.paymentStatus,stockState:order.stockState,elapsedMs:end-order.createdAt,createdAt:order.createdAt,actions:available,lines:clone(order.lines),fulfillment:order.fulfillment};
+ return {id:order.id,storeId:order.storeId,label:statuses[order.status],status:order.status,totalCents:order.totalCents,paymentStatus:order.paymentStatus,stockState:order.stockState,reservationExpiresAt:order.reservationExpiresAt??null,elapsedMs:end-order.createdAt,createdAt:order.createdAt,actions:available,lines:clone(order.lines),fulfillment:order.fulfillment};
 }
 export function orderPrintText(order){
  const row=queueRow(order,order.deliveredAt);
