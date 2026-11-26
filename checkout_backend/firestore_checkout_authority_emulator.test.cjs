@@ -26,7 +26,7 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
  const branch={settings,ingredients:[ingredient],recipes:[recipe],expenses:[expense],beverages:[],addons:[]};
  const manifest={lab:true,enabled:true,ownerUid:owner,universe,revision:"rev1",catalogMode:"v5-authoritative",recipeIds:["meal"],beverageIds:[],addonIds:[],stockMap,deliveryEnabled:false,deliveryFeeCents:0};
  manifest.products=compileV5Catalog({finance,branch,...manifest}).products;
- const profile={license:{status:"active",kind:"pro",expiresAt:sdk.Timestamp.fromMillis(now+60000)}};
+ const profile={license:{status:"active",kind:"pro",term:"month1",expiresAt:sdk.Timestamp.fromMillis(now+60000)}};
  const rec=(group,item)=>({record:{universe,group,id:item.id,item,rank:1}});
  const recordKeyAllowed=(k,r)=>[keyFor(r.universe,r.group,r.id),modelRecordKey(r),freeSlotKey(r)].includes(k);
  const api=createCheckoutLabRepository({projectId,enabled:true,repository,clock:()=>now,verifyToken:async t=>({uid:t,emailVerified:true,provider:"google.com"}),loadAuthoritativeCatalog:args=>loadV5CheckoutAuthority({...args,finance,recordKeyAllowed})});
