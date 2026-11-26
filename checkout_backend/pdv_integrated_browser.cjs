@@ -113,8 +113,8 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter,readCata
   await merchant.evaluateOnNewDocument(token=>{window.__syntheticMerchantToken=token},config.ownerToken);
   await merchant.goto(origin+"/merchant_pdv_lab.html");await merchant.waitForSelector('body[data-ready="true"]');
   assert.equal(await merchant.$("#tab-online"),null);await merchant.click("#tab-cash");await merchant.waitForFunction(()=>document.querySelector("#metrics").textContent.includes("Fechado"));
-  await merchant.click("#tab-catalog");await merchant.waitForSelector("[data-catalog-group=recipes]");
-  await merchant.click("#catalog-preview");await merchant.waitForFunction(()=>!document.querySelector("#catalog-approve").disabled);await merchant.click("#catalog-approve");await merchant.waitForFunction(()=>document.querySelector("#feedback").textContent.includes("Revisão aprovada"));
+  await merchant.waitForFunction(()=>!document.querySelector("#tab-catalog").disabled);await merchant.click("#tab-catalog");await merchant.waitForSelector("[data-catalog-group=recipes]",{visible:true});
+  await merchant.waitForFunction(()=>!document.querySelector("#tab-catalog").disabled);await merchant.click("#catalog-preview");await merchant.waitForFunction(()=>!document.querySelector("#catalog-approve").disabled&&!document.querySelector("#tab-catalog").disabled);await merchant.click("#catalog-approve");await merchant.waitForFunction(()=>document.querySelector("#feedback").textContent.includes("Revisão aprovada"));
   assert.deepEqual(merchantErrors,[]);await merchant.close();
   console.log("PASS B02-G2 separated customer/merchant surfaces: anonymous catalog, on-demand synthetic Google, six denied cross-surface requests, private owner cash.");
   console.log("PASS B02-G1 browser integrated: signed identity, reload recovery, real emulator writes from UI; 4 viewport widths; shared stock, drawer, receipt, frozen ticker; no external requests.");
