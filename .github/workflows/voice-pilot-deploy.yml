@@ -74,7 +74,7 @@ jobs:
             npx wrangler deploy --config wrangler.voice-pilot.toml --keep-vars
           fi
           curl --retry 3 --retry-all-errors -fsS "$ROOT/voice/health" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(j.voicePilot!==true||j.stockWrites!==false||j.scope!=="adm-only")process.exit(1);console.log("Piloto ADM publicado; estoque desativado")})'
-          curl -fsS -H "X-Voice-Probe: $VOICE_PROBE_TOKEN" "$ROOT/voice/ready" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(!j.ready||!j.firestoreMetadata||!j.overageOff||j.allowedVoices<1)process.exit(1);console.log(JSON.stringify(j))})'
+          curl -sS -H "X-Voice-Probe: $VOICE_PROBE_TOKEN" "$ROOT/voice/ready" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(!j.ready||!j.firestoreMetadata||!j.overageOff||j.allowedVoices<1){console.error("Prontidão recusada:",JSON.stringify(j));process.exit(1)}console.log(JSON.stringify(j))})'
           code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$ROOT/voice/status")"
           test "$code" = "401"
           echo "PASS: serviço de voz, cota, Firebase e bloqueio de não autenticados; nenhuma síntese executada."
