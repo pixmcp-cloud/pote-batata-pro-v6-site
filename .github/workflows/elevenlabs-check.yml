@@ -22,5 +22,5 @@ jobs:
           node-version: '22'
       - name: Validar assinatura e permissoes (somente leitura)
         env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.LIVRE_SOM_ELEVEN_LABS || secrets.ELEVENLABS_API_KEY }}
         run: node voice_backend/check_provider.mjs
