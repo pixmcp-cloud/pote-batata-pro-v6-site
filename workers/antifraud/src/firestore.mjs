@@ -162,8 +162,14 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
        {exists:false}:{updateTime:write.precondition.updateTime};
       if(!("exists" in currentDocument) && !currentDocument.updateTime)
        throw Error("Missing Firestore version");
+      const fields=encodeFields(write.data);
+      if(write.labTrialGrant===true){
+       if(!localLab||!/^users\/[A-Za-z0-9_-]{1,100}$/.test(write.path)||!currentDocument.updateTime||Object.keys(write.data).sort().join(",")!=="license,trialGrant7d")throw Error("Invalid trial grant");
+       for(const [group,keys] of [["license",["startsAt","expiresAt","changedAt"]],["trialGrant7d",["startsAt","expiresAt"]]])for(const k of keys){const value=write.data[group]?.[k];if(typeof value!=="string"||!Number.isFinite(Date.parse(value)))throw Error("Invalid grant timestamp");fields[group].mapValue.fields[k]={timestampValue:value};}
+      }
       return {
-       update:{name:fullName(write.path),fields:encodeFields(write.data)},
+       update:{name:fullName(write.path),fields},
+       ...(write.labTrialGrant===true?{updateMask:{fieldPaths:["license","trialGrant7d"]}}:{}),
        updateTransforms:[...new Set(["updatedAt",...(write.serverTimestamps||[])])].map(fieldPath=>({fieldPath,setToServerValue:"REQUEST_TIME"})),
        currentDocument
       };
