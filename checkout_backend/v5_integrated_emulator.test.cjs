@@ -78,7 +78,7 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   await assertFails(sdk.updateDoc(sdk.doc(buyerDb,webView),{"status.status":"delivered"}));
   assert.equal((await read(salePath)).channel,"counter");
   assert.match(orderPrintText(await read(webPath)),/COMPROVANTE NÃO FISCAL/);
-  assert.match(orderPrintText(await read(salePath)),/Tempo total:/);
+  assert.match(orderPrintText(await read(salePath)),/VENDA DE BALCÃO/);assert.match(orderPrintText(await read(salePath)),/Tempo total:/);
   const beforeClose=await read(cash+"/sessions/shift1");assert.deepEqual(beforeClose.totals,{cash:1450,pix:1450,card:0,count:2});
   const close=()=>api.closeCash({token:owner,sessionId:"shift1",operationId:op(20)});
   const closed=await close();assert.equal(closed.receivedCents,2900);assert.equal(closed.cashDrawerIncreaseCents,1450);assert.deepEqual(await close(),closed);
