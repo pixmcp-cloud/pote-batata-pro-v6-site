@@ -10,7 +10,7 @@ async function run(create,log){
  set(root+"/appState/v5",{schemaVersion:5});set(guard,{revision:0});set(pulse,{eventId:"seed"});set(stock,{record:{universe:"batataria",group:"ingredients",id:"potato",item:{stock:.5,name:"Batata"},rank:7}});
  const repository={async transaction(){const reads=new Map();return {async get(p){if(!reads.has(p))reads.set(p,data.has(p)?clone(data.get(p)):null);return reads.get(p)},async commit(writes){if(failCommit){failCommit=false;throw Object.assign(Error("injected"),{code:"injected"})}for(const [p,old] of reads){if((data.get(p)?.updateTime??null)!==(old?.updateTime??null))throw Object.assign(Error("conflict"),{code:"conflict"})}const paths=new Set();for(const w of writes){if(paths.has(w.path))throw Error("duplicate write");paths.add(w.path);const old=data.get(w.path);if(w.precondition.exists===false?!!old:old?.updateTime!==w.precondition.updateTime)throw Object.assign(Error("conflict"),{code:"conflict"})}for(const w of writes)set(w.path,w.data);commitCount++},async rollback(){}}}};
  let now=1000000;const cfg={projectId:"demo-nucleobit-checkout",enabled:true,repository,clock:()=>now,verifyToken:async t=>({uid:t,emailVerified:t!=="unverified",provider:"google.com"})};
- const api=create(cfg);const id=n=>"operation_"+String(n).padStart(8,"0");const input={lines:[{productId:"meal",quantity:2,extras:[]}],fulfillment:"pickup",paymentMethod:"pix"};
+ let listed=[];const api=create({...cfg,verifyScheduler:async token=>token==="task-shop1"?{uid:"job1",ownerUid:"merchant1",storeId:"shop1",schedulerVerified:true}:null,listExpiredCandidates:async query=>listed.slice(0,query.limit)});const id=n=>"operation_"+String(n).padStart(8,"0");const input={lines:[{productId:"meal",quantity:2,extras:[]}],fulfillment:"pickup",paymentMethod:"pix"};
  const q=(shop,token,n)=>api.execute({storeId:shop,token,kind:"quote",operationId:id(n),input});
  const submit=(shop,token,n,qid)=>api.execute({storeId:shop,token,kind:"submit",operationId:id(n),quoteId:id(qid),input,expectedRevision:"rev1",expectedTotalCents:6000});
  const action=(shop,token,n,a)=>api.execute({storeId:shop,token,kind:"transition",operationId:id(n),orderId:"P0000001",action:a});
@@ -69,6 +69,26 @@ async function run(create,log){
  eq((await actNew(paid.id,43,"reconcile_cancel",recon)).duplicate,true);eq(read(shift3).refunds.count,1);
  await rejects(()=>actNew(paid.id,43,"reconcile_cancel",{reconciliation:{...recon.reconciliation,refundReference:"Outro"}}),"idempotency_conflict");
  const closed3=await api.closeCash({token:"merchant1",sessionId:"shift3",operationId:id(45)});eq(closed3.netReceivedCents,-6000);eq(closed3.cashDrawerIncreaseCents,0);
- log("PASS B02.5",n,"assertivas com mock de transações versionadas e conflito");
+ const makeInShop1=async(n)=>{await q("shop1","buyer1",n);return submit("shop1","buyer1",n+1,n)};
+ await rejects(()=>api.configureReservation({token:"buyer1",storeId:"shop1",minutes:10}),"forbidden");
+ await rejects(()=>api.configureReservation({token:"merchant1",storeId:"shop1",minutes:4}),"invalid_request");
+ const firstNew=await makeInShop1(50),firstPath="checkoutLabStores/shop1/orders/"+firstNew.id;
+ eq(read(firstPath).reservationExpiresAt,now+1800000);
+ eq(await api.configureReservation({token:"merchant1",storeId:"shop1",minutes:5}),{minutes:5});
+ eq(read(firstPath).reservationExpiresAt,now+1800000);
+ const secondNew=await makeInShop1(52),secondPath="checkoutLabStores/shop1/orders/"+secondNew.id;
+ eq(read(secondPath).reservationExpiresAt,now+300000);
+ await rejects(()=>api.sweepExpired({serviceToken:"bad",storeId:"shop1"}),"forbidden");
+ await rejects(()=>api.sweepExpired({serviceToken:"task-shop1",storeId:"shop2"}),"forbidden");
+ await rejects(()=>api.sweepExpired({serviceToken:"task-shop1",storeId:"shop1",limit:21}),"invalid_request");
+ listed=[firstNew.id,secondNew.id,secondNew.id];
+ now+=300000;
+ const sweep=await api.sweepExpired({serviceToken:"task-shop1",storeId:"shop1"});
+ eq(sweep,{scanned:2,released:1,duplicates:0,skipped:1,retry:0});
+ eq(read(firstPath).status,"received");eq(read(secondPath).status,"cancelled");eq(read(stock).record.item.stock,1);
+ eq((await api.sweepExpired({serviceToken:"task-shop1",storeId:"shop1"})).duplicates,1);
+ now+=1500000;eq((await api.sweepExpired({serviceToken:"task-shop1",storeId:"shop1"})).released,1);
+ eq(read(stock).record.item.stock,1.5);
+ log("PASS B02.6",n,"assertivas com mock de transações versionadas e conflito");
 }
 await run(createCheckoutLabRepository,console.log);
