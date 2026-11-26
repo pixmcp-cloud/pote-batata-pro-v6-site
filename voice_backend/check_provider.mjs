@@ -1,5 +1,5 @@
 // Diagnostic only. Never logs secret, personal details, or response bodies.
-const key=process.env.ELEVENLABS_API_KEY;
+const key=process.env.ELEVENLABS_API_KEY?.trim();
 if(!key){console.error('SECRET_NOT_CONFIGURED: configure ELEVENLABS_API_KEY no GitHub Actions.');process.exit(1)}
 async function get(path,label){
  const res=await fetch('https://api.elevenlabs.io'+path,{headers:{'xi-api-key':key},signal:AbortSignal.timeout(20000),redirect:'error'});
