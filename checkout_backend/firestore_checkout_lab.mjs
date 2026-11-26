@@ -4,7 +4,7 @@
 // model/free keys). The same physical document may be mapped by two stores sharing stock.
 // The checkout inbox is NOT a native V5 orders record: old production code would debit twice.
 import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} from "./checkout_domain.mjs";
-import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund,openCheckoutCash,planDrawerMovement} from "./checkout_cash_lab.mjs";
+import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund,openCheckoutCash,planDrawerMovement,planLateCheckoutReceipt} from "./checkout_cash_lab.mjs";
 import {v5SequenceBaseline,advanceV5Sequence} from "./v5_checkout_sequence_lab.mjs";
 import {planSharedKitchen,kitchenLink} from "./v5_shared_kitchen_lab.mjs";
 import {resolveLicense} from "../license_terms.mjs";
@@ -34,11 +34,12 @@ function verifyIdentity(identity){
 // wrap that verified function in a server-only adapter supplying the verified claims.
 export function createCheckoutLabRepository({projectId,enabled=false,repository,verifyToken,verifyScheduler,listExpiredCandidates,loadAuthoritativeCatalog,clock=()=>Date.now()}={}){
  const active=enabled===true&&projectId===labProject&&typeof repository?.transaction==="function"&&typeof verifyToken==="function";
- async function executeInternal({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action,paymentReference,reconciliation}={},service=null){
+ async function executeInternal({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action,paymentReference,reconciliation,lateSessionId}={},service=null){
   if(!active)err("lab_disabled");
   if((!service&&(typeof token!=="string"||!token))||!id(storeId)||!["quote","submit","submitSaved","recoverSubmit","transition","status"].includes(kind))err("invalid_request");
   if(kind!=="status"&&!operation(operationId))err("invalid_operation");
   if(["submit","submitSaved","recoverSubmit"].includes(kind)&&!operation(quoteId)||["transition","status"].includes(kind)&&!id(orderId))err("invalid_request");
+  if(lateSessionId!==undefined&&(kind!=="transition"||action!=="confirm_payment"||!id(lateSessionId)))err("invalid_request");
   const identity=service??await verifyToken(token,projectId);if(!service)verifyIdentity(identity);
   const tx=await repository.transaction();
   try{
@@ -74,7 +75,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     return {state:"committed",order:{...projection(o.data,now),storeId}};
    }
    const savedOnly=kind==="submitSaved";
-   const requestFingerprint=JSON.stringify([kind,quoteId??null,orderId??null,input??null,expectedRevision??null,expectedTotalCents??null,action??null,paymentReference??null,reconciliation??null]);
+   const requestFingerprint=JSON.stringify([kind,quoteId??null,orderId??null,input??null,expectedRevision??null,expectedTotalCents??null,action??null,paymentReference??null,reconciliation??null,...(lateSessionId===undefined?[]:[lateSessionId])]);
    if(priorOp){
     if(priorOp.data.fingerprint!==requestFingerprint||priorOp.data.actorUid!==identity.uid)err("idempotency_conflict");
     if(kind==="quote"){if(now>=priorOp.data.result.expiresAt)err("invalid_quote");return copy(priorOp.data.result)}
@@ -159,15 +160,22 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    // Optional synthetic cash integration: fail closed for payment when no open shift.
    if(kind==="transition"&&action==="confirm_payment"){
     const pointerPath="checkoutLabCash/"+m.ownerUid,ptr=await tx.get(pointerPath);
-    if(!ptr||!id(ptr.data.activeSessionId))err("cash_not_open");
-    const sessionPath=pointerPath+"/sessions/"+ptr.data.activeSessionId,session=await tx.get(sessionPath);
     const receiptPath=pointerPath+"/receipts/"+storeId.length+"_"+storeId+"_"+o.id,priorReceipt=await tx.get(receiptPath);
-    const receipt=planCheckoutCash({ownerUid:m.ownerUid,storeId,order:o,session:session?.data,priorReceipt,now});
-    if(o.channel==="counter")receipt.channel="counter";
-    if(session.data.id!==ptr.data.activeSessionId||session.data.cutoverEpoch!==undefined&&session.data.cutoverEpoch!==m.cutoverEpoch)err("cash_not_open");
-    // Update shift revision so closure and receipt cannot both win on a stale baseline.
-    if(!int(session.data.revision)||session.data.revision>=1000000000)err("invalid_session");
-    writes.push(put(receiptPath,receipt,null),put(sessionPath,applyCheckoutReceipt(session.data,receipt),session));
+    if(lateSessionId!==undefined){
+     if(!ptr||ptr.data.activeSessionId!==null||!m.cutoverEpoch)err("invalid_origin_session");
+     const origin=await tx.get(pointerPath+"/sessions/"+lateSessionId);
+     const receipt=planLateCheckoutReceipt({ownerUid:m.ownerUid,storeId,order:o,session:origin?.data,priorReceipt,now,epoch:m.cutoverEpoch});
+     if(o.channel==="counter")receipt.channel="counter";
+     writes.push(put(receiptPath,receipt,null));
+    }else{
+     if(!ptr||!id(ptr.data.activeSessionId))err("cash_not_open");
+     const sessionPath=pointerPath+"/sessions/"+ptr.data.activeSessionId,session=await tx.get(sessionPath);
+     const receipt=planCheckoutCash({ownerUid:m.ownerUid,storeId,order:o,session:session?.data,priorReceipt,now});
+     if(o.channel==="counter")receipt.channel="counter";
+     if(session.data.id!==ptr.data.activeSessionId||session.data.cutoverEpoch!==undefined&&session.data.cutoverEpoch!==m.cutoverEpoch)err("cash_not_open");
+     if(!int(session.data.revision)||session.data.revision>=1000000000)err("invalid_session");
+     writes.push(put(receiptPath,receipt,null),put(sessionPath,applyCheckoutReceipt(session.data,receipt),session));
+    }
    }
    if(kind==="transition"&&action==="reconcile_cancel"){
     const rootCash="checkoutLabCash/"+m.ownerUid;
