@@ -6,6 +6,7 @@ import {mountOrderTicker} from "./order_ticker.mjs";
 if(location.hostname!=="127.0.0.1"&&location.hostname!=="localhost")throw Error("Local lab only");
 const $=id=>document.getElementById(id),money=n=>(n/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}),op=()=>crypto.randomUUID();
 const el=(tag,text)=>{const x=document.createElement(tag);if(text!==undefined)x.textContent=text;return x};
+const merchantOnly=document.body.dataset.surface==="merchant";
 let cfg,tab="counter",quote=null,snapshot=null,activeOrder=null,stopTicker=null,busy=false,cashAction=null,cashRetry=null,stockRetry=null;
 const feedback=t=>$("feedback").textContent=t;
 const labels={prepare:"Iniciar preparo",ready:"Finalizar preparo",dispatch:"Saiu para entrega",deliver:"Confirmar entrega",cancel:"Cancelar e repor",confirm_payment:"Confirmar recebimento"};
@@ -13,14 +14,14 @@ async function request(path,body,token){
  const res=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{})},body:JSON.stringify(body)});
  const result=await res.json();if(!res.ok)throw Object.assign(Error(result.error??"operation_not_confirmed"),{code:result.error});return result;
 }
-const api=(kind,body,role="owner")=>request("/checkout-lab/"+kind,body,cfg[role+"Token"]);
-const ownerSnapshot=()=>request("/lab/snapshot",{},cfg.ownerToken);
+const api=(kind,body,role="owner")=>request((merchantOnly?"/merchant/api/":"/checkout-lab/")+kind,body,cfg[role+"Token"]);
+const ownerSnapshot=()=>request(merchantOnly?"/merchant/api/snapshot":"/lab/snapshot",{},cfg.ownerToken);
 function show(tabName){
  tab=tabName;feedback("");for(const b of document.querySelectorAll("[data-tab]"))b.setAttribute("aria-selected",String(b.dataset.tab===tab));
  $("sale").hidden=!["counter","online"].includes(tab);$("orders").hidden=tab!=="queue";$("cash").hidden=tab!=="cash";$("inventory").hidden=tab!=="stock";
  $("receipt").hidden=true;$("ticker").hidden=tab!=="online"||!activeOrder;
  if(["counter","online"].includes(tab)){clearQuote();$("sale-title").textContent=tab==="counter"?"Venda de balcão":"Cardápio digital";$("customer-note").hidden=tab!=="online";$("method").value=tab==="counter"?"cash":"pix";$("fulfillment").value="pickup";$("fulfillment").disabled=tab==="counter";$("address-label").hidden=true}
- else refresh().catch(e=>feedback(e.message));
+ else {if(tab==="queue")$("queue").replaceChildren();if(tab==="stock")$("inventory-list").replaceChildren();guard(refresh);}
  if(journals[tab]&&pending())guard(()=>consult());
 }
 const journals={};
@@ -49,7 +50,8 @@ $("recover").onclick=()=>guard(()=>consult());
 $("retry-order").onclick=()=>guard(()=>consult(true));
 $("method").onchange=clearQuote;$("fulfillment").onchange=()=>{$("address-label").hidden=$("fulfillment").value!=="delivery";clearQuote()};$("address").oninput=clearQuote;
 for(const b of document.querySelectorAll("[data-tab]"))b.onclick=()=>{if(!busy)show(b.dataset.tab)};
-async function refresh(){snapshot=await ownerSnapshot();renderQueue();renderCash();renderInventory()}
+let refreshVersion=0;
+async function refresh(){const version=++refreshVersion,next=await ownerSnapshot();if(version!==refreshVersion)return;snapshot=next;renderQueue();renderCash();renderInventory()}
 function renderQueue(){
  const target=$("queue");target.replaceChildren();$("stock").textContent="Estoque físico disponível: "+snapshot.stock+" g";
  for(const o of snapshot.orders){const row=queueRow(o,snapshot.now),article=el("article");article.dataset.order=row.id;article.dataset.channel=o.channel??"online";article.append(el("h3","#"+row.id+" · "+(o.channel==="counter"?"Balcão":"Online")),el("p",row.label+" · "+row.paymentStatus+" · "+money(row.totalCents)),el("p",row.lines.map(l=>l.quantity+"x "+l.title).join(", ")));const actions=el("div");actions.className="actions";let ref;
@@ -77,7 +79,7 @@ $("cash-form").onsubmit=async e=>{e.preventDefault();if(busy)return;busy=true;$(
 $("cash-cancel").onclick=()=>{if(!busy&&!cashRetry)$("cash-dialog").close();else if(!busy)$("cash-error").textContent="Confirme novamente a tentativa anterior antes de sair."};
 $("cash-dialog").addEventListener("cancel",e=>{if(busy||cashRetry)e.preventDefault()});
 $("refresh").onclick=()=>guard(refresh);$("print").onclick=()=>window.print();
-try{cfg=await request("/lab/bootstrap",{});for(const channel of ["counter","online"]){const role=channel==="counter"?"owner":"buyer";journals[channel]=createCheckoutRecovery({storage:sessionStorage,storeId:cfg[channel],getUid:()=>cfg[role+"Uid"],newOperationId:op,send:(kind,body,uid)=>{if(uid!==cfg[role+"Uid"])throw Error("session_changed");return api(kind,body,role)}})}productView();show("counter");await refresh();document.body.dataset.ready="true"}catch(e){feedback("Laboratório indisponível: "+e.message)}
+try{if(merchantOnly){const token=window.__syntheticMerchantToken;delete window.__syntheticMerchantToken;if(typeof token!=="string")throw Error("login_required");cfg={...await request("/merchant/config",{},token),ownerToken:token}}else cfg=await request("/lab/bootstrap",{});for(const channel of (merchantOnly?["counter"]:["counter","online"])){const role=channel==="counter"?"owner":"buyer";journals[channel]=createCheckoutRecovery({storage:sessionStorage,storeId:cfg[channel],getUid:()=>cfg[role+"Uid"],newOperationId:op,send:(kind,body,uid)=>{if(uid!==cfg[role+"Uid"])throw Error("session_changed");return api(kind,body,role)}})}productView();show("counter");await refresh();document.body.dataset.ready="true"}catch(e){feedback("Laboratório indisponível: "+e.message)}
 
 function renderInventory(){
  const rows=snapshot.inventory??[],list=$("inventory-list"),select=$("inventory-item"),old=select.value;list.replaceChildren();select.replaceChildren();
