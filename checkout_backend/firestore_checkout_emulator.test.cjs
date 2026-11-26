@@ -50,6 +50,23 @@ const {createEmulatorRepository}=require("../qa/workers/emulator_repository.cjs"
    assert.equal((await sdk.getDoc(sdk.doc(db,stock))).data().record.item.stock,.5);
    assert.equal((await sdk.getDoc(sdk.doc(db,guard))).data().revision,2);
    assert.equal((await sdk.getDoc(sdk.doc(own,view))).data().status.status,"cancelled");
+   // New order after cancellation, confirmation must commit cash and order together.
+   const secondQuote=await q(shop,buyer,20);
+   const second=await submit(shop,buyer,21,20);assert.equal(second.id,"P0000002");
+   const cashRoot="checkoutLabCash/merchant1",sessionPath=cashRoot+"/sessions/shift1",receiptPath=cashRoot+"/receipts/"+shop.length+"_"+shop+"_P0000002";
+   const confirm=()=>api.execute({storeId:shop,token:"merchant1",kind:"transition",operationId:key(22),orderId:second.id,action:"confirm_payment",paymentReference:"Extrato de teste"});
+   await assert.rejects(confirm,e=>e.code==="cash_not_open");
+   await set(cashRoot,{activeSessionId:"shift1"});await set(sessionPath,{id:"shift1",ownerUid:"merchant1",status:"open",openedAt:now,revision:0,totals:{cash:0,pix:0,card:0,count:0}});
+   assert.equal((await confirm()).paymentStatus,"confirmed");assert.equal((await confirm()).duplicate,true);
+   assert.equal((await sdk.getDoc(sdk.doc(db,receiptPath))).data().amountCents,6000);
+   assert.equal((await sdk.getDoc(sdk.doc(db,sessionPath))).data().totals.pix,6000);
+   await assertFails(sdk.getDoc(sdk.doc(own,receiptPath)));
+   await assertFails(sdk.updateDoc(sdk.doc(merchant,sessionPath),{"totals.pix":0}));
+   const close=()=>api.closeCash({token:"merchant1",sessionId:"shift1",operationId:key(23)});
+   const closed=await close();assert.equal(closed.receivedCents,6000);assert.equal(closed.cashDrawerIncreaseCents,0);assert.deepEqual(await close(),closed);
+   assert.equal((await sdk.getDoc(sdk.doc(db,cashRoot))).data().activeSessionId,null);
+   assert.equal((await confirm()).duplicate,true);
+   assert.deepEqual((await sdk.getDoc(sdk.doc(db,sessionPath))).data().closedSummary,closed);
   });
   console.log("PASS B02.2 Firestore SDK emulator: shared stock concurrency, idempotency, rules and cancellation.");
  }finally{await env.cleanup()}
