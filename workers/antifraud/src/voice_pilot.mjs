@@ -47,7 +47,7 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
   if(existing)return existing;
   try{
    const form=new FormData();form.set('name',x.name);form.set('description',x.description);
-   form.append('files',new Blob([x.bytes],{type:x.mime}),x.mime==='audio/wav'?'sample.wav':'sample.mp3');
+   form.append('files',new Blob([x.bytes],{type:x.mime}),x.filename);
    const response=await providerFetch('https://api.elevenlabs.io/v1/voices/add',{method:'POST',headers:{'xi-api-key':env.ELEVENLABS_API_KEY},body:form,signal:AbortSignal.timeout(60000),redirect:'manual'});
    if(!response.ok)fail('Clonagem recusada pelo provedor (HTTP '+response.status+'). Concilie antes de repetir.',502);
    const v=await response.json();if(!validVoiceId(v.voice_id))fail('Resposta inválida da clonagem.',502);
