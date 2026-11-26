@@ -10,23 +10,38 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
  const ownerUid=config.ownerToken,buyerUid=config.buyerToken;
  const issue=uid=>new SignJWT({email_verified:true,firebase:{sign_in_provider:"google.com"},auth_time:Math.floor(Date.now()/1000)}).setProtectedHeader({alg:"RS256"}).setIssuer("https://securetoken.google.com/"+projectId).setAudience(projectId).setSubject(uid).setIssuedAt().setExpirationTime("15m").sign(privateKey);
  config={...config,ownerUid,buyerUid,ownerToken:await issue(ownerUid),buyerToken:await issue(buyerUid)};
- let origin,dropNextSubmit=false,submitCount=0;
- const allowed=new Set(["pdv_integrated_lab.html","pdv_integrated_lab.mjs","pdv_checkout_queue.mjs","checkout_cash_lab.mjs","order_ticker.mjs","order_ticker.css","checkout_recovery_lab.mjs"]);
+ const {publicCatalog,authorizeCheckoutRoute}=await import("./checkout_access_lab.mjs");
+ const store={ownerUid,online:config.online,counter:config.counter};
+ const catalog=publicCatalog({lab:true,enabled:true,channel:"online",storeId:store.online,revision:"rev2",deliveryEnabled:true,deliveryFeeCents:500,products:config.products.map(p=>({...p,available:true}))});
+ let origin,dropNextSubmit=false,submitCount=0,separated=false;
+ const allowed=new Set(["pdv_integrated_lab.html","pdv_integrated_lab.mjs","pdv_checkout_queue.mjs","checkout_cash_lab.mjs","order_ticker.mjs","order_ticker.css","checkout_recovery_lab.mjs","customer_menu_lab.html","customer_menu_lab.mjs","merchant_pdv_lab.html","google_checkout_bridge_lab.mjs","checkout_client_lab.mjs"]);
  const server=http.createServer(async(req,res)=>{
   const send=(status,body)=>{res.writeHead(status,{"Content-Type":"application/json","Cache-Control":"no-store"});res.end(JSON.stringify(body))};
   try{
    if(req.method==="GET"&&allowed.has(req.url.slice(1))){const name=req.url.slice(1);res.writeHead(200,{"Content-Type":name.endsWith(".html")?"text/html; charset=utf-8":name.endsWith(".css")?"text/css":"text/javascript; charset=utf-8"});res.end(fs.readFileSync(path.join(__dirname,name)));return}
    if(req.method!=="POST"||req.headers.origin!==origin){send(403,{error:"origin_denied"});return}
    let body="";for await(const chunk of req){body+=chunk.toString();if(body.length>8192){send(413,{error:"body_limit"});return}}
-   if(req.url==="/lab/bootstrap"){send(200,config);return}
+   if(req.url==="/lab/bootstrap"){if(separated){send(404,{error:"not_found"});return}send(200,config);return}
+   if(separated&&req.url==="/customer/catalog"){send(200,catalog);return}
+   if(separated&&req.url==="/customer/login"){send(200,{uid:buyerUid,token:await issue(buyerUid)});return}
    let identity;try{identity=await verify(req.headers.authorization?.startsWith("Bearer ")?req.headers.authorization.slice(7):"",projectId)}catch{send(401,{error:"login_required"});return}
-   if(req.url==="/lab/snapshot"){if(identity.uid!==ownerUid){send(403,{error:"forbidden"});return}send(200,await readSnapshot());return}
-   const route=req.url.slice(14),buyerRoutes=["quote","submit","submitSaved","recoverSubmit","status"];
+   if(separated&&req.url==="/merchant/config"){if(identity.uid!==ownerUid){send(403,{error:"forbidden"});return}send(200,{ownerUid,counter:store.counter,epoch:config.epoch,products:config.products});return}
+   if(req.url==="/lab/snapshot"){if(separated){send(404,{error:"not_found"});return}if(identity.uid!==ownerUid){send(403,{error:"forbidden"});return}send(200,await readSnapshot());return}
+   let route=req.url.slice(14),dispatchPath=req.url;
+   if(separated){
+    const match=req.url.match(/^\/(customer|merchant)\/api\/([A-Za-z]+)$/);
+    if(!match){send(404,{error:"not_found"});return}
+    let args;try{args=JSON.parse(body)}catch{send(400,{error:"invalid_json"});return}
+    try{authorizeCheckoutRoute({surface:match[1],route:match[2],identity,body:args,store})}catch(e){send(e.code==="invalid_request"?400:403,{error:e.code});return}
+    route=match[2];dispatchPath="/checkout-lab/"+route;
+    if(route==="snapshot"){send(200,await readSnapshot());return}
+   }
+   const buyerRoutes=["quote","submit","submitSaved","recoverSubmit","status"];
    if(identity.uid!==ownerUid&&!buyerRoutes.includes(route)){send(403,{error:"forbidden"});return}
    // Test harness only: authenticated UID bridges into fixture verifier, never a live credential.
    const scopedApi=Object.fromEntries(Object.entries(api).filter(([,v])=>typeof v==="function").map(([k,v])=>[k,args=>v({...args,token:identity.uid})]));
    const dispatch=createCheckoutHttpLab({projectId,enabled:true,api:scopedApi,origin});
-   const result=await dispatch({method:req.method,path:req.url,requestOrigin:req.headers.origin,authorization:req.headers.authorization,contentType:req.headers["content-type"],bodyText:body});
+   const result=await dispatch({method:req.method,path:dispatchPath,requestOrigin:req.headers.origin,authorization:req.headers.authorization,contentType:req.headers["content-type"],bodyText:body});
    if(route==="submitSaved"&&result.status===200){submitCount++;if(dropNextSubmit){dropNextSubmit=false;send(503,{error:"operation_not_confirmed"});return}}
    send(result.status,result.body);
   }catch(e){send(500,{error:"lab_failure"});console.error(e.message)}
@@ -69,6 +84,30 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
   page.once("dialog",d=>d.accept());await action(deliveryOrder,"cancel");await waitText("#stock","800 g");
   const rejected=await page.evaluate(async({token})=>{const call=(kind,token)=>fetch("/checkout-lab/"+kind,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:"{}"}).then(r=>r.status);return [await call("openCash",token),await call("recoverSubmit","forged-token")]},{token:config.buyerToken});assert.deepEqual(rejected,[403,401]);
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);await verifyAfter({counter,online,deliveryOrder});
+  // Disable combined fixture endpoints before opening separated surfaces.
+  separated=true;await page.close();
+  const customer=await browser.newPage();const customerErrors=[],customerRequests=[];customer.on("pageerror",e=>customerErrors.push(e.message));customer.on("request",r=>customerRequests.push(r.url()));
+  await customer.setViewport({width:375,height:800,isMobile:true,hasTouch:true});
+  await customer.goto(origin+"/customer_menu_lab.html");await customer.waitForSelector('body[data-ready="true"]');
+  assert.equal(await customer.$("#tab-cash"),null);assert.equal(await customer.$("#tab-stock"),null);
+  assert(!customerRequests.some(url=>url.endsWith("/customer/login")));
+  await customer.$eval('[data-product="meal"]',e=>{e.value="1";e.dispatchEvent(new Event("input"))});
+  await customer.click("#quote");await customer.waitForFunction(()=>document.querySelector("#quote-total").textContent.includes("14,50"));
+  assert(customerRequests.some(url=>url.endsWith("/customer/login")));
+  const checks=await customer.evaluate(async({counter,online})=>{
+   const post=(p,body={},token)=>fetch(p,{method:"POST",headers:{"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{})},body:JSON.stringify(body)});
+   const auth=await (await post("/customer/login")).json(),cat=await (await post("/customer/catalog")).json();
+   return {catalog:cat,statuses:[(await post("/lab/bootstrap")).status,(await post("/merchant/config",{},auth.token)).status,(await post("/merchant/api/snapshot",{},auth.token)).status,(await post("/customer/api/openCash",{},auth.token)).status,(await post("/customer/api/quote",{storeId:counter},auth.token)).status,(await post("/checkout-lab/quote",{storeId:online},auth.token)).status]};
+  },{counter:store.counter,online:store.online});
+  assert.deepEqual(checks.statuses,[404,403,403,403,403,404]);
+  assert.deepEqual(Object.keys(checks.catalog).sort(),["deliveryEnabled","deliveryFeeCents","products","revision","storeId"]);
+  assert.deepEqual(customerErrors,[]);await customer.close();
+  const merchant=await browser.newPage();const merchantErrors=[];merchant.on("pageerror",e=>merchantErrors.push(e.message));
+  await merchant.evaluateOnNewDocument(token=>{window.__syntheticMerchantToken=token},config.ownerToken);
+  await merchant.goto(origin+"/merchant_pdv_lab.html");await merchant.waitForSelector('body[data-ready="true"]');
+  assert.equal(await merchant.$("#tab-online"),null);await merchant.click("#tab-cash");await merchant.waitForFunction(()=>document.querySelector("#metrics").textContent.includes("Fechado"));
+  assert.deepEqual(merchantErrors,[]);await merchant.close();
+  console.log("PASS B02-G2 separated customer/merchant surfaces: anonymous catalog, on-demand synthetic Google, six denied cross-surface requests, private owner cash.");
   console.log("PASS B02-G1 browser integrated: signed identity, reload recovery, real emulator writes from UI; 4 viewport widths; shared stock, drawer, receipt, frozen ticker; no external requests.");
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
 };
