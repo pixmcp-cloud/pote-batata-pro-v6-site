@@ -72,36 +72,50 @@ export function submitCheckout(store,actor,{operationId,quoteId,input,expectedRe
  if(q.revision!==expectedRevision||q.totalCents!==expectedTotalCents)fail("quote_changed");
  const next=clone(store);next.sequence++;next.quotes.find(x=>x.id===quoteId).used=true;
  for(const n of q.required){const s=next.inventory.find(x=>x.id===n.stockId);s.availableUnits-=n.units}
- const order={id:"P"+String(next.sequence).padStart(7,"0"),storeId:store.id,customerUid:actor.uid,operationId,fingerprint,lines:q.lines,required:q.required,subtotalCents:q.subtotalCents,deliveryCents:q.deliveryCents,totalCents:q.totalCents,fulfillment:request.fulfillment,address:request.address,paymentMethod:request.paymentMethod,paymentStatus:"pending",status:"received",stockState:"reserved",createdAt:now,events:[{status:"received",at:now}],actions:[],deliveredAt:null,elapsedMs:null};
+ const order={id:"P"+String(next.sequence).padStart(7,"0"),storeId:store.id,customerUid:actor.uid,operationId,fingerprint,lines:q.lines,required:q.required,subtotalCents:q.subtotalCents,deliveryCents:q.deliveryCents,totalCents:q.totalCents,fulfillment:request.fulfillment,address:request.address,paymentMethod:request.paymentMethod,paymentStatus:"pending",status:"received",stockState:"reserved",createdAt:now,reservationExpiresAt:now+1800000,events:[{status:"received",at:now}],actions:[],deliveredAt:null,elapsedMs:null};
  next.orders.push(order);
  return {state:next,order:clone(order),duplicate:false};
 }
 // Merchant identity and membership must be obtained on the server, never from browser body.
 // Only explicit payment confirmation by authorized merchant; no automated gateway charge.
-export function transitionCheckout(store,actor,{orderId,operationId,action,paymentReference}={},now){
- merchant(actor,store);if(!id(orderId)||!key(operationId)||!["prepare","ready","dispatch","deliver","cancel","confirm_payment"].includes(action)||!time(now))fail("invalid_action");
+export function transitionCheckout(store,actor,{orderId,operationId,action,paymentReference,reconciliation}={},now){
+ merchant(actor,store);if(!id(orderId)||!key(operationId)||!["prepare","ready","dispatch","deliver","cancel","confirm_payment","expire","reconcile_cancel"].includes(action)||!time(now))fail("invalid_action");
  const ref=action==="confirm_payment"&&typeof paymentReference==="string"?paymentReference.trim():null;
  if(action==="confirm_payment"&&(!ref||ref.length>120))fail("payment_reference_required");
  if(action!=="confirm_payment"&&paymentReference!==undefined)fail("invalid_action");
+ const recon=action==="reconcile_cancel"?reconciliation:null;
+ if(action!=="reconcile_cancel"&&reconciliation!==undefined)fail("invalid_action");
+ if(action==="reconcile_cancel"&&(!fields(recon,["reason","stockDecision","refundReference"])||typeof recon.reason!=="string"||!recon.reason.trim()||recon.reason.length>220||!["return","loss"].includes(recon.stockDecision)||!(recon.refundReference===undefined||typeof recon.refundReference==="string"&&recon.refundReference.trim()&&recon.refundReference.length<=120)))fail("invalid_reconciliation");
+ const normalizedRecon=recon?{reason:recon.reason.trim(),stockDecision:recon.stockDecision,refundReference:recon.refundReference?.trim()??null}:null;
  const prior=store.orders.find(o=>o.id===orderId&&o.storeId===store.id);if(!prior)fail("not_found");
  const seen=prior.actions.find(a=>a.operationId===operationId);
- if(seen){if(seen.action!==action||seen.actorUid!==actor.uid||(seen.paymentReference??null)!==ref)fail("idempotency_conflict");return {state:store,order:clone(prior),duplicate:true}}
+ if(seen){if(seen.action!==action||seen.actorUid!==actor.uid||(seen.paymentReference??null)!==ref||JSON.stringify(seen.reconciliation??null)!==JSON.stringify(normalizedRecon))fail("idempotency_conflict");return {state:store,order:clone(prior),duplicate:true}}
  if(now<prior.createdAt||now<(prior.actions.at(-1)?.at??prior.createdAt))fail("invalid_time");
  const next=clone(store),o=next.orders.find(x=>x.id===orderId);
  if(action==="confirm_payment"){
   if(o.status==="cancelled"||o.paymentStatus!=="pending")fail("invalid_payment_state");
   o.paymentStatus="confirmed";o.paymentConfirmedAt=now;o.paymentConfirmationReference=ref;
- }else if(action==="cancel"){
+ }else if(action==="cancel"||action==="expire"){
   // Once prepared, route to existing audited loss/refund workflow; never silently replenish.
   if(o.status!=="received"||o.stockState!=="reserved"||o.paymentStatus!=="pending")fail("manual_reconciliation_required");
+  if(action==="expire"&&(!time(o.reservationExpiresAt)||now<o.reservationExpiresAt))fail("reservation_not_expired");
   for(const n of o.required){const s=next.inventory.find(x=>x.id===n.stockId);if(!s||!int(s.availableUnits))fail("stock_changed");s.availableUnits=add(s.availableUnits,n.units)}
-  o.status="cancelled";o.stockState="released";
+  o.status="cancelled";o.stockState="released";o.cancelReason=action==="expire"?"Reserva expirada":"Cancelamento pelo lojista";
+ }else if(action==="reconcile_cancel"){
+  if(!["received","preparing","ready","out_for_delivery"].includes(o.status)||!["reserved","consumed"].includes(o.stockState)||!["pending","confirmed"].includes(o.paymentStatus))fail("invalid_transition");
+  if(o.stockState==="consumed"&&normalizedRecon.stockDecision!=="loss")fail("prepared_stock_cannot_return");
+  if(o.paymentStatus==="confirmed"&&!normalizedRecon.refundReference)fail("refund_reference_required");
+  if(o.paymentStatus==="pending"&&normalizedRecon.refundReference)fail("refund_not_due");
+  if(normalizedRecon.stockDecision==="return"){for(const n of o.required){const s=next.inventory.find(x=>x.id===n.stockId);if(!s||!int(s.availableUnits))fail("stock_changed");s.availableUnits=add(s.availableUnits,n.units)}o.stockState="released"}
+  else{o.stockState="lost";o.loss={units:clone(o.required),costCents:null,costKnown:false,reason:normalizedRecon.reason,at:now};}
+  if(o.paymentStatus==="confirmed"){o.paymentStatus="refunded";o.refundedAt=now;}
+  o.status="cancelled";o.cancelReason=normalizedRecon.reason;
  }else if(action==="prepare"&&o.status==="received"&&o.stockState==="reserved"){o.status="preparing";o.stockState="consumed"}
  else if(action==="ready"&&o.status==="preparing")o.status="ready";
  else if(action==="dispatch"&&o.status==="ready"&&o.fulfillment==="delivery")o.status="out_for_delivery";
  else if(action==="deliver"&&((o.status==="out_for_delivery"&&o.fulfillment==="delivery")||(o.status==="ready"&&o.fulfillment==="pickup"))){o.status="delivered";o.deliveredAt=now;o.elapsedMs=now-o.createdAt}
  else fail("invalid_transition");
- o.actions.push({operationId,actorUid:actor.uid,action,at:now,...(ref?{paymentReference:ref}:{})});
+ o.actions.push({operationId,actorUid:actor.uid,action,at:now,...(ref?{paymentReference:ref}:{}),...(normalizedRecon?{reconciliation:normalizedRecon}:{})});
  if(action!=="confirm_payment")o.events.push({status:o.status,at:now});
  return {state:next,order:clone(o),duplicate:false};
 }
