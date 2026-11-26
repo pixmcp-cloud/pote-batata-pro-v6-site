@@ -163,11 +163,28 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   await assert.rejects(()=>readQueue({token:buyer,storeIds:[online]}),e=>e.code==="forbidden");
   await assert.rejects(()=>readQueue({token:owner,storeIds:[online,"unowned"]}),e=>e.code==="forbidden");
   const qread=await readQueue({token:owner,storeIds:[online,counter]});assert.equal(qread.orders.length,2);assert(qread.orders.every(o=>!Object.hasOwn(o,"required")&&!Object.hasOwn(o,"customerUid")));
-  console.log("PASS B02-G3 catalog approval, stale price, revoked license and owner queue on V5 emulator.");
+  const choices=await approval.execute({kind:"choices",token:owner,storeId:online,epoch});assert(choices.choices.some(x=>x.id==="meal"&&x.selected));
+  await assert.rejects(()=>approval.execute({kind:"choices",token:buyer,storeId:online,epoch}),e=>e.code==="forbidden");
+  const selection={recipeIds:["meal"],beverageIds:[],addonIds:[],comboIds:[]},selArgs={token:owner,storeId:online,epoch,operationId:op(96),revision:op(96)};
+  const selectionPreview=await approval.execute({...selArgs,kind:"preview",selection});assert.equal(selectionPreview.products[0].extras.length,0);
+  await assert.rejects(()=>approval.execute({...selArgs,kind:"approve",selection}),e=>e.code==="invalid_selection");
+  await approval.execute({...selArgs,kind:"approve"});assert.equal((await catalog()).products[0].extras.length,0);
+  const restoreArgs={...selArgs,operationId:op(97),revision:op(97)};
+  await approval.execute({...restoreArgs,kind:"preview",selection:{...selection,addonIds:[addon.id]}});await approval.execute({...restoreArgs,kind:"approve"});
+  assert.equal((await catalog()).products[0].extras.length,1);
+  assert.deepEqual((await read(store(online))).stockMap,stockMap);
+  // Separate synthetic store for history pagination. No stock/finance writes.
+  const pageStore="queuepagestore";await set(store(pageStore),{...revised,channel:"online"});
+  const sample=await read(store(online)+"/orders/"+web.id);
+  for(let i=1;i<=25;i++){const id="P"+String(i).padStart(7,"0");await set(store(pageStore)+"/orders/"+id,{...sample,id,storeId:pageStore,createdAt:sample.createdAt});}
+  const first=await readQueue({token:owner,storeIds:[pageStore]});assert.equal(first.orders.length,20);assert(first.nextCursors[pageStore]);
+  const second=await readQueue({token:owner,storeIds:[pageStore],cursors:first.nextCursors});assert.equal(second.orders.length,5);assert.deepEqual(second.nextCursors,{});assert.equal(new Set([...first.orders,...second.orders].map(o=>o.id)).size,25);
+  await assert.rejects(()=>readQueue({token:buyer,storeIds:[pageStore],cursors:first.nextCursors}),e=>e.code==="forbidden");
+  console.log("PASS B02-G4 selection approval and 25 orders paginated 20+5 on emulator; G3 approval retry corrected.");
   const {runIntegratedBrowser}=require("./pdv_integrated_browser.cjs");
   const browserApi={...api,execute:args=>{now+=1000;return api.execute(args)},openCash:args=>{now+=1000;return api.openCash(args)},moveCash:args=>{now+=1000;return api.moveCash(args)},closeCash:args=>{now+=1000;return api.closeCash(args)}};
-  await runIntegratedBrowser({api:browserApi,readCatalog:catalog,readQueue:()=>readQueue({token:owner,storeIds:[online,counter]}),config:{ownerToken:owner,buyerToken:buyer,online,counter,epoch,products:revised.products.map(({id,title,priceCents,extras})=>({id,title,priceCents,extras:extras.map(e=>({id:e.id,title:addon.name,priceCents:e.priceCents}))}))},
-   readSnapshot:async()=>{const orders=[];for(const id of [online,counter]){const docs=await sdk.getDocs(sdk.query(sdk.collection(db,store(id)+"/orders"),sdk.limit(50)));for(const d of docs.docs)orders.push(d.data())}
+  await runIntegratedBrowser({api:browserApi,readCatalog:catalog,readQueue:(cursors={})=>readQueue({token:owner,storeIds:[online,counter],cursors}),catalogEditor:args=>approval.execute({...args,storeId:online,epoch}),config:{ownerToken:owner,buyerToken:buyer,online,counter,epoch,products:revised.products.map(({id,title,priceCents,extras})=>({id,title,priceCents,extras:extras.map(e=>({id:e.id,title:addon.name,priceCents:e.priceCents}))}))},
+   readSnapshot:async({includeOrders=true}={})=>{const orders=[];if(includeOrders)for(const id of [online,counter]){const docs=await sdk.getDocs(sdk.query(sdk.collection(db,store(id)+"/orders"),sdk.limit(50)));for(const d of docs.docs)orders.push(d.data())}
     const ptr=await read(cash),session=ptr.activeSessionId?await read(cash+"/sessions/"+ptr.activeSessionId):null;
     const shifts=await sdk.getDocs(sdk.collection(db,cash+"/sessions"));const lastClosed=shifts.docs.map(d=>d.data()).filter(x=>x.status==="closed").sort((a,b)=>b.closedAt-a.closedAt)[0]?.closedSummary??null;
     const stock=(await read(stockPath)).record.item.stock;return {orders,session,lastClosed,stock,inventory:[{id:"pot",title:"Batata",unit:"g",units:stock,scale:1}],now};
