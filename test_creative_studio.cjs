@@ -118,13 +118,13 @@ console.log('PASS: Voice Studio opens independently; advanced settings bound to 
 ;(async function checkVoiceStudio(){
  const vm=require('node:vm'),nodes=new Map(),events=new Map();
  const node=id=>{
-  if(!nodes.has(id))nodes.set(id,{id,value:id==='csVoiceDuration'?'15':id==='pvModel'?'eleven_flash_v2_5':id==='pvLanguage'?'pt':'',checked:true,hidden:false,disabled:false,open:false,textContent:'',innerHTML:'',setAttribute(){},removeAttribute(){},replaceChildren(){},querySelectorAll(){return []},addEventListener(k,fn){events.set(id+':'+k,fn)},showModal(){this.open=true},close(){this.open=false},pause(){}});
+  if(!nodes.has(id))nodes.set(id,{id,value:id==='csVoiceDuration'?'15':id==='pvModel'?'eleven_flash_v2_5':id==='pvLanguage'?'pt':'',checked:true,hidden:false,disabled:false,open:false,textContent:'',innerHTML:'',setAttribute(){},removeAttribute(){},replaceChildren(){},append(){},querySelectorAll(){return []},addEventListener(k,fn){events.set(id+':'+k,fn)},showModal(){this.open=true},close(){this.open=false},pause(){}});
   return nodes.get(id);
  };
- const user={uid:'qa-admin',email:'pixmcp@gmail.com'},win={POTE_AUTH:{uid:user.uid,role:'admin'},addEventListener(){}};
+ const favoriteStorage=new Map();const user={uid:'qa-admin',email:'pixmcp@gmail.com'},win={localStorage:{getItem:k=>favoriteStorage.get(k)||null,setItem:(k,v)=>favoriteStorage.set(k,v)},POTE_AUTH:{uid:user.uid,role:'admin'},addEventListener(){}};
  const docMock={getElementById:node,createElement:tag=>node('created-'+tag),body:{append(){}}};
  const prefix=iaSource.slice(0,iaSource.indexOf('window.POTE_VOICE_AI={open,shop,history};')).replace(/^import .*;\s*$/gm,'');
- vm.runInNewContext(prefix+'\nwindow.qa={open,settings,options,applyPreset,invalidate,voiceConsole,loadVoiceCatalog,voicePreviewUrl,voiceCount:()=>displayedVoices.length,refreshClones,voiceDescriptionPt,canStartVoice,enableLive:()=>{consoleReady=true;},generate,price,voiceFileName,syncVoiceFileName};',{app:{},getAuth:()=>({currentUser:user}),getFirestore:()=>({}),getDoc:async()=>({exists:()=>true,data:()=>({balance:1000})}),doc:()=>({}),document:docMock,window:win,Option:function(t,v){this.text=t;this.value=v},URL:{revokeObjectURL(){}},console});
+ vm.runInNewContext(prefix+'\nwindow.qa={open,settings,options,applyPreset,invalidate,voiceConsole,loadVoiceCatalog,voicePreviewUrl,voiceCount:()=>displayedVoices.length,refreshClones,voiceDescriptionPt,canStartVoice,enableLive:()=>{consoleReady=true;},generate,price,voiceFileName,syncVoiceFileName,toggleVoiceFavorite,readVoiceFavorites,orderedVoices};',{app:{},getAuth:()=>({currentUser:user}),getFirestore:()=>({}),getDoc:async()=>({exists:()=>true,data:()=>({balance:1000})}),doc:()=>({}),document:docMock,window:win,Option:function(t,v){this.text=t;this.value=v},URL:{revokeObjectURL(){}},console});
  await win.qa.open();
  assert.equal(win.qa.voiceConsole.open,true,'CTA opens dedicated modal even without endpoint');
  assert.equal(node('csVoiceForm').hidden,false);
@@ -134,6 +134,7 @@ console.log('PASS: Voice Studio opens independently; advanced settings bound to 
  await win.qa.refreshClones();assert.equal(node('pvCloneAdmin').hidden,true,'Eligible customer cannot clone');
  win.POTE_AUTH.role='admin';await win.qa.refreshClones();
  assert.equal(win.qa.voiceCount(),15,'Official Infinity catalog is present offline');
+ const chosen=win.qa.orderedVoices().at(-1).id;win.qa.toggleVoiceFavorite(chosen);assert.equal(win.qa.orderedVoices()[0].id,chosen);assert.ok(win.qa.readVoiceFavorites().has(chosen));win.qa.toggleVoiceFavorite(chosen);assert.equal(win.qa.readVoiceFavorites().has(chosen),false);
  assert.equal(node('pvVoiceName').textContent,'Darian');
  assert.match(node('pvVoiceAvailability').textContent,/não confirmada/);
  assert.equal(node('pvVoiceSample').hidden,true);

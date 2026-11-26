@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createVoicePilot} from '../src/voice_pilot.mjs';
-import {PREVIEW_TEXT,PREVIEW_MAX,previewPath} from '../src/voice_preview.mjs';
+import {PREVIEW_PHRASES,PREVIEW_MAX_CHARS,choosePreviewPhrase,PREVIEW_MAX,previewPath} from '../src/voice_preview.mjs';
 const uid='admin-test',root='users/'+uid,wp=root+'/aiWallet/main',voiceId='gOupLcAkjEnguROwi4oS',id='12345678-1234-4234-8234-123456789abc',env={VOICE_PILOT_ENABLED:'true',ENABLE_WRITES:'false',ELEVENLABS_API_KEY:'mock',FIREBASE_PROJECT_ID:'demo'};
 const request=(route,body={},token='admin')=>new Request('https://example.com/voice/'+route,{method:'POST',headers:{Authorization:'Bearer '+token,Origin:'https://pixmcp-cloud.github.io'},body:JSON.stringify(body)});
 function setup({failAudio=false,verifyClone=false}={}){
  const docs=new Map([[root,{email:'pixmcp@gmail.com'}],[wp,{balance:10}]]);let audioCalls=0,cloneCalls=0;
  let tail=Promise.resolve();
  const repo=()=>({async transaction(){let release;const previous=tail;tail=new Promise(r=>release=r);await previous;let closed=false;const end=()=>{if(!closed){closed=true;release();}};return {async get(path){return docs.has(path)?{data:structuredClone(docs.get(path)),updateTime:'v'}:null},async commit(writes){for(const w of writes){if(w.precondition.exists===false&&docs.has(w.path))throw Error('exists');}for(const w of writes)docs.set(w.path,structuredClone(w.data));end();},async rollback(){end();}}}});
- const providerFetch=async(url,opts)=>{assert.equal(opts.redirect,'manual','Cloudflare Workers requires manual redirects');if(url.includes('/subscription'))return Response.json({tier:'starter',character_limit:40000,character_count:0,max_credit_limit_extension:0,can_use_instant_voice_cloning:true});if(url.includes('/voices?'))return Response.json({voices:[{voice_id:voiceId,name:'Darian'},{voice_id:'invalid/id',name:'Malformed'}]});if(url.endsWith('/v1/voices/add')){cloneCalls++;assert.equal(opts.method,'POST');assert.equal(opts.body.get('name'),'Locutor oficial');return Response.json({voice_id:'new-clone',requires_verification:verifyClone});}if(url.includes('/text-to-speech/')){audioCalls++;assert.equal(opts.method,'POST');if(url.includes('mp3_44100_64')){const body=JSON.parse(opts.body);assert.equal(body.text,PREVIEW_TEXT);assert.equal(body.language_code,'pt');}return failAudio?new Response('',{status:500}):new Response(new Uint8Array([73,68,51]),{headers:{'content-type':'audio/mpeg'}});}throw Error('unknown route');};
+ const providerFetch=async(url,opts)=>{assert.equal(opts.redirect,'manual','Cloudflare Workers requires manual redirects');if(url.includes('/subscription'))return Response.json({tier:'starter',character_limit:40000,character_count:0,max_credit_limit_extension:0,can_use_instant_voice_cloning:true});if(url.includes('/voices?'))return Response.json({voices:[{voice_id:voiceId,name:'Darian'},{voice_id:'invalid/id',name:'Malformed'}]});if(url.endsWith('/v1/voices/add')){cloneCalls++;assert.equal(opts.method,'POST');assert.equal(opts.body.get('name'),'Locutor oficial');return Response.json({voice_id:'new-clone',requires_verification:verifyClone});}if(url.includes('/text-to-speech/')){audioCalls++;assert.equal(opts.method,'POST');if(url.includes('mp3_44100_64')){const body=JSON.parse(opts.body);assert.ok(PREVIEW_PHRASES.includes(body.text));assert.equal(body.language_code,'pt');}return failAudio?new Response('',{status:500}):new Response(new Uint8Array([73,68,51]),{headers:{'content-type':'audio/mpeg'}});}throw Error('unknown route');};
  const handler=createVoicePilot({verify:async token=>({uid,email:token==='admin'?'pixmcp@gmail.com':'other@example.org',isAdmin:token==='admin'}),repo,providerFetch,uuid:()=>id,clock:()=>10000});
  return {docs,handler,calls:()=>audioCalls,cloneCalls:()=>cloneCalls};
 }
@@ -42,13 +42,15 @@ test('Portuguese preview is generated once, cached, fixed, and never debits IA C
  const second=await handler(request('preview',{voiceId}),env);assert.equal(second.status,200);
  assert.deepEqual(new Uint8Array(await first.arrayBuffer()),new Uint8Array(await second.arrayBuffer()));
  assert.equal(calls(),1);assert.equal(docs.get(wp).balance,10);assert.equal(docs.get(previewPath(voiceId)).state,'ready');
- assert.equal(docs.get('voicePilotOperations/previewBudgetPtV1').reservedCharacters,PREVIEW_TEXT.length);
+ const phrase=docs.get(previewPath(voiceId)).phrase;assert.ok(PREVIEW_PHRASES.includes(phrase));assert.equal(decodeURIComponent(first.headers.get('X-Voice-Preview-Text')),phrase);assert.equal(first.headers.get('X-Voice-Preview-Text'),second.headers.get('X-Voice-Preview-Text'));assert.equal(docs.get('voicePilotOperations/previewBudgetPtV2').reservedCharacters,phrase.length);
 });
 test('Preview budget cap and ambiguous failure prevent duplicate provider calls',async()=>{
  const {handler,docs,calls}=setup({failAudio:true});
  assert.equal((await handler(request('preview',{voiceId}),env)).status,502);
  assert.equal((await handler(request('preview',{voiceId}),env)).status,409);assert.equal(calls(),1);
  assert.equal(docs.get(wp).balance,10);
- const x=setup();x.docs.set('voicePilotOperations/previewBudgetPtV1',{count:PREVIEW_MAX,voiceIds:[voiceId]});
+ const x=setup();x.docs.set('voicePilotOperations/previewBudgetPtV2',{count:PREVIEW_MAX,voiceIds:[voiceId]});
  assert.equal((await x.handler(request('preview',{voiceId}),env)).status,423);assert.equal(x.calls(),0);
 });
+
+test('eleven neutral phrases and bounded random selection',()=>{assert.equal(PREVIEW_PHRASES.length,11);assert.equal(new Set(PREVIEW_PHRASES).size,11);assert.equal(choosePreviewPhrase(()=>0),PREVIEW_PHRASES[0]);assert.equal(choosePreviewPhrase(()=>0.99999),PREVIEW_PHRASES[10]);assert.ok(PREVIEW_MAX_CHARS<=100);});
