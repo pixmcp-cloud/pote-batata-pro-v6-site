@@ -96,6 +96,16 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       if(!Array.isArray(response))throw Error("Invalid lab query response");
       return response.filter(x=>x.document).map(x=>({key:x.document.name.split("/").at(-1),data:decodeFields(x.document.fields),updateTime:x.document.updateTime}));
      },
+     // Complete bounded ingredient listing for this owner only. Demo/loopback only.
+     async listKitchenRecords({collection,limit}){
+      if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||limit!==241)throw Error("Invalid kitchen query");
+      const parent=collection.split("/").slice(0,-1).join("/"),ownerUid=parent.split("/")[1];
+      const response=await api("/documents/"+parent+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],where:{fieldFilter:{field:{fieldPath:"record.group"},op:"EQUAL",value:{stringValue:"ingredients"}}},limit}}});
+      if(!Array.isArray(response))throw Error("Invalid kitchen query response");
+      return response.filter(x=>x.document).map(x=>{const d=x.document;if(!d.updateTime||!d.fields||!d.name)throw Error("Invalid kitchen record");
+       const key=d.name.split("/").at(-1),data=decodeFields(d.fields);labReadCache.set(collection+"/"+key,structuredClone({data,updateTime:d.updateTime}));return {ownerUid,key,data,updateTime:d.updateTime};
+      });
+     },
      // Exact logical IDs, not just guessed physical keys: detects duplicates across
      // canonical/model/free aliases. All expenses are queried, including inserts.
      async listCatalogRecords({collection,universe,selection,limit}){
