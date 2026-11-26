@@ -16,12 +16,13 @@ export function mountOrderTicker(root,{subscribe,now=()=>Date.now()}={}){
  const doc=root.ownerDocument;root.classList.add("checkout-live-footer");
  const live=doc.createElement("span"),message=doc.createElement("span"),clock=doc.createElement("time");
  live.className="checkout-live-label";message.className="checkout-live-message";clock.className="checkout-live-clock";
+ const track=doc.createElement("span");track.className="checkout-live-track";message.append(track);
  message.setAttribute("role","status");message.setAttribute("aria-live","polite");
  root.replaceChildren(live,message,clock);
  let snapshot=null,connected=false,offset=0,timer=null,closed=false;
- function paint(){if(closed)return;if(!snapshot){live.textContent="";message.textContent="Aguardando pedido";clock.textContent="";return;}
-  try{const v=statusView(snapshot,{connected,serverNowMs:now()+offset});live.textContent=v.live?"ao vivo ●":v.terminal?"encerrado":"reconectando";live.dataset.live=String(v.live);if(message.textContent!==v.label)message.textContent=v.label;clock.textContent=v.clock;if(v.terminal&&timer!==null){clearInterval(timer);timer=null;}}
-  catch{live.textContent="";message.textContent="Status indisponível";clock.textContent="";}
+ function paint(){if(closed)return;if(!snapshot){live.textContent="";track.textContent="Aguardando pedido";clock.textContent="";return;}
+  try{const v=statusView(snapshot,{connected,serverNowMs:now()+offset});live.textContent=v.live?"ao vivo ●":v.terminal?"encerrado":"reconectando";live.dataset.live=String(v.live);if(track.textContent!==v.label)track.textContent=v.label;clock.textContent=v.clock;if(v.terminal&&timer!==null){clearInterval(timer);timer=null;}}
+  catch{live.textContent="";track.textContent="Status indisponível";clock.textContent="";}
  }
  const unsubscribe=subscribe((event)=>{
   if(closed)return;
