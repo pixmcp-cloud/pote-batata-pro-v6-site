@@ -3,8 +3,8 @@ import {compileV5Catalog} from './v5_checkout_catalog_lab.mjs';
 import {checkoutEntitlement,loadV5CheckoutAuthority} from './v5_checkout_authority_lab.mjs';
 async function run({checkoutEntitlement:ent,loadV5CheckoutAuthority:load},compile,finance,log){
  let n=0;const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));n++};const reject=async(fn,code)=>{let e;try{await fn()}catch(x){e=x}eq(e?.code,code)};
- const now=1700000000000,universe="batataria",pro={license:{status:"active",kind:"pro",expiresAt:new Date(now+1000).toISOString()}},franchise={franchise:{status:"active",brandId:"potebatata"}};
- eq(ent(pro,universe,now),"pro");eq(ent(franchise,universe,now),"franchise");eq(ent({license:{status:"active",kind:"lifetime",term:"lifetime"}},universe,now),"pro");eq(ent({license:{...pro.license,kind:"trial"}},universe,now),"trial");
+ const now=1700000000000,universe="batataria",pro={license:{status:"active",kind:"pro",term:"month1",expiresAt:new Date(now+1000).toISOString()}},franchise={franchise:{status:"active",brandId:"potebatata"}};
+ eq(ent(pro,universe,now),"pro");eq(ent(franchise,universe,now),"franchise");eq(ent({license:{status:"active",kind:"lifetime",term:"lifetime"}},universe,now),"pro");eq(ent({license:{...pro.license,kind:"trial",term:"trial24h"}},universe,now),"trial");
  for(const p of [{},{proActive:true,role:"admin"},{license:{...pro.license,expiresAt:new Date(now).toISOString()}},{license:{...pro.license,status:"revoked"}},{franchise:{status:"active",brandId:"wrong"}},{license:{status:"active",kind:"lifetime",term:"other"}}])await reject(()=>ent(p,universe,now),"license_required");
  await reject(()=>ent({...pro,accessPolicy:{blockedUniverses:[universe]}},universe,now),"access_blocked");
  await reject(()=>ent({...franchise,accessPolicy:{blockedServices:[universe+":orders"]}},universe,now),"access_blocked");
