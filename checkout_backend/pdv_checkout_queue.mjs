@@ -11,7 +11,7 @@ export function queueRow(order,now){
  if(!int(end,order.createdAt))throw Error("invalid_time");
  const available=actions[order.status].filter(a=>(a!=="dispatch"||order.fulfillment==="delivery")&&(a!=="deliver"||order.status!=="ready"||order.fulfillment==="pickup")&&(a!=="cancel"||(order.paymentStatus==="pending"&&order.stockState==="reserved")));
  if(order.status!=="cancelled"&&order.paymentStatus==="pending")available.push("confirm_payment");
- return {id:order.id,storeId:order.storeId,label:statuses[order.status],status:order.status,totalCents:order.totalCents,paymentStatus:order.paymentStatus,stockState:order.stockState,reservationExpiresAt:order.reservationExpiresAt??null,elapsedMs:end-order.createdAt,createdAt:order.createdAt,actions:available,lines:clone(order.lines),fulfillment:order.fulfillment};
+ return {id:order.id,storeId:order.storeId,label:statuses[order.status],status:order.status,totalCents:order.totalCents,paymentStatus:order.paymentStatus,paymentMethod:order.paymentMethod,canReconcile:["received","preparing","ready","out_for_delivery"].includes(order.status)&&["reserved","consumed"].includes(order.stockState)&&(order.stockState==="consumed"||order.paymentStatus==="confirmed")&&!(order.paymentStatus==="confirmed"&&order.paymentMethod==="cash"),stockState:order.stockState,reservationExpiresAt:order.reservationExpiresAt??null,elapsedMs:end-order.createdAt,createdAt:order.createdAt,actions:available,lines:clone(order.lines),fulfillment:order.fulfillment};
 }
 export function orderPrintText(order){
  const row=queueRow(order,order.deliveredAt);
@@ -41,5 +41,14 @@ export function createQueueController({storeId,subscribeOwner,transition,emit,cl
   try{return await transition({storeId,orderId,action,operationId,...(paymentReference!==undefined?{paymentReference:paymentReference.trim()}:{})})}
   finally{busy.delete(orderId)}
  }
- return {act,print(orderId){if(closed||!rows.has(orderId))throw Error("unavailable");return orderPrintText(rows.get(orderId))},close(){closed=true;rows.clear();if(typeof detach==="function")detach();emit([])}};
+ async function reconcile(orderId,operationId,values){
+  if(closed||!rows.has(orderId)||!id(operationId)||operationId.length<16||busy.has(orderId))throw Error("unavailable");
+  const row=queueRow(rows.get(orderId),clock());
+  if(!row.canReconcile||!values||typeof values.reason!=="string"||!values.reason.trim()||values.reason.length>220||!["return","loss"].includes(values.stockDecision)||row.stockState==="consumed"&&values.stockDecision!=="loss")throw Error("invalid_reconciliation");
+  const ref=typeof values.refundReference==="string"?values.refundReference.trim():"";
+  if(row.paymentStatus==="confirmed"&&(!ref||ref.length>120))throw Error("refund_reference_required");
+  if(row.paymentStatus==="pending"&&ref)throw Error("refund_not_due");
+  busy.add(orderId);try{return await transition({storeId,orderId,operationId,action:"reconcile_cancel",reconciliation:{reason:values.reason.trim(),stockDecision:values.stockDecision,...(ref?{refundReference:ref}:{})}})}finally{busy.delete(orderId)}
+ }
+ return {act,reconcile,print(orderId){if(closed||!rows.has(orderId))throw Error("unavailable");return orderPrintText(rows.get(orderId))},close(){closed=true;rows.clear();if(typeof detach==="function")detach();emit([])}};
 }
