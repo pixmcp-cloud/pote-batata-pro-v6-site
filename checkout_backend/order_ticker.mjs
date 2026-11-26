@@ -26,6 +26,7 @@ export function mountOrderTicker(root,{subscribe,now=()=>Date.now()}={}){
  }
  const unsubscribe=subscribe((event)=>{
   if(closed)return;
+  if(event?.reset){snapshot=null;connected=false;offset=0;paint();return;}
   if(event?.order&&Number.isSafeInteger(event.serverNowMs)){snapshot=event.order;offset=event.serverNowMs-now();}
   connected=event?.connected===true;paint();
  });
