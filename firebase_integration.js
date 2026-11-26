@@ -5,6 +5,7 @@ import { getFirestore, doc, collection, getDoc, getDocs, setDoc, serverTimestamp
 import {createV5Store} from "./v5_storage.mjs?v=v5-clean-20261120";
 import {stableJson,jsonBytes,MAX_APPSTATE_BYTES,makePending,validateBackup,pendingMatchesLoadedState,inspectPendingAgainstCloud} from "./sync_guard.mjs?v=sync-notification-reads-v9-20261119";
 const pendingKey=uid=>"pote-sync-pending-v5:"+String(uid||"");
+import {isBundledTemplate,freeSlotKey} from "./free_id_policy.mjs";
 import { resolveLicense, dateBR, licenseCountdown } from "./license_terms.mjs?v=plans-20261115-years";
 import {createWorkerBridge} from "./worker_bridge.mjs?v=f05-final-20261120";
 
@@ -462,7 +463,7 @@ async function loadUser(user, index) {
     claims.claims.potebatataAdmin === true &&
     claims.claims.email_verified === true &&
     claims.claims.firebase?.sign_in_provider === "google.com";
-  window.POTE_AUTH = { uid: user.uid, email: user.email, role: admin ? "admin" : "free", proActive: admin, plan: admin ? "admin" : "free" };
+  window.POTE_AUTH = { uid: user.uid, email: user.email, role: admin ? "admin" : "free", proActive: admin, plan: admin ? "admin" : "free", freeSlots:{}, isBundledRecipe:(universe,id)=>isBundledTemplate({universe,group:"recipes",id}), originalAllowed(record){const key=freeSlotKey(record),s=this.freeSlots?.[key];return Boolean(key&&s&&s.id===record.id&&s.universe===record.universe&&s.group===record.group)} };
   active = user;
   const profile = doc(db, "users", user.uid);
   const existing = await withDeadline(getDoc(profile), 15000, "consulta do perfil");
