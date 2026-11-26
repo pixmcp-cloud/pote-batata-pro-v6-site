@@ -7,6 +7,8 @@ const id=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const op=x=>id(x)&&x.length>=16;
 const canonical=x=>Array.isArray(x)?x.map(canonical):x&&typeof x==="object"?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;
 const same=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
+// REST commit adds updatedAt at the document root. It is not catalog content.
+const manifestContent=({updatedAt,...rest})=>rest;
 const put=(path,data,old)=>({path,data,precondition:old?{updateTime:old.updateTime}:{exists:false}});
 export function createV5CatalogApprovalLab({projectId,repository,verifyToken,finance,recordKeyAllowed,clock=()=>Date.now()}={}){
  if(projectId!=="demo-nucleobit-checkout"||typeof repository?.transaction!=="function"||typeof verifyToken!=="function")fail("lab_disabled");
@@ -16,7 +18,7 @@ export function createV5CatalogApprovalLab({projectId,repository,verifyToken,fin
   if(kind!=="catalog"&&(!identity||identity.emailVerified!==true||identity.provider!=="google.com"||!id(identity.uid)||!op(epoch)||!op(operationId)||revision!==operationId))fail("forbidden");
   const tx=await repository.transaction();
   try{
-   const root="checkoutLabStores/"+storeId,doc=await tx.get(root),m=doc?.data;
+   const root="checkoutLabStores/"+storeId,doc=await tx.get(root),m=doc?.data?manifestContent(doc.data):null;
    if(!m||m.lab!==true||m.enabled!==true||m.channel!=="online"||m.catalogMode!=="v5-authoritative"||!id(m.ownerUid))fail("store_unavailable");
    if(identity&&identity.uid!==m.ownerUid)fail("forbidden");
    const owner="users/"+m.ownerUid,profile=(await tx.get(owner))?.data,meta=(await tx.get(owner+"/appState/v5"))?.data;
