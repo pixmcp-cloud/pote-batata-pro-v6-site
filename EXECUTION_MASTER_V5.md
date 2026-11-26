@@ -126,3 +126,18 @@ Identidade aprovada: PDV MULTIVERSAL — Todos os segmentos. Uma única platafor
 
 ### V6 — correção de publicação MULTIVERSAL (25/11/2026)
 PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contrato visual que exigia a URL literal do PNG antigo. O teste de marca, ícones e metadados passou. Atualizado contrato para exigir o SVG MULTIVERSAL versionado no código-fonte e HTML gerado e verificar o texto da arte, preservando as demais assertivas de PDV, acesso, relatórios e PNG PWA. Sem remoção de testes ou alteração operacional. Nova publicação a conferir.
+
+## NÚCLEOBIT — identidade institucional aprovada (26/11/2026)
+
+- Marca institucional aprovada: NÚCLEOBIT, sem TECH. Conceito: núcleo da inteligência digital; software, IA, automação e plataformas digitais. Slogan sugerido: “O núcleo da inovação digital.”
+- Domínio pretendido oficial: nucleobit.com.br. Proprietário informou pedido de registro aceito pela Hostinger em 25/11/2026 às 23:40 (Brasília); ativação, titularidade final e custo efetivo ainda não confirmados.
+- Identidade visual aprovada em 26/11/2026 às 01:11 (Brasília): monograma circular NB conforme imagens enviadas pelo proprietário. Versão 2D institucional em preto, azul royal, branco e aro dourado; versão premium emblema dourado 3D; versão animada para vinhetas. Preservar desenho, geometria, cores e proporções da referência aprovada, não das versões rejeitadas.
+- Referências da conversa: 1001899325.jpg (2D), 1001899324.jpg (3D), 1001899334.gif e 1001899335.mp4 (mídias animadas). Arquivos binários não adicionados ao GitHub neste registro. Paleta hexadecimal e manual vetorial ainda não homologados.
+- PDV MULTIVERSAL e Brasil Infláveis mantêm suas marcas de produto. NÚCLEOBIT é a marca institucional pretendida do ecossistema. Não alterar domínio, DNS, repositório ou produção sem autorização e homologação.
+- INPI pendente de verificação. Monitoramento de unctus.com.br permanece independente, sem compra automática.
+
+### Voice Studio e Brasil Infláveis — decisões recentes
+- ElevenLabs Starter: primeira geração e download de MP3 confirmados pelo proprietário. Nome personalizado, prévias em português sem débito de IA COIN, cache por voz e proteção contra duplicidade. PR #59: favoritos locais por conta/navegador e 11 frases neutras sorteadas na primeira amostra, reutilizada posteriormente. Integração à main e quatro checks aprovados reportados na conversa; publicação e primeira execução real dessa revisão ainda não verificadas neste registro. Piloto restrito ao ADM; clonagem exclusiva do ADM, liberação comercial pendente.
+- Brasil Infláveis: reaproveitar Voice Studio e assinatura existente, adaptando autenticação e carteira. Tostão Promo vale metade do Coin comercial (2 Promo = 1 Coin). Proposta de 1–5 Coin para 15–75 segundos, preço e pagamento misto não homologados. Repositório do Brasil Infláveis ainda não acessível pela conexão anterior; integração não executada. Fluxo: GitHub primeiro, sincronização posterior no PC, testes e publicação autorizada.
+- Nenhuma contratação adicional, migração ou alteração de código efetuada neste registro.
+
