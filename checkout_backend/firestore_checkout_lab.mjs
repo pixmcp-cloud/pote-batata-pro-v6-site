@@ -30,9 +30,9 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
  const active=enabled===true&&projectId===labProject&&typeof repository?.transaction==="function"&&typeof verifyToken==="function";
  async function executeInternal({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action,paymentReference,reconciliation}={},service=null){
   if(!active)err("lab_disabled");
-  if((!service&&(typeof token!=="string"||!token))||!id(storeId)||!["quote","submit","transition","status"].includes(kind))err("invalid_request");
+  if((!service&&(typeof token!=="string"||!token))||!id(storeId)||!["quote","submit","submitSaved","recoverSubmit","transition","status"].includes(kind))err("invalid_request");
   if(kind!=="status"&&!operation(operationId))err("invalid_operation");
-  if(kind==="submit"&&!operation(quoteId)||["transition","status"].includes(kind)&&!id(orderId))err("invalid_request");
+  if(["submit","submitSaved","recoverSubmit"].includes(kind)&&!operation(quoteId)||["transition","status"].includes(kind)&&!id(orderId))err("invalid_request");
   const identity=service??await verifyToken(token,projectId);if(!service)verifyIdentity(identity);
   const tx=await repository.transaction();
   try{
@@ -59,14 +59,24 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     return projection(o.data,now);
    }
    const priorOp=await tx.get(scopedOp);
+   // Read-only recovery: a missing receipt is not proof that an in-flight request failed.
+   if(kind==="recoverSubmit"){
+    if(!priorOp)return {state:"unconfirmed"};
+    let recorded;try{recorded=JSON.parse(priorOp.data.fingerprint)}catch{err("not_found")}
+    if(priorOp.data.actorUid!==identity.uid||!["submit","submitSaved"].includes(recorded[0])||recorded[1]!==quoteId||!id(priorOp.data.orderId))err("not_found");
+    const o=await tx.get(orderRoot+priorOp.data.orderId);if(!o||o.data.customerUid!==identity.uid||o.data.storeId!==storeId)err("not_found");
+    return {state:"committed",order:projection(o.data,now)};
+   }
+   const savedOnly=kind==="submitSaved";
    const requestFingerprint=JSON.stringify([kind,quoteId??null,orderId??null,input??null,expectedRevision??null,expectedTotalCents??null,action??null,paymentReference??null,reconciliation??null]);
    if(priorOp){
     if(priorOp.data.fingerprint!==requestFingerprint||priorOp.data.actorUid!==identity.uid)err("idempotency_conflict");
     if(kind==="quote"){if(now>=priorOp.data.result.expiresAt)err("invalid_quote");return copy(priorOp.data.result)}
     const existing=await tx.get(orderRoot+priorOp.data.orderId);
-    if(!existing||existing.data.storeId!==storeId||(kind==="submit"&&existing.data.customerUid!==identity.uid))err("not_found");
+    if(!existing||existing.data.storeId!==storeId||(["submit","submitSaved"].includes(kind)&&existing.data.customerUid!==identity.uid))err("not_found");
     return {...projection(existing.data,now),duplicate:true};
    }
+   if(savedOnly)kind="submit";
    // Manifest is private and writable only by server. A real integration must derive it from
    // authoritative recipes, price rules and shared/separate stock settings; not public catalog.
    const uidRoot="users/"+m.ownerUid,meta=await tx.get(uidRoot+"/appState/v5"),guard=await tx.get(uidRoot+"/appState/v5InventoryGuard"),pulse=await tx.get(uidRoot+"/appState/v5Pulse");
@@ -118,6 +128,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(kind==="submit"){
     savedQuote=await tx.get(quotePath);
     if(!savedQuote)err("invalid_quote");state.quotes=[savedQuote.data];
+    if(savedOnly){if(savedQuote.data.customerUid!==identity.uid||savedQuote.data.storeId!==storeId)err("invalid_quote");input=savedQuote.data.request;}
     result=submitCheckout(state,actor,{operationId,quoteId,input,expectedRevision,expectedTotalCents},now);
    }else{
     priorOrder=await tx.get(orderRoot+orderId);
