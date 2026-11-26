@@ -36,7 +36,7 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
  try{
  await env.withSecurityRulesDisabled(async ctx=>{
   const db=ctx.firestore(),set=(p,x)=>sdk.setDoc(sdk.doc(db,p),x),read=async p=>(await sdk.getDoc(sdk.doc(db,p))).data();
-  await set(root,profile);await set(root+"/appState/v5",{schemaVersion:5,state:{data:{businessType:universe,settings}}});
+  await set(root,profile);await set(root+"/appState/v5",{schemaVersion:5,state:{data:{businessType:universe,settings,orderSequenceLast:28}}});
   await set(root+"/appState/v5InventoryGuard",{revision:0});await set(root+"/appState/v5Pulse",{eventId:"seed"});
   await set(stockPath,rec("ingredients",ingredient));await set(root+"/recordsV5/"+key("recipes",recipe.id),rec("recipes",recipe));
   await set(root+"/recordsV5/"+key("expenses",expense.id),rec("expenses",expense));
@@ -72,6 +72,24 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   const outcomes=await Promise.allSettled([submit(2,1),legacy()]);
   assert.equal(outcomes.filter(x=>x.status==="fulfilled").length,1);
   assert.equal((await read(stockPath)).record.item.stock,0);assert.equal((await read(root+"/appState/v5InventoryGuard")).revision,1);
+  const firstNumber=outcomes[0].status==="fulfilled"?29:28;
+  assert.equal((await read(root+"/appState/v5")).state.data.orderSequenceLast,firstNumber);
+  // Replenish synthetic stock; two storefronts share the existing V5 number.
+  await set(stockPath,rec("ingredients",{...ingredient,stock:1000}));
+  const store2="authorityshop2";
+  await set("checkoutLabStores/"+store2,manifest);await set("checkoutLabStores/"+store2+"/meta/sequence",{value:0});
+  const qa=await quote(10);
+  const qb=await api.execute({token:"buyer2",storeId:store2,kind:"quote",operationId:op(11),input});
+  const secondSubmit=()=>api.execute({token:"buyer2",storeId:store2,kind:"submit",operationId:op(13),quoteId:op(11),input,expectedRevision:"rev1",expectedTotalCents:1450});
+  const a=await submit(12,10),b=await secondSubmit();
+  assert.equal(a.id,"P"+String(firstNumber+1).padStart(7,"0"));assert.equal(b.id,"P"+String(firstNumber+2).padStart(7,"0"));
+  assert.equal((await secondSubmit()).duplicate,true);
+  assert.equal((await read(root+"/appState/v5")).state.data.orderSequenceLast,firstNumber+2);
+  assert.equal((await read(root+"/appState/v5Pulse")).metaChanged,true);
+  assert.equal((await read(stockPath)).record.item.stock,0);
+  const meta=await read(root+"/appState/v5");
+  await set(root+"/appState/v5",{...meta,state:{...meta.state,data:{...meta.state.data,kitchenStock:{mode:"shared",inventory:{}}}}});
+  await assert.rejects(()=>quote(14),e=>e.code==="shared_kitchen_requires_reconciliation");
  });
  console.log("PASS B02.7 REST emulator: complete catalog query, license revocation, stale price, shared stock vs legacy domain");
  }finally{await env.cleanup()}
