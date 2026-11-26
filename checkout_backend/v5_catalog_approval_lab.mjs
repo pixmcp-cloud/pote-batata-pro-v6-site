@@ -13,7 +13,7 @@ export function createV5CatalogApprovalLab({projectId,repository,verifyToken,fin
  async function execute({kind,token,storeId,epoch,operationId,revision}={}){
   if(!id(storeId)||!["preview","approve","catalog"].includes(kind))fail("invalid_request");
   const identity=kind==="catalog"?null:await verifyToken(token,projectId);
-  if(kind!=="catalog"&&(!identity||identity.emailVerified!==true||identity.provider!=="google.com"||!id(identity.uid)||!op(epoch)||!op(operationId)||!id(revision)))fail("forbidden");
+  if(kind!=="catalog"&&(!identity||identity.emailVerified!==true||identity.provider!=="google.com"||!id(identity.uid)||!op(epoch)||!op(operationId)||revision!==operationId))fail("forbidden");
   const tx=await repository.transaction();
   try{
    const root="checkoutLabStores/"+storeId,doc=await tx.get(root),m=doc?.data;
