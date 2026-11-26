@@ -25,6 +25,17 @@ async function run({checkoutEntitlement:ent,loadV5CheckoutAuthority:load},compil
  await reject(()=>load({...args,manifest:{...manifest,stockMap:[{...stockMap[0],universe:"kitchen"}]}}),"catalog_not_ready");
  await reject(()=>load({...args,tx:{}}),"catalog_not_ready");await reject(()=>load({...args,profile:{}}),"license_required");
  await reject(()=>load({...args,tx:{listRecords:async()=>Array(241).fill(docs[0])}}),"catalog_too_large");
- log("PASS B02.7 authority",n,"assertivas");
+ // Selective read fixture: unrelated catalog records are irrelevant; all expenses remain visible.
+ const unrelated=Array.from({length:200},(_,i)=>doc("recipes",{id:"other"+i,name:"Não publicado"}));
+ const allDocs=[...docs,...unrelated];let selectedReads=0,queries=0;
+ const selectedTx={listCatalogRecords:async q=>{queries++;eq(q.limit,241);const result=allDocs.filter(x=>x.data.record.group==="expenses"||q.selection[x.data.record.group]?.includes(x.data.record.id));selectedReads+=result.length;return result}};
+ const optimized=await load({...args,tx:selectedTx});eq(optimized.products,manifest.products);eq(queries,1);eq(selectedReads,3);eq(allDocs.length,203);
+ const addedExpense=doc("expenses",{id:"new_exp",enabled:true,mode:"mensal",amount:100,repeat:1});allDocs.push(addedExpense);await reject(()=>load({...args,tx:selectedTx}),"catalog_stale");allDocs.pop();
+ const duplicate=doc("recipes",{...branch.recipes[0]});allDocs.push(duplicate);await reject(()=>load({...args,tx:selectedTx}),"catalog_record_invalid");allDocs.pop();
+ await reject(()=>load({...args,tx:{listCatalogRecords:async()=>[...docs,unrelated[0]]}}),"catalog_record_invalid");
+ const missing=allDocs.shift();await reject(()=>load({...args,tx:selectedTx}),"catalog_stock_mismatch");allDocs.unshift(missing);
+ allDocs.push(doc("expenses",{id:"e_disabled",enabled:false,mode:"mensal",amount:1000}));eq((await load({...args,tx:selectedTx})).products,manifest.products);allDocs.pop();
+ let fallback=0;await reject(()=>load({...args,tx:{listCatalogRecords:async()=>{throw Object.assign(Error("unavailable"),{code:"query_failed"})},listRecords:async()=>{fallback++;return docs}}}),"query_failed");eq(fallback,0);
+ log("PASS B02.8 authority",n,"assertivas");
 }
 await run({checkoutEntitlement,loadV5CheckoutAuthority},compileV5Catalog,globalThis.POTE_FINANCE,console.log);
