@@ -41,9 +41,10 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=createFirestor
     const expected=env.VOICE_PROBE_TOKEN,provided=req.headers.get('X-Voice-Probe')||'';
     if(typeof expected!=='string'||expected.length<43||provided!==expected)fail('Não autorizado.',403);
     const s=await subscription(env),catalog=await voices(env);
-    const bearer=await serviceToken(env,providerFetch);
+    if(!catalog.length)fail('VOICE_CATALOG_NO_ALLOWLIST_MATCH',503);
+    let bearer;try{bearer=await serviceToken(env,providerFetch)}catch{fail('FIREBASE_SERVICE_AUTH_FAILED',503);}
     const g=await providerFetch('https://firestore.googleapis.com/v1/projects/'+env.FIREBASE_PROJECT_ID+'/databases/(default)',{headers:{Authorization:'Bearer '+bearer},signal:AbortSignal.timeout(15000)});
-    if(!g.ok||!catalog.length)fail('Firebase ou catálogo indisponível.',503);
+    if(!g.ok)fail('FIREBASE_METADATA_HTTP_'+g.status,503);
     return json({ready:true,tier:s.tier,providerRemaining:s.character_limit-s.character_count,allowedVoices:catalog.length,overageOff:true,firestoreMetadata:true,scope:'adm-only'});
    }
    if(req.method!=='POST')fail('Método não permitido.',405);
