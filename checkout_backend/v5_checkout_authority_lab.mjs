@@ -21,7 +21,7 @@ export function checkoutEntitlement(profile,universe,now){
  // Temporary fail-closed commercial policy: no change to legacy FREE access.
  fail("license_required");
 }
-export async function loadV5CheckoutAuthority({tx,manifest,meta,profile,finance,recordKeyAllowed,now}={}){
+export async function buildV5CheckoutAuthority({tx,manifest,meta,profile,finance,recordKeyAllowed,now}={}){
  const m=manifest;if(!m||m.catalogMode!=="v5-authoritative"||!id(m.ownerUid)||!id(m.universe)||!id(m.revision)||!Array.isArray(m.recipeIds)||!Array.isArray(m.beverageIds)||!Array.isArray(m.addonIds)||(typeof tx?.listRecords!=="function"&&typeof tx?.listCatalogRecords!=="function")||typeof recordKeyAllowed!=="function")fail("catalog_not_ready");
  const tier=checkoutEntitlement(profile,m.universe,now);
  const comboIds=m.comboIds??[];if(!Array.isArray(comboIds)||comboIds.length>60||comboIds.some(x=>!id(x)))fail("catalog_not_ready");
@@ -53,6 +53,8 @@ export async function loadV5CheckoutAuthority({tx,manifest,meta,profile,finance,
  const built=compileV5Catalog({finance,branch:{...all,settings:branch.settings},stockMap:m.stockMap,recipeIds:m.recipeIds,beverageIds:m.beverageIds,addonIds:m.addonIds,comboIds,revision:m.revision,universe:m.universe});
  // Price/composition must match the server-approved manifest; stock-only changes do
  // not invalidate the catalog. Any changed price or recipe requires reapproval.
- if(!same(built.products,m.products))fail("catalog_stale");
- return {products:built.products,tier,revision:built.revision};
+ const addonTitles=Object.fromEntries(all.addons.map(a=>[a.id,a.name??a.id]));
+ return {products:built.products,tier,revision:built.revision,addonTitles};
 }
+
+export async function loadV5CheckoutAuthority(args){const built=await buildV5CheckoutAuthority(args);if(!same(built.products,args.manifest.products))fail("catalog_stale");return built;}
