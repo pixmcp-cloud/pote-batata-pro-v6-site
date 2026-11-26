@@ -38,6 +38,37 @@ async function run(create,log){
  eq((await confirm()).paymentStatus,"confirmed");eq(read(receiptPath).amountCents,6000);eq(read(session).totals,{cash:0,pix:6000,card:0,count:1});eq((await confirm()).duplicate,true);eq(read(session).revision,1);
  await rejects(()=>api.closeCash({token:"buyer1",sessionId:"shift1",operationId:id(12)}),"not_found");
  const closed=await api.closeCash({token:"merchant1",sessionId:"shift1",operationId:id(12)});eq(closed.receivedCents,6000);eq(closed.cashDrawerIncreaseCents,0);eq(read(cash).activeSessionId,null);eq(read(session).status,"closed");eq(await api.closeCash({token:"merchant1",sessionId:"shift1",operationId:id(12)}),closed);await rejects(()=>api.closeCash({token:"merchant1",sessionId:"shift1",operationId:id(13)}),"cash_already_closed");eq((await confirm()).duplicate,true);eq(read(session).closedSummary,closed);eq(read(stock).record.item.stock,0);
- log("PASS B02.4",n,"assertivas com mock de transações versionadas e conflito");
+ // B02.5: new orders in same store, late refund in a new shift, expiry and physical losses.
+ const store=loser,orderRoot="checkoutLabStores/"+store+"/orders/",lossRoot="checkoutLabStores/"+store+"/losses/";
+ set(stock,{record:{universe:"batataria",group:"ingredients",id:"potato",item:{stock:2,name:"Batata"},rank:7}});
+ const createNew=async(n)=>{await q(store,other,n);return submit(store,other,n+1,n)};
+ const actNew=(oid,n,a,extra={})=>api.execute({storeId:store,token:"merchant1",kind:"transition",operationId:id(n),orderId:oid,action:a,...extra});
+ const expired=await createNew(20);eq(expired.id,"P0000002");eq(read(stock).record.item.stock,1.5);
+ await rejects(()=>actNew(expired.id,22,"expire"),"reservation_not_expired");
+ now+=1800000;
+ await rejects(()=>actNew(expired.id,23,"prepare"),"reservation_expired");
+ eq((await actNew(expired.id,22,"expire")).status,"cancelled");eq(read(stock).record.item.stock,2);
+ eq((await actNew(expired.id,22,"expire")).duplicate,true);eq(read(stock).record.item.stock,2);
+ const lost=await createNew(30);await actNew(lost.id,32,"prepare");
+ await rejects(()=>actNew(lost.id,33,"reconcile_cancel",{reconciliation:{reason:"Alimento preparado",stockDecision:"return"}}),"prepared_stock_cannot_return");
+ const lossRecon={reconciliation:{reason:"Alimento preparado",stockDecision:"loss"}};
+ eq((await actNew(lost.id,33,"reconcile_cancel",lossRecon)).status,"cancelled");eq(read(stock).record.item.stock,1.5);eq(read(lossRoot+lost.id).costKnown,false);eq(read(lossRoot+lost.id).units,[{stockId:"potato",units:500}]);
+ eq((await actNew(lost.id,33,"reconcile_cancel",lossRecon)).duplicate,true);
+ const paid=await createNew(40);const shift2=cash+"/sessions/shift2";
+ set(cash,{activeSessionId:"shift2"});set(shift2,{id:"shift2",ownerUid:"merchant1",status:"open",openedAt:now,revision:0,totals:{cash:0,pix:0,card:0,count:0}});
+ await actNew(paid.id,42,"confirm_payment",{paymentReference:"Extrato"});
+ await rejects(()=>actNew(paid.id,43,"expire"),"manual_reconciliation_required");
+ await rejects(()=>actNew(paid.id,43,"reconcile_cancel",{reconciliation:{reason:"Cliente cancelou",stockDecision:"return"}}),"refund_reference_required");
+ const closed2=await api.closeCash({token:"merchant1",sessionId:"shift2",operationId:id(44)});eq(closed2.receivedCents,6000);
+ const recon={reconciliation:{reason:"Cliente cancelou",stockDecision:"return",refundReference:"PIX estornado externamente"}};
+ await rejects(()=>actNew(paid.id,43,"reconcile_cancel",recon),"cash_not_open");eq(read(orderRoot+paid.id).paymentStatus,"confirmed");
+ const shift3=cash+"/sessions/shift3";set(cash,{activeSessionId:"shift3"});set(shift3,{id:"shift3",ownerUid:"merchant1",status:"open",openedAt:now,revision:0,totals:{cash:0,pix:0,card:0,count:0}});
+ const refundPath=cash+"/refunds/"+store.length+"_"+store+"_"+paid.id;
+ failCommit=true;await rejects(()=>actNew(paid.id,43,"reconcile_cancel",recon),"injected");eq(read(refundPath),undefined);eq(read(stock).record.item.stock,1);eq(read(orderRoot+paid.id).paymentStatus,"confirmed");
+ eq((await actNew(paid.id,43,"reconcile_cancel",recon)).paymentStatus,"refunded");eq(read(stock).record.item.stock,1.5);eq(read(refundPath).originSessionId,"shift2");eq(read(refundPath).sessionId,"shift3");eq(read(shift3).refunds.pix,6000);eq(read(shift2).closedSummary,closed2);
+ eq((await actNew(paid.id,43,"reconcile_cancel",recon)).duplicate,true);eq(read(shift3).refunds.count,1);
+ await rejects(()=>actNew(paid.id,43,"reconcile_cancel",{reconciliation:{...recon.reconciliation,refundReference:"Outro"}}),"idempotency_conflict");
+ const closed3=await api.closeCash({token:"merchant1",sessionId:"shift3",operationId:id(45)});eq(closed3.netReceivedCents,-6000);eq(closed3.cashDrawerIncreaseCents,0);
+ log("PASS B02.5",n,"assertivas com mock de transações versionadas e conflito");
 }
 await run(createCheckoutLabRepository,console.log);
