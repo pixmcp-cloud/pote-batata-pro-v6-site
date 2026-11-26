@@ -15,7 +15,14 @@ const token=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID
 
 export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
  const {doc,collection,getDoc,getDocs,runTransaction,onSnapshot,serverTimestamp}=sdk;
+ const profileRef=doc(db,"users",uid);
  const root=doc(db,"users",uid,"appState","v5");
+ // Candidate cutover fence; same policy as checkout_backend/v5_cutover_policy.mjs.
+ // Check on every write transaction, not merely at session start.
+ const requireLegacy=async tx=>{const profile=(await tx.get(profileRef)).data(),policy=profile?.accessPolicy;
+  if(policy!=null&&(typeof policy!=="object"||Array.isArray(policy)||!(policy.checkoutAuthority===undefined||policy.checkoutAuthority==="legacy")))
+   fail("sync/checkout-cutover","Conta em transição de checkout: nenhuma alteração local foi enviada.");
+ };
  const guardRef=doc(db,"users",uid,"appState","v5InventoryGuard");
  const pulseRef=doc(db,"users",uid,"appState","v5Pulse");
  const recordsRef=collection(db,"users",uid,"recordsV5");
@@ -46,6 +53,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    if(jsonBytes(clean.meta)>MAX_APPSTATE_BYTES)throw Error("Configuração inicial excede limite");
    try{
     await runTransaction(db,async tx=>{
+     await requireLegacy(tx);
      const current=await tx.get(root);
      if(current.exists())fail("sync/conflict","Conta foi inicializada em outra sessão");
      tx.set(root,{schemaVersion:5,state:clean.meta,updatedAt:serverTimestamp()});
@@ -151,6 +159,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    for(const changeBatch of batches){
     const part={changes:changeBatch,sensitive:delta.sensitive};
     await runTransaction(db,async tx=>{
+    await requireLegacy(tx);
     // All reads happen before any write, as Firestore transaction API requires.
     const queries=[];
     for(const ch of part.changes){
