@@ -4,10 +4,10 @@ const {initializeTestEnvironment,assertFails,assertSucceeds}=require("../qa/fire
 const sdk=require("../qa/firestore/node_modules/firebase/firestore");
 (async()=>{
  if(!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST||""))throw Error("Local emulator required");
- const {candidateTrialRules}=await import("./v5_trial_rules_lab.mjs");
+ const {candidateTrialRules,candidateTrialGrantRules}=await import("./v5_trial_rules_lab.mjs");
  const {recordId}=await import("../v5_store_core.mjs");
  const projectId="demo-nucleobit-checkout",uid="trialsevenowner",root="users/"+uid;
- const env=await initializeTestEnvironment({projectId,firestore:{rules:candidateTrialRules(fs.readFileSync("firestore.rules","utf8"))}});
+ const env=await initializeTestEnvironment({projectId,firestore:{rules:candidateTrialGrantRules(candidateTrialRules(fs.readFileSync("firestore.rules","utf8")))}});
  const db=env.authenticatedContext(uid,{email_verified:true,email:"trial@example.invalid",firebase:{sign_in_provider:"google.com"}}).firestore();
  const other=env.authenticatedContext("trialother",{email_verified:true,email:"other@example.invalid",firebase:{sign_in_provider:"google.com"}}).firestore();
  const key="free~base~recipes",extra=recordId("batataria","recipes","own2"),record=(id,name=id)=>({universe:"batataria",group:"recipes",id,item:{id,name},rank:0});
@@ -31,6 +31,15 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   await update(license("active","month1",Date.now()+86400000,"pro"));await assertSucceeds(write(db,extra,record("own2","Renovado")));
   const renewed=await sdk.getDocs(sdk.collection(db,root+"/recordsV5"));assert.equal(renewed.size,20);
   assert.equal((await sdk.getDoc(ref(db,key))).data().record.id,"own1");
+  const admin=env.authenticatedContext("testadmin",{email_verified:true,email:"pixmcp@gmail.com",potebatataAdmin:true,firebase:{sign_in_provider:"google.com"}}).firestore();
+  const adminRef=sdk.doc(admin,root);
+  await assertFails(sdk.updateDoc(adminRef,{license:license("active","trial7d",Date.now()+604800000)}));
+  await env.withSecurityRulesDisabled(ctx=>sdk.updateDoc(sdk.doc(ctx.firestore(),root),{trialGrant7d:{operationId:"server_trial_grant_01"}}));
+  await assertFails(sdk.updateDoc(adminRef,{trialGrant7d:sdk.deleteField()}));
+  await assertFails(sdk.updateDoc(sdk.doc(db,root),{trialGrant7d:sdk.deleteField()}));
+  await assertSucceeds(sdk.updateDoc(adminRef,{license:license("active","month1",Date.now()+86400000,"pro")}));
+  assert.equal((await sdk.getDoc(adminRef)).data().trialGrant7d.operationId,"server_trial_grant_01");
+  console.log("PASS B02-G9 candidate grant rules: direct trial7d and marker deletion denied, paid renewal allowed.");
   console.log("PASS B02-G7 candidate rules: 20 retained, one canonical slot editable, no rotation/delete after expiration, renewed PRO access; server request.time.");
  }finally{await env.cleanup()}
 })().catch(e=>{console.error(e);process.exitCode=1});
