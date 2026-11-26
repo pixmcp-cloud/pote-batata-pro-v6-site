@@ -39,13 +39,16 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   await assertFails(writeMeta(ownerDb,root+"/appState/v5"));
   await assertFails(sdk.setDoc(sdk.doc(ownerDb,root+"/appState/v5Pulse"),{eventId:"fake",updatedAt:stamp()}));
   await assertFails(sdk.setDoc(sdk.doc(ownerDb,root+"/appState/v5InventoryGuard"),{revision:1,updatedAt:stamp()}));
+  const cashPath=root+"/recordsV5/cash_session";
+  await set(cashPath,{record:{universe:"batataria",group:"cashSessions",id:"shift1",item:{id:"shift1",status:"open"},rank:1}});
+  await assertFails(sdk.updateDoc(sdk.doc(ownerDb,cashPath),{"record.item.status":"closed",updatedAt:stamp()}));
   await assertFails(sdk.deleteDoc(sdk.doc(ownerDb,stockPath)));
   await assertFails(sdk.updateDoc(sdk.doc(ownerDb,stockPath),{"record.item.stock":999,updatedAt:stamp()}));
   // Stale client cannot bypass the freeze by using an old local snapshot.
   const batch=sdk.writeBatch(ownerDb);batch.set(sdk.doc(ownerDb,root+"/appState/v5"),{...meta,updatedAt:stamp()});batch.set(sdk.doc(ownerDb,root+"/appState/v5InventoryGuard"),{revision:1,updatedAt:stamp()});await assertFails(batch.commit());
   // Legacy Worker authorization reads the same protected profile.
   const worker=createWorkerApp({verify:async()=>({uid:owner,isAdmin:false}),repository:()=>repo});
-  const response=await worker.fetch(new Request("http://localhost/v1/orders/produce",{method:"POST",headers:{Authorization:"Bearer fake","Content-Type":"application/json"},body:JSON.stringify({universe:"batataria",orderId:"oldorder",operationId:"cutover_legacy_001"})}),{ENABLE_WRITES:"true",CANARY_UIDS:owner,FIREBASE_PROJECT_ID:projectId});
+  const response=await worker.fetch(new Request("http://localhost/v1/orders/produce",{method:"POST",headers:{Authorization:"Bearer fake","Content-Type":"application/json"},body:JSON.stringify({universe:"batataria",orderId:"oldorder",operationId:"cutover_legacy_operation_001"})}),{ENABLE_WRITES:"true",CANARY_UIDS:owner,FIREBASE_PROJECT_ID:projectId});
   // Route name validated separately in actual source; expect authorization rejection, not 404.
   assert.equal(response.status,403);assert.equal((await response.json()).error,"not_allowed");
   assert.equal((await quote()).totalCents,1450);assert.equal((await submit()).status,"received");
