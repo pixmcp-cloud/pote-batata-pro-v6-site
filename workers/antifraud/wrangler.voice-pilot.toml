@@ -1,0 +1,12 @@
+name = "pote-batata-guard-staging"
+main = "src/voice_entry.mjs"
+compatibility_date = "2026-11-20"
+workers_dev = true
+preview_urls = false
+keep_vars = true
+
+[vars]
+FIREBASE_PROJECT_ID = "potobatata-b71f3"
+ALLOWED_ORIGINS = "https://pdv.livresom.com,https://potobatata-b71f3.web.app"
+ENABLE_WRITES = "false"
+VOICE_PILOT_ENABLED = "true"

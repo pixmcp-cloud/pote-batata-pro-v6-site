@@ -6,7 +6,7 @@ import {getAuth} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-auth.j
 import {getFirestore,doc,getDoc,collection,query,orderBy,limit,getDocs} from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
 const auth=getAuth(app),db=getFirestore(app),$=id=>document.getElementById(id);
 let quote=null,busy=false,url=null,uid=null;
-const endpoint=()=>null; // configuração versionada somente após homologação de servidor comercial
+const endpoint=()=>{const p=window.POTE_AUTH,u=auth.currentUser;return window.location?.origin&&p?.uid===u?.uid&&p?.role==='admin'&&u?.email==='pixmcp@gmail.com'?'https://pote-batata-guard-staging.pixmcp.workers.dev/voice':null;}; // piloto ADM autenticado; clientes seguem sem consumo
 function state(message){if($("csVoiceState"))$("csVoiceState").textContent=message;}
 function renderQuota(q){
  const panel=$("csVoiceQuota");if(!panel)return;panel.hidden=!q;if(!q)return;
@@ -66,7 +66,7 @@ async function api(path,body){
  if(!permitted()||!root)throw Error("Locução indisponível: autorização e servidor comercial obrigatórios.");
  const token=await user.getIdToken();
  const res=await fetch(root+path,{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
- if(!res.ok)throw Error("Servidor recusou a operação. Nenhum débito local efetuado.");
+ if(!res.ok){const d=await res.json().catch(()=>({}));throw Error(typeof d.error==="string"?d.error:"Servidor recusou a operação. Consulte o histórico.");}
  if(auth.currentUser?.uid!==user.uid||!permitted())throw Error("Conta ou autorização alterada.");
  return res;
 }
@@ -199,7 +199,7 @@ async function open(){
   const voices=Array.isArray(data.voices)?data.voices:[];
   loadVoiceCatalog(voices);
   consoleReady=authorizedVoiceIds.size>0;renderQuota(data.franchiseAllocation);invalidate();
-  studioStatus(consoleReady?'Catálogo autorizado conectado. Valide o orçamento antes de gerar.':'Nenhuma voz autorizada disponível.');
+  studioStatus(consoleReady?(data.pilot?'Piloto ADM conectado · geração real. Valide o orçamento antes de gerar.':'Catálogo autorizado conectado. Valide o orçamento antes de gerar.'):'Nenhuma voz autorizada disponível.');
  }catch(e){if(seq===consoleSeq)studioStatus(e.message);}
 }
 function allocationText(q){return q?" Sua cota: "+q.share+" créditos do provedor · usados/reservados: "+q.used+" · disponíveis: "+q.remaining+" · "+q.count+" franquias ativas.":"";}
