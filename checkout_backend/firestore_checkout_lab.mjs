@@ -38,6 +38,11 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    const root="checkoutLabStores/"+storeId,manifest=await tx.get(root);
    const m=manifest?.data;
    if(!m||m.lab!==true||m.enabled!==true||!id(m.ownerUid)||!id(m.revision)||!id(m.universe)||!Array.isArray(m.products)||m.products.length>60||!Array.isArray(m.stockMap)||m.stockMap.length>32||!m.stockMap.length)err("store_unavailable");
+   const channel=m.channel??"online";
+   if(!["online","counter"].includes(channel))err("store_unavailable");
+   // Counter uses the same transaction engine and owner authorization, not legacy direct writes.
+   if(channel==="counter"&&!service&&(identity.uid!==m.ownerUid))err("forbidden");
+   if(channel==="counter"&&(!m.cutoverEpoch||m.catalogMode!=="v5-authoritative"))err("cutover_not_ready");
    const merchant=kind==="transition";
    if(service){if(kind!=="transition"||action!=="expire"||service.ownerUid!==m.ownerUid||service.storeId!==storeId)err("forbidden");}
    else if(merchant&&identity.uid!==m.ownerUid)err("forbidden");
@@ -122,7 +127,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(result.duplicate)err("inconsistent_operation");
    const o=result.order,orderPath=orderRoot+o.id,viewPath=viewRoot+o.id;
    const mapping=o.required.map(n=>{const s=maps.get(n.stockId);if(!s)err("stock_mapping_changed");return {stockId:n.stockId,ownerUid:m.ownerUid,recordKey:s.recordKey,universe:s.universe,group:s.group,itemId:s.itemId,scale:s.scale,...(s.sharedLink?{sharedLink:s.sharedLink,aliasKeys:s.aliasKeys}:{})}});
-   if(kind==="submit")o.reservedMapping=mapping;
+   if(kind==="submit"){o.reservedMapping=mapping;if(channel==="counter")o.channel="counter";}
    else if(!same(priorOrder.data.reservedMapping,mapping))err("stock_mapping_changed");
    const oldView=await tx.get(viewPath);
    if(kind==="submit"&&(await tx.get(orderPath)||oldView))err("order_collision");
@@ -138,6 +143,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     const sessionPath=pointerPath+"/sessions/"+ptr.data.activeSessionId,session=await tx.get(sessionPath);
     const receiptPath=pointerPath+"/receipts/"+storeId.length+"_"+storeId+"_"+o.id,priorReceipt=await tx.get(receiptPath);
     const receipt=planCheckoutCash({ownerUid:m.ownerUid,storeId,order:o,session:session?.data,priorReceipt,now});
+    if(o.channel==="counter")receipt.channel="counter";
     if(session.data.id!==ptr.data.activeSessionId)err("cash_not_open");
     // Update shift revision so closure and receipt cannot both win on a stale baseline.
     if(!int(session.data.revision)||session.data.revision>=1000000000)err("invalid_session");
