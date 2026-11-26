@@ -28,13 +28,13 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
   await page.goto(origin+"/pdv_integrated_lab.html");await page.waitForSelector('body[data-ready="true"]');
   for(const width of [320,375,834,1366]){await page.setViewport({width,height:800,isMobile:width<600,hasTouch:width<600});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))}
   const waitText=(sel,txt)=>page.waitForFunction((s,t)=>document.querySelector(s)?.textContent.includes(t),{},sel,txt);
-  const cash=async(button,value,reason)=>{await page.click(button);await page.waitForSelector("#cash-dialog[open]");await page.type("#cash-amount",value);if(reason)await page.type("#cash-reason",reason);await page.click("#cash-confirm");await page.waitForSelector("#cash-dialog:not([open])",{hidden:true,timeout:10000}).catch(async()=>{assert.equal(await page.$eval("#cash-dialog",e=>e.open),false)});await waitText("#feedback","Caixa atualizado")};
+  const cash=async(button,value,reason)=>{await page.click(button);await page.waitForSelector("#cash-dialog[open]");await page.type("#cash-amount",value);if(reason)await page.type("#cash-reason",reason);await page.click("#cash-confirm");await page.waitForFunction(()=>!document.querySelector("#cash-dialog").open);await waitText("#feedback","Caixa atualizado")};
   await page.click("#tab-cash");await page.waitForFunction(()=>!document.querySelector("#open").disabled);await cash("#open","50");await cash("#supply","20","Troco");await cash("#withdraw","10","Retirada teste");
   async function sale(tab){await page.click("#tab-"+tab);await page.$eval('[data-product="meal"]',e=>{e.value="1";e.dispatchEvent(new Event("change"))});await page.click("#quote");await waitText("#quote-total","14,50");await page.click("#submit");await waitText("#feedback","registrado.");return (await page.$eval("#feedback",e=>e.textContent)).match(/P[0-9]{7}/)[0]}
   const counter=await sale("counter"),online=await sale("online");assert.notEqual(counter,online);await waitText("#ticker","Pedido recebido");
-  await page.click("#tab-queue");await waitText("#stock","0 g");
+  await page.click("#tab-queue");await page.waitForSelector('[data-order="'+counter+'"] input',{visible:true});await page.waitForSelector('[data-order="'+online+'"] input',{visible:true});await waitText("#stock","0 g");
   const action=async(id,a)=>{const s='[data-order="'+id+'"] [data-action="'+a+'"]';await page.waitForSelector(s);await page.click(s);await waitText("#feedback","Pedido atualizado.")};
-  for(const id of [counter,online]){await page.type('[data-order="'+id+'"] input',"Conferência sintética");await action(id,"confirm_payment");await action(id,"prepare");await action(id,"ready");await action(id,"deliver")}
+  for(const id of [counter,online]){const ref='[data-order="'+id+'"] input';await page.waitForSelector(ref,{visible:true});await page.type(ref,"Conferência sintética");await action(id,"confirm_payment");await action(id,"prepare");await action(id,"ready");await action(id,"deliver")}
   await page.click("#tab-online");await waitText("#ticker","Seu pedido foi entregue");const clock=await page.$eval("#ticker time",e=>e.textContent);
   await new Promise(resolve=>setTimeout(resolve,1200));assert.equal(await page.$eval("#ticker time",e=>e.textContent),clock);
   await page.click("#tab-queue");await page.waitForSelector('[data-order="'+counter+'"] [data-action="receipt"]');await page.click('[data-order="'+counter+'"] [data-action="receipt"]');await waitText("#receipt-text","VENDA DE BALCÃO");
@@ -47,7 +47,7 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
   await page.$eval('[data-extra="extra"]',e=>{e.value="2";e.dispatchEvent(new Event("input"))});
   await page.select("#fulfillment","delivery");await page.type("#address","Endereço fictício");await page.click("#quote");await waitText("#quote-total","25,50");await page.click("#submit");await waitText("#feedback","registrado.");
   const deliveryOrder=(await page.$eval("#feedback",e=>e.textContent)).match(/P[0-9]{7}/)[0];
-  await page.click("#tab-queue");await waitText("#stock","200 g");
+  await page.click("#tab-queue");await page.waitForSelector('[data-order="'+deliveryOrder+'"] [data-action="cancel"]',{visible:true});await waitText("#stock","200 g");
   page.once("dialog",d=>d.accept());await action(deliveryOrder,"cancel");await waitText("#stock","800 g");
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);await verifyAfter({counter,online,deliveryOrder});
   console.log("PASS B02.15 browser integrated: real emulator writes from UI; 4 viewport widths; shared stock, drawer, receipt, frozen ticker; no external requests.");
