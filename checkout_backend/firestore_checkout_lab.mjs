@@ -4,6 +4,7 @@
 // model/free keys). The same physical document may be mapped by two stores sharing stock.
 // The checkout inbox is NOT a native V5 orders record: old production code would debit twice.
 import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} from "./checkout_domain.mjs";
+import {planCheckoutCash} from "./checkout_cash_lab.mjs";
 const labProject="demo-nucleobit-checkout";
 const id=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const operation=x=>id(x)&&x.length>=16;
@@ -101,6 +102,18 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(kind==="transition"&&(!oldView||oldView.data.customerUid!==o.customerUid))err("not_ready");
    const writes=[put(orderPath,o,priorOrder),put(viewPath,{customerUid:o.customerUid,storeId,status:projection(o,now),serverNowMs:now},oldView),put(scopedOp,{actorUid:identity.uid,fingerprint:requestFingerprint,orderId:o.id},null)];
    if(kind==="submit"){writes.push(put(quotePath,result.state.quotes[0],savedQuote),put(sequencePath,{value:result.state.sequence},sequence))}
+   // Optional synthetic cash integration: fail closed for payment when no open shift.
+   if(kind==="transition"&&action==="confirm_payment"){
+    const pointerPath="checkoutLabCash/"+m.ownerUid,ptr=await tx.get(pointerPath);
+    if(!ptr||!id(ptr.data.activeSessionId))err("cash_not_open");
+    const sessionPath=pointerPath+"/sessions/"+ptr.data.activeSessionId,session=await tx.get(sessionPath);
+    const receiptPath=pointerPath+"/receipts/"+storeId.length+"_"+storeId+"_"+o.id,priorReceipt=await tx.get(receiptPath);
+    const receipt=planCheckoutCash({ownerUid:m.ownerUid,storeId,order:o,session:session?.data,priorReceipt,now});
+    if(session.data.id!==ptr.data.activeSessionId)err("cash_not_open");
+    // Update shift revision so closure and receipt cannot both win on a stale baseline.
+    if(!int(session.data.revision)||session.data.revision>=1000000000)err("invalid_session");
+    writes.push(put(receiptPath,receipt,null),put(sessionPath,{...session.data,revision:session.data.revision+1},session));
+   }
    const changed=[];
    for(const after of result.state.inventory){
     const before=maps.get(after.id);if(before.units===after.availableUnits)continue;
