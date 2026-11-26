@@ -2,6 +2,7 @@
 import {verifyFirebaseToken,serviceAccessToken} from './auth.mjs';
 import {createFirestoreRepository} from './firestore.mjs';
 import {durationQuote,validateText,validateVoiceOptions,commercialReady,canReserve} from '../../../voice_backend/policy.mjs';
+import {PREVIEW_TEXT,PREVIEW_MAX,previewPath,encodePreview,decodePreview} from './voice_preview.mjs';
 import {validateClone} from '../../../voice_backend/clone_policy.mjs';
 const origins=new Set(['https://pdv.livresom.com','https://potobatata-b71f3.web.app','https://pixmcp-cloud.github.io']);
 // During ADM-only homologation, use actual account voices. No publication to customers.
@@ -66,6 +67,37 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
    fail(e.publicStatus?e.message:'Clonagem não confirmada. Não repita antes da conciliação.',502);
   }
  }
+ async function portuguesePreview(env,uid,body){
+  const id=body.voiceId;if(!validVoiceId(id)||Object.keys(body).some(k=>k!=='voiceId'))fail('Voz inválida.',400);
+  const path=previewPath(id),budgetPath='voicePilotOperations/previewBudgetPtV1',lockPath='voicePilotOperations/active';
+  const catalog=await usableVoices(env);if(!catalog.some(v=>v.id===id))fail('Voz não autorizada.',403);
+  const cached=await transaction(env,async t=>{await profile(t,uid);return (await t.get(path))?.data;});
+  if(cached?.state==='ready')return decodePreview(cached.audio);
+  if(cached)fail('Amostra pendente de conciliação. Não será gerada novamente.',409);
+  const s=await subscription(env);
+  if(s.character_limit-s.character_count<PREVIEW_TEXT.length)fail('Cota insuficiente para preparar a amostra.',423);
+  const reservation=await transaction(env,async t=>{
+   await profile(t,uid);const prior=await t.get(path),budget=await t.get(budgetPath),lock=await t.get(lockPath);
+   if(prior?.data?.state==='ready')return {audio:prior.data.audio};
+   if(prior)fail('Amostra já solicitada.',409);
+   if(['reserved','reconcile'].includes(lock?.data?.state))fail('Existe locução em andamento ou pendente de conciliação.',409);
+   const count=budget?.data?.count??0;
+   const ids=budget?.data?.voiceIds??catalog.slice(0,PREVIEW_MAX).map(v=>v.id);
+   if(!Array.isArray(ids)||!ids.includes(id)||!Number.isSafeInteger(count)||count<0||count>=PREVIEW_MAX)fail('Limite de amostras iniciais atingido.',423);
+   await t.commit([put(path,{state:'reserved',voiceId:id,uid},null,['createdAt']),put(budgetPath,{count:count+1,voiceIds:ids,reservedCharacters:(count+1)*PREVIEW_TEXT.length},budget),put(lockPath,{state:'reserved',uid,previewId:id},lock)]);return null;
+  });
+  if(reservation?.audio)return decodePreview(reservation.audio);
+  try{
+   const audio=await provider(env,'/v1/text-to-speech/'+encodeURIComponent(id)+'?output_format=mp3_44100_64',{text:PREVIEW_TEXT,model_id:'eleven_flash_v2_5',language_code:'pt',voice_settings:{stability:.5,similarity_boost:.75,style:0,speed:1,use_speaker_boost:true}});
+   if(!audio.headers.get('Content-Type')?.startsWith('audio/'))fail('Amostra inválida.',502);
+   const bytes=new Uint8Array(await audio.arrayBuffer()),encoded=encodePreview(bytes);
+   await transaction(env,async t=>{const p=await t.get(path),l=await t.get(lockPath);if(p?.data?.state!=='reserved'||l?.data?.previewId!==id)fail('Conciliação necessária.',409);await t.commit([put(path,{...p.data,state:'ready',audio:encoded,language:'pt',characters:PREVIEW_TEXT.length},p,['completedAt']),put(lockPath,{state:'completed',uid,previewId:id},l)]);});
+   return bytes;
+  }catch(e){
+   try{await transaction(env,async t=>{const p=await t.get(path),l=await t.get(lockPath);if(p?.data?.state==='reserved'&&l?.data?.previewId===id)await t.commit([put(path,{...p.data,state:'reconcile'},p),put(lockPath,{state:'reconcile',uid,previewId:id},l)]);});}catch{}
+   fail('Não foi possível confirmar a amostra. Nenhum IA COIN debitado; conciliação necessária.',502);
+  }
+ }
  async function finish(env,path,state){await transaction(env,async t=>{const q=await t.get(path);if(q?.data?.state==='reserved')await t.commit([put(path,{...q.data,state,completedAt:clock()},q)]);});}
  return async function voice(req,env){
   const origin=req.headers.get('Origin'),headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Origin'};
@@ -105,6 +137,10 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
    }
    if(route==='/voice/admin/clone/create')return json(await cloneCreate(env,uid,body));
    if(route==='/voice/admin/clone/publish')fail('Distribuição para lojistas ainda em homologação; clones verificados já podem ser usados pelo ADM.',423);
+   if(route==='/voice/preview'){
+    const bytes=await portuguesePreview(env,uid,body);
+    return new Response(bytes,{status:200,headers:{...headers,'Content-Type':'audio/mpeg'}});
+   }
    if(route==='/voice/status'){
     const balance=await transaction(env,async t=>{await profile(t,uid);return (await wallet(t,uid)).data.balance;});
     const s=await subscription(env),catalog=await usableVoices(env);
