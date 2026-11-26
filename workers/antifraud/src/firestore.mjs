@@ -97,6 +97,13 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       return response.filter(x=>x.document).map(x=>({key:x.document.name.split("/").at(-1),data:decodeFields(x.document.fields),updateTime:x.document.updateTime}));
      },
      // Complete bounded ingredient listing for this owner only. Demo/loopback only.
+     async listOwnerCheckoutStores({ownerUid,universe}){
+      if(done||! /^[A-Za-z0-9_-]{1,100}$/.test(ownerUid)||! /^[A-Za-z0-9_-]{1,100}$/.test(universe))throw Error("Invalid setup query");
+      const filters=[["ownerUid",ownerUid],["universe",universe]].map(([fieldPath,stringValue])=>({fieldFilter:{field:{fieldPath},op:"EQUAL",value:{stringValue}}}));
+      const response=await api("/documents:runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"checkoutLabStores"}],where:{compositeFilter:{op:"AND",filters}},limit:1}}});
+      if(!Array.isArray(response))throw Error("Invalid setup response");
+      return response.filter(x=>x.document).map(x=>{if(!x.document.name||!x.document.fields)throw Error("Invalid store");return x.document.name.split("/").at(-1)});
+     },
      async listCheckoutOrders({storeId,limit,cursor=null}){
       if(done||typeof storeId!=="string"||!/^[A-Za-z0-9_-]{1,100}$/.test(storeId)||limit!==21||cursor!==null&&(!Number.isSafeInteger(cursor.createdAt)||cursor.createdAt<=0||! /^[A-Za-z0-9_-]{1,100}$/.test(cursor.id)))throw Error("Invalid queue query");
       const response=await api("/documents/checkoutLabStores/"+storeId+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"orders"}],orderBy:[{field:{fieldPath:"createdAt"},direction:"DESCENDING"},{field:{fieldPath:"__name__"},direction:"DESCENDING"}],...(cursor?{startAt:{values:[{integerValue:String(cursor.createdAt)},{referenceValue:fullName("checkoutLabStores/"+storeId+"/orders/"+cursor.id)}],before:false}}:{}),limit}}});
