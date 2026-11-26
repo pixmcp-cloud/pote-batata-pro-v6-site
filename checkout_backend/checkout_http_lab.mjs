@@ -24,7 +24,7 @@ export function createCheckoutHttpLab({projectId,enabled=false,api,origin="http:
   }catch(e){
    const code=e?.code;
    if(code==="login_required")return error(401,code);
-   if(code==="forbidden")return error(403,code);
+   if(["forbidden","license_required","access_blocked"].includes(code))return error(403,code);
    if(code==="not_found")return error(404,code);
    if(["invalid_request","invalid_action","invalid_operation","invalid_reconciliation","payment_reference_required","refund_reference_required","invalid_movement","invalid_counted_cash","invalid_stock_adjustment","invalid_stock_precision","no_stock_change","invalid_purchase_evidence","invalid_supplier"].includes(code))return error(400,code);
    if(["idempotency_conflict","insufficient_stock","invalid_quote","quote_changed","cash_not_open","reservation_expired","reservation_not_expired","manual_reconciliation_required","prepared_stock_cannot_return","cash_refund_requires_reconciliation","invalid_transition","invalid_payment_state","refund_not_due","cash_already_closed","cash_already_open","session_exists","insufficient_cash","cutover_not_ready","stock_changed","shared_kitchen_divergent"].includes(code)||e?.status===409)return error(409,code&&typeof code==="string"?code:"conflict");
