@@ -3,7 +3,8 @@ import {verifyFirebaseToken,serviceAccessToken} from './auth.mjs';
 import {createFirestoreRepository} from './firestore.mjs';
 import {durationQuote,validateText,validateVoiceOptions,commercialReady,canReserve} from '../../../voice_backend/policy.mjs';
 const origins=new Set(['https://pdv.livresom.com','https://potobatata-b71f3.web.app','https://pixmcp-cloud.github.io']);
-const allowedVoiceIds=new Set(['gOupLcAkjEnguROwi4oS','OZ0L6eISlOejga3XjDFt','WQP7cQUF5aAS6Axh5yaa','6WwXjDDEMyNmFG95zycZ','dvbL7qkNGZY1IqPGZAjM','ktkP7Nsj67dw2zcplQYt','BFd5oBc2DDna33pSi4Gf','QtY3JBOUKEB5xzrRfOKc','7QN34D2r3hCNwbOYIeK0','g7LVvkPWALzPxOQbF6OE','l7kNoIfnJKPg7779LI2t','AaOhDHYJ1XLZk74lXhdE','fnYMz3F5gMEDGMWcH1ex','22N9cF8z0o7y23njdyaY','FrS6cKLB1wg4WYgPa9GW']);
+// During ADM-only homologation, use actual account voices. No publication to customers.
+const validVoiceId=id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(id);
 const cfg={commercialApproved:true,licensedTiers:['starter'],providerMicroBrlPer1000:1500000,creditMicroBrl:1100000};
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{publicStatus:status});};
 const put=(path,data,previous,serverTimestamps=[])=>({path,data,precondition:previous?{updateTime:previous.updateTime}:{exists:false},serverTimestamps});
@@ -21,7 +22,7 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
  }
  async function voices(env){
   let v;try{v=await(await provider(env,'/v2/voices?page_size=100')).json();}catch(e){if(e.publicStatus)throw e;fail('ELEVENLABS_CATALOG_INVALID_RESPONSE',502);}
-  return (Array.isArray(v.voices)?v.voices:[]).filter(x=>allowedVoiceIds.has(x.voice_id)).map(x=>({id:x.voice_id,name:String(x.name||'Voz').slice(0,120),description:String(x.description||'').slice(0,250),previewUrl:typeof x.preview_url==='string'?x.preview_url:null}));
+  return (Array.isArray(v.voices)?v.voices:[]).filter(x=>validVoiceId(x.voice_id)).map(x=>({id:x.voice_id,name:String(x.name||'Voz').slice(0,120),description:String(x.description||'').slice(0,250),previewUrl:typeof x.preview_url==='string'?x.preview_url:null}));
  }
  async function transaction(env,fn){const t=await repo(env).transaction();try{return await fn(t)}finally{await t.rollback();}}
  async function profile(t,uid){const p=await t.get('users/'+uid);if(!p||p.data?.email!=='pixmcp@gmail.com'||p.data?.accessPolicy?.voiceAiEnabled===false)fail('Conta ADM não autorizada.',403);return p;}
@@ -41,7 +42,7 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
     const expected=env.VOICE_PROBE_TOKEN,provided=req.headers.get('X-Voice-Probe')||'';
     if(typeof expected!=='string'||expected.length<43||provided!==expected)fail('Não autorizado.',403);
     const s=await subscription(env),catalog=await voices(env);
-    if(!catalog.length)fail('VOICE_CATALOG_NO_ALLOWLIST_MATCH',503);
+    if(!catalog.length)fail('VOICE_CATALOG_EMPTY',503);
     let bearer;try{bearer=await serviceToken(env,providerFetch)}catch{fail('FIREBASE_SERVICE_AUTH_FAILED',503);}
     let g;try{g=await providerFetch('https://firestore.googleapis.com/v1/projects/'+env.FIREBASE_PROJECT_ID+'/databases/(default)',{headers:{Authorization:'Bearer '+bearer},signal:AbortSignal.timeout(15000)});}catch{fail('FIREBASE_METADATA_TRANSPORT_FAILED',503);}
     if(!g.ok)fail('FIREBASE_METADATA_HTTP_'+g.status,503);
@@ -63,7 +64,7 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
    }
    if(route==='/voice/quote'){
     const text=validateText(body.text),voiceId=body.voiceId,seconds=body.seconds,options=validateVoiceOptions(body);
-    if(!allowedVoiceIds.has(voiceId))fail('Voz não autorizada.',403);
+    if(!validVoiceId(voiceId))fail('Voz não autorizada.',403);
     const tariff=durationQuote(text,seconds,cfg),s=await subscription(env);
     if(s.character_limit-s.character_count<text.length)fail('Cota insuficiente.',423);
     if(!(await voices(env)).some(v=>v.id===voiceId))fail('Voz não disponível.',423);
