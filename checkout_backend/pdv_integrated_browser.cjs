@@ -1,7 +1,7 @@
 // Test-only HTTP server; loopback, synthetic credentials, bounded requests.
 const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),http=require("node:http");
 const puppeteer=require("../qa/mobile/node_modules/puppeteer-core");
-exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
+exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter,readCatalog,readQueue})=>{
  const {createCheckoutHttpLab}=await import("./checkout_http_lab.mjs");
  const {createCheckoutAuthLab}=await import("../workers/antifraud/src/checkout_auth_lab.mjs");
  const {generateKeyPair,SignJWT}=await import(require.resolve("jose",{paths:[path.join(__dirname,"../workers/antifraud")]}));
@@ -10,9 +10,9 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
  const ownerUid=config.ownerToken,buyerUid=config.buyerToken;
  const issue=uid=>new SignJWT({email_verified:true,firebase:{sign_in_provider:"google.com"},auth_time:Math.floor(Date.now()/1000)}).setProtectedHeader({alg:"RS256"}).setIssuer("https://securetoken.google.com/"+projectId).setAudience(projectId).setSubject(uid).setIssuedAt().setExpirationTime("15m").sign(privateKey);
  config={...config,ownerUid,buyerUid,ownerToken:await issue(ownerUid),buyerToken:await issue(buyerUid)};
- const {publicCatalog,authorizeCheckoutRoute}=await import("./checkout_access_lab.mjs");
+ const {authorizeCheckoutRoute}=await import("./checkout_access_lab.mjs");
  const store={ownerUid,online:config.online,counter:config.counter};
- const catalog=publicCatalog({lab:true,enabled:true,channel:"online",storeId:store.online,revision:"rev2",deliveryEnabled:true,deliveryFeeCents:500,products:config.products.map(p=>({...p,available:true}))});
+ if(typeof readCatalog!=="function"||typeof readQueue!=="function")throw Error("V5 adapters required");
  let origin,dropNextSubmit=false,submitCount=0,separated=false;
  const allowed=new Set(["pdv_integrated_lab.html","pdv_integrated_lab.mjs","pdv_checkout_queue.mjs","checkout_cash_lab.mjs","order_ticker.mjs","order_ticker.css","checkout_recovery_lab.mjs","customer_menu_lab.html","customer_menu_lab.mjs","merchant_pdv_lab.html","google_checkout_bridge_lab.mjs","checkout_client_lab.mjs"]);
  const server=http.createServer(async(req,res)=>{
@@ -22,7 +22,7 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
    if(req.method!=="POST"||req.headers.origin!==origin){send(403,{error:"origin_denied"});return}
    let body="";for await(const chunk of req){body+=chunk.toString();if(body.length>8192){send(413,{error:"body_limit"});return}}
    if(req.url==="/lab/bootstrap"){if(separated){send(404,{error:"not_found"});return}send(200,config);return}
-   if(separated&&req.url==="/customer/catalog"){send(200,catalog);return}
+   if(separated&&req.url==="/customer/catalog"){try{send(200,await readCatalog())}catch{send(503,{error:"catalog_not_ready"})}return}
    if(separated&&req.url==="/customer/login"){send(200,{uid:buyerUid,token:await issue(buyerUid)});return}
    let identity;try{identity=await verify(req.headers.authorization?.startsWith("Bearer ")?req.headers.authorization.slice(7):"",projectId)}catch{send(401,{error:"login_required"});return}
    if(separated&&req.url==="/merchant/config"){if(identity.uid!==ownerUid){send(403,{error:"forbidden"});return}send(200,{ownerUid,counter:store.counter,epoch:config.epoch,products:config.products});return}
@@ -34,7 +34,7 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
     let args;try{args=JSON.parse(body)}catch{send(400,{error:"invalid_json"});return}
     try{authorizeCheckoutRoute({surface:match[1],route:match[2],identity,body:args,store})}catch(e){send(e.code==="invalid_request"?400:403,{error:e.code});return}
     route=match[2];dispatchPath="/checkout-lab/"+route;
-    if(route==="snapshot"){send(200,await readSnapshot());return}
+    if(route==="snapshot"){const s=await readSnapshot(),q=await readQueue();send(200,{...s,...q});return}
    }
    const buyerRoutes=["quote","submit","submitSaved","recoverSubmit","status"];
    if(identity.uid!==ownerUid&&!buyerRoutes.includes(route)){send(403,{error:"forbidden"});return}
