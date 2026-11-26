@@ -65,7 +65,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     let recorded;try{recorded=JSON.parse(priorOp.data.fingerprint)}catch{err("not_found")}
     if(priorOp.data.actorUid!==identity.uid||!["submit","submitSaved"].includes(recorded[0])||recorded[1]!==quoteId||!id(priorOp.data.orderId))err("not_found");
     const o=await tx.get(orderRoot+priorOp.data.orderId);if(!o||o.data.customerUid!==identity.uid||o.data.storeId!==storeId)err("not_found");
-    return {state:"committed",order:projection(o.data,now)};
+    return {state:"committed",order:{...projection(o.data,now),storeId}};
    }
    const savedOnly=kind==="submitSaved";
    const requestFingerprint=JSON.stringify([kind,quoteId??null,orderId??null,input??null,expectedRevision??null,expectedTotalCents??null,action??null,paymentReference??null,reconciliation??null]);
@@ -74,7 +74,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     if(kind==="quote"){if(now>=priorOp.data.result.expiresAt)err("invalid_quote");return copy(priorOp.data.result)}
     const existing=await tx.get(orderRoot+priorOp.data.orderId);
     if(!existing||existing.data.storeId!==storeId||(["submit","submitSaved"].includes(kind)&&existing.data.customerUid!==identity.uid))err("not_found");
-    return {...projection(existing.data,now),duplicate:true};
+    return {...projection(existing.data,now),...(savedOnly?{storeId}:{}),duplicate:true};
    }
    if(savedOnly)kind="submit";
    // Manifest is private and writable only by server. A real integration must derive it from
@@ -201,7 +201,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    if(writes.length>90)err("limit");
    await tx.commit(writes);
-   return {...projection(o,now),duplicate:false};
+   return {...projection(o,now),...(savedOnly?{storeId}:{}),duplicate:false};
   }finally{await tx.rollback()}
  }
  // New cash operations require explicit server-only epoch and trusted owner.
