@@ -23,7 +23,7 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
  }
  async function voices(env){
   let v;try{v=await(await provider(env,'/v2/voices?page_size=100')).json();}catch(e){if(e.publicStatus)throw e;fail('ELEVENLABS_CATALOG_INVALID_RESPONSE',502);}
-  return (Array.isArray(v.voices)?v.voices:[]).filter(x=>validVoiceId(x.voice_id)).map(x=>({id:x.voice_id,name:String(x.name||'Voz').slice(0,120),description:String(x.description||'').slice(0,250),previewUrl:typeof x.preview_url==='string'?x.preview_url:null}));
+  return (Array.isArray(v.voices)?v.voices:[]).filter(x=>validVoiceId(x.voice_id)).map(x=>({id:x.voice_id,name:String(x.name||'Voz').slice(0,120),description:String(x.description||'').slice(0,250),labels:Object.fromEntries(['gender','age','accent','language'].filter(k=>typeof x.labels?.[k]==='string').map(k=>[k,x.labels[k].slice(0,80)])),previewUrl:typeof x.preview_url==='string'?x.preview_url:null}));
  }
  async function transaction(env,fn){const t=await repo(env).transaction();try{return await fn(t)}finally{await t.rollback();}}
  async function profile(t,uid){const p=await t.get('users/'+uid);if(!p||p.data?.email!=='pixmcp@gmail.com'||p.data?.accessPolicy?.voiceAiEnabled===false)fail('Conta ADM não autorizada.',403);return p;}
@@ -31,7 +31,7 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
  const cloneRegistryPath='voicePilotOperations/cloneRegistry';
  const cloneLockPath='voicePilotOperations/cloneLock';
  async function cloneRecords(env){return transaction(env,async t=>(await t.get(cloneRegistryPath))?.data?.voices||{});}
- async function usableVoices(env){const [catalog,records]=await Promise.all([voices(env),cloneRecords(env)]);return catalog.filter(v=>records[v.id]?.requiresVerification!==true);}
+ async function usableVoices(env){const [catalog,records]=await Promise.all([voices(env),cloneRecords(env)]);return catalog.filter(v=>records[v.id]?.requiresVerification!==true).map(v=>records[v.id]?{...v,description:records[v.id].description,officialClone:true}:v);}
  async function cloneCreate(env,uid,body){
   let x;try{x=validateClone(body)}catch(e){fail(e.message,400);}
   const s=await subscription(env);
@@ -111,9 +111,10 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFir
     return json({authorized:true,commercialReady:true,pilot:true,balance,voices:catalog,franchiseAllocation:null,providerRemaining:s.character_limit-s.character_count});
    }
    if(route==='/voice/quote'){
-    const text=validateText(body.text),voiceId=body.voiceId,seconds=body.seconds,options=validateVoiceOptions(body);
+    let text,options,tariff;const voiceId=body.voiceId,seconds=body.seconds;
+    try{text=validateText(body.text);options=validateVoiceOptions(body);tariff=durationQuote(text,seconds,cfg);}catch(e){fail(e.message,400);}
     if(!validVoiceId(voiceId))fail('Voz não autorizada.',403);
-    const tariff=durationQuote(text,seconds,cfg),s=await subscription(env);
+    const s=await subscription(env);
     if(s.character_limit-s.character_count<text.length)fail('Cota insuficiente.',423);
     if(!(await usableVoices(env)).some(v=>v.id===voiceId))fail('Voz não disponível.',423);
     const id=uuid(),expiresAt=clock()+300000,path=base+'/voiceAiOrders/'+id;
