@@ -97,11 +97,18 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       return response.filter(x=>x.document).map(x=>({key:x.document.name.split("/").at(-1),data:decodeFields(x.document.fields),updateTime:x.document.updateTime}));
      },
      // Complete bounded ingredient listing for this owner only. Demo/loopback only.
-     async listCheckoutOrders({storeId,limit}){
-      if(done||typeof storeId!=="string"||!/^[A-Za-z0-9_-]{1,100}$/.test(storeId)||limit!==61)throw Error("Invalid queue query");
-      const response=await api("/documents/checkoutLabStores/"+storeId+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"orders"}],limit}}});
+     async listCheckoutOrders({storeId,limit,cursor=null}){
+      if(done||typeof storeId!=="string"||!/^[A-Za-z0-9_-]{1,100}$/.test(storeId)||limit!==21||cursor!==null&&(!Number.isSafeInteger(cursor.createdAt)||cursor.createdAt<=0||! /^[A-Za-z0-9_-]{1,100}$/.test(cursor.id)))throw Error("Invalid queue query");
+      const response=await api("/documents/checkoutLabStores/"+storeId+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"orders"}],orderBy:[{field:{fieldPath:"createdAt"},direction:"DESCENDING"},{field:{fieldPath:"__name__"},direction:"DESCENDING"}],...(cursor?{startAt:{values:[{integerValue:String(cursor.createdAt)},{referenceValue:fullName("checkoutLabStores/"+storeId+"/orders/"+cursor.id)}],before:false}}:{}),limit}}});
       if(!Array.isArray(response))throw Error("Invalid queue response");
       return response.filter(x=>x.document).map(({document:d})=>{if(!d.name||!d.fields||!d.updateTime)throw Error("Invalid queue record");return {key:d.name.split("/").at(-1),data:decodeFields(d.fields)}});
+     },
+     async listSelectionRecords({collection,universe,limit}){
+      if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||! /^[A-Za-z0-9_-]{1,100}$/.test(universe)||limit!==241)throw Error("Invalid selection query");
+      const parent=collection.split("/").slice(0,-1).join("/"),groups=["recipes","beverages","addons","combos"];
+      const response=await api("/documents/"+parent+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],where:{compositeFilter:{op:"AND",filters:[{fieldFilter:{field:{fieldPath:"record.universe"},op:"EQUAL",value:{stringValue:universe}}},{fieldFilter:{field:{fieldPath:"record.group"},op:"IN",value:{arrayValue:{values:groups.map(stringValue=>({stringValue}))}}}}]}},limit}}});
+      if(!Array.isArray(response))throw Error("Invalid selection response");
+      return response.filter(x=>x.document).map(({document:d})=>{if(!d.name||!d.fields||!d.updateTime)throw Error("Invalid selection record");return {key:d.name.split("/").at(-1),data:decodeFields(d.fields)}});
      },
      async listKitchenRecords({collection,limit}){
       if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||limit!==241)throw Error("Invalid kitchen query");
