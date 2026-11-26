@@ -1,0 +1,41 @@
+name: B02.2 Checkout lab — sem deploy
+on:
+  push:
+    branches: [feat/pdv-checkout-b021]
+    paths:
+      - 'checkout_backend/**'
+      - 'firebase.checkout.lab.json'
+      - '.github/workflows/checkout-lab-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checkout-lab-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21.0.8'
+      - name: Testes do núcleo, adaptador e cronômetro
+        run: |
+          node checkout_backend/checkout_domain.test.mjs
+          node checkout_backend/order_ticker.test.mjs
+          node checkout_backend/firestore_checkout_lab.test.mjs
+      - name: Dependências fixadas do emulador
+        run: npm ci --prefix qa/firestore --ignore-scripts --no-audit --no-fund
+      - name: Transações SDK e regras em projeto sintético local
+        run: >-
+          npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
+          --only firestore --project demo-nucleobit-checkout --config firebase.checkout.lab.json
+          "node checkout_backend/firestore_checkout_emulator.test.cjs"
