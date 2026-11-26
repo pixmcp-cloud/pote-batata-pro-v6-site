@@ -37,13 +37,15 @@ export function applyCheckoutReceipt(session,receipt){
  const t=totals(session);t[receipt.method]=add(t[receipt.method],receipt.amountCents);t.count=add(t.count,1);
  return {...session,revision:session.revision+1,totals:t};
 }
-export function freezeCheckoutCashSession(session,now,operationId){
+export function freezeCheckoutCashSession(session,now,operationId,countedCashCents){
  if(session?.status!=="open"||!id(operationId)||operationId.length<16||!Number.isSafeInteger(now)||now<session.openedAt||!cents(session.revision)||session.revision>=1000000000)fail("invalid_close");
  const t=totals(session);
  const refunds=session.refunds??{pix:0,card:0,count:0};
  if(!["pix","card","count"].every(k=>cents(refunds[k])))fail("invalid_refund_totals");
  const gross=add(add(t.cash,t.pix),t.card),refundTotal=add(refunds.pix,refunds.card);
- return {...session,status:"closed",closedAt:now,closeOperationId:operationId,revision:session.revision+1,closedSummary:{sessionId:session.id,byMethod:{cash:t.cash,pix:t.pix,card:t.card},receivedCents:gross,cashDrawerIncreaseCents:t.cash,count:t.count,refundsByMethod:{pix:refunds.pix,card:refunds.card},refundedCents:refundTotal,netReceivedCents:gross-refundTotal}};
+ const drawer=checkoutDrawer(session);
+ if(countedCashCents!==undefined&&!cents(countedCashCents))fail("invalid_counted_cash");
+ return {...session,status:"closed",closedAt:now,closeOperationId:operationId,revision:session.revision+1,closedSummary:{sessionId:session.id,byMethod:{cash:t.cash,pix:t.pix,card:t.card},receivedCents:gross,cashDrawerIncreaseCents:t.cash,count:t.count,refundsByMethod:{pix:refunds.pix,card:refunds.card},refundedCents:refundTotal,netReceivedCents:gross-refundTotal,...drawer,...(countedCashCents===undefined?{}:{countedCashCents,differenceCents:countedCashCents-drawer.expectedCashCents})}};
 }
 
  // Manual external refund record only; no gateway call. Cash refunds remain
@@ -62,3 +64,24 @@ export function freezeCheckoutCashSession(session,now,operationId){
   t[refund.method]=add(t[refund.method],refund.amountCents);t.count=add(t.count,1);
   return {...session,revision:session.revision+1,refunds:t};
  }
+
+export function checkoutDrawer(session){
+ const t=totals(session),openingCashCents=session.openingCashCents??0,m=session.cashAdjustments??{supplyCents:0,withdrawalCents:0,count:0};
+ if(!cents(openingCashCents)||!["supplyCents","withdrawalCents","count"].every(k=>cents(m[k])))fail("invalid_drawer");
+ const expectedCashCents=add(add(openingCashCents,t.cash),m.supplyCents)-m.withdrawalCents;
+ if(!cents(expectedCashCents))fail("invalid_drawer");
+ return {openingCashCents,supplyCents:m.supplyCents,withdrawalCents:m.withdrawalCents,expectedCashCents};
+}
+export function openCheckoutCash({ownerUid,sessionId,openingCashCents,operationId,now,epoch}={}){
+ if(!id(ownerUid)||!id(sessionId)||!id(operationId)||operationId.length<16||!cents(openingCashCents)||!Number.isSafeInteger(now)||now<=0||!id(epoch)||epoch.length<16)fail("invalid_request");
+ return {id:sessionId,ownerUid,status:"open",openedAt:now,revision:0,openOperationId:operationId,cutoverEpoch:epoch,openingCashCents,totals:{cash:0,pix:0,card:0,count:0},cashAdjustments:{supplyCents:0,withdrawalCents:0,count:0}};
+}
+export function planDrawerMovement({session,kind,amountCents,reason,operationId,now}={}){
+ if(session?.status!=="open"||!id(operationId)||operationId.length<16||!["suprimento","sangria"].includes(kind)||!cents(amountCents)||!amountCents||typeof reason!=="string"||!reason.trim()||reason.length>220||!Number.isSafeInteger(now)||now<session.openedAt||!cents(session.revision)||session.revision>=1000000000)fail("invalid_movement");
+ const drawer=checkoutDrawer(session);
+ if(kind==="sangria"&&amountCents>drawer.expectedCashCents)fail("insufficient_cash");
+ const adjustments={...(session.cashAdjustments??{supplyCents:0,withdrawalCents:0,count:0})},key=kind==="sangria"?"withdrawalCents":"supplyCents";
+ adjustments[key]=add(adjustments[key],amountCents);adjustments.count=add(adjustments.count,1);
+ const next={...session,cashAdjustments:adjustments,revision:session.revision+1};checkoutDrawer(next);
+ return {session:next,movement:{ownerUid:session.ownerUid,sessionId:session.id,kind,amountCents,reason:reason.trim(),operationId,at:now}};
+}
