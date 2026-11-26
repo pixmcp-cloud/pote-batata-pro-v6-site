@@ -122,6 +122,17 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   assert.equal((await read(stockPath)).record.item.purchasePrice,10);
   await assert.rejects(()=>adjust("count",900,0,41),e=>e.code==="stock_changed");await assert.rejects(()=>adjust("loss",1001,1000,42),e=>e.code==="insufficient_stock");
   assert.equal((await read(stockPath)).record.item.stock,1000);
+  const recover=(token=buyer,quoteId=op(2),operationId=op(4))=>api.execute({token,storeId:online,kind:"recoverSubmit",quoteId,operationId});
+  const known=await recover();assert.equal(known.state,"committed");assert.equal(known.order.id,web.id);
+  assert.deepEqual(await recover("otherbuyer"),{state:"unconfirmed"});
+  assert.deepEqual(await recover(buyer,op(90),op(91)),{state:"unconfirmed"});
+  await assert.rejects(()=>recover(buyer,op(90),op(4)),e=>e.code==="not_found");
+  await assert.rejects(()=>api.execute({token:buyer,storeId:counter,kind:"recoverSubmit",quoteId:op(3),operationId:op(5)}),e=>e.code==="forbidden");
+  // Private quote cannot be submitted by another verified identity.
+  const saved=await quote(online,buyer,"pix",92);
+  const savedArgs={storeId:online,kind:"submitSaved",operationId:op(93),quoteId:saved.quoteId,expectedRevision:saved.revision,expectedTotalCents:saved.totalCents};
+  await assert.rejects(()=>api.execute({...savedArgs,token:"otherbuyer"}),e=>e.code==="invalid_quote");
+  assert.equal((await read(stockPath)).record.item.stock,1000);
   const addon={id:"extra",name:"Porção extra",ingredientId:ingredient.id,quantity:40,sellPrice:3};
   await set(root+"/recordsV5/"+keyFor(universe,"addons",addon.id),rec("addons",addon));
   const revised={...manifest,revision:"rev2",addonIds:[addon.id],deliveryEnabled:true,deliveryFeeCents:500};
