@@ -1,0 +1,16 @@
+# B02.8 — Otimização de leituras e preparação de staging (26/11/2026)
+Escopo: laboratório GitHub, sem publicação.
+## Evidências
+- B02.7 run 45860660840 confirmado sucesso final em todos os passos, incluindo RSA sintético, SDK/REST Emulator e navegador. Sem Firebase oficial.
+- Autoridade V5 seleciona IDs de receitas e adicionais aprovados e mapa físico de ingredientes/bebidas, mantendo TODAS as despesas do universo. Consulta completa permanece fallback quando a capacidade seletiva não existe; erro da consulta seletiva não dispara fallback silencioso. Detecta registros lógicos duplicados, IDs inesperados, mapas divergentes e preço/composição desatualizados. Não aceita cache entre requisições, revisão informada pelo browser ou invalidador assíncrono.
+- REST somente no projeto demo + loopback: consulta por universo/grupo/ID (IN em lotes até 30), despesas completas, teto 241 retornos para rejeitar >240. Cache transacional local de documentos já lidos, cópia defensiva, reutiliza saldo e updateTime no mesmo snapshot; não reutiliza após a transação. Métodos existentes de produção não ganham capacidade de consulta seletiva.
+- 39 assertivas autoridade V8 aprovadas (23 anteriores +16 novas). Fixture sintética: 203 registros na consulta completa versus 3 selecionados, mesma composição e preço; 200 registros não retornados (98,52% menos documentos retornados nessa consulta). Não corresponde a 98,52% de redução na fatura: outras leituras, mínimo por consulta, índices, latência e retries devem ser medidos. Emulador ampliado para aferir retornos e reutilização de batchGet, duplicidade lógica e concorrência. CI novo ainda não confirmado.
+## Estratégia de economia
+Para catálogo grande com poucos produtos ativos, seleção reduz leitura de registros não usados; para catálogo pequeno pode aumentar chamadas (uma por grupo/lote + despesas). Medir ambos os perfis e latência p50/p95 antes de escolher estratégia. Não contratar cache externo nem criar infraestrutura paga. Não usar revisão de catálogo barata sem garantir invalidação atômica de TODOS os escritores de receitas/custos/despesas/preços; a releitura seletiva é deliberadamente conservadora.
+## Checklist de staging e liberação
+1. Confirmar CI da revisão atual, manter emulador demo e sem credenciais reais; corrigir falhas antes de avançar.
+2. Aprovar política FREE/PRO/franquia, paridade de arredondamento, combos e receitas especiais, mapeamento kitchen/estoque compartilhado e preço de entrega. Não oferecer produtos não homologados.
+3. Definir ambiente separado e orçamento, somente com autorização: autenticação Google, segredo servidor e escopo de serviço mínimos, regras e índices candidatos. Não habilitar ambiente oficial.
+4. Integrar fila e caixa V5, perda/reembolso, scheduler privado e consulta de reservas; testar concorrência com todos os escritores legados e sequência única. Comparar preços reais sem expor dados privados; testar recuperação, logs e rollback em staging.
+5. Medir leituras/índices/latência/limites e custo por pedido em cenário representativo, com teto e alertas. Publicação apenas autorização expressa.
+Parecer: otimização laboratorial implementada; staging real não provisionado, integração definitiva e teste CI desta revisão pendentes. Nenhum deploy, main, DNS, Floot, regra oficial, cobrança ou contratação. R$0 adicionais contratados.
