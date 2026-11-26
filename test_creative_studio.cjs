@@ -124,7 +124,7 @@ console.log('PASS: Voice Studio opens independently; advanced settings bound to 
  const user={uid:'qa-admin',email:'pixmcp@gmail.com'},win={POTE_AUTH:{uid:user.uid,role:'admin'},addEventListener(){}};
  const docMock={getElementById:node,createElement:tag=>node('created-'+tag),body:{append(){}}};
  const prefix=iaSource.slice(0,iaSource.indexOf('window.POTE_VOICE_AI={open,shop,history};')).replace(/^import .*;\s*$/gm,'');
- vm.runInNewContext(prefix+'\nwindow.qa={open,settings,options,applyPreset,invalidate,voiceConsole,loadVoiceCatalog,voicePreviewUrl,voiceCount:()=>displayedVoices.length,refreshClones};',{app:{},getAuth:()=>({currentUser:user}),getFirestore:()=>({}),getDoc:async()=>({exists:()=>true,data:()=>({balance:1000})}),doc:()=>({}),document:docMock,window:win,Option:function(t,v){this.text=t;this.value=v},URL:{revokeObjectURL(){}},console});
+ vm.runInNewContext(prefix+'\nwindow.qa={open,settings,options,applyPreset,invalidate,voiceConsole,loadVoiceCatalog,voicePreviewUrl,voiceCount:()=>displayedVoices.length,refreshClones,voiceDescriptionPt,canStartVoice,enableLive:()=>{consoleReady=true;},generate,price};',{app:{},getAuth:()=>({currentUser:user}),getFirestore:()=>({}),getDoc:async()=>({exists:()=>true,data:()=>({balance:1000})}),doc:()=>({}),document:docMock,window:win,Option:function(t,v){this.text=t;this.value=v},URL:{revokeObjectURL(){}},console});
  await win.qa.open();
  assert.equal(win.qa.voiceConsole.open,true,'CTA opens dedicated modal even without endpoint');
  assert.equal(node('csVoiceForm').hidden,false);
@@ -146,6 +146,9 @@ console.log('PASS: Voice Studio opens independently; advanced settings bound to 
  node('csVoiceDuration').value='75';win.qa.invalidate();
  assert.equal(node('pvCost').textContent,'5 IA COIN');
  assert.equal(node('csVoiceText').maxLength,750);
+ assert.match(win.qa.voiceDescriptionPt({name:'Pablo Marshal'}),/sotaque mexicano/);
+ assert.match(win.qa.voiceDescriptionPt({name:'Other',labels:{gender:'female',accent:'brazilian'}}),/brasileiro/);
+ win.qa.loadVoiceCatalog([{id:'qa-live',name:'QA',labels:{gender:'male'}}]);win.qa.enableLive();node('csVoiceText').value='Locução de teste';node('csVoiceDuration').value='15';win.qa.invalidate();assert.equal(node('csVoiceGenerate').disabled,false,'Generate can request a quote directly');node('csVoiceText').value='';win.qa.invalidate();assert.equal(node('csVoiceGenerate').disabled,true,'Empty text cannot generate');
  console.log('PASS Voice Studio runtime: opens offline safely, real balance, adjustable settings and fixed tariff');
 })().catch(e=>{console.error(e);process.exitCode=1;});
 
