@@ -33,6 +33,7 @@ jobs:
           node checkout_backend/order_ticker.test.mjs
           node checkout_backend/firestore_checkout_lab.test.mjs
           node checkout_backend/checkout_client_lab.test.mjs
+          node checkout_backend/pdv_checkout_queue.test.mjs
       - name: Dependências fixadas do emulador
         run: |
           npm ci --prefix qa/firestore --ignore-scripts --no-audit --no-fund
