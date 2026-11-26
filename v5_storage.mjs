@@ -99,7 +99,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   try{
    const client=typeof window!=="undefined"?window.POTE_AUTH:null;
    const free=Boolean(client?.uid===uid&&!client.proActive);
-   next=splitState(snapshot(),baseline.records,{free});
+   next=splitState(snapshot(),baseline.records,{free,reserveFreeSlots:Boolean(client?.uid===uid&&client.proActive&&client.plan==="trial")});
    // Keep lifetime order counters monotonic across backup restores and universe swaps.
    // A destructive import may remove orders, but it cannot reuse a public number.
    const previousData=baseline.meta?.data||{};
