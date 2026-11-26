@@ -23,7 +23,7 @@ function verifyIdentity(identity){
 // wrap that verified function in a server-only adapter supplying the verified claims.
 export function createCheckoutLabRepository({projectId,enabled=false,repository,verifyToken,clock=()=>Date.now()}={}){
  const active=enabled===true&&projectId===labProject&&typeof repository?.transaction==="function"&&typeof verifyToken==="function";
- async function execute({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action}={}){
+ async function execute({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action,paymentReference}={}){
   if(!active)err("lab_disabled");
   if(typeof token!=="string"||!token||!id(storeId)||!["quote","submit","transition","status"].includes(kind))err("invalid_request");
   if(kind!=="status"&&!operation(operationId))err("invalid_operation");
@@ -48,7 +48,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     return projection(o.data,now);
    }
    const priorOp=await tx.get(scopedOp);
-   const requestFingerprint=JSON.stringify([kind,quoteId??null,orderId??null,input??null,expectedRevision??null,expectedTotalCents??null,action??null]);
+   const requestFingerprint=JSON.stringify([kind,quoteId??null,orderId??null,input??null,expectedRevision??null,expectedTotalCents??null,action??null,paymentReference??null]);
    if(priorOp){
     if(priorOp.data.fingerprint!==requestFingerprint||priorOp.data.actorUid!==identity.uid)err("idempotency_conflict");
     if(kind==="quote"){if(now>=priorOp.data.result.expiresAt)err("invalid_quote");return copy(priorOp.data.result)}
@@ -89,7 +89,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     priorOrder=await tx.get(orderRoot+orderId);
     if(!priorOrder||priorOrder.data.storeId!==storeId)err("not_found");
     state.orders=[priorOrder.data];
-    result=transitionCheckout(state,actor,{orderId,operationId,action},now);
+    result=transitionCheckout(state,actor,{orderId,operationId,action,paymentReference},now);
    }
    if(result.duplicate)err("inconsistent_operation");
    const o=result.order,orderPath=orderRoot+o.id,viewPath=viewRoot+o.id;
