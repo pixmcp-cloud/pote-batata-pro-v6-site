@@ -144,10 +144,12 @@ function freeLimitError(group,slot){
  error.code="free/limit";
  return error;
 }
-export function splitState(state,previousRecords=new Map(),{free=false}={}){
+export function splitState(state,previousRecords=new Map(),{free=false,reserveFreeSlots=false}={}){
  if(!state?.data||typeof state.data!=="object")throw Error("Estado V2 inválido");
  const meta=copy(state),records=new Map(),errors=[];
  const historical=free?historicalFreeSlots(previousRecords):new Map();
+ const occupied=new Set([...previousRecords.values()].map(freeSlotKey).filter(Boolean));
+ const claimed=new Set();
  delete meta.mode;delete meta.tab;delete meta.expansion;
  const data=meta.data;
  const active=branchId(data);
@@ -172,7 +174,9 @@ export function splitState(state,previousRecords=new Map(),{free=false}={}){
     const priorQuota=quotaKey&&previousRecords.get(quotaKey);
     // Keep the existing FREE identity through paid upgrades and renewals.
     const reserved=priorQuota?.universe===universe&&priorQuota?.group===group&&priorQuota?.id===id?quotaKey:null;
-    const slot=free?quotaKey:reserved;
+    const firstTrialSlot=reserveFreeSlots&&!free&&quotaKey&&!occupied.has(quotaKey)&&!claimed.has(quotaKey)?quotaKey:null;
+    if(firstTrialSlot)claimed.add(firstTrialSlot);
+    const slot=free?quotaKey:reserved||firstTrialSlot;
     const previousSlot=historical.get(slot);
     if(previousSlot){
      // Uma renovação vencida não deve reescrever nem apagar o histórico excedente.
