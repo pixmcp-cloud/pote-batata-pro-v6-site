@@ -1,6 +1,6 @@
 import {createCheckoutHttpLab} from './checkout_http_lab.mjs';
 async function run(create,log){
- let n=0,calls=[];const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));n++};const cfg={projectId:"demo-nucleobit-checkout",enabled:true,api:{execute:async args=>{calls.push(args);if(args.storeId==="denied")throw Object.assign(Error("secret"),{code:"forbidden"});if(args.storeId==="failed")throw Error("private stack");return {ok:true}},closeCash:async args=>{calls.push(args);return {ok:true}}}};
+ let n=0,calls=[];const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));n++};const cfg={projectId:"demo-nucleobit-checkout",enabled:true,api:{execute:async args=>{calls.push(args);if(args.storeId==="denied")throw Object.assign(Error("secret"),{code:"forbidden"});if(args.storeId==="failed")throw Error("private stack");return {ok:true}},closeCash:async args=>{calls.push(args);return {ok:true}},openCash:async args=>{calls.push(args);return {ok:true}},moveCash:async args=>{calls.push(args);if(args.amountCents>5000)throw Object.assign(Error("private"),{code:"insufficient_cash"});return {ok:true}}}};
  const req={method:"POST",path:"/checkout-lab/quote",requestOrigin:"http://localhost",authorization:"Bearer token.123",contentType:"application/json",bodyText:'{"storeId":"s","operationId":"operation_00000001","input":{}}'};
  const api=create(cfg);const check=async(x,status,code)=>{const result=await api({...req,...x});eq(result.status,status);if(code)eq(result.body.error,code)};
  eq((await create({...cfg,projectId:"prod"})(req)).status,503);
@@ -9,6 +9,9 @@ async function run(create,log){
  eq(calls.length,0);await check({},200);eq(calls[0].token,"token.123");eq(calls[0].kind,"quote");
  await check({bodyText:'{"storeId":"denied"}'},403,"forbidden");await check({bodyText:'{"storeId":"failed"}'},503,"operation_not_confirmed");
  await check({path:"/checkout-lab/closeCash",bodyText:'{"sessionId":"shift1","operationId":"operation_00000002"}'},200);eq(calls.at(-1).sessionId,"shift1");
- log("PASS B02.5 HTTP",n,"assertivas");
+ await check({path:"/checkout-lab/openCash",bodyText:'{"sessionId":"shift1","operationId":"operation_00000003","epoch":"checkout_epoch_001","openingCashCents":5000}'},200);eq(calls.at(-1).openingCashCents,5000);
+ await check({path:"/checkout-lab/moveCash",bodyText:'{"sessionId":"shift1","operationId":"operation_00000004","epoch":"checkout_epoch_001","kind":"sangria","amountCents":2000,"reason":"Teste"}'},200);eq(calls.at(-1).kind,"sangria");
+ await check({path:"/checkout-lab/moveCash",bodyText:'{"amountCents":9999}'},409,"insufficient_cash");await check({path:"/checkout-lab/openCash",bodyText:'{"ownerUid":"forged"}'},400,"invalid_request");
+ log("PASS B02.13 HTTP",n,"assertivas");
 }
 await run(createCheckoutHttpLab,console.log);
