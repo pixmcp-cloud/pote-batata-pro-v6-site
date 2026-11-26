@@ -17,14 +17,14 @@ export function compileV5Catalog({finance,branch,stockMap,recipeIds,beverageIds=
  const ingredient=(iid,qty)=>{const i=ingredients.get(iid);if(!i||i.archived||!number(i.yield,1,100)||!number(i.purchasePrice??i.price,0.000001)||!number(i.purchaseQuantity,0.000001)||!["kg","L","g","ml","un","unidade"].includes(i.purchaseUnit)||!number(qty,1e-9))fail("unknown_ingredient_cost");return {i,need:lookup("ingredients",iid,qty/(i.yield/100))}};
  let fixed=0,variable=0;
  for(const e of branch.expenses){if(!e.enabled)continue;if(!["mensal","unidade"].includes(e.mode)||!number(e.amount)||!number(e.repeat??1,1))fail("invalid_expense");const value=e.amount*(e.repeat??1);if(e.mode==="mensal")fixed+=value/s.estimatedMonthlyUnits;else variable+=value}
- const extra=addonIds.map(aid=>{const a=addons.get(aid);if(!a||a.archived||!number(a.sellPrice,0.01))fail("invalid_addon");const x=ingredient(a.ingredientId,a.quantity);return {id:aid,available:true,priceCents:cents(a.sellPrice),recipe:[x.need]}});
+ const extra=addonIds.map(aid=>{const a=addons.get(aid);if(!a||a.archived||a.unavailable||!number(a.sellPrice,0.01))fail("invalid_addon");const x=ingredient(a.ingredientId,a.quantity);return {id:aid,available:true,priceCents:cents(a.sellPrice),recipe:[x.need]}});
  const products=[],seen=new Set(),costs=new Map();
  const fee=finance.fees(s,"direto");
  const minMargin=s.checkoutMinMarginPct??0;if(!number(minMargin,0,95)||fee+minMargin>=100)fail("invalid_margin");
  const safePrice=(price,cost)=>{if(!number(cost,0.000001)||price*(1-(fee+minMargin)/100)+1e-8<cost)fail("margin_floor")};
  const extraCosts=new Map(extra.map(a=>{const original=addons.get(a.id),i=ingredients.get(original.ingredientId);const cost=finance.unitCost(i,s.costBasis)*original.quantity/(i.yield/100);safePrice(a.priceCents/100,cost);return [a.id,cost]}));
  const push=p=>{if(!id(p.id)||seen.has(p.id)||!p.title||p.title.length>200||p.priceCents<1)fail("invalid_product");seen.add(p.id);products.push(p)};
- for(const rid of recipeIds){const r=recipes.get(rid);if(!r||r.unavailable||r.franchiseLocked||r.costEstimateMode==="estimated"||r.templateOrigin==="franchise"||!Array.isArray(r.items)||!r.items.length||!["gain","margin",undefined].includes(r.pricingMode)||!number(r.targetGainPct??100))fail("recipe_not_supported");
+ for(const rid of recipeIds){const r=recipes.get(rid);if(!r||r.archived||r.unavailable||r.franchiseLocked||r.costEstimateMode==="estimated"||r.templateOrigin==="franchise"||!Array.isArray(r.items)||!r.items.length||!["gain","margin",undefined].includes(r.pricingMode)||!number(r.targetGainPct??100))fail("recipe_not_supported");
   const needs=r.items.map(x=>ingredient(x.id,x.g).need);
   let pkg=s.packageCost;
   if(s.usePackagingStock===true){const ids=r.packagingIngredientIds??[];if(!Array.isArray(ids)||new Set(ids).size!==ids.length)fail("invalid_packaging");if(ids.length){pkg=0;for(const iid of ids){const x=ingredient(iid,1);if(x.i.category!=="Embalagem")fail("invalid_packaging");needs.push(x.need);pkg+=finance.unitCost(x.i,s.costBasis)}}}
