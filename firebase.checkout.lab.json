@@ -1,0 +1,14 @@
+{
+  "firestore": {
+    "rules": "checkout_backend/firestore.checkout.lab.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8787
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}
