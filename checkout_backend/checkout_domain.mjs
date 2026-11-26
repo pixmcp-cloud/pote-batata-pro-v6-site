@@ -21,6 +21,8 @@ function needsMap(list,qty,map){
  if(!Array.isArray(list)||!list.length||list.length>80)fail("invalid_recipe");
  for(const p of list){if(!id(p?.stockId)||!int(p?.units,1))fail("invalid_recipe");map.set(p.stockId,add(map.get(p.stockId)||0,mul(p.units,qty)))}
 }
+// Same integer-cent commercial ladder as finance_core.roundPrice for exact cents.
+const commercial=c=>{const whole=Math.floor(c/100),fraction=c%100;return add(whole*100,fraction<=50?50:fraction<=90?90:150)};
 function requestShape(input){
  if(!fields(input,["lines","fulfillment","paymentMethod","address"])||!Array.isArray(input.lines)||!input.lines.length||input.lines.length>40||!["delivery","pickup"].includes(input.fulfillment)||!["pix","card","cash"].includes(input.paymentMethod))fail("invalid_request");
  if(input.fulfillment==="delivery"&&(typeof input.address!=="string"||!input.address.trim()||input.address.length>220))fail("invalid_address");
@@ -45,6 +47,7 @@ export function quoteCheckout(store,actor,input,now){
    if(!a||a.available!==true||!int(a.priceCents))fail("extra_unavailable");
    unit=add(unit,mul(a.priceCents,e.quantity));needsMap(a.recipe,mul(l.quantity,e.quantity),needs);
   }
+  if(product.rounding==="commercial"||(product.rounding==="starter-combo"&&l.extras.length))unit=commercial(unit);
   const total=mul(unit,l.quantity);subtotal=add(subtotal,total);lines.push({...l,title:product.title,unitCents:unit,totalCents:total});
  }
  const required=[...needs.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([stockId,units])=>({stockId,units}));
