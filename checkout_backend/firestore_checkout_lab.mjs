@@ -22,7 +22,7 @@ function verifyIdentity(identity){
 // Tokens are not accepted as identity objects from the browser. verifyToken is injected by server.
 // The existing verifyFirebaseToken validates Google and verified email but returns uid/email only;
 // wrap that verified function in a server-only adapter supplying the verified claims.
-export function createCheckoutLabRepository({projectId,enabled=false,repository,verifyToken,verifyScheduler,listExpiredCandidates,clock=()=>Date.now()}={}){
+export function createCheckoutLabRepository({projectId,enabled=false,repository,verifyToken,verifyScheduler,listExpiredCandidates,loadAuthoritativeCatalog,clock=()=>Date.now()}={}){
  const active=enabled===true&&projectId===labProject&&typeof repository?.transaction==="function"&&typeof verifyToken==="function";
  async function executeInternal({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action,paymentReference,reconciliation}={},service=null){
   if(!active)err("lab_disabled");
@@ -62,6 +62,14 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    // authoritative recipes, price rules and shared/separate stock settings; not public catalog.
    const uidRoot="users/"+m.ownerUid,meta=await tx.get(uidRoot+"/appState/v5"),guard=await tx.get(uidRoot+"/appState/v5InventoryGuard"),pulse=await tx.get(uidRoot+"/appState/v5Pulse");
    if(!meta||meta.data.schemaVersion!==5||meta.data.migration?.status==="copying"||!guard||!int(guard.data.revision)||!pulse||!docKey(pulse.data.eventId))err("not_ready");
+   let products=m.products;
+   if(["quote","submit"].includes(kind)&&m.catalogMode==="v5-authoritative"){
+    if(typeof loadAuthoritativeCatalog!=="function")err("catalog_not_ready");
+    const profile=await tx.get(uidRoot);
+    const catalog=await loadAuthoritativeCatalog({tx,manifest:m,meta:meta.data,profile:profile?.data,now});
+    if(catalog?.revision!==m.revision||!Array.isArray(catalog.products))err("catalog_not_ready");
+    products=catalog.products;
+   }else if(["quote","submit"].includes(kind)&&m.catalogMode!==undefined&&m.catalogMode!=="fixture")err("catalog_not_ready");
    const maps=new Map(),physical=new Set(),inventory=[];
    for(const s of m.stockMap){
     if(!id(s?.stockId)||!id(s.universe)||!["ingredients","beverages"].includes(s.group)||!docKey(s.recordKey)||!id(s.itemId)||![1,10,100,1000,10000,100000].includes(s.scale)||maps.has(s.stockId)||physical.has(s.recordKey))err("invalid_stock_mapping");
@@ -73,7 +81,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    const sequencePath=root+"/meta/sequence",sequence=await tx.get(sequencePath);
    if(!sequence||!int(sequence.data.value,0,9999998))err("not_ready");
-   const state={id:storeId,revision:m.revision,reservationMinutes:m.reservationMinutes??30,enabled:true,deliveryEnabled:m.deliveryEnabled===true,deliveryFeeCents:m.deliveryFeeCents,products:m.products,inventory,sequence:sequence.data.value,quotes:[],orders:[]};
+   const state={id:storeId,revision:m.revision,reservationMinutes:m.reservationMinutes??30,enabled:true,deliveryEnabled:m.deliveryEnabled===true,deliveryFeeCents:m.deliveryFeeCents,products,inventory,sequence:sequence.data.value,quotes:[],orders:[]};
    if(kind==="quote"){
     const qid=operationId;
     const qpath=root+"/quotes/"+qid;
