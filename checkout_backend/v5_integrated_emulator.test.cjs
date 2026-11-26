@@ -113,17 +113,28 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
    assert.equal((await sdk.getDoc(sdk.doc(target,root+"/appState/v5"))).data().state.data.orderSequenceLast,42);
   });
   // Browser scenario runs AFTER the verified backup, using a fresh test turn.
-  await set(stockPath,rec("ingredients",{...ingredient,stock:1000}));
+  const adjust=(kind,quantityUnits,expectedUnits,n,token=owner)=>api.adjustStock({token,storeId:counter,epoch,stockId:"pot",kind,quantityUnits,expectedUnits,operationId:op(n),reason:"Ajuste sintético"});
+  await assert.rejects(()=>adjust("purchase",1000,0,40,buyer),e=>e.code==="cutover_not_ready");
+  assert.equal((await adjust("purchase",1000,0,40)).afterUnits,1000);assert.equal((await adjust("purchase",1000,0,40)).duplicate,true);
+  await assert.rejects(()=>adjust("count",900,0,41),e=>e.code==="stock_changed");await assert.rejects(()=>adjust("loss",1001,1000,42),e=>e.code==="insufficient_stock");
+  assert.equal((await read(stockPath)).record.item.stock,1000);
+  const addon={id:"extra",name:"Porção extra",ingredientId:ingredient.id,quantity:40,sellPrice:3};
+  await set(root+"/recordsV5/"+keyFor(universe,"addons",addon.id),rec("addons",addon));
+  const revised={...manifest,revision:"rev2",addonIds:[addon.id],deliveryEnabled:true,deliveryFeeCents:500};
+  revised.products=compileV5Catalog({finance,branch:{settings,ingredients:[ingredient],recipes:[recipe],expenses:[expense],beverages:[],addons:[addon]},...revised}).products;
+  for(const id of [online,counter])await set(store(id),{...revised,channel:id===counter?"counter":"online"});
   const {runIntegratedBrowser}=require("./pdv_integrated_browser.cjs");
   const browserApi={...api,execute:args=>{now+=1000;return api.execute(args)},openCash:args=>{now+=1000;return api.openCash(args)},moveCash:args=>{now+=1000;return api.moveCash(args)},closeCash:args=>{now+=1000;return api.closeCash(args)}};
-  await runIntegratedBrowser({api:browserApi,config:{ownerToken:owner,buyerToken:buyer,online,counter,epoch,products:manifest.products.map(({id,title,priceCents})=>({id,title,priceCents}))},
+  await runIntegratedBrowser({api:browserApi,config:{ownerToken:owner,buyerToken:buyer,online,counter,epoch,products:revised.products.map(({id,title,priceCents,extras})=>({id,title,priceCents,extras:extras.map(e=>({id:e.id,title:addon.name,priceCents:e.priceCents}))}))},
    readSnapshot:async()=>{const orders=[];for(const id of [online,counter]){const docs=await sdk.getDocs(sdk.query(sdk.collection(db,store(id)+"/orders"),sdk.limit(50)));for(const d of docs.docs)orders.push(d.data())}
     const ptr=await read(cash),session=ptr.activeSessionId?await read(cash+"/sessions/"+ptr.activeSessionId):null;
     const shifts=await sdk.getDocs(sdk.collection(db,cash+"/sessions"));const lastClosed=shifts.docs.map(d=>d.data()).filter(x=>x.status==="closed").sort((a,b)=>b.closedAt-a.closedAt)[0]?.closedSummary??null;
-    return {orders,session,lastClosed,stock:(await read(stockPath)).record.item.stock,now};
-   },verifyAfter:async ({counter:counterOrder,online:onlineOrder})=>{
+    const stock=(await read(stockPath)).record.item.stock;return {orders,session,lastClosed,stock,inventory:[{id:"pot",title:"Batata",unit:"g",units:stock,scale:1}],now};
+   },verifyAfter:async ({counter:counterOrder,online:onlineOrder,deliveryOrder})=>{
     assert.deepEqual(new Set([counterOrder,onlineOrder]),new Set(["P0000043","P0000044"]));
-    assert.equal((await read(stockPath)).record.item.stock,0);
+    assert.equal((await read(stockPath)).record.item.stock,800);
+    const delivery=await read(store(online)+"/orders/"+deliveryOrder);assert.equal(delivery.status,"cancelled");assert.equal(delivery.totalCents,2550);assert.equal(delivery.fulfillment,"delivery");assert.equal(delivery.lines[0].extras[0].quantity,2);
+    const events=await sdk.getDocs(sdk.collection(db,root+"/checkoutStockOperations"));assert.equal(events.size,4);assert.equal(events.docs.filter(d=>d.data().result.lossUnits>0).length,2);
     assert.equal((await read(store(counter)+"/orders/"+counterOrder)).status,"delivered");
     assert.equal((await read(store(online)+"/orders/"+onlineOrder)).status,"delivered");
     const shifts=await sdk.getDocs(sdk.collection(db,cash+"/sessions"));const latest=shifts.docs.map(d=>d.data()).filter(x=>x.status==="closed").sort((a,b)=>b.closedAt-a.closedAt)[0];
