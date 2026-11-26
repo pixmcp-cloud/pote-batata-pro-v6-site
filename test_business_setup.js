@@ -128,9 +128,9 @@ assert(src.includes("window.POTE_AUTH?.role==='admin'"),"Fotos originais não es
 const menu=fs.readFileSync("floating_menu.js","utf8");
 assert(menu.includes('["business","Negócio"]'));
 const result=fs.readFileSync("public/index.html","utf8");
-assert(result.includes("business_setup.js?v=company-label-20261117-v6-artes-20261125-layout-2-multiversal-dois-icones-20261125"));
+assert(result.includes("business_setup.js?v=company-label-20261117-v6-artes-20261125-layout-2-nucleobit-dois-icones-20261125"));
 assert(result.includes("business_setup.css?v=business-universes-20261115"));
-assert(result.includes("PDV MULTIVERSAL"),"Identidade neutra ausente");
+assert(result.includes("PDV NÚCLEOBIT"),"Identidade neutra ausente");
 assert(result.includes("POTE_NEUTRAL_BRAND"));
 console.log("PASS: cinco universos, Pizzaria e Hamburgueria com 30 receitas cada, Hot Dog com 20 e Lancheria sem receitas.");
 

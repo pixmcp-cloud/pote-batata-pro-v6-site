@@ -14,7 +14,7 @@ wrap.innerHTML=`
 <button id="poteFloatToggle" class="pote-ai-orb" type="button" aria-label="Abrir carteira IA COIN" aria-expanded="false" aria-controls="poteAiUniverse"><span>IA</span></button>
 <div id="poteFloatBackdrop" hidden></div>
 <aside id="poteFloatDrawer" aria-label="Menu de navegação" aria-hidden="true" inert>
- <div class="pote-float-head"><div><small id="poteFloatBrand">PDV MULTIVERSAL</small><strong>Menu de Operações</strong></div><button id="poteFloatClose" type="button" aria-label="Fechar menu">${closeIcon}</button></div>
+ <div class="pote-float-head"><div><small id="poteFloatBrand">PDV NÚCLEOBIT</small><strong>Menu de Operações</strong></div><button id="poteFloatClose" type="button" aria-label="Fechar menu">${closeIcon}</button></div>
  <button id="poteFloatProfile" class="pote-float-account" type="button"><span id="poteFloatAvatar">${avatar}</span><span><strong id="poteFloatName">Meu perfil</strong><small id="poteFloatEmail">Configurar nome e foto</small></span><span class="pote-float-chevron">›</span></button>
  <nav id="poteFloatNavigation"></nav>
  <div class="pote-float-foot"><button type="button" id="poteFloatSettings">⚙ Configurações e perfil</button><small>As informações de perfil pertencem à sua conta.</small></div>

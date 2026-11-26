@@ -30,7 +30,7 @@ if n != 1:
     raise SystemExit("Previous localStorage guest state pattern changed; stopping")
 once("function persist(){window.POTE_KITCHEN?.capture?.(state);try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}",
      "function persist(){window.POTE_KITCHEN?.capture?.(state);if(window.POTE_AUTH?.uid)window.dispatchEvent(new Event('pote:changed'))}")
-once("V6 • DEMONSTRAÇÃO FREE", "PDV MULTIVERSAL • ONLINE")
+once("V6 • DEMONSTRAÇÃO FREE", "PDV NÚCLEOBIT • ONLINE")
 once("🔒 Demonstração gratuita: dados salvos apenas neste aparelho. Sem login Google ou permissões reais nesta versão.",
      "🔐 Beta conectado ao Firebase: dados por conta Google. Contas FREE e PRO com licença vinculada à sua conta Google.")
 once("Todos os dados de teste são armazenados somente no navegador deste aparelho.",
@@ -45,7 +45,6 @@ html, n = re.subn(r'<button class="btn danger" onclick="resetAll\(\)">[^<]*</but
 if n != 1: raise SystemExit("Botão de zerar conta não encontrado")
 once("Pesquisa habilitada nesta simulação. Nenhuma chamada externa será enviada.",
      "Busca piloto de estabelecimentos reais no OpenStreetMap. Confirme os dados antes de comprar.")
-once('<meta name="robots" content="noindex,nofollow,noarchive">', '<meta name="robots" content="noindex,nofollow,noarchive"><meta name="description" content="PDV MULTIVERSAL: plataforma para batatarias, pizzarias, hamburguerias e lancherias.">')
 
 head = """<style>
 #poteAuthGate{position:fixed;inset:0;z-index:10000;background:#120e0b;display:flex;align-items:center;
@@ -75,23 +74,23 @@ color:#ffe0a6;padding:8px 10px;cursor:pointer}
 HEAD_ASSETS = (
     '<script src="./finance_core.js?v=core-20261116"></script>'
     '<link rel="stylesheet" href="./franchise_shopping_list.css?v=shopping-close-20261118">'
-    '<link rel="icon" href="./assets/brand/pdv-64.png?v=multiversal-20261125" type="image/png" sizes="64x64">'
-    '<link rel="icon" href="./assets/brand/pdv-icon.svg?v=multiversal-20261125" type="image/svg+xml">'
-    '<link rel="apple-touch-icon" href="./assets/brand/pdv-180.png?v=multiversal-20261125" sizes="180x180">'
-    '<link rel="manifest" href="./assets/brand/manifest.webmanifest?v=multiversal-20261125">'
+    '<link rel="icon" href="./assets/brand/pdv-64.png?v=nucleobit-20261126" type="image/png" sizes="64x64">'
+    '<link rel="icon" href="./assets/brand/pdv-icon.svg?v=nucleobit-20261126" type="image/svg+xml">'
+    '<link rel="apple-touch-icon" href="./assets/brand/pdv-180.png?v=nucleobit-20261126" sizes="180x180">'
+    '<link rel="manifest" href="./assets/brand/manifest.webmanifest?v=nucleobit-20261126">'
     '<meta name="theme-color" content="#090a0b">'
-    '<meta name="description" content="PDV MULTIVERSAL: gestão de vendas, estoque, pedidos e financeiro.">'
+    '<meta name="description" content="PDV NÚCLEOBIT: gestão de vendas, estoque, pedidos e financeiro.">'
     '<meta property="og:type" content="website">'
     '<meta property="og:locale" content="pt_BR">'
-    '<meta property="og:site_name" content="PDV MULTIVERSAL">'
-    '<meta property="og:title" content="PDV MULTIVERSAL">'
+    '<meta property="og:site_name" content="PDV NÚCLEOBIT">'
+    '<meta property="og:title" content="PDV NÚCLEOBIT">'
     '<meta property="og:description" content="Gestão de vendas, estoque, pedidos e financeiro em um só lugar.">'
     '<meta property="og:url" content="https://pdv.livresom.com/">'
-    '<meta property="og:image" content="https://potobatata-b71f3.web.app/assets/brand/pdv-share.jpg">'
+    '<meta property="og:image" content="https://potobatata-b71f3.web.app/assets/brand/pdv-share.jpg?v=nucleobit-20261126">'
     '<meta property="og:image:type" content="image/jpeg">'
     '<meta property="og:image:width" content="1200">'
     '<meta property="og:image:height" content="630">'
-    '<meta property="og:image:alt" content="Emblema preto metálico PDV MULTIVERSAL">'
+    '<meta property="og:image:alt" content="Monograma NB azul, preto e dourado — PDV NÚCLEOBIT">'
     '<meta name="twitter:card" content="summary_large_image">'
 
     '<link rel="stylesheet" href="./mobile.css?v=header-sync-20261116">'
@@ -123,9 +122,9 @@ HEAD_ASSETS = (
 )
 once("</head>", head + HEAD_ASSETS + "</head>")
 
-gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no PDV MULTIVERSAL">
+gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Entrar no PDV NÚCLEOBIT">
  <div class="pote-login-card">
-  <div class="pote-brand-logo"><img src="./assets/brand/pdv-icon.svg?v=multiversal-20261125" alt="PDV MULTIVERSAL"></div><h1>PDV MULTIVERSAL</h1><p>Todos os segmentos. Uma única plataforma.</p>
+  <div class="pote-brand-logo"><img src="./assets/brand/pdv-icon.svg?v=nucleobit-20261126" alt="PDV NÚCLEOBIT"></div><h1>PDV NÚCLEOBIT</h1><p>Todos os segmentos. Uma única plataforma.</p>
   <p>Entre com sua conta Google para acessar seu espaço de receitas, preços, pedidos e estoque.</p>
   <button id="poteGoogleLogin" type="button">Entrar com Google</button>
   <div id="poteLoginMessage" role="status">Preparando autenticação...</div>
@@ -138,7 +137,7 @@ gate = """<div id="poteAuthGate" role="dialog" aria-modal="true" aria-label="Ent
 </div>"""
 once("<body>", "<body class=\"pote-auth-locked\">" + gate)
 brand_markup = ('<div class="brand"><img id="poteHeadLogo" src="./assets/generic/business-neutral.svg" alt="Ícone do negócio">'
-                '<span><span id="poteHeadName">PDV MULTIVERSAL</span><small id="poteHeadSubtitle">ESCOLHA SEU NEGÓCIO</small></span></div>')
+                '<span><span id="poteHeadName">PDV NÚCLEOBIT</span><small id="poteHeadSubtitle">ESCOLHA SEU NEGÓCIO</small></span></div>')
 html, n = re.subn(r'<div class="brand">[^<]*<small>[^<]*</small></div>', brand_markup, html, count=1)
 if n != 1:
     raise SystemExit("Cabeçalho da marca não encontrado")
@@ -335,7 +334,7 @@ BODY_ASSETS = (
     '<script src="./pastelaria_templates.js?v=pastelaria-20261116"></script>'
     '<script src="./universe_core.js?v=kitchen-motoboy-20261116"></script>'
     '<script src="./access_control.js?v=delivery-hub-20261116-free-lock-1"></script>'
-    '<script src="./business_setup.js?v=company-label-20261117-v6-artes-20261125-layout-2-multiversal-dois-icones-20261125"></script>'
+    '<script src="./business_setup.js?v=company-label-20261117-v6-artes-20261125-layout-2-nucleobit-dois-icones-20261125"></script>'
     '<script src="./beverage_catalog.js?v=commerce-20261115"></script>'
     '<script src="./payment_flow.js?v=exact-cash-safe-sync-20261118"></script>'
     '<script src="./stock_inventory.js?v=stock-priority-20261115"></script>'
@@ -389,10 +388,10 @@ BODY_ASSETS = (
 )
 once("</body>", BODY_ASSETS + "</body>")
 # Identidade neutra no login; conta mestre recupera a marca ao entrar.
-html, title_count = re.subn(r"<title>.*?</title>", "<title>PDV MULTIVERSAL · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
+html, title_count = re.subn(r"<title>.*?</title>", "<title>PDV NÚCLEOBIT · Gestão de negócios de alimentação</title>", html, count=1, flags=re.S)
 if title_count != 1: raise SystemExit("Título neutro não encontrado")
 # Ensure beta is not confused with the public offline demo.
-once("Potê Batata Pro V6 • Simulação offline completa", "PDV MULTIVERSAL • Gestão Online")
+once("Potê Batata Pro V6 • Simulação offline completa", "PDV NÚCLEOBIT • Gestão Online")
 if 'id="proBtn"' in html or 'id="admBtn"' in html:
     raise SystemExit("Exposed role switch remained")
 if not all(x in html for x in ["id=\"poteAuthGate\"", "id=\"poteSyncStatus\"", "id=\"poteExit\"", "id=\"poteLoggedAs\"", "poteFreshAccount", "simulation_panel.js", "poteOriginalRender", "firebase_integration.js"]):
