@@ -22,7 +22,7 @@ export function createV5QueueReadLab({projectId,repository,verifyToken,clock=()=
      orders.push({id:o.id,storeId,channel:o.channel==="counter"?"counter":"online",status:row.status,paymentStatus:row.paymentStatus,paymentMethod:row.paymentMethod,stockState:row.stockState,createdAt:o.createdAt,deliveredAt:o.deliveredAt??null,reservationExpiresAt:o.reservationExpiresAt??null,events:o.status==="cancelled"?[{at:o.events.at(-1).at}]:[],totalCents:o.totalCents,fulfillment:o.fulfillment,lines:row.lines.map(l=>({title:l.title,quantity:l.quantity,totalCents:l.totalCents}))});
     }
    }
-   return {now,nextCursors,orders:orders.sort((a,b)=>b.createdAt-a.createdAt||a.storeId.localeCompare(b.storeId)||a.id.localeCompare(b.id))};
+   return {now,nextCursors,orders:orders.sort((a,b)=>b.createdAt-a.createdAt||a.storeId.localeCompare(b.storeId)||b.id.localeCompare(a.id))};
   }finally{await tx.rollback()}
  };
 }
