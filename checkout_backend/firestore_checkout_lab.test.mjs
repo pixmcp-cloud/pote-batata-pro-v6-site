@@ -30,6 +30,14 @@ async function run(create,log){
  now+=1000;eq((await action(loser,"merchant1",9,"ready")).status,"ready");now+=1000;eq((await action(loser,"merchant1",10,"deliver")).status,"delivered");const frozen=(await status(loser,other)).elapsedMs;now+=100000;eq((await status(loser,other)).elapsedMs,frozen);
  eq(read("checkoutLabStores/"+loser+"/customerViews/P0000001").status.elapsedMs,frozen);
  eq([...data.keys()].filter(p=>p.includes("/stockLedger/")).length,3);
- log("PASS B02.2",n,"assertivas com mock de transações versionadas e conflito");
+ const cash="checkoutLabCash/merchant1",session=cash+"/sessions/shift1",orderPath="checkoutLabStores/"+loser+"/orders/P0000001",receiptPath=cash+"/receipts/"+loser.length+"_"+loser+"_P0000001";
+ const confirm=()=>api.execute({storeId:loser,token:"merchant1",kind:"transition",operationId:id(11),orderId:"P0000001",action:"confirm_payment",paymentReference:"Extrato conferido"});
+ await rejects(confirm,"cash_not_open");eq(read(orderPath).paymentStatus,"pending");
+ set(cash,{activeSessionId:"shift1"});set(session,{id:"shift1",ownerUid:"merchant1",status:"open",openedAt:now-1000,revision:0,totals:{cash:0,pix:0,card:0,count:0}});
+ failCommit=true;await rejects(confirm,"injected");eq(read(orderPath).paymentStatus,"pending");eq(read(receiptPath),undefined);eq(read(session).revision,0);
+ eq((await confirm()).paymentStatus,"confirmed");eq(read(receiptPath).amountCents,6000);eq(read(session).totals,{cash:0,pix:6000,card:0,count:1});eq((await confirm()).duplicate,true);eq(read(session).revision,1);
+ await rejects(()=>api.closeCash({token:"buyer1",sessionId:"shift1",operationId:id(12)}),"not_found");
+ const closed=await api.closeCash({token:"merchant1",sessionId:"shift1",operationId:id(12)});eq(closed.receivedCents,6000);eq(closed.cashDrawerIncreaseCents,0);eq(read(cash).activeSessionId,null);eq(read(session).status,"closed");eq(await api.closeCash({token:"merchant1",sessionId:"shift1",operationId:id(12)}),closed);await rejects(()=>api.closeCash({token:"merchant1",sessionId:"shift1",operationId:id(13)}),"cash_already_closed");eq((await confirm()).duplicate,true);eq(read(session).closedSummary,closed);eq(read(stock).record.item.stock,0);
+ log("PASS B02.4",n,"assertivas com mock de transações versionadas e conflito");
 }
 await run(createCheckoutLabRepository,console.log);
