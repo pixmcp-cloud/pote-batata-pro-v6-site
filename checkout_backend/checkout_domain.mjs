@@ -70,16 +70,17 @@ export function submitCheckout(store,actor,{operationId,quoteId,input,expectedRe
  if(!saved||saved.used===true||now>=saved.expiresAt||JSON.stringify(saved.request)!==JSON.stringify(request)||saved.revision!==expectedRevision||saved.totalCents!==expectedTotalCents)fail("invalid_quote");
  const q=quoteCheckout(store,actor,request,now);
  if(q.revision!==expectedRevision||q.totalCents!==expectedTotalCents)fail("quote_changed");
+ const minutes=store.reservationMinutes??30;if(!int(minutes,5,120))fail("invalid_reservation_minutes");
  const next=clone(store);next.sequence++;next.quotes.find(x=>x.id===quoteId).used=true;
  for(const n of q.required){const s=next.inventory.find(x=>x.id===n.stockId);s.availableUnits-=n.units}
- const order={id:"P"+String(next.sequence).padStart(7,"0"),storeId:store.id,customerUid:actor.uid,operationId,fingerprint,lines:q.lines,required:q.required,subtotalCents:q.subtotalCents,deliveryCents:q.deliveryCents,totalCents:q.totalCents,fulfillment:request.fulfillment,address:request.address,paymentMethod:request.paymentMethod,paymentStatus:"pending",status:"received",stockState:"reserved",createdAt:now,reservationExpiresAt:now+1800000,events:[{status:"received",at:now}],actions:[],deliveredAt:null,elapsedMs:null};
+ const order={id:"P"+String(next.sequence).padStart(7,"0"),storeId:store.id,customerUid:actor.uid,operationId,fingerprint,lines:q.lines,required:q.required,subtotalCents:q.subtotalCents,deliveryCents:q.deliveryCents,totalCents:q.totalCents,fulfillment:request.fulfillment,address:request.address,paymentMethod:request.paymentMethod,paymentStatus:"pending",status:"received",stockState:"reserved",createdAt:now,reservationExpiresAt:now+minutes*60000,events:[{status:"received",at:now}],actions:[],deliveredAt:null,elapsedMs:null};
  next.orders.push(order);
  return {state:next,order:clone(order),duplicate:false};
 }
 // Merchant identity and membership must be obtained on the server, never from browser body.
 // Only explicit payment confirmation by authorized merchant; no automated gateway charge.
 export function transitionCheckout(store,actor,{orderId,operationId,action,paymentReference,reconciliation}={},now){
- merchant(actor,store);if(!id(orderId)||!key(operationId)||!["prepare","ready","dispatch","deliver","cancel","confirm_payment","expire","reconcile_cancel"].includes(action)||!time(now))fail("invalid_action");
+ if(actor?.role==="scheduler"){if(action!=="expire"||actor.verified!==true||actor.storeId!==store?.id||!id(actor.uid))fail("forbidden");}else merchant(actor,store);if(!id(orderId)||!key(operationId)||!["prepare","ready","dispatch","deliver","cancel","confirm_payment","expire","reconcile_cancel"].includes(action)||!time(now))fail("invalid_action");
  const ref=action==="confirm_payment"&&typeof paymentReference==="string"?paymentReference.trim():null;
  if(action==="confirm_payment"&&(!ref||ref.length>120))fail("payment_reference_required");
  if(action!=="confirm_payment"&&paymentReference!==undefined)fail("invalid_action");
