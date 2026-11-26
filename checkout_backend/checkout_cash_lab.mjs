@@ -85,3 +85,13 @@ export function planDrawerMovement({session,kind,amountCents,reason,operationId,
  const next={...session,cashAdjustments:adjustments,revision:session.revision+1};checkoutDrawer(next);
  return {session:next,movement:{ownerUid:session.ownerUid,sessionId:session.id,kind,amountCents,reason:reason.trim(),operationId,at:now}};
 }
+
+ // A late external payment is NOT cash in a closed drawer. A separate receipt
+ // preserves the original close summary. Cash needs physical reconciliation.
+ export function planLateCheckoutReceipt({ownerUid,storeId,order,session,priorReceipt,now,epoch}={}){
+  if(!session||session.status!=="closed"||session.ownerUid!==ownerUid||session.cutoverEpoch!==epoch||!id(session.id)||!Number.isSafeInteger(session.openedAt)||!Number.isSafeInteger(session.closedAt)||session.closedAt<session.openedAt||!Number.isSafeInteger(order?.createdAt)||order.createdAt<session.openedAt||order.createdAt>session.closedAt||!Number.isSafeInteger(now)||now<session.closedAt||!session.closedSummary)fail("invalid_origin_session");
+  if(order.paymentMethod==="cash")fail("cash_late_requires_reconciliation");
+  if(!["pix","card"].includes(order.paymentMethod))fail("invalid_receipt");
+  const receipt=planCheckoutCash({ownerUid,storeId,order,session:{...session,status:"open"},priorReceipt,now});
+  return {...receipt,originSessionId:session.id,sessionId:null,source:"checkout-lab-late",outsideDrawer:true};
+ }
