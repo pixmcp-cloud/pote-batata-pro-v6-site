@@ -1,6 +1,7 @@
 // Contratos de licença do Potê Batata Pro — sem dados privados.
 export const LICENSE_TERMS = Object.freeze([
   {id:"trial24h",label:"Teste grátis · 24 horas",kind:"trial"},
+  {id:"trial7d",label:"Teste grátis · 7 dias",kind:"trial"},
   {id:"month1",label:"PRO · 1 mês",kind:"pro"},
   {id:"month6",label:"PRO · 6 meses",kind:"pro"},
   {id:"year1",label:"PRO · 1 ano",kind:"pro"},
@@ -26,6 +27,7 @@ export function expiryForTerm(term,now=new Date()){
   const d=new Date(now);if(!Number.isFinite(d.getTime()))throw Error("Data inválida");
   switch(term){
     case "trial24h":return new Date(d.getTime()+24*60*60*1000);
+    case "trial7d":return new Date(d.getTime()+7*24*60*60*1000);
     case "month1":return plusCalendarMonthsClamped(d,1);
     case "month6":return plusCalendarMonthsClamped(d,6);
     case "year1":return plusCalendarMonthsClamped(d,12);
@@ -46,7 +48,7 @@ export function resolveLicense(license,now=Date.now()){
   const end=epochMillis(license.expiresAt);
   if(!end || !Number.isFinite(end) || end<=now)
     return {kind:"free",active:false,label:"FREE · vencida",term:"free",expiresAt:end,reason:"expired"};
-  return {kind:license.kind,active:true,label:license.kind==="trial"?"TESTE 24H":"PRO",term:license.term,expiresAt:end};
+  return {kind:license.kind,active:true,label:license.kind==="trial"?(license.term==="trial7d"?"TESTE 7 DIAS":"TESTE 24H"):"PRO",term:license.term,expiresAt:end};
 }
 export function dateBR(date){
   const ms=epochMillis(date);
