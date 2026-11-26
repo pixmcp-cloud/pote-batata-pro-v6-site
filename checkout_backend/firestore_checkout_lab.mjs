@@ -4,7 +4,7 @@
 // model/free keys). The same physical document may be mapped by two stores sharing stock.
 // The checkout inbox is NOT a native V5 orders record: old production code would debit twice.
 import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} from "./checkout_domain.mjs";
-import {planCheckoutCash} from "./checkout_cash_lab.mjs";
+import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession} from "./checkout_cash_lab.mjs";
 const labProject="demo-nucleobit-checkout";
 const id=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const operation=x=>id(x)&&x.length>=16;
@@ -112,7 +112,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     if(session.data.id!==ptr.data.activeSessionId)err("cash_not_open");
     // Update shift revision so closure and receipt cannot both win on a stale baseline.
     if(!int(session.data.revision)||session.data.revision>=1000000000)err("invalid_session");
-    writes.push(put(receiptPath,receipt,null),put(sessionPath,{...session.data,revision:session.data.revision+1},session));
+    writes.push(put(receiptPath,receipt,null),put(sessionPath,applyCheckoutReceipt(session.data,receipt),session));
    }
    const changed=[];
    for(const after of result.state.inventory){
@@ -133,5 +133,19 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    return {...projection(o,now),duplicate:false};
   }finally{await tx.rollback()}
  }
- return {execute};
+ async function closeCash({token,sessionId,operationId}={}){
+  if(!active)err("lab_disabled");if(typeof token!=="string"||!token||!id(sessionId)||!operation(operationId))err("invalid_request");
+  const identity=await verifyToken(token,projectId);verifyIdentity(identity);
+  const root="checkoutLabCash/"+identity.uid,tx=await repository.transaction();
+  try{
+   const ptr=await tx.get(root),path=root+"/sessions/"+sessionId,session=await tx.get(path);
+   if(!session||session.data.ownerUid!==identity.uid||session.data.id!==sessionId)err("not_found");
+   if(session.data.status==="closed"){if(session.data.closeOperationId!==operationId)err("cash_already_closed");return copy(session.data.closedSummary)}
+   if(ptr?.data.activeSessionId!==sessionId)err("cash_not_open");
+   const closed=freezeCheckoutCashSession(session.data,clock(),operationId);
+   await tx.commit([put(path,closed,session),put(root,{...ptr.data,activeSessionId:null},ptr)]);
+   return copy(closed.closedSummary);
+  }finally{await tx.rollback()}
+ }
+ return {execute,closeCash};
 }
