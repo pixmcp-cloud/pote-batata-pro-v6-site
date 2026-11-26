@@ -27,7 +27,7 @@ async function run({quoteCheckout:quote,createCheckoutQuote:create,submitCheckou
  reject(()=>submit(placed.state,buyer,{...req,operationId:id(3)},now),"invalid_quote");
  reject(()=>read(placed.state,other,placed.order.id,now+100),"not_found");
  eq(read(placed.state,buyer,placed.order.id,now+100).elapsedMs,99);
- const act=(s,action,i,t=now+1000)=>transition(s,owner,{orderId:"P0000001",action,operationId:id(i)},t);
+ const act=(s,action,i,t=now+1000)=>transition(s,owner,{orderId:"P0000001",action,operationId:id(i),...(action==="confirm_payment"?{paymentReference:"Conferido em caixa"}:{})},t);
  reject(()=>transition(placed.state,{...owner,storeId:"other"},{orderId:"P0000001",action:"prepare",operationId:id(4)},now+2),"forbidden");
  reject(()=>act(placed.state,"deliver",5),"invalid_transition");
  reject(()=>receipt(placed.order),"receipt_pending");
@@ -36,7 +36,8 @@ async function run({quoteCheckout:quote,createCheckoutQuote:create,submitCheckou
  eq(read(cancelled.state,buyer,"P0000001",now+10000).elapsedMs,999);
  const prep=act(placed.state,"prepare",8,now+2000);eq(prep.order.stockState,"consumed");eq(prep.state.inventory,placed.state.inventory);
  reject(()=>act(prep.state,"cancel",9,now+2100),"manual_reconciliation_required");
- const paid=act(prep.state,"confirm_payment",10,now+3000);eq(paid.order.paymentStatus,"confirmed");eq(act(paid.state,"confirm_payment",10,now+3001).duplicate,true);reject(()=>act(paid.state,"confirm_payment",11,now+3001),"invalid_payment_state");
+ reject(()=>transition(prep.state,owner,{orderId:"P0000001",action:"confirm_payment",operationId:id(10)},now+3000),"payment_reference_required");
+ const paid=act(prep.state,"confirm_payment",10,now+3000);eq(paid.order.paymentConfirmationReference,"Conferido em caixa");reject(()=>transition(paid.state,owner,{orderId:"P0000001",action:"confirm_payment",operationId:id(10),paymentReference:"Outra referência"},now+3001),"idempotency_conflict");eq(paid.order.paymentStatus,"confirmed");eq(act(paid.state,"confirm_payment",10,now+3001).duplicate,true);reject(()=>act(paid.state,"confirm_payment",11,now+3001),"invalid_payment_state");
  const ready=act(paid.state,"ready",12,now+5000);const out=act(ready.state,"dispatch",13,now+6000);const delivered=act(out.state,"deliver",14,now+10000);
  eq(delivered.order.events.map(x=>x.status),["received","preparing","ready","out_for_delivery","delivered"]);eq(delivered.order.elapsedMs,9999);eq(read(delivered.state,buyer,"P0000001",now+99999).elapsedMs,9999);eq(receipt(delivered.order).elapsedMs,9999);eq(receipt(delivered.order).number,"#P0000001");eq(delivered.state.inventory,placed.state.inventory);
  reject(()=>act(delivered.state,"ready",15,now+11000),"invalid_transition");reject(()=>act(delivered.state,"deliver",16,now+9999),"invalid_time");
