@@ -1,5 +1,6 @@
 // B02.7 laboratory catalog authority. Complete bounded record listing must be
 // part of the same database transaction. Never use public menu prices or client roles.
+import {resolveLicense} from "../license_terms.mjs";
 import {compileV5Catalog} from "./v5_checkout_catalog_lab.mjs";
 const fail=code=>{throw Object.assign(Error(code),{code})};
 const id=s=>typeof s==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(s);
@@ -12,12 +13,8 @@ export function checkoutEntitlement(profile,universe,now){
  if(typeof policy!=="object"||Array.isArray(policy)||["blockedUniverses","blockedServices"].some(k=>policy[k]!==undefined&&!Array.isArray(policy[k])))fail("access_blocked");
  if(policy.blockedUniverses?.includes(universe)||["orders","recipes","stock"].some(s=>policy.blockedServices?.includes(universe+":"+s)))fail("access_blocked");
  if(profile.franchise?.status==="active"&&profile.franchise.brandId==="potebatata")return "franchise";
- const l=profile.license;
- if(l?.status==="active"){
-  if(l.kind==="lifetime"&&l.term==="lifetime")return "pro";
-  const expires=typeof l.expiresAt==="string"?Date.parse(l.expiresAt):typeof l.expiresAt?.toMillis==="function"?l.expiresAt.toMillis():NaN;
-  if(["trial","pro"].includes(l.kind)&&Number.isFinite(expires)&&expires>now)return l.kind;
- }
+ const l=resolveLicense(profile.license,now);
+ if(l.active)return l.kind==="lifetime"?"pro":l.kind;
  // Temporary fail-closed commercial policy: no change to legacy FREE access.
  fail("license_required");
 }
