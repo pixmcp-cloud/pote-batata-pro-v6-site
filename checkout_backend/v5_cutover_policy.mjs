@@ -2,8 +2,8 @@
 // Missing policy retains legacy behavior. Any unknown explicit mode fails closed.
 export function checkoutAuthorityMode(profile){
  const p=profile?.accessPolicy;
- if(p===undefined||p===null)return "legacy";
- if(typeof p!=="object"||Array.isArray(p))return "frozen";
+ if(p===undefined)return "legacy";
+ if(p===null||typeof p!=="object"||Array.isArray(p))return "frozen";
  const value=p.checkoutAuthority;
  if(value===undefined||value==="legacy")return "legacy";
  return value==="server-only"?"server-only":"frozen";
