@@ -75,10 +75,13 @@ function renderInventory(){
  if(rows.some(i=>i.id===old))select.value=old;$("inventory-save").disabled=!rows.length;
 }
 $("inventory-item").onchange=()=>{const i=(snapshot?.inventory??[]).find(x=>x.id===$("inventory-item").value);$("inventory-qty").step=String(1/(i?.scale??1))};
+$("inventory-kind").onchange=()=>{$("purchase-evidence").hidden=$("inventory-kind").value!=="purchase";$("purchase-cost").value="";$("purchase-reference").value=""};
 $("inventory-form").onsubmit=e=>{e.preventDefault();guard(async()=>{
  const i=(snapshot?.inventory??[]).find(x=>x.id===$("inventory-item").value);if(!i)throw Error("Insumo indisponível.");
  const q=Number($("inventory-qty").value)*i.scale;if(!Number.isSafeInteger(q)||q<0)throw Error("Quantidade inválida.");
  const body={storeId:cfg.counter,epoch:cfg.epoch,stockId:i.id,kind:$("inventory-kind").value,quantityUnits:q,expectedUnits:i.units,reason:$("inventory-reason").value};
+ const cost=$("purchase-cost").value.trim().replace(",",".");const ref=$("purchase-reference").value.trim();
+ if(body.kind==="purchase"&&(cost||ref)){if(!/^\d+(\.\d{1,2})?$/.test(cost)||Number(cost)<=0||!ref)throw Error("Informe valor e referência da compra.");body.purchaseCostCents=Math.round(Number(cost)*100);body.purchaseReference=ref;}
  if(stockRetry&&JSON.stringify(stockRetry.payload)!==JSON.stringify(body))throw Error("Confirme a tentativa anterior antes de mudar os dados.");
- stockRetry??={payload:body,operationId:op()};try{await api("adjustStock",{...stockRetry.payload,operationId:stockRetry.operationId});stockRetry=null;$("inventory-qty").value="";$("inventory-reason").value="";await refresh();feedback("Ajuste de estoque registrado.")}catch(e){if(["stock_changed","insufficient_stock","invalid_stock_adjustment","no_stock_change","invalid_stock_precision"].includes(e.code)){stockRetry=null;await refresh()}throw e}
+ stockRetry??={payload:body,operationId:op()};try{const result=await api("adjustStock",{...stockRetry.payload,operationId:stockRetry.operationId});stockRetry=null;$("inventory-qty").value="";$("inventory-reason").value="";$("purchase-cost").value="";$("purchase-reference").value="";await refresh();feedback("Ajuste de estoque registrado."+(result.lossUnits>0?(result.costKnown?" Perda estimada: "+money(result.lossCostCents):" Custo da perda desconhecido."):(result.purchase?" Compra registrada: "+money(result.purchase.totalCents):"")))}catch(e){if(["stock_changed","insufficient_stock","invalid_stock_adjustment","no_stock_change","invalid_stock_precision","invalid_purchase_evidence","invalid_supplier"].includes(e.code)){stockRetry=null;await refresh()}throw e}
  })};
