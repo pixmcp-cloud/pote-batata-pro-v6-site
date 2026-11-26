@@ -1,0 +1,30 @@
+import '../finance_core.js';
+import {compileV5Catalog} from './v5_checkout_catalog_lab.mjs';
+import {checkoutEntitlement,loadV5CheckoutAuthority} from './v5_checkout_authority_lab.mjs';
+async function run({checkoutEntitlement:ent,loadV5CheckoutAuthority:load},compile,finance,log){
+ let n=0;const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));n++};const reject=async(fn,code)=>{let e;try{await fn()}catch(x){e=x}eq(e?.code,code)};
+ const now=1700000000000,universe="batataria",pro={license:{status:"active",kind:"pro",expiresAt:new Date(now+1000).toISOString()}},franchise={franchise:{status:"active",brandId:"potebatata"}};
+ eq(ent(pro,universe,now),"pro");eq(ent(franchise,universe,now),"franchise");eq(ent({license:{status:"active",kind:"lifetime",term:"lifetime"}},universe,now),"pro");eq(ent({license:{...pro.license,kind:"trial"}},universe,now),"trial");
+ for(const p of [{},{proActive:true,role:"admin"},{license:{...pro.license,expiresAt:new Date(now).toISOString()}},{license:{...pro.license,status:"revoked"}},{franchise:{status:"active",brandId:"wrong"}},{license:{status:"active",kind:"lifetime",term:"other"}}])await reject(()=>ent(p,universe,now),"license_required");
+ await reject(()=>ent({...pro,accessPolicy:{blockedUniverses:[universe]}},universe,now),"access_blocked");
+ await reject(()=>ent({...franchise,accessPolicy:{blockedServices:[universe+":orders"]}},universe,now),"access_blocked");
+ const settings={fee:0,tax:0,packageCost:1,otherCost:0,estimatedMonthlyUnits:100,margin:50};
+ const branch={settings,expenses:[{id:"e1",enabled:true,mode:"mensal",amount:100,repeat:1}],ingredients:[{id:"potato",yield:80,purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",stock:1000}],recipes:[{id:"meal",name:"Batata",items:[{id:"potato",g:400}],pricingMode:"gain",targetGainPct:100}],beverages:[],addons:[]};
+ const doc=(group,item)=>({key:group+"_"+item.id,data:{record:{universe,group,id:item.id,item,rank:1}}});let docs=["ingredients","recipes","beverages","addons","expenses"].flatMap(g=>branch[g].map(x=>doc(g,x)));
+ const stockMap=[{stockId:"pot",itemId:"potato",universe,group:"ingredients",recordKey:"ingredients_potato",scale:1}];
+ const manifest={catalogMode:"v5-authoritative",ownerUid:"owner1",universe,revision:"rev1",stockMap,recipeIds:["meal"],beverageIds:[],addonIds:[]};
+ manifest.products=compile({finance,branch,...manifest}).products;
+ const args={tx:{listRecords:async q=>{if(q.collection!=="users/owner1/recordsV5"||q.limit!==241)throw Error("query");return docs}},manifest,meta:{state:{data:{businessType:universe,settings}}},profile:pro,finance,recordKeyAllowed:(key,rec)=>key===rec.group+"_"+rec.id,now};
+ eq((await load(args)).products[0].priceCents,1450);
+ eq((await load({...args,profile:franchise})).tier,"franchise");
+ docs[0].data.record.item={...docs[0].data.record.item,stock:4};eq((await load(args)).products[0].priceCents,1450);
+ const snapshot=docs;docs=[...docs,doc("expenses",{id:"new",enabled:true,mode:"mensal",amount:100,repeat:1})];await reject(()=>load(args),"catalog_stale");docs=snapshot;
+ docs=docs.map(d=>d.data.record.group==="recipes"?doc("recipes",{...d.data.record.item,items:[{id:"potato",g:401}]}):d);await reject(()=>load(args),"catalog_stale");docs=snapshot;
+ docs=[...docs,docs[0]];await reject(()=>load(args),"catalog_record_invalid");docs=snapshot;
+ await reject(()=>load({...args,manifest:{...manifest,stockMap:[{...stockMap[0],recordKey:"wrong"}]}}),"catalog_stock_mismatch");
+ await reject(()=>load({...args,manifest:{...manifest,stockMap:[{...stockMap[0],universe:"kitchen"}]}}),"catalog_not_ready");
+ await reject(()=>load({...args,tx:{}}),"catalog_not_ready");await reject(()=>load({...args,profile:{}}),"license_required");
+ await reject(()=>load({...args,tx:{listRecords:async()=>Array(241).fill(docs[0])}}),"catalog_too_large");
+ log("PASS B02.7 authority",n,"assertivas");
+}
+await run({checkoutEntitlement,loadV5CheckoutAuthority},compileV5Catalog,globalThis.POTE_FINANCE,console.log);
