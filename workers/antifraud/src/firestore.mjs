@@ -97,6 +97,12 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       return response.filter(x=>x.document).map(x=>({key:x.document.name.split("/").at(-1),data:decodeFields(x.document.fields),updateTime:x.document.updateTime}));
      },
      // Complete bounded ingredient listing for this owner only. Demo/loopback only.
+     async listCheckoutOrders({storeId,limit}){
+      if(done||typeof storeId!=="string"||!/^[A-Za-z0-9_-]{1,100}$/.test(storeId)||limit!==61)throw Error("Invalid queue query");
+      const response=await api("/documents/checkoutLabStores/"+storeId+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"orders"}],limit}}});
+      if(!Array.isArray(response))throw Error("Invalid queue response");
+      return response.filter(x=>x.document).map(({document:d})=>{if(!d.name||!d.fields||!d.updateTime)throw Error("Invalid queue record");return {key:d.name.split("/").at(-1),data:decodeFields(d.fields)}});
+     },
      async listKitchenRecords({collection,limit}){
       if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||limit!==241)throw Error("Invalid kitchen query");
       const parent=collection.split("/").slice(0,-1).join("/"),ownerUid=parent.split("/")[1];
