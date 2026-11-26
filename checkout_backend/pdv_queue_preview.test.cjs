@@ -16,7 +16,19 @@ const root=__dirname;const server=http.createServer((req,res)=>{const name=new U
   assert.match(await page.$eval("#cash",e=>e.textContent),/43,50/);await page.click("#close-shift");
   const btn=await page.$$("article button");assert.equal(btn.length,1);await btn[0].click();await page.waitForSelector("#receipt:not([hidden])");
   assert.match(await page.$eval("#receipt-text",e=>e.textContent),/Tempo total: \d\d:\d\d:\d\d/);assert.match(await page.$eval("#receipt-text",e=>e.textContent),/Confirmado pelo lojista/);
-  await page.emulateMediaType("print");assert.equal(await page.$eval("header",e=>getComputedStyle(e).display),"none");assert.deepEqual(errors,[]);assert.deepEqual(external,[]);await page.close();
+  await page.emulateMediaType("print");assert.equal(await page.$eval("header",e=>getComputedStyle(e).display),"none");assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+  await page.emulateMediaType("screen");await page.reload();await page.waitForSelector('[data-action="prepare"]');
+  await page.$eval("#reservation-minutes",e=>{e.value="15";e.dispatchEvent(new Event("change"))});
+  assert.match(await page.$eval("#feedback",e=>e.textContent),/15 minutos/);
+  await page.type('input[aria-label="Referência do recebimento"]',"PIX teste");await tap("confirm_payment");
+  await page.waitForSelector("[data-reconcile]");await tap("prepare");
+  await page.waitForSelector("[data-reconcile]");await page.click("[data-reconcile]");await page.waitForSelector("#reconcile-dialog[open]");
+  assert.equal(await page.$eval('#reconcile-decision option[value="return"]',e=>e.disabled),true);
+  await page.type("#reconcile-reason","Alimento preparado");await page.type("#reconcile-ref","Estorno teste");await page.click("#reconcile-submit");
+  await page.waitForFunction(()=>document.querySelector("#queue").textContent.includes("Estorno registrado"));
+  assert.match(await page.$eval("#cash",e=>e.textContent),/Estornos/);
+  assert.match(await page.$eval("#cash",e=>e.textContent),/LíquidoR\$\s*0,00/);
+  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);await page.close();
  }
  console.log("PASS B02.4 navegador: 4 larguras, fila, recebimento, turno fechado e comprovante; sem requisições externas.");
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}})().catch(e=>{console.error(e.stack||e);process.exitCode=1});
