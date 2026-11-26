@@ -28,9 +28,11 @@ export function mountOrderTicker(root,{subscribe,now=()=>Date.now()}={}){
   if(closed)return;
   if(event?.reset){snapshot=null;connected=false;offset=0;paint();return;}
   if(event?.order&&Number.isSafeInteger(event.serverNowMs)){snapshot=event.order;offset=event.serverNowMs-now();}
-  connected=event?.connected===true;paint();
+  connected=event?.connected===true;
+  if(snapshot&&!["delivered","cancelled"].includes(snapshot.status)&&timer===null)timer=setInterval(paint,1000);
+  paint();
  });
- if(!snapshot||!["delivered","cancelled"].includes(snapshot.status))timer=setInterval(paint,1000);
+ if(timer===null&&(!snapshot||!["delivered","cancelled"].includes(snapshot.status)))timer=setInterval(paint,1000);
  paint();
  return ()=>{closed=true;if(timer!==null)clearInterval(timer);if(typeof unsubscribe==="function")unsubscribe();root.replaceChildren();};
 }
