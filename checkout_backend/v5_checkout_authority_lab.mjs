@@ -24,29 +24,33 @@ export function checkoutEntitlement(profile,universe,now){
 export async function loadV5CheckoutAuthority({tx,manifest,meta,profile,finance,recordKeyAllowed,now}={}){
  const m=manifest;if(!m||m.catalogMode!=="v5-authoritative"||!id(m.ownerUid)||!id(m.universe)||!id(m.revision)||!Array.isArray(m.recipeIds)||!Array.isArray(m.beverageIds)||!Array.isArray(m.addonIds)||(typeof tx?.listRecords!=="function"&&typeof tx?.listCatalogRecords!=="function")||typeof recordKeyAllowed!=="function")fail("catalog_not_ready");
  const tier=checkoutEntitlement(profile,m.universe,now);
+ const comboIds=m.comboIds??[];if(!Array.isArray(comboIds)||comboIds.length>60||comboIds.some(x=>!id(x)))fail("catalog_not_ready");
  // Shared physical kitchen requires explicit cross-universe projection; do not guess.
  const data=meta?.state?.data;
  const branch=data?.businessType===m.universe?data:data?.businessUniverses?.[m.universe];
+ if(data?.kitchenStock?.mode==="shared")fail("shared_kitchen_requires_reconciliation");
  if(!branch||!branch.settings||!Array.isArray(m.stockMap)||m.stockMap.some(s=>s.universe!==m.universe))fail("catalog_not_ready");
  const root="users/"+m.ownerUid+"/recordsV5";
  // Never cache across requests. Only select records capable of changing an
  // approved recipe; all expenses remain included (including newly added ones).
  const unique=xs=>[...new Set(xs)].sort();
- if(m.recipeIds.length+m.beverageIds.length>60||m.addonIds.length>20||m.stockMap.length>32||
+ if(m.recipeIds.length+m.beverageIds.length+comboIds.length>60||m.addonIds.length>20||m.stockMap.length>32||
   [...m.recipeIds,...m.beverageIds,...m.addonIds,...m.stockMap.map(x=>x?.itemId)].some(x=>!id(x))||
   m.stockMap.some(x=>!["ingredients","beverages"].includes(x.group)))fail("catalog_not_ready");
- const selection={recipes:unique(m.recipeIds),ingredients:unique(m.stockMap.filter(s=>s.group==="ingredients").map(s=>s.itemId)),beverages:unique([...m.beverageIds,...m.stockMap.filter(s=>s.group==="beverages").map(s=>s.itemId)]),addons:unique(m.addonIds)};
+ const selection={recipes:unique(m.recipeIds),ingredients:unique(m.stockMap.filter(s=>s.group==="ingredients").map(s=>s.itemId)),beverages:unique([...m.beverageIds,...m.stockMap.filter(s=>s.group==="beverages").map(s=>s.itemId)]),addons:unique(m.addonIds),...(comboIds.length?{combos:unique(comboIds)}:{})};
  const selective=typeof tx.listCatalogRecords==="function";
+ if(comboIds.length&&!selective)fail("catalog_not_ready");
+ const acceptedGroups=comboIds.length?[...groups,"combos"]:groups;
  const docs=selective?await tx.listCatalogRecords({collection:root,universe:m.universe,selection,limit:241}):await tx.listRecords({collection:root,universe:m.universe,groups,limit:241});
  if(!Array.isArray(docs)||docs.length>240)fail("catalog_too_large");
- const all=Object.fromEntries(groups.map(g=>[g,[]])),keys=new Map(),seen=new Set();
+ const all=Object.fromEntries(acceptedGroups.map(g=>[g,[]])),keys=new Map(),seen=new Set();
  for(const d of docs){
   const rec=d?.data?.record;
-  if(!rec||rec.universe!==m.universe||!groups.includes(rec.group)||!id(rec.id)||rec.item?.id!==rec.id||!recordKeyAllowed(d.key,rec)||seen.has(rec.group+":"+rec.id)||(selective&&rec.group!=="expenses"&&!selection[rec.group]?.includes(rec.id)))fail("catalog_record_invalid");
+  if(!rec||rec.universe!==m.universe||!acceptedGroups.includes(rec.group)||!id(rec.id)||rec.item?.id!==rec.id||!recordKeyAllowed(d.key,rec)||seen.has(rec.group+":"+rec.id)||(selective&&rec.group!=="expenses"&&!selection[rec.group]?.includes(rec.id)))fail("catalog_record_invalid");
   seen.add(rec.group+":"+rec.id);keys.set(rec.group+":"+rec.id,d.key);all[rec.group].push(rec.item);
  }
  for(const s of m.stockMap)if(keys.get(s.group+":"+s.itemId)!==s.recordKey)fail("catalog_stock_mismatch");
- const built=compileV5Catalog({finance,branch:{...all,settings:branch.settings},stockMap:m.stockMap,recipeIds:m.recipeIds,beverageIds:m.beverageIds,addonIds:m.addonIds,revision:m.revision,universe:m.universe});
+ const built=compileV5Catalog({finance,branch:{...all,settings:branch.settings},stockMap:m.stockMap,recipeIds:m.recipeIds,beverageIds:m.beverageIds,addonIds:m.addonIds,comboIds,revision:m.revision,universe:m.universe});
  // Price/composition must match the server-approved manifest; stock-only changes do
  // not invalidate the catalog. Any changed price or recipe requires reapproval.
  if(!same(built.products,m.products))fail("catalog_stale");
