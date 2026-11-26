@@ -4,7 +4,7 @@
 // model/free keys). The same physical document may be mapped by two stores sharing stock.
 // The checkout inbox is NOT a native V5 orders record: old production code would debit twice.
 import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} from "./checkout_domain.mjs";
-import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund} from "./checkout_cash_lab.mjs";
+import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund,openCheckoutCash,planDrawerMovement} from "./checkout_cash_lab.mjs";
 import {v5SequenceBaseline,advanceV5Sequence} from "./v5_checkout_sequence_lab.mjs";
 import {planSharedKitchen,kitchenLink} from "./v5_shared_kitchen_lab.mjs";
 import {requireCheckoutAuthority} from "./v5_cutover_policy.mjs";
@@ -191,16 +191,53 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    return {...projection(o,now),duplicate:false};
   }finally{await tx.rollback()}
  }
- async function closeCash({token,sessionId,operationId}={}){
+ // New cash operations require explicit server-only epoch and trusted owner.
+ async function cashIdentity(token,epoch){
+  if(!active)err("lab_disabled");if(typeof token!=="string"||!token||!operation(epoch))err("invalid_request");
+  const identity=await verifyToken(token,projectId);verifyIdentity(identity);return identity;
+ }
+ async function openCash({token,sessionId,operationId,openingCashCents,epoch}={}){
+  const identity=await cashIdentity(token,epoch);
+  if(!id(sessionId)||!operation(operationId)||!int(openingCashCents))err("invalid_request");
+  const root="checkoutLabCash/"+identity.uid,tx=await repository.transaction();
+  try{
+   const profile=await tx.get("users/"+identity.uid);requireCheckoutAuthority(profile?.data,epoch);
+   const ptr=await tx.get(root),path=root+"/sessions/"+sessionId,prior=await tx.get(path),eventPath=root+"/cashOperations/"+operationId,event=await tx.get(eventPath);
+   const fingerprint=JSON.stringify(["open",sessionId,openingCashCents,epoch]);
+   if(event){if(event.data.fingerprint!==fingerprint||!prior)err("idempotency_conflict");return {...copy(event.data.result),duplicate:true}}
+   if(ptr?.data.activeSessionId)err("cash_already_open");if(prior)err("session_exists");
+   const session=openCheckoutCash({ownerUid:identity.uid,sessionId,openingCashCents,operationId,now:clock(),epoch});
+   await tx.commit([put(path,session,null),put(root,{...(ptr?.data??{}),activeSessionId:sessionId},ptr),put(eventPath,{fingerprint,result:session},null)]);
+   return {...copy(session),duplicate:false};
+  }finally{await tx.rollback()}
+ }
+ async function moveCash({token,sessionId,operationId,epoch,kind,amountCents,reason}={}){
+  const identity=await cashIdentity(token,epoch);
+  if(!id(sessionId)||!operation(operationId))err("invalid_request");
+  const root="checkoutLabCash/"+identity.uid,tx=await repository.transaction();
+  try{
+   const profile=await tx.get("users/"+identity.uid);requireCheckoutAuthority(profile?.data,epoch);
+   const ptr=await tx.get(root),path=root+"/sessions/"+sessionId,session=await tx.get(path),eventPath=root+"/cashOperations/"+operationId,event=await tx.get(eventPath);
+   const fingerprint=JSON.stringify(["move",sessionId,epoch,kind,amountCents,reason]);
+   if(event){if(event.data.fingerprint!==fingerprint)err("idempotency_conflict");return {...copy(event.data.result),duplicate:true}}
+   if(!session||session.data.ownerUid!==identity.uid||session.data.cutoverEpoch!==epoch||ptr?.data.activeSessionId!==sessionId)err("cash_not_open");
+   const plan=planDrawerMovement({session:session.data,kind,amountCents,reason,operationId,now:clock()}),movementPath=root+"/movements/"+operationId;
+   if(await tx.get(movementPath))err("idempotency_conflict");
+   await tx.commit([put(path,plan.session,session),put(movementPath,plan.movement,null),put(eventPath,{fingerprint,result:plan.movement},null)]);
+   return {...copy(plan.movement),duplicate:false};
+  }finally{await tx.rollback()}
+ }
+ async function closeCash({token,sessionId,operationId,countedCashCents,epoch}={}){
   if(!active)err("lab_disabled");if(typeof token!=="string"||!token||!id(sessionId)||!operation(operationId))err("invalid_request");
   const identity=await verifyToken(token,projectId);verifyIdentity(identity);
   const root="checkoutLabCash/"+identity.uid,tx=await repository.transaction();
   try{
    const ptr=await tx.get(root),path=root+"/sessions/"+sessionId,session=await tx.get(path);
    if(!session||session.data.ownerUid!==identity.uid||session.data.id!==sessionId)err("not_found");
-   if(session.data.status==="closed"){if(session.data.closeOperationId!==operationId)err("cash_already_closed");return copy(session.data.closedSummary)}
+   if(session.data.cutoverEpoch!==undefined){const profile=await tx.get("users/"+identity.uid);requireCheckoutAuthority(profile?.data,epoch);if(session.data.cutoverEpoch!==epoch||!int(countedCashCents))err("invalid_request");}
+   if(session.data.status==="closed"){if(session.data.closeOperationId!==operationId)err("cash_already_closed");if(session.data.closedSummary.countedCashCents!==countedCashCents)err("idempotency_conflict");return copy(session.data.closedSummary)}
    if(ptr?.data.activeSessionId!==sessionId)err("cash_not_open");
-   const closed=freezeCheckoutCashSession(session.data,clock(),operationId);
+   const closed=freezeCheckoutCashSession(session.data,clock(),operationId,countedCashCents);
    await tx.commit([put(path,closed,session),put(root,{...ptr.data,activeSessionId:null},ptr)]);
    return copy(closed.closedSummary);
   }finally{await tx.rollback()}
@@ -238,5 +275,5 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
   }
   return result;
  }
- return {execute:args=>executeInternal(args),closeCash,configureReservation,sweepExpired};
+ return {execute:args=>executeInternal(args),closeCash,openCash,moveCash,configureReservation,sweepExpired};
 }
