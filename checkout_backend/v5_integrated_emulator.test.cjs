@@ -138,9 +138,35 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   const revised={...manifest,revision:"rev2",addonIds:[addon.id],deliveryEnabled:true,deliveryFeeCents:500};
   revised.products=compileV5Catalog({finance,branch:{settings,ingredients:[ingredient],recipes:[recipe],expenses:[expense],beverages:[],addons:[addon]},...revised}).products;
   for(const id of [online,counter])await set(store(id),{...revised,channel:id===counter?"counter":"online"});
+  const {createV5CatalogApprovalLab}=await import("./v5_catalog_approval_lab.mjs");
+  const {createV5QueueReadLab}=await import("./v5_queue_read_lab.mjs");
+  const verifyToken=async t=>({uid:t,emailVerified:true,provider:"google.com"});
+  const approval=createV5CatalogApprovalLab({projectId,repository,verifyToken,finance,recordKeyAllowed:(k,r)=>k===keyFor(r.universe,r.group,r.id),clock:()=>now});
+  const readQueue=createV5QueueReadLab({projectId,repository,verifyToken,clock:()=>now});
+  const catalog=()=>approval.execute({kind:"catalog",storeId:online});
+  const approvalArgs={token:owner,storeId:online,epoch,operationId:op(95),revision:op(95)};
+  await assert.rejects(()=>approval.execute({...approvalArgs,kind:"preview",token:buyer}),e=>e.code==="forbidden");
+  const initialCatalog=await catalog();assert.equal(initialCatalog.products[0].extras[0].title,addon.name);assert.equal(initialCatalog.products[0].priceCents,1450);
+  assert(!JSON.stringify(initialCatalog).includes("stockMap"));assert(!JSON.stringify(initialCatalog).includes("ownerUid"));
+  const preview=await approval.execute({...approvalArgs,kind:"preview"});assert.equal(preview.revision,op(95));assert.equal((await catalog()).revision,"rev2");
+  const expensePath=root+"/recordsV5/"+keyFor(universe,"expenses",expense.id);
+  await set(expensePath,rec("expenses",{...expense,amount:200}));
+  await assert.rejects(catalog,e=>e.code==="catalog_stale");
+  await assert.rejects(()=>approval.execute({...approvalArgs,kind:"approve"}),e=>e.code==="catalog_stale");
+  await set(expensePath,rec("expenses",expense));
+  assert.equal((await approval.execute({...approvalArgs,kind:"approve"})).duplicate,false);
+  assert.equal((await approval.execute({...approvalArgs,kind:"approve"})).duplicate,true);
+  assert.equal((await catalog()).revision,op(95));
+  const profile=await read(root);await set(root,{...profile,license:{status:"inactive"}});
+  await assert.rejects(catalog,e=>e.code==="license_required");
+  await set(root,profile);
+  await assert.rejects(()=>readQueue({token:buyer,storeIds:[online]}),e=>e.code==="forbidden");
+  await assert.rejects(()=>readQueue({token:owner,storeIds:[online,"unowned"]}),e=>e.code==="forbidden");
+  const qread=await readQueue({token:owner,storeIds:[online,counter]});assert.equal(qread.orders.length,2);assert(qread.orders.every(o=>!Object.hasOwn(o,"required")&&!Object.hasOwn(o,"customerUid")));
+  console.log("PASS B02-G3 catalog approval, stale price, revoked license and owner queue on V5 emulator.");
   const {runIntegratedBrowser}=require("./pdv_integrated_browser.cjs");
   const browserApi={...api,execute:args=>{now+=1000;return api.execute(args)},openCash:args=>{now+=1000;return api.openCash(args)},moveCash:args=>{now+=1000;return api.moveCash(args)},closeCash:args=>{now+=1000;return api.closeCash(args)}};
-  await runIntegratedBrowser({api:browserApi,config:{ownerToken:owner,buyerToken:buyer,online,counter,epoch,products:revised.products.map(({id,title,priceCents,extras})=>({id,title,priceCents,extras:extras.map(e=>({id:e.id,title:addon.name,priceCents:e.priceCents}))}))},
+  await runIntegratedBrowser({api:browserApi,readCatalog:catalog,readQueue:()=>readQueue({token:owner,storeIds:[online,counter]}),config:{ownerToken:owner,buyerToken:buyer,online,counter,epoch,products:revised.products.map(({id,title,priceCents,extras})=>({id,title,priceCents,extras:extras.map(e=>({id:e.id,title:addon.name,priceCents:e.priceCents}))}))},
    readSnapshot:async()=>{const orders=[];for(const id of [online,counter]){const docs=await sdk.getDocs(sdk.query(sdk.collection(db,store(id)+"/orders"),sdk.limit(50)));for(const d of docs.docs)orders.push(d.data())}
     const ptr=await read(cash),session=ptr.activeSessionId?await read(cash+"/sessions/"+ptr.activeSessionId):null;
     const shifts=await sdk.getDocs(sdk.collection(db,cash+"/sessions"));const lastClosed=shifts.docs.map(d=>d.data()).filter(x=>x.status==="closed").sort((a,b)=>b.closedAt-a.closedAt)[0]?.closedSummary??null;
