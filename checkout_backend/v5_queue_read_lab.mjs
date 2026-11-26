@@ -19,7 +19,7 @@ export function createV5QueueReadLab({projectId,repository,verifyToken,clock=()=
     const last=docs[19]?.data;if(docs.length===21){if(!last||!Number.isSafeInteger(last.createdAt)||!id(last.id))fail("invalid_order");nextCursors[storeId]={createdAt:last.createdAt,id:last.id}}
     const seen=new Set();for(const d of docs.slice(0,20)){const o=d.data;if(!o||o.storeId!==storeId||d.key!==o.id||seen.has(o.id))fail("invalid_order");seen.add(o.id);
      const row=queueRow(o,now);
-     orders.push({id:o.id,storeId,channel:o.channel==="counter"?"counter":"online",status:row.status,paymentStatus:row.paymentStatus,paymentMethod:row.paymentMethod,stockState:row.stockState,createdAt:o.createdAt,deliveredAt:o.deliveredAt??null,reservationExpiresAt:o.reservationExpiresAt??null,events:o.status==="cancelled"?[{at:o.events.at(-1).at}]:[],totalCents:o.totalCents,fulfillment:o.fulfillment,lines:row.lines.map(l=>({title:l.title,quantity:l.quantity,totalCents:l.totalCents}))});
+     orders.push({id:o.id,storeId,channel:o.channel==="counter"?"counter":"online",status:row.status,paymentStatus:row.paymentStatus,paymentMethod:row.paymentMethod,stockState:row.stockState,createdAt:o.createdAt,acceptedCashSessionId:o.acceptedCashSessionId??null,deliveredAt:o.deliveredAt??null,reservationExpiresAt:o.reservationExpiresAt??null,events:o.status==="cancelled"?[{at:o.events.at(-1).at}]:[],totalCents:o.totalCents,fulfillment:o.fulfillment,lines:row.lines.map(l=>({title:l.title,quantity:l.quantity,totalCents:l.totalCents}))});
     }
    }
    return {now,nextCursors,orders:orders.sort((a,b)=>b.createdAt-a.createdAt||a.storeId.localeCompare(b.storeId)||b.id.localeCompare(a.id))};
