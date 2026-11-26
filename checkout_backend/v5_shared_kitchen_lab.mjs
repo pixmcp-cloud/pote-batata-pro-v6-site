@@ -32,10 +32,10 @@ export function planSharedKitchen({ownerUid,meta,records,requests,listingComplet
   if(!Object.hasOwn(k.inventory,key))fail("shared_kitchen_not_ready");
   const source=k.inventory[key],aliases=groups.get(key);
   if(!source||!valid(source.stock)||!aliases?.length)fail("shared_kitchen_not_ready");
-  const perUniverse=new Set();
+  const perUniverse=new Set(),measure=String(aliases[0].data.record.item.measureUnit||"g").toLowerCase();
   for(const d of aliases){
    const rec=d.data.record,i=rec.item;
-   if(perUniverse.has(rec.universe)||!valid(i.stock)||i.stock!==source.stock||fields.some(f=>(i[f]??null)!==(source[f]??null)))fail("shared_kitchen_divergent");
+   if(perUniverse.has(rec.universe)||String(i.measureUnit||"g").toLowerCase()!==measure||!valid(i.stock)||i.stock!==source.stock||fields.some(f=>(i[f]??null)!==(source[f]??null)))fail("shared_kitchen_divergent");
    perUniverse.add(rec.universe);
   }
   const raw=source.stock*req.scale,units=Math.round(raw);
