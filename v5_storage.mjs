@@ -20,7 +20,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
  // Candidate cutover fence; same policy as checkout_backend/v5_cutover_policy.mjs.
  // Check on every write transaction, not merely at session start.
  const requireLegacy=async tx=>{const profile=(await tx.get(profileRef)).data(),policy=profile?.accessPolicy;
-  if(policy!=null&&(typeof policy!=="object"||Array.isArray(policy)||!(policy.checkoutAuthority===undefined||policy.checkoutAuthority==="legacy")))
+  if(policy!==undefined&&(policy===null||typeof policy!=="object"||Array.isArray(policy)||!(policy.checkoutAuthority===undefined||policy.checkoutAuthority==="legacy")))
    fail("sync/checkout-cutover","Conta em transição de checkout: nenhuma alteração local foi enviada.");
  };
  const guardRef=doc(db,"users",uid,"appState","v5InventoryGuard");
