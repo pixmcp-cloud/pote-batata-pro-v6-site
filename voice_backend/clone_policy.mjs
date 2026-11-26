@@ -10,10 +10,11 @@ export function validateClone(data){
  if(name.length<3||name.length>65||description.length>250||consentRef.length<5||consentRef.length>180)throw Error('Nome, descrição ou referência da autorização inválidos.');
  if(typeof data.requestId!=='string'||!/^[a-f0-9-]{36}$/.test(data.requestId))throw Error('Identificador inválido.');
  if(!['audio/mpeg','audio/wav'].includes(data.mime)||typeof data.audio!=='string'||data.audio.length>Math.ceil(MAX_CLONE_BYTES/3)*4||!/^[A-Za-z0-9+/]+={0,2}$/.test(data.audio))throw Error('Envie um MP3 ou WAV de até 8 MB.');
- const bytes=Buffer.from(data.audio,'base64');
+ let bytes;try{bytes=Uint8Array.from(atob(data.audio),ch=>ch.charCodeAt(0));}catch{throw Error('Amostra inválida.');}
  if(bytes.length<1024||bytes.length>MAX_CLONE_BYTES)throw Error('Amostra inválida.');
- const wav=bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WAVE';
- const mp3=bytes.subarray(0,3).toString()==='ID3'||(bytes[0]===255&&(bytes[1]&224)===224);
+ const ascii=(a,b)=>String.fromCharCode(...bytes.subarray(a,b));
+ const wav=ascii(0,4)==='RIFF'&&ascii(8,12)==='WAVE';
+ const mp3=ascii(0,3)==='ID3'||(bytes[0]===255&&(bytes[1]&224)===224);
  if(data.mime==='audio/wav'?!wav:!mp3)throw Error('Formato do arquivo não corresponde ao áudio.');
  return {name,description,consentRef,bytes,mime:data.mime,requestId:data.requestId};
 }
