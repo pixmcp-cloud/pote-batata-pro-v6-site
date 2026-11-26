@@ -37,6 +37,9 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
  const act=(id,oid,action,n,extra={})=>api.execute({token:owner,storeId:id,kind:"transition",orderId:oid,action,operationId:op(n),...extra});
  const rec=(group,item)=>({record:{universe,group,id:item.id,item,rank:1}});
  const canonical=x=>Array.isArray(x)?x.map(canonical):x&&typeof x==="object"?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;
+ // Explicit typed encoding: SDK timestamps otherwise serialize with a different shape.
+ const encode=x=>{if(x instanceof sdk.Timestamp)return ["timestamp",x.seconds,x.nanoseconds];if(x===null)return ["null"];if(Array.isArray(x))return ["array",x.map(encode)];if(typeof x==="object"&&Object.getPrototypeOf(x)===Object.prototype)return ["map",Object.entries(x).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>[k,encode(v)])];if(["string","boolean","number"].includes(typeof x)&&!(typeof x==="number"&&!Number.isFinite(x)))return [typeof x,x];throw Error("Unsupported fixture value")};
+ const decode=x=>{switch(x[0]){case "timestamp":return new sdk.Timestamp(x[1],x[2]);case "null":return null;case "array":return x[1].map(decode);case "map":return Object.fromEntries(x[1].map(([k,v])=>[k,decode(v)]));case "string":case "number":case "boolean":return x[1];default:throw Error("Unsupported backup value")}};
  const digest=x=>crypto.createHash("sha256").update(JSON.stringify(canonical(x))).digest("hex");
  // Bounded fixture manifest: includes every collection written by this scenario.
  // This is NOT a general Firestore exporter; no real account or unknown collections.
@@ -44,8 +47,8 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
  const collections=[root+"/appState",root+"/recordsV5",cash+"/sessions",cash+"/receipts",cash+"/refunds",...[online,counter].flatMap(s=>["meta","orders","customerViews","quotes","operations","schedulerOperations","stockLedger","losses"].map(k=>store(s)+"/"+k))];
  async function snapshot(db){
   const rows=[];
-  for(const p of roots){const d=await sdk.getDoc(sdk.doc(db,p));assert(d.exists());rows.push({path:p,data:d.data()})}
-  for(const p of collections){const docs=await sdk.getDocs(sdk.query(sdk.collection(db,p),sdk.limit(91)));assert(docs.size<=90);for(const d of docs.docs)rows.push({path:d.ref.path,data:d.data()})}
+  for(const p of roots){const d=await sdk.getDoc(sdk.doc(db,p));assert(d.exists());rows.push({path:p,data:encode(d.data())})}
+  for(const p of collections){const docs=await sdk.getDocs(sdk.query(sdk.collection(db,p),sdk.limit(91)));assert(docs.size<=90);for(const d of docs.docs)rows.push({path:d.ref.path,data:encode(d.data())})}
   assert(rows.length<=90);return rows.sort((a,b)=>a.path.localeCompare(b.path));
  }
  try{await env.withSecurityRulesDisabled(async ctx=>{
@@ -90,7 +93,7 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   restored=await initializeTestEnvironment({projectId:restoreProject,firestore:{rules}});
   await restored.withSecurityRulesDisabled(async rctx=>{
    const target=rctx.firestore();for(const row of parsed.rows){const existing=await sdk.getDoc(sdk.doc(target,row.path));assert(!existing.exists(),"restore target not empty")}
-   const batch=sdk.writeBatch(target);for(const row of parsed.rows)batch.set(sdk.doc(target,row.path),row.data);await batch.commit();
+   const batch=sdk.writeBatch(target);for(const row of parsed.rows)batch.set(sdk.doc(target,row.path),decode(row.data));await batch.commit();
    const restoredRows=await snapshot(target);assert.equal(digest(restoredRows),parsed.sha256);
    assert.equal((await sdk.getDoc(sdk.doc(target,stockPath))).data().record.item.stock,0);
    assert.deepEqual((await sdk.getDoc(sdk.doc(target,cash+"/sessions/shift1"))).data().closedSummary,closed);
