@@ -1,0 +1,26 @@
+name: ElevenLabs - verificar conexao sem consumo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/elevenlabs-check.yml'
+      - 'voice_backend/check_provider.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: elevenlabs-check
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar assinatura e permissoes (somente leitura)
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: node voice_backend/check_provider.mjs
