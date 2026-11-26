@@ -81,6 +81,17 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       throw Error("Firestore: resposta transacional batchGet inválida");
      return {data:decodeFields(found.found.fields),updateTime:found.found.updateTime};
     },
+    // B02.7 only: bounded complete catalog query on local synthetic emulator.
+    // Production repository does not expose this capability.
+    ...(project==="demo-nucleobit-checkout"&&typeof apiBaseUrl==="string"&&/^http:\/\/127\.0\.0\.1:\d+\/v1\/projects\/demo-nucleobit-checkout\/databases\/\(default\)$/.test(apiBaseUrl)?{
+     async listRecords({collection,universe,groups,limit}){
+      if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||! /^[A-Za-z0-9_-]{1,100}$/.test(universe)||!Array.isArray(groups)||groups.length!==5||new Set(groups).size!==5||groups.some(g=>!["recipes","ingredients","beverages","addons","expenses"].includes(g))||limit!==241)throw Error("Invalid lab catalog query");
+      const parent=collection.split("/").slice(0,-1).join("/");
+      const response=await api("/documents/"+parent+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],where:{compositeFilter:{op:"AND",filters:[{fieldFilter:{field:{fieldPath:"record.universe"},op:"EQUAL",value:{stringValue:universe}}},{fieldFilter:{field:{fieldPath:"record.group"},op:"IN",value:{arrayValue:{values:groups.map(stringValue=>({stringValue}))}}}}]}},limit}}});
+      if(!Array.isArray(response))throw Error("Invalid lab query response");
+      return response.filter(x=>x.document).map(x=>({key:x.document.name.split("/").at(-1),data:decodeFields(x.document.fields),updateTime:x.document.updateTime}));
+     }
+    }:{}),
     async commit(writes){
      if(done)throw Error("Transaction already finalized");
      const updates=writes.map(write=>{
