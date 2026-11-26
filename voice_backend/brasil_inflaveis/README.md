@@ -27,3 +27,8 @@ Duração é estimativa, não garantia. 1 Coin = 2 Promo em poder de compra; uni
 `node voice_backend/brasil_inflaveis/tostao_policy.test.mjs`
 
 107 verificações executadas sobre as funções puras no ambiente JavaScript antes do commit. Testes de integração D1, worker, UI e provedor real ainda não executados. Este módulo não é um sistema de cobrança em produção.
+
+## A07 — ampliação de testes (26/11/2026)
+- Política de produção inalterada. Suite anterior: 107 verificações aprovadas novamente. Nova suite `node voice_backend/brasil_inflaveis/tostao_a07.test.mjs`: 9.801 verificações aprovadas, 5.180 de carteiras e tarifas, 4.480 financeiras, 122 entradas inválidas e 19 de simulação de reservas. Total somado 9.908 assertivas, não casos independentes. Executado no runtime JavaScript V8, carregando o conteúdo da política do GitHub (blob 4b36187c4501e38f68f75a8690393362af29ec58) e revalidando o teste versionado (commit 31c9ff1cfd7696a19f2a133b34b7fe85e066f24d); comandos Node são instruções reproduzíveis, não execução CI registrada.
+- A simulação usa Map em memória e transições serializadas, apenas modelo de referência, não autenticação real, concorrência de banco, transação D1 ou gateway. Confirmou no modelo deduplicação, conflito de payload, segregação de escopo, limite global, falha ambígua, estorno e captura idempotentes, pagamento misto e reserva de verba Promo. O módulo puro não executa débitos, não impede sozinho duas requisições concorrentes e não autoriza transferências. Essas proteções reais precisam de integração em A09, conforme contrato A06.
+- Sem cobrança, novos serviços, deploy ou alteração do código funcional. Preço e composição mista permanecem propostas; validar margem, verba promocional, custo real e schema D1 antes de comercializar.
