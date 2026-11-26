@@ -92,7 +92,7 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
        throw Error("Missing Firestore version");
       return {
        update:{name:fullName(write.path),fields:encodeFields(write.data)},
-       updateTransforms:[{fieldPath:"updatedAt",setToServerValue:"REQUEST_TIME"}],
+       updateTransforms:[...new Set(["updatedAt",...(write.serverTimestamps||[])])].map(fieldPath=>({fieldPath,setToServerValue:"REQUEST_TIME"})),
        currentDocument
       };
      });
