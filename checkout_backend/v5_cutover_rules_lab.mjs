@@ -19,3 +19,24 @@ export function candidateCutoverRules(source){
  once("allow delete: if canAccess(userId)\n          && canEditOperationalRecord", "allow delete: if canAccess(userId) && legacyAuthority(userId)\n          && canEditOperationalRecord");
  return source;
 }
+
+ // Candidate combined rules. The original official rules file is not modified.
+ export function candidateIntegratedRules(source){
+  const base=candidateCutoverRules(source);
+  const marker="    // Licenças e franquias";
+  if(base.split(marker).length!==2)throw Error("Rules source changed");
+  return base.replace(marker,`    function checkoutOwner(storeId) {
+      let s = get(/databases/$(database)/documents/checkoutLabStores/$(storeId)).data;
+      return googleVerified() && s.lab == true && s.ownerUid == request.auth.uid;
+    }
+    match /checkoutLabStores/{storeId}/orders/{orderId} {
+      allow get, list: if checkoutOwner(storeId);
+      allow write: if false;
+    }
+    match /checkoutLabStores/{storeId}/customerViews/{orderId} {
+      allow get: if googleVerified() && resource.data.customerUid == request.auth.uid
+        && resource.data.storeId == storeId;
+      allow list, write: if false;
+    }
+    // Licenças e franquias`);
+ }
