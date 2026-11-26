@@ -2,6 +2,7 @@
  * Production is unchanged until authenticated Cloudflare deployment,
  * real emulator validation and explicit Firestore-rule cutover.
  */
+import {legacyWritesAllowed} from "../../../checkout_backend/v5_cutover_policy.mjs";
 import {verifyFirebaseToken} from "./auth.mjs";
 import {createFirestoreRepository,FirestoreError} from "./firestore.mjs";
 import {OperationalError,quantities,planOperation,recordPath} from "./domain.mjs";
@@ -30,7 +31,7 @@ function hasAccess(profile,claims,universe){
  const policy=profile?.accessPolicy||{};
  // Segunda aprovação administrada no Firebase: o secret Cloudflare sozinho
  // não habilita uma conta. O titular não pode alterar accessPolicy nas Rules.
- if(policy.workerAuthoritative!==true)return false;
+ if(policy.workerAuthoritative!==true||!legacyWritesAllowed(profile))return false;
  if(policy.blockedUniverses?.includes(universe)||
     policy.blockedServices?.includes(universe+":stock")||
     policy.blockedServices?.includes(universe+":orders"))return false;
