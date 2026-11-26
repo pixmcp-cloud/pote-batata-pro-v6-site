@@ -7,6 +7,8 @@ on:
       - 'firebase.checkout.lab.json'
       - 'workers/antifraud/src/checkout_auth_lab*'
       - 'workers/antifraud/src/firestore.mjs'
+      - 'workers/antifraud/src/index.mjs'
+      - 'v5_storage.mjs'
       - '.github/workflows/checkout-lab-qa.yml'
   workflow_dispatch:
 permissions:
@@ -40,6 +42,7 @@ jobs:
           node checkout_backend/v5_checkout_catalog_lab.test.mjs
           node checkout_backend/v5_checkout_authority_lab.test.mjs
           node checkout_backend/v5_checkout_b029.test.mjs
+          node checkout_backend/v5_cutover_policy.test.mjs
       - name: Dependências fixadas do emulador
         run: |
           npm ci --prefix qa/firestore --ignore-scripts --no-audit --no-fund
@@ -50,7 +53,7 @@ jobs:
         run: >-
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-nucleobit-checkout --config firebase.checkout.lab.json
-          "node checkout_backend/firestore_checkout_emulator.test.cjs && node checkout_backend/firestore_checkout_authority_emulator.test.cjs"
+          "node checkout_backend/firestore_checkout_emulator.test.cjs && node checkout_backend/firestore_checkout_authority_emulator.test.cjs && node checkout_backend/v5_cutover_emulator.test.cjs"
       - name: Navegador e impressão da fila online (local)
         run: |
           npm ci --prefix qa/mobile --ignore-scripts --no-audit --no-fund
