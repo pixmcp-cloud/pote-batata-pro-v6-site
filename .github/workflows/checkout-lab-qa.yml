@@ -55,6 +55,7 @@ jobs:
           node checkout_backend/v5_g4_lab.test.mjs
           node checkout_backend/v5_store_setup_lab.test.mjs
           node checkout_backend/v5_trial_downgrade_lab.test.mjs
+          node checkout_backend/g9_grant_late_lab.test.mjs
       - name: Dependências fixadas do emulador
         run: |
           npm ci --prefix qa/firestore --ignore-scripts --no-audit --no-fund
