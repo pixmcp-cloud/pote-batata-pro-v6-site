@@ -1,0 +1,32 @@
+name: Voice Studio - inventario de hospedagem
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/voice-host-check.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verificar Cloudflare e bindings sem revelar segredos
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CF_ACCOUNT" && test -n "$CF_TOKEN"
+          node --input-type=module <<'JS'
+          const root='https://api.cloudflare.com/client/v4/accounts/'+process.env.CF_ACCOUNT;
+          async function get(path){const r=await fetch(root+path,{headers:{Authorization:'Bearer '+process.env.CF_TOKEN},signal:AbortSignal.timeout(15000)});const j=await r.json();if(!r.ok||!j.success)throw Error('CF_HTTP_'+r.status+' '+path);return j.result;}
+          const workers=await get('/workers/scripts');
+          console.log('Workers:',JSON.stringify(workers.map(x=>x.id)));
+          for(const name of workers.map(x=>x.id).filter(x=>/pote|voice|pdv/i.test(x))){
+            try{const s=await get('/workers/scripts/'+encodeURIComponent(name)+'/settings');
+            console.log(JSON.stringify({worker:name,bindings:(s.bindings||[]).map(b=>({name:b.name,type:b.type})),compatibilityDate:s.compatibility_date,compatibilityFlags:s.compatibility_flags}));}
+            catch(e){console.log('SETTINGS_UNAVAILABLE',name,e.message);}
+          }
+          JS
