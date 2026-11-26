@@ -44,7 +44,7 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
  // Bounded fixture manifest: includes every collection written by this scenario.
  // This is NOT a general Firestore exporter; no real account or unknown collections.
  const roots=[root,cash,store(online),store(counter)];
- const collections=[root+"/appState",root+"/recordsV5",cash+"/sessions",cash+"/receipts",cash+"/refunds",...[online,counter].flatMap(s=>["meta","orders","customerViews","quotes","operations","schedulerOperations","stockLedger","losses"].map(k=>store(s)+"/"+k))];
+ const collections=[root+"/appState",root+"/recordsV5",cash+"/sessions",cash+"/receipts",cash+"/refunds",cash+"/movements",cash+"/cashOperations",...[online,counter].flatMap(s=>["meta","orders","customerViews","quotes","operations","schedulerOperations","stockLedger","losses"].map(k=>store(s)+"/"+k))];
  async function snapshot(db){
   const rows=[];
   for(const p of roots){const d=await sdk.getDoc(sdk.doc(db,p));assert(d.exists());rows.push({path:p,data:encode(d.data())})}
@@ -58,7 +58,18 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   await set(root+"/appState/v5InventoryGuard",{revision:0});await set(root+"/appState/v5Pulse",{eventId:"seed"});
   for(const [g,item] of [["ingredients",ingredient],["recipes",recipe],["expenses",expense]])await set(root+"/recordsV5/"+keyFor(universe,g,item.id),rec(g,item));
   for(const id of [online,counter]){await set(store(id),{...manifest,channel:id===counter?"counter":"online"});await set(store(id)+"/meta/sequence",{value:0})}
-  await set(cash,{activeSessionId:"shift1"});await set(cash+"/sessions/shift1",{id:"shift1",ownerUid:owner,status:"open",openedAt:now-1000,revision:0,totals:{cash:0,pix:0,card:0,count:0}});
+  const open=(token=owner,id="shift1",n=30,value=5000)=>api.openCash({token,sessionId:id,operationId:op(n),openingCashCents:value,epoch});
+  await assert.rejects(()=>open(buyer),e=>e.code==="cutover_not_ready");
+  assert.equal((await open()).openingCashCents,5000);assert.equal((await open()).duplicate,true);
+  await assert.rejects(()=>open(owner,"shift1",30,6000),e=>e.code==="idempotency_conflict");
+  await assert.rejects(()=>open(owner,"shift2",31),e=>e.code==="cash_already_open");
+  const move=(kind,amountCents,n,reason="Movimentação de teste")=>api.moveCash({token:owner,sessionId:"shift1",operationId:op(n),epoch,kind,amountCents,reason});
+  await assert.rejects(()=>move("sangria",5001,32),e=>e.code==="insufficient_cash");
+  await move("suprimento",2000,33);assert.equal((await move("suprimento",2000,33)).duplicate,true);
+  await assert.rejects(()=>move("suprimento",2500,33),e=>e.code==="idempotency_conflict");
+  await move("sangria",1000,34);
+  await assertFails(sdk.getDoc(sdk.doc(buyerDb,cash+"/movements/"+op(33))));
+  await assertFails(sdk.updateDoc(sdk.doc(ownerDb,cash+"/sessions/shift1"),{openingCashCents:99999}));
   await assert.rejects(()=>quote(counter,buyer,"cash",1),e=>e.code==="forbidden");
   assert.equal((await quote(online,buyer,"pix",2)).totalCents,1450);assert.equal((await quote(counter,owner,"cash",3)).totalCents,1450);
   const calls=[()=>submit(online,buyer,"pix",4,2),()=>submit(counter,owner,"cash",5,3)];
@@ -83,8 +94,10 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   assert.match(orderPrintText(await read(webPath)),/COMPROVANTE NÃO FISCAL/);
   assert.match(orderPrintText(await read(salePath)),/VENDA DE BALCÃO/);assert.match(orderPrintText(await read(salePath)),/Tempo total:/);
   const beforeClose=await read(cash+"/sessions/shift1");assert.deepEqual(beforeClose.totals,{cash:1450,pix:1450,card:0,count:2});
-  const close=()=>api.closeCash({token:owner,sessionId:"shift1",operationId:op(20)});
-  const closed=await close();assert.equal(closed.receivedCents,2900);assert.equal(closed.cashDrawerIncreaseCents,1450);assert.deepEqual(await close(),closed);
+  const close=()=>api.closeCash({token:owner,sessionId:"shift1",operationId:op(20),epoch,countedCashCents:7400});
+  const closed=await close();assert.equal(closed.receivedCents,2900);assert.equal(closed.cashDrawerIncreaseCents,1450);assert.deepEqual(await close(),closed);assert.equal(closed.expectedCashCents,7450);assert.equal(closed.countedCashCents,7400);assert.equal(closed.differenceCents,-50);assert.equal(closed.supplyCents,2000);assert.equal(closed.withdrawalCents,1000);
+  await assert.rejects(()=>move("sangria",1,35),e=>e.code==="cash_not_open");
+  await assert.rejects(()=>api.closeCash({token:owner,sessionId:"shift1",operationId:op(20),epoch,countedCashCents:7450}),e=>e.code==="idempotency_conflict");
   assert.equal((await read(cash)).activeSessionId,null);
   // Export the quiescent synthetic fixture with all written collection paths.
   const rows=await snapshot(db),serialized=JSON.stringify({version:1,rows,sha256:digest(rows)});
@@ -99,7 +112,7 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
    assert.deepEqual((await sdk.getDoc(sdk.doc(target,cash+"/sessions/shift1"))).data().closedSummary,closed);
    assert.equal((await sdk.getDoc(sdk.doc(target,root+"/appState/v5"))).data().state.data.orderSequenceLast,42);
   });
-  console.log("PASS B02.12 integrated: 2 sales, 2900 cents gross, 1450 cents cash, stock 0, lost-reply replay, private views, receipt, "+rows.length+" documents restored SHA-256 "+parsed.sha256);
+  console.log("PASS B02.13 integrated: 2 sales, 2900 cents gross, 1450 cents cash sales, 7450 expected drawer, -50 discrepancy, stock 0, lost-reply replay, private views, receipt, "+rows.length+" documents restored SHA-256 "+parsed.sha256);
  });
  }finally{if(restored)await restored.cleanup();await env.cleanup()}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1});
