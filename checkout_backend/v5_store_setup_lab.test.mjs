@@ -1,0 +1,31 @@
+import {deriveInitialStockMap,createV5StoreSetupLab} from "./v5_store_setup_lab.mjs";
+import "../finance_core.js";
+async function run(derive,create,finance,log){
+ let n=0;const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));n++};const reject=async(fn,code)=>{let e;try{await fn()}catch(x){e=x}eq(e?.code??e?.message,code)};
+ const ownerUid="setupowner",universe="batataria",epoch="checkout_epoch_001",root="users/"+ownerUid,now=1700000000000;
+ const settings={fee:0,tax:0,packageCost:1,otherCost:0,estimatedMonthlyUnits:100,margin:50,usePackagingStock:true};
+ const selection={recipeIds:["meal"],beverageIds:["water"],addonIds:["extra"],comboIds:[]};
+ const branch={recipes:[{id:"meal",name:"Batata",items:[{id:"potato",g:400}],packagingIngredientIds:["box"],pricingMode:"gain",targetGainPct:100}],ingredients:[{id:"potato",purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",yield:80,stock:1000},{id:"box",purchasePrice:1,purchaseQuantity:1,purchaseUnit:"un",yield:100,stock:20,category:"Embalagem"}],beverages:[{id:"water",name:"Água",purchasePrice:2,purchaseQuantity:1,sellPrice:5,stock:10}],addons:[{id:"extra",name:"Extra",ingredientId:"potato",quantity:40,sellPrice:3}],expenses:[{id:"expense1",enabled:true,mode:"mensal",amount:100,repeat:1}],combos:[]};
+ const rows=()=>Object.entries(branch).flatMap(([group,items])=>items.map(item=>({key:group+"_"+item.id,data:{record:{id:item.id,universe,group,item}}})));
+ const cp=x=>JSON.parse(JSON.stringify(x));let duplicate=false,foreign=false;
+ const listCatalogRecords=async({collection,universe:u,selection:s})=>{if(collection!==root+"/recordsV5"||u!==universe)throw Error("wrong_scope");const result=rows().filter(x=>x.data.record.group==="expenses"||s[x.data.record.group]?.includes(x.data.record.id));if(duplicate&&result.length)result.push(result[0]);if(foreign&&result.length)result[0]={...result[0],data:{record:{...result[0].data.record,universe:"other"}}};return cp(result)};
+ const mappingArgs={tx:{listCatalogRecords},ownerUid,universe,selection,settings,recordKeyAllowed:(k,r)=>k===r.group+"_"+r.id};
+ const map=await derive(mappingArgs);eq(map.map(x=>x.stockId),["i_box","i_potato","b_water"]);eq(map.map(x=>x.scale),[1000,1000,1]);eq(map[1].recordKey,"ingredients_potato");
+ duplicate=true;await reject(()=>derive(mappingArgs),"catalog_record_invalid");duplicate=false;foreign=true;await reject(()=>derive(mappingArgs),"catalog_record_invalid");foreign=false;
+ branch.ingredients[0].stock=1000.00001;await reject(()=>derive(mappingArgs),"invalid_stock_precision");branch.ingredients[0].stock=1000;
+ await reject(()=>derive({...mappingArgs,selection:{...selection,recipeIds:["missing"]}}),"stock_mapping_missing");
+ await reject(()=>derive({...mappingArgs,selection:{...selection,addonIds:["extra","extra"]}}),"invalid_selection");
+ const docs=new Map([[root,{license:{status:"active",kind:"lifetime",term:"lifetime"},accessPolicy:{checkoutAuthority:"server-only",checkoutEpoch:epoch}}],[root+"/appState/v5",{schemaVersion:5,state:{data:{businessType:universe,settings,orderSequenceLast:88}}}],[root+"/appState/v5InventoryGuard",{revision:0}],[root+"/appState/v5Pulse",{eventId:"seed"}]]);
+ const repository={transaction:async()=>({get:async p=>docs.has(p)?{data:cp(docs.get(p)),updateTime:"v1"}:null,listCatalogRecords,listOwnerCheckoutStores:async()=>[...docs.keys()].filter(k=>/^checkoutLabStores\/[^/]+$/.test(k)),commit:async writes=>{for(const w of writes)docs.set(w.path,cp({...w.data,updatedAt:now}))},rollback:async()=>{}})};
+ const target={ownerUid,universe,epoch,online:"online1",counter:"counter1",deliveryEnabled:true,deliveryFeeCents:500},cfg={projectId:"demo-nucleobit-checkout",repository,verifyToken:async uid=>({uid,emailVerified:true,provider:"google.com"}),finance,recordKeyAllowed:mappingArgs.recordKeyAllowed,target,clock:()=>now};
+ const api=create(cfg),args={token:ownerUid,operationId:"setup_operation_001"};
+ await reject(()=>api.execute({...args,kind:"preview",selection,token:"other"}),"forbidden");
+ const preview=await api.execute({...args,kind:"preview",selection});eq(preview.stockItems,3);eq(preview.baseline,88);eq(docs.has("checkoutLabStores/online1"),false);
+ branch.expenses[0].amount=200;await reject(()=>api.execute({...args,kind:"approve"}),"setup_stale");branch.expenses[0].amount=100;
+ eq((await api.execute({...args,kind:"approve"})).duplicate,false);eq((await api.execute({...args,kind:"approve"})).duplicate,true);
+ eq(docs.get("checkoutLabStores/online1").stockMap,docs.get("checkoutLabStores/counter1").stockMap);
+ eq(docs.get("checkoutLabStores/online1/meta/sequence").value,88);eq(docs.get("checkoutLabStores/counter1").deliveryEnabled,false);eq(branch.ingredients[0].stock,1000);
+ await reject(()=>create({...cfg,target:{...target,online:"another1",counter:"another2"}}).execute({...args,operationId:"setup_operation_002",kind:"preview",selection}),"setup_conflict");
+ log("PASS G5 store setup",n,"assertivas");
+}
+await run(deriveInitialStockMap,createV5StoreSetupLab,globalThis.POTE_FINANCE,console.log);
