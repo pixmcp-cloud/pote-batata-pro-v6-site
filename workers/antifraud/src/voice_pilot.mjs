@@ -37,6 +37,15 @@ export function createVoicePilot({verify=verifyFirebaseToken,repo=createFirestor
   if(route==='/voice/health'&&req.method==='GET')return json({status:'ok',voicePilot:env.VOICE_PILOT_ENABLED==='true',scope:'adm-only',stockWrites:env.ENABLE_WRITES==='true'});
   try{
    if(env.VOICE_PILOT_ENABLED!=='true'||env.ENABLE_WRITES!=='false')fail('Piloto não ativado.',423);
+   if(route==='/voice/ready'&&req.method==='GET'){
+    const expected=env.VOICE_PROBE_TOKEN,provided=req.headers.get('X-Voice-Probe')||'';
+    if(typeof expected!=='string'||expected.length<43||provided!==expected)fail('Não autorizado.',403);
+    const s=await subscription(env),catalog=await voices(env);
+    const bearer=await serviceToken(env,providerFetch);
+    const g=await providerFetch('https://firestore.googleapis.com/v1/projects/'+env.FIREBASE_PROJECT_ID+'/databases/(default)',{headers:{Authorization:'Bearer '+bearer},signal:AbortSignal.timeout(15000)});
+    if(!g.ok||!catalog.length)fail('Firebase ou catálogo indisponível.',503);
+    return json({ready:true,tier:s.tier,providerRemaining:s.character_limit-s.character_count,allowedVoices:catalog.length,overageOff:true,firestoreMetadata:true,scope:'adm-only'});
+   }
    if(req.method!=='POST')fail('Método não permitido.',405);
    const token=req.headers.get('Authorization')||'';
    if(!/^Bearer [^\s]+$/.test(token))fail('Autenticação obrigatória.',401);
