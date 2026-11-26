@@ -20,7 +20,7 @@ const {createEmulatorRepository}=require("../qa/workers/emulator_repository.cjs"
    const db=ctx.firestore(),set=(p,x)=>sdk.setDoc(sdk.doc(db,p),x);
    for(const s of ["shop1","shop2"]){await set("checkoutLabStores/"+s,manifest);await set("checkoutLabStores/"+s+"/meta/sequence",{value:0})}
    await set(root+"/appState/v5",{schemaVersion:5});await set(guard,{revision:0});await set(root+"/appState/v5Pulse",{eventId:"seed"});await set(stock,{record:{universe:"batataria",group:"ingredients",id:"potato",item:{stock:.5,name:"Batata"},rank:7}});
-   const api=createCheckoutLabRepository({projectId,enabled:true,repository:createEmulatorRepository(db,sdk),clock:()=>now,verifyToken:async t=>({uid:t,emailVerified:true,provider:"google.com"}),verifyScheduler:async t=>t==="task-"+t.slice(5)&&["shop1","shop2"].includes(t.slice(5))?{uid:"job1",ownerUid:"merchant1",storeId:t.slice(5),schedulerVerified:true}:null,listExpiredCandidates:async ({storeId,before,limit})=>{const query=sdk.query(sdk.collection(db,"checkoutLabStores/"+storeId+"/orders"),sdk.where("reservationExpiresAt","<=",before),sdk.limit(limit));return (await sdk.getDocs(query)).docs.map(x=>x.id)}});
+   const api=createCheckoutLabRepository({projectId,enabled:true,repository:createEmulatorRepository(db,sdk),clock:()=>now,verifyToken:async t=>({uid:t,emailVerified:true,provider:"google.com"}),verifyScheduler:async t=>t==="task-"+t.slice(5)&&["shop1","shop2"].includes(t.slice(5))?{uid:"job1",ownerUid:"merchant1",storeId:t.slice(5),schedulerVerified:true}:null,listExpiredCandidates:async ({storeId,before,limit})=>{const query=sdk.query(sdk.collection(db,"checkoutLabStores/"+storeId+"/orders"),sdk.where("status","==","received"),sdk.where("paymentStatus","==","pending"),sdk.where("stockState","==","reserved"),sdk.where("reservationExpiresAt","<=",before),sdk.limit(limit));return (await sdk.getDocs(query)).docs.map(x=>x.id)}});
    const q=(s,t,n)=>api.execute({storeId:s,token:t,kind:"quote",operationId:key(n),input});
    const submit=(s,t,n,qid)=>api.execute({storeId:s,token:t,kind:"submit",operationId:key(n),quoteId:key(qid),input,expectedRevision:"rev1",expectedTotalCents:6000});
    await q("shop1","buyer1",1);await q("shop2","buyer2",2);
@@ -81,7 +81,7 @@ const {createEmulatorRepository}=require("../qa/workers/emulator_repository.cjs"
    const thirdQuote=await q(shop,buyer,25);const third=await submit(shop,buyer,26,25);
    now+=300000;
    const sweep=()=>api.sweepExpired({serviceToken:"task-"+shop,storeId:shop});
-   assert.equal((await sweep()).released,1);assert.equal((await sweep()).duplicates,1);
+   assert.equal((await sweep()).released,1);assert.equal((await sweep()).scanned,0);
    assert.equal((await sdk.getDoc(sdk.doc(db,stock))).data().record.item.stock,.5);
 
   });
