@@ -92,6 +92,7 @@ export function transitionCheckout(store,actor,{orderId,operationId,action,payme
  if(seen){if(seen.action!==action||seen.actorUid!==actor.uid||(seen.paymentReference??null)!==ref||JSON.stringify(seen.reconciliation??null)!==JSON.stringify(normalizedRecon))fail("idempotency_conflict");return {state:store,order:clone(prior),duplicate:true}}
  if(now<prior.createdAt||now<(prior.actions.at(-1)?.at??prior.createdAt))fail("invalid_time");
  const next=clone(store),o=next.orders.find(x=>x.id===orderId);
+ if(["prepare","confirm_payment"].includes(action)&&o.status==="received"&&o.paymentStatus==="pending"&&time(o.reservationExpiresAt)&&now>=o.reservationExpiresAt)fail("reservation_expired");
  if(action==="confirm_payment"){
   if(o.status==="cancelled"||o.paymentStatus!=="pending")fail("invalid_payment_state");
   o.paymentStatus="confirmed";o.paymentConfirmedAt=now;o.paymentConfirmationReference=ref;
