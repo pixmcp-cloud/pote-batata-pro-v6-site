@@ -40,5 +40,25 @@ export function applyCheckoutReceipt(session,receipt){
 export function freezeCheckoutCashSession(session,now,operationId){
  if(session?.status!=="open"||!id(operationId)||operationId.length<16||!Number.isSafeInteger(now)||now<session.openedAt||!cents(session.revision)||session.revision>=1000000000)fail("invalid_close");
  const t=totals(session);
- return {...session,status:"closed",closedAt:now,closeOperationId:operationId,revision:session.revision+1,closedSummary:{sessionId:session.id,byMethod:{cash:t.cash,pix:t.pix,card:t.card},receivedCents:add(add(t.cash,t.pix),t.card),cashDrawerIncreaseCents:t.cash,count:t.count}};
+ const refunds=session.refunds??{pix:0,card:0,count:0};
+ if(!["pix","card","count"].every(k=>cents(refunds[k])))fail("invalid_refund_totals");
+ const gross=add(add(t.cash,t.pix),t.card),refundTotal=add(refunds.pix,refunds.card);
+ return {...session,status:"closed",closedAt:now,closeOperationId:operationId,revision:session.revision+1,closedSummary:{sessionId:session.id,byMethod:{cash:t.cash,pix:t.pix,card:t.card},receivedCents:gross,cashDrawerIncreaseCents:t.cash,count:t.count,refundsByMethod:{pix:refunds.pix,card:refunds.card},refundedCents:refundTotal,netReceivedCents:gross-refundTotal}};
 }
+
+ // Manual external refund record only; no gateway call. Cash refunds remain
+ // blocked until actual physical drawer availability is reconciled with V5.
+ export function planCheckoutRefund({ownerUid,storeId,order,receipt,priorRefund,session,now,reference}={}){
+  if(!receipt||receipt.ownerUid!==ownerUid||receipt.storeId!==storeId||receipt.orderId!==order?.id||receipt.method!==order.paymentMethod||receipt.amountCents!==order.totalCents||receipt.source!=="checkout-lab"||!cents(receipt.amountCents)||receipt.amountCents===0||order.status!=="cancelled"||order.paymentStatus!=="refunded"||!Number.isSafeInteger(order.refundedAt)||order.refundedAt!==now)fail("invalid_refund");
+  if(priorRefund)fail("refund_exists");
+  if(receipt.method==="cash")fail("cash_refund_requires_reconciliation");
+  if(!["pix","card"].includes(receipt.method)||typeof reference!=="string"||!reference.trim()||reference.length>120)fail("invalid_refund");
+  if(!session||session.ownerUid!==ownerUid||session.status!=="open"||!id(session.id)||!Number.isSafeInteger(session.openedAt)||session.openedAt>now)fail("cash_not_open");
+  return {ownerUid,storeId,orderId:order.id,originSessionId:receipt.sessionId,sessionId:session.id,method:receipt.method,amountCents:receipt.amountCents,reference:reference.trim(),at:now,source:"checkout-lab-refund"};
+ }
+ export function applyCheckoutRefund(session,refund){
+  if(session?.status!=="open"||session.ownerUid!==refund?.ownerUid||session.id!==refund.sessionId||!["pix","card"].includes(refund.method)||!cents(refund.amountCents)||refund.amountCents===0||!cents(session.revision)||session.revision>=1000000000)fail("invalid_refund");
+  const t={...(session.refunds??{pix:0,card:0,count:0})};if(!["pix","card","count"].every(k=>cents(t[k])))fail("invalid_refund_totals");
+  t[refund.method]=add(t[refund.method],refund.amountCents);t.count=add(t.count,1);
+  return {...session,revision:session.revision+1,refunds:t};
+ }
