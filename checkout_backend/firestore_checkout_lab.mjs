@@ -147,7 +147,9 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(result.duplicate)err("inconsistent_operation");
    const o=result.order,orderPath=orderRoot+o.id,viewPath=viewRoot+o.id;
    const mapping=o.required.map(n=>{const s=maps.get(n.stockId);if(!s)err("stock_mapping_changed");return {stockId:n.stockId,ownerUid:m.ownerUid,recordKey:s.recordKey,universe:s.universe,group:s.group,itemId:s.itemId,scale:s.scale,...(s.sharedLink?{sharedLink:s.sharedLink,aliasKeys:s.aliasKeys}:{})}});
-   if(kind==="submit"){o.reservedMapping=mapping;o.stockValuations=o.required.map(n=>{const s=maps.get(n.stockId);return {stockId:n.stockId,scale:s.scale,unitCostCents:replacementUnitCostCents(s.doc.data.record.item,s.group)}});if(channel==="counter")o.channel="counter";}
+   if(kind==="submit"){o.reservedMapping=mapping;o.stockValuations=o.required.map(n=>{const s=maps.get(n.stockId);return {stockId:n.stockId,scale:s.scale,unitCostCents:replacementUnitCostCents(s.doc.data.record.item,s.group)}});if(channel==="counter")o.channel="counter";
+    if(m.cutoverEpoch){const cashRoot="checkoutLabCash/"+m.ownerUid,ptr=await tx.get(cashRoot);if(id(ptr?.data.activeSessionId)){const origin=await tx.get(cashRoot+"/sessions/"+ptr.data.activeSessionId);if(origin?.data.status==="open"&&origin.data.ownerUid===m.ownerUid&&origin.data.cutoverEpoch===m.cutoverEpoch&&origin.data.id===ptr.data.activeSessionId&&origin.data.openedAt<=now)o.acceptedCashSessionId=origin.data.id;}}
+   }
    else if(!same(priorOrder.data.reservedMapping,mapping))err("stock_mapping_changed");
    if(o.stockState==="lost"&&o.loss){Object.assign(o.loss,valueReservedLoss(o.required,o.stockValuations));}
    const oldView=await tx.get(viewPath);
