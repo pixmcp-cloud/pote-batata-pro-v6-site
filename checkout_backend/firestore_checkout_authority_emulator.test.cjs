@@ -14,7 +14,9 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
  await import("../finance_core.js");
  const finance=globalThis.POTE_FINANCE,owner="authmerchant",universe="batataria",root="users/"+owner,storeId="authorityshop",now=1700000000000;
  const env=await initializeTestEnvironment({projectId});
- const repository=createFirestoreRepository({FIREBASE_PROJECT_ID:projectId},{apiBaseUrl:"http://"+host+"/v1/projects/"+projectId+"/databases/(default)",accessToken:async()=>"owner"});
+ const metrics={queryDocs:0,queries:0,batchGets:0};
+ const measuredFetch=async(url,opts)=>{const response=await fetch(url,opts);if(url.endsWith(":runQuery")&&response.ok){const rows=await response.clone().json();metrics.queries++;metrics.queryDocs+=rows.filter(x=>x.document).length;}if(url.endsWith(":batchGet"))metrics.batchGets++;return response};
+ const repository=createFirestoreRepository({FIREBASE_PROJECT_ID:projectId},{apiBaseUrl:"http://"+host+"/v1/projects/"+projectId+"/databases/(default)",accessToken:async()=>"owner",requestFetch:measuredFetch});
  const settings={fee:0,tax:0,packageCost:1,otherCost:0,estimatedMonthlyUnits:100,margin:50};
  const ingredient={id:"potato",name:"Batata",yield:80,purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",stock:500};
  const recipe={id:"meal",name:"Batata",items:[{id:"potato",g:400}],pricingMode:"gain",targetGainPct:100};
@@ -39,7 +41,22 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   await set(stockPath,rec("ingredients",ingredient));await set(root+"/recordsV5/"+key("recipes",recipe.id),rec("recipes",recipe));
   await set(root+"/recordsV5/"+key("expenses",expense.id),rec("expenses",expense));
   await set("checkoutLabStores/"+storeId,manifest);await set("checkoutLabStores/"+storeId+"/meta/sequence",{value:0});
+  const batch=sdk.writeBatch(db);
+  for(let i=0;i<200;i++){const item={id:"unpublished"+i,name:"Não publicado"};batch.set(sdk.doc(db,root+"/recordsV5/"+key("recipes",item.id)),rec("recipes",item))}
+  await batch.commit();
+  const whole=await repository.transaction();
+  try{const rows=await whole.listRecords({collection:root+"/recordsV5",universe,groups:["recipes","ingredients","beverages","addons","expenses"],limit:241});assert.equal(rows.length,203)}finally{await whole.rollback()}
+  metrics.queryDocs=0;metrics.queries=0;metrics.batchGets=0;
   assert.equal((await quote(1)).totalCents,1450);
+  assert.equal(metrics.queryDocs,3);assert.equal(metrics.queries,3);
+  console.log("B02.8 comparison: full 203 records, selective 3 records; "+metrics.batchGets+" other batchGet calls (not billed-read measurement).");
+  const check=await repository.transaction();
+  try{await check.listCatalogRecords({collection:root+"/recordsV5",universe,selection:{recipes:["meal"],ingredients:["potato"],beverages:[],addons:[]},limit:241});
+   const before=metrics.batchGets;const a=await check.get(stockPath);assert.equal(a.data.record.item.stock,500);a.data.record.item.stock=999;assert.equal((await check.get(stockPath)).data.record.item.stock,500);assert.equal(metrics.batchGets,before);
+  }finally{await check.rollback()}
+  // Duplicate logical record at a different physical key must be rejected.
+  const dup=root+"/recordsV5/free~base~recipes";
+  await set(dup,rec("recipes",recipe));await assert.rejects(()=>submit(2,1),e=>e.code==="catalog_record_invalid");await sdk.deleteDoc(sdk.doc(db,dup));
   const expense2={...expense,id:"expense2"};
   await set(root+"/recordsV5/"+key("expenses",expense2.id),rec("expenses",expense2));
   await assert.rejects(()=>submit(2,1),e=>e.code==="catalog_stale");
