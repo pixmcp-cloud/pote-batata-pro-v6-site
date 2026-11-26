@@ -7,6 +7,8 @@ import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} fro
 import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund,openCheckoutCash,planDrawerMovement} from "./checkout_cash_lab.mjs";
 import {v5SequenceBaseline,advanceV5Sequence} from "./v5_checkout_sequence_lab.mjs";
 import {planSharedKitchen,kitchenLink} from "./v5_shared_kitchen_lab.mjs";
+import {resolveLicense} from "../license_terms.mjs";
+import {checkoutEntitlement} from "./v5_checkout_authority_lab.mjs";
 import {requireCheckoutAuthority} from "./v5_cutover_policy.mjs";
 import {planStockAdjustment,replacementUnitCostCents,purchaseEvidence,valueReservedLoss} from "./stock_adjustment_lab.mjs";
 const labProject="demo-nucleobit-checkout";
@@ -20,6 +22,10 @@ const put=(path,data,old)=>({path,data,precondition:old?{updateTime:old.updateTi
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const actorFor=(identity,role,storeId)=>({uid:identity.uid,provider:"google.com",verified:true,role,...(role==="merchant"?{storeId}:{})});
 const projection=(o,now)=>customerOrder({id:o.storeId,orders:[o]},actorFor({uid:o.customerUid},"customer"),o.id,now);
+function requireNewCashLicense(profile,now){
+ if(profile?.franchise?.status==="active"&&profile.franchise.brandId==="potebatata")return;
+ if(!resolveLicense(profile?.license,now).active)err("license_required");
+}
 function verifyIdentity(identity){
  if(!identity||identity.emailVerified!==true||identity.provider!=="google.com"||!id(identity.uid))err("login_required");
 }
@@ -87,6 +93,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(m.cutoverEpoch!==undefined)requireCheckoutAuthority(profile?.data,m.cutoverEpoch);
    let products=m.products;
    if(["quote","submit"].includes(kind)&&m.catalogMode==="v5-authoritative"){
+    checkoutEntitlement(profile?.data,m.universe,now);
     if(typeof loadAuthoritativeCatalog!=="function")err("catalog_not_ready");
     const catalog=await loadAuthoritativeCatalog({tx,manifest:m,meta:meta.data,profile:profile?.data,now});
     if(catalog?.revision!==m.revision||!Array.isArray(catalog.products))err("catalog_not_ready");
@@ -218,6 +225,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    const ptr=await tx.get(root),path=root+"/sessions/"+sessionId,prior=await tx.get(path),eventPath=root+"/cashOperations/"+operationId,event=await tx.get(eventPath);
    const fingerprint=JSON.stringify(["open",sessionId,openingCashCents,epoch]);
    if(event){if(event.data.fingerprint!==fingerprint||!prior)err("idempotency_conflict");return {...copy(event.data.result),duplicate:true}}
+   requireNewCashLicense(profile?.data,clock());
    if(ptr?.data.activeSessionId)err("cash_already_open");if(prior)err("session_exists");
    const session=openCheckoutCash({ownerUid:identity.uid,sessionId,openingCashCents,operationId,now:clock(),epoch});
    await tx.commit([put(path,session,null),put(root,{...(ptr?.data??{}),activeSessionId:sessionId},ptr),put(eventPath,{fingerprint,result:session},null)]);
@@ -263,6 +271,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
   try{
    const path="checkoutLabStores/"+storeId,m=await tx.get(path);
    if(!m||m.data.lab!==true||m.data.ownerUid!==identity.uid)err("forbidden");
+   if(m.data.catalogMode==="v5-authoritative"){const profile=await tx.get("users/"+identity.uid);requireCheckoutAuthority(profile?.data,m.data.cutoverEpoch);checkoutEntitlement(profile?.data,m.data.universe,clock());}
    if((m.data.reservationMinutes??30)===minutes)return {minutes};
    await tx.commit([put(path,{...m.data,reservationMinutes:minutes},m)]);return {minutes};
   }finally{await tx.rollback()}
@@ -298,6 +307,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(!m||m.ownerUid!==identity.uid||m.lab!==true||m.enabled!==true||m.catalogMode!=="v5-authoritative"||m.cutoverEpoch!==epoch)err("forbidden");
    const eventPath=root+"/checkoutStockOperations/"+operationId,prior=await tx.get(eventPath),fingerprint=JSON.stringify([storeId,epoch,stockId,kind,quantityUnits,expectedUnits,reason,purchaseCostCents??null,purchaseReference??null,supplierId??null]);
    if(prior){if(prior.data.fingerprint!==fingerprint)err("idempotency_conflict");return {...copy(prior.data.result),duplicate:true}}
+   checkoutEntitlement(profile?.data,m.universe,clock());
    const meta=await tx.get(root+"/appState/v5"),guard=await tx.get(root+"/appState/v5InventoryGuard"),pulse=await tx.get(root+"/appState/v5Pulse");
    if(!meta||meta.data.schemaVersion!==5||meta.data.migration?.status==="copying"||!guard||!int(guard.data.revision,0,999999999)||!pulse||!docKey(pulse.data.eventId))err("not_ready");
    const map=m.stockMap?.filter(s=>s.stockId===stockId);
