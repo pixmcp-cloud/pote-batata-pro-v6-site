@@ -35,7 +35,7 @@ export function compileV5Catalog({finance,branch,stockMap,recipeIds,beverageIds=
   safePrice(price,cost);costs.set(rid,cost);
   push({id:rid,title:r.name,available:true,priceCents:cents(price),recipe:needs,extras:extra,rounding:"commercial"});
  }
- for(const bid of beverageIds){const v=beverages.get(bid);if(!v||v.archived||v.unavailable||!number(v.sellPrice,.01))fail("invalid_beverage");push({id:bid,title:v.name,available:true,priceCents:cents(v.sellPrice),recipe:[lookup("beverages",bid,1)],extras:[]})}
+ for(const bid of beverageIds){const v=beverages.get(bid);if(!v||v.archived||v.unavailable||!number(v.sellPrice,.01))fail("invalid_beverage");if(typeof finance.beverageCost!=="function"||!number(v.purchasePrice??v.price,0.000001)||!number(v.purchaseQuantity,0.000001))fail("unknown_beverage_cost");safePrice(v.sellPrice,finance.beverageCost(v));push({id:bid,title:v.name,available:true,priceCents:cents(v.sellPrice),recipe:[lookup("beverages",bid,1)],extras:[]})}
  // Combos are explicitly approved server-side; component IDs must be in this
  // approved catalog. Starter preset is bound to an actual recipe and beverage.
  if(comboIds.length){
