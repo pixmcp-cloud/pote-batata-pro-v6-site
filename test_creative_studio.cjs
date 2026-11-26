@@ -161,3 +161,5 @@ assert(iaSource.includes('!authorizedVoiceIds.has($("csVoiceSelect").value)'),'R
 assert(iaSource.includes('previewUrl')&&iaSource.includes('pvVoiceSample'));
 
 assert(iaSource.includes('/admin/clone/create')&&iaSource.includes('/admin/clone/publish')&&iaSource.includes('pvCloneConsentRef'));
+
+assert(iaSource.includes("api('/preview',{voiceId:id})")&&iaSource.includes('Ouvir prévia em português')&&!iaSource.includes('sample.src=preview;'),'fixed Portuguese preview replaces original English sample');
