@@ -6,6 +6,7 @@
 import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} from "./checkout_domain.mjs";
 import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund} from "./checkout_cash_lab.mjs";
 import {v5SequenceBaseline,advanceV5Sequence} from "./v5_checkout_sequence_lab.mjs";
+import {planSharedKitchen,kitchenLink} from "./v5_shared_kitchen_lab.mjs";
 const labProject="demo-nucleobit-checkout";
 const id=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const operation=x=>id(x)&&x.length>=16;
@@ -71,15 +72,25 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     if(catalog?.revision!==m.revision||!Array.isArray(catalog.products))err("catalog_not_ready");
     products=catalog.products;
    }else if(["quote","submit"].includes(kind)&&m.catalogMode!==undefined&&m.catalogMode!=="fixture")err("catalog_not_ready");
-   const maps=new Map(),physical=new Set(),inventory=[];
+   const shared=meta.data.state?.data?.kitchenStock?.mode==="shared";
+   if(shared&&(m.catalogMode!=="v5-authoritative"||m.sharedKitchenEnabled!==true||typeof tx.listKitchenRecords!=="function"))err("shared_kitchen_requires_reconciliation");
+   const kitchenRecords=shared?await tx.listKitchenRecords({collection:uidRoot+"/recordsV5",limit:241}):[];
+   if(shared&&(!Array.isArray(kitchenRecords)||kitchenRecords.length>240))err("shared_kitchen_not_ready");
+   const maps=new Map(),physical=new Set(),inventory=[],links=new Set();
    for(const s of m.stockMap){
     if(!id(s?.stockId)||!id(s.universe)||!["ingredients","beverages"].includes(s.group)||!docKey(s.recordKey)||!id(s.itemId)||![1,10,100,1000,10000,100000].includes(s.scale)||maps.has(s.stockId)||physical.has(s.recordKey))err("invalid_stock_mapping");
     const path=uidRoot+"/recordsV5/"+s.recordKey,d=await tx.get(path),record=d?.data?.record;
     if(!record||record.universe!==s.universe||record.group!==s.group||record.id!==s.itemId||typeof record.item?.stock!=="number")err("invalid_stock_mapping");
     const raw=record.item.stock*s.scale,units=Math.round(raw);
     if(!int(units)||Math.abs(raw-units)>0.000001)err("invalid_stock_precision");
-    maps.set(s.stockId,{...s,path,doc:d,units});physical.add(s.recordKey);inventory.push({id:s.stockId,availableUnits:units});
+    const sharedLink=shared&&s.group==="ingredients"?kitchenLink(record.item):null;
+    if(sharedLink&&(links.has(sharedLink)||!kitchenRecords.some(x=>x.key===s.recordKey&&x.ownerUid===m.ownerUid)))err("invalid_stock_mapping");
+    if(sharedLink)links.add(sharedLink);
+    maps.set(s.stockId,{...s,path,doc:d,units,sharedLink});physical.add(s.recordKey);inventory.push({id:s.stockId,availableUnits:units});
    }
+   const sharedMaps=[...maps.values()].filter(x=>x.sharedLink);
+   const verifiedKitchen=sharedMaps.length?planSharedKitchen({ownerUid:m.ownerUid,meta:meta.data,records:kitchenRecords,requests:sharedMaps.map(x=>({link:x.sharedLink,scale:x.scale,units:0})),listingComplete:true}):null;
+   for(const s of sharedMaps){const balance=verifiedKitchen.balances.find(x=>x.link===s.sharedLink);if(!balance||balance.beforeUnits!==s.units||!balance.aliasKeys.includes(s.recordKey))err("shared_kitchen_divergent");s.aliasKeys=balance.aliasKeys;}
    const sequencePath=root+"/meta/sequence",sequence=await tx.get(sequencePath);
    if(!sequence||!int(sequence.data.value,0,9999998))err("not_ready");
    const sharedSequence=m.catalogMode==="v5-authoritative"&&kind==="submit";
@@ -106,7 +117,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    if(result.duplicate)err("inconsistent_operation");
    const o=result.order,orderPath=orderRoot+o.id,viewPath=viewRoot+o.id;
-   const mapping=o.required.map(n=>{const s=maps.get(n.stockId);if(!s)err("stock_mapping_changed");return {stockId:n.stockId,ownerUid:m.ownerUid,recordKey:s.recordKey,universe:s.universe,group:s.group,itemId:s.itemId,scale:s.scale}});
+   const mapping=o.required.map(n=>{const s=maps.get(n.stockId);if(!s)err("stock_mapping_changed");return {stockId:n.stockId,ownerUid:m.ownerUid,recordKey:s.recordKey,universe:s.universe,group:s.group,itemId:s.itemId,scale:s.scale,...(s.sharedLink?{sharedLink:s.sharedLink,aliasKeys:s.aliasKeys}:{})}});
    if(kind==="submit")o.reservedMapping=mapping;
    else if(!same(priorOrder.data.reservedMapping,mapping))err("stock_mapping_changed");
    const oldView=await tx.get(viewPath);
@@ -114,7 +125,8 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(kind==="transition"&&(!oldView||oldView.data.customerUid!==o.customerUid))err("not_ready");
    const writes=[put(orderPath,o,priorOrder),put(viewPath,{customerUid:o.customerUid,storeId,status:projection(o,now),serverNowMs:now},oldView),put(scopedOp,{actorUid:identity.uid,fingerprint:requestFingerprint,orderId:o.id},null)];
    if(kind==="submit"){writes.push(put(quotePath,result.state.quotes[0],savedQuote),put(sequencePath,{value:result.state.sequence},sequence))}
-   if(sharedSequence)writes.push(put(uidRoot+"/appState/v5",advanceV5Sequence(meta.data,m.universe,sequence.data.value,result.state.sequence),meta));
+   let nextMeta=sharedSequence?advanceV5Sequence(meta.data,m.universe,sequence.data.value,result.state.sequence):meta.data;
+   let metaChanged=sharedSequence;
    // Optional synthetic cash integration: fail closed for payment when no open shift.
    if(kind==="transition"&&action==="confirm_payment"){
     const pointerPath="checkoutLabCash/"+m.ownerUid,ptr=await tx.get(pointerPath);
@@ -143,19 +155,26 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
      writes.push(put(lossPath,{...o.loss,orderId:o.id,storeId,ownerUid:m.ownerUid,reservedMapping:o.reservedMapping,actorUid:identity.uid},null));
     }
    }
-   const changed=[];
+   const changed=[],kitchenDeltas=[];
    for(const after of result.state.inventory){
     const before=maps.get(after.id);if(before.units===after.availableUnits)continue;
     const record=copy(before.doc.data.record);record.item.stock=after.availableUnits/before.scale;
-    writes.push(put(before.path,{...before.doc.data,record},before.doc));changed.push(before.recordKey);
+    if(before.sharedLink)kitchenDeltas.push({link:before.sharedLink,scale:before.scale,units:before.units-after.availableUnits});
+    else {writes.push(put(before.path,{...before.doc.data,record},before.doc));changed.push(before.recordKey);}
     // Dedicated reservation ledger; not old production stockMovements until semantics reconciled.
     const ledger=root+"/stockLedger/"+(service?"svc_":"usr_")+identity.uid.length+"_"+identity.uid+"_"+operationId+"_"+after.id;
     if(await tx.get(ledger))err("ledger_collision");
-    writes.push(put(ledger,{orderId:o.id,operationId,stockId:after.id,physicalKey:before.recordKey,scale:before.scale,deltaUnits:after.availableUnits-before.units,beforeUnits:before.units,afterUnits:after.availableUnits,at:now},null));
+    writes.push(put(ledger,{orderId:o.id,operationId,stockId:after.id,physicalKey:before.recordKey,...(before.sharedLink?{sharedLink:before.sharedLink}:{}),scale:before.scale,deltaUnits:after.availableUnits-before.units,beforeUnits:before.units,afterUnits:after.availableUnits,at:now},null));
    }
+   if(kitchenDeltas.length){
+    const plan=planSharedKitchen({ownerUid:m.ownerUid,meta:nextMeta,records:kitchenRecords,requests:kitchenDeltas,listingComplete:true});
+    nextMeta=plan.meta;metaChanged=true;
+    for(const u of plan.updates){if(!docKey(u.key)||!u.updateTime||changed.includes(u.key))err("invalid_stock_mapping");writes.push(put(uidRoot+"/recordsV5/"+u.key,u.data,u));changed.push(u.key);}
+   }
+   if(metaChanged)writes.push(put(uidRoot+"/appState/v5",nextMeta,meta));
    if(changed.length){
     if(guard.data.revision>=1000000000)err("limit");
-    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId.length+"-"+storeId+"-"+identity.uid.length+"-"+identity.uid+"-"+operationId,previousEventId:pulse.data.eventId,origin:service?"checkout-lab-scheduler":"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged:sharedSequence,sensitive:true},pulse));
+    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId.length+"-"+storeId+"-"+identity.uid.length+"-"+identity.uid+"-"+operationId,previousEventId:pulse.data.eventId,origin:service?"checkout-lab-scheduler":"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged,sensitive:true},pulse));
    }
    if(writes.length>90)err("limit");
    await tx.commit(writes);
