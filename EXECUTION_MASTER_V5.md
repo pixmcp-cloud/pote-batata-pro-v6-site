@@ -141,3 +141,23 @@ PR #44 integrada em acaf857; deploy 45559555758 interrompido por teste de contra
 - Brasil Infláveis: reaproveitar Voice Studio e assinatura existente, adaptando autenticação e carteira. Tostão Promo vale metade do Coin comercial (2 Promo = 1 Coin). Proposta de 1–5 Coin para 15–75 segundos, preço e pagamento misto não homologados. Repositório do Brasil Infláveis ainda não acessível pela conexão anterior; integração não executada. Fluxo: GitHub primeiro, sincronização posterior no PC, testes e publicação autorizada.
 - Nenhuma contratação adicional, migração ou alteração de código efetuada neste registro.
 
+## NÚCLEOBIT — nova marca PDV e execução por etapas (26/11/2026)
+
+- Nome comercial confirmado pelo proprietário: **PDV NÚCLEOBIT**, substituindo PDV MULTIVERSAL. NÚCLEOBIT é a marca institucional; Brasil Infláveis mantém a marca própria. Instagram institucional: https://www.instagram.com/nucleo.bit/.
+- Preservar repositório, histórico, identificadores internos, banco, contas, permissões e domínio operacional atual. Mudança pública de marca deverá ser homologada em branch antes de publicação. Não renomear infraestrutura por consequência automática da marca.
+- Voice Studio Brasil Infláveis: política isolada de Tostões em `feat/brasil-inflaveis-voice-tostao`, commit `5825c5634d94df01ab100d15dcae8ef1519f7bf8`; 107 verificações puras aprovadas antes dos commits. Tarifa e pagamento misto propostos, integração D1 e provedor pendentes. Repositório original do Brasil Infláveis ainda indisponível; Desktop Commander atingiu limite mensal. Sem contratação adicional.
+
+### Sequência proposta, uma ação por autorização
+A01 — registrar identidade, Instagram, decisões e plano neste log (concluída com este commit).
+A02 — inventariar ocorrências de PDV MULTIVERSAL, arquivos visuais, metadados, títulos, login e testes, sem mudar código.
+A03 — adaptar marca pública para PDV NÚCLEOBIT em branch isolada, preservando a identidade visual aprovada e os identificadores técnicos.
+A04 — testar regressões e gerar prévia para aprovação, sem publicação oficial.
+A05 — verificar domínio institucional e preparar arquitetura de domínios/subdomínios; não alterar DNS sem autorização.
+A06 — preparar contrato de serviço de voz compartilhado entre produtos, isolamento de contas, cotas e custos.
+A07 — ampliar testes e homologação da carteira Tostão em ambiente isolado.
+A08 — recuperar e disponibilizar o código original do Brasil Infláveis em GitHub privado quando acessível, com backup e sem deploy.
+A09 — integrar Voice Studio no Brasil Infláveis, usando a assinatura existente e carteira própria.
+A10 — homologar e publicar separadamente cada produto somente mediante aprovação específica.
+
+Ao concluir cada ação: informar resultado verificável, alterações, testes, impedimentos, custo adicional, próxima ação e oferecer Sim/Não para prosseguir. Não iniciar a próxima ação sem resposta afirmativa do proprietário.
+
