@@ -43,3 +43,8 @@ jobs:
           npx --yes --package=firebase-tools@15.36.0 firebase emulators:exec
           --only firestore --project demo-nucleobit-checkout --config firebase.checkout.lab.json
           "node checkout_backend/firestore_checkout_emulator.test.cjs"
+      - name: Navegador e impressão da fila online (local)
+        run: |
+          npm ci --prefix qa/mobile --ignore-scripts --no-audit --no-fund
+          export CHROME_BIN="$(command -v google-chrome || command -v chromium)"
+          node checkout_backend/pdv_queue_preview.test.cjs
