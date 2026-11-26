@@ -15,13 +15,16 @@ async function request(path,body,token){
  const result=await res.json();if(!res.ok)throw Object.assign(Error(result.error??"operation_not_confirmed"),{code:result.error});return result;
 }
 const api=(kind,body,role="owner")=>request((merchantOnly?"/merchant/api/":"/checkout-lab/")+kind,body,cfg[role+"Token"]);
-const ownerSnapshot=()=>request(merchantOnly?"/merchant/api/snapshot":"/lab/snapshot",{},cfg.ownerToken);
+let queueCursors={};
+const ownerSnapshot=()=>request(merchantOnly?"/merchant/api/snapshot":"/lab/snapshot",merchantOnly?{cursors:queueCursors}:{},cfg.ownerToken);
 function show(tabName){
  tab=tabName;feedback("");for(const b of document.querySelectorAll("[data-tab]"))b.setAttribute("aria-selected",String(b.dataset.tab===tab));
  $("sale").hidden=!["counter","online"].includes(tab);$("orders").hidden=tab!=="queue";$("cash").hidden=tab!=="cash";$("inventory").hidden=tab!=="stock";
+ if(merchantOnly)$("catalog-editor").hidden=tab!=="catalog";
  $("receipt").hidden=true;$("ticker").hidden=tab!=="online"||!activeOrder;
  if(["counter","online"].includes(tab)){clearQuote();$("sale-title").textContent=tab==="counter"?"Venda de balcão":"Cardápio digital";$("customer-note").hidden=tab!=="online";$("method").value=tab==="counter"?"cash":"pix";$("fulfillment").value="pickup";$("fulfillment").disabled=tab==="counter";$("address-label").hidden=true}
- else {if(tab==="queue")$("queue").replaceChildren();if(tab==="stock")$("inventory-list").replaceChildren();guard(refresh);}
+ else if(tab==="catalog"){guard(loadCatalogChoices)}
+ else {if(tab==="queue"){queueCursors={};}if(tab==="queue")$("queue").replaceChildren();if(tab==="stock")$("inventory-list").replaceChildren();guard(refresh);}
  if(journals[tab]&&pending())guard(()=>consult());
 }
 const journals={};
@@ -59,6 +62,7 @@ function renderQueue(){
  for(const action of row.actions){const b=el("button",labels[action]);b.dataset.action=action;b.onclick=async()=>{if(busy)return;await guard(async()=>{if(action==="cancel"&&!confirm("Cancelar e devolver a reserva?"))return;const body={storeId:row.storeId,orderId:row.id,action,operationId:op(),...(action==="confirm_payment"?{paymentReference:ref.value}:{})};await api("transition",body);await refresh();feedback("Pedido atualizado.")})};actions.append(b)}
  if(row.status==="delivered"){const b=el("button","Comprovante");b.dataset.action="receipt";b.onclick=()=>{$("receipt-text").textContent=orderPrintText(o);$("receipt").hidden=false;$("receipt").scrollIntoView({block:"nearest"})};actions.append(b)}
  article.append(actions);target.append(article)}
+ if(merchantOnly){const pages=$("queue-pages");pages.replaceChildren();for(const [storeId,cursor] of Object.entries(snapshot.nextCursors??{})){const b=el("button","Mais pedidos · "+(storeId===cfg.counter?"Balcão":"Online"));b.onclick=()=>guard(async()=>{queueCursors={...queueCursors,[storeId]:cursor};await refresh()});pages.append(b)}if(Object.keys(queueCursors).length){const b=el("button","Voltar aos mais recentes");b.onclick=()=>guard(async()=>{queueCursors={};await refresh()});pages.append(b)}}
 }
 function renderCash(){
  const s=snapshot.session,open=s?.status==="open",target=$("metrics");target.replaceChildren();
@@ -79,6 +83,9 @@ $("cash-form").onsubmit=async e=>{e.preventDefault();if(busy)return;busy=true;$(
 $("cash-cancel").onclick=()=>{if(!busy&&!cashRetry)$("cash-dialog").close();else if(!busy)$("cash-error").textContent="Confirme novamente a tentativa anterior antes de sair."};
 $("cash-dialog").addEventListener("cancel",e=>{if(busy||cashRetry)e.preventDefault()});
 $("refresh").onclick=()=>guard(refresh);$("print").onclick=()=>window.print();
+let catalogDraft=null;
+async function loadCatalogChoices(){const data=await request("/merchant/catalog/choices",{},cfg.ownerToken);catalogDraft=null;$("catalog-review").replaceChildren();$("catalog-approve").disabled=true;const target=$("catalog-choices");target.replaceChildren();for(const item of data.choices){const label=el("label"),box=el("input");box.type="checkbox";box.checked=item.selected;box.dataset.catalogGroup=item.group;box.value=item.id;box.onchange=()=>{catalogDraft=null;$("catalog-approve").disabled=true;$("catalog-review").replaceChildren()};label.append(box,document.createTextNode(" "+item.title+" · "+item.group));target.append(label)}}
+if(merchantOnly){$("catalog-preview").onclick=()=>guard(async()=>{const selection={recipeIds:[],beverageIds:[],addonIds:[],comboIds:[]},groups={recipes:"recipeIds",beverages:"beverageIds",addons:"addonIds",combos:"comboIds"};for(const box of document.querySelectorAll("[data-catalog-group]:checked"))selection[groups[box.dataset.catalogGroup]].push(box.value);const operationId=op(),candidate=await request("/merchant/catalog/preview",{selection,operationId,revision:operationId},cfg.ownerToken);catalogDraft={operationId,revision:operationId};$("catalog-review").replaceChildren(...candidate.products.map(p=>el("p",p.title+" · "+money(p.priceCents))));$("catalog-approve").disabled=false;feedback("Confira a revisão antes de aprovar.")});$("catalog-approve").onclick=()=>guard(async()=>{if(!catalogDraft)return;await request("/merchant/catalog/approve",catalogDraft,cfg.ownerToken);await loadCatalogChoices();feedback("Revisão aprovada somente no laboratório.")})}
 try{if(merchantOnly){const token=window.__syntheticMerchantToken;delete window.__syntheticMerchantToken;if(typeof token!=="string")throw Error("login_required");cfg={...await request("/merchant/config",{},token),ownerToken:token}}else cfg=await request("/lab/bootstrap",{});for(const channel of (merchantOnly?["counter"]:["counter","online"])){const role=channel==="counter"?"owner":"buyer";journals[channel]=createCheckoutRecovery({storage:sessionStorage,storeId:cfg[channel],getUid:()=>cfg[role+"Uid"],newOperationId:op,send:(kind,body,uid)=>{if(uid!==cfg[role+"Uid"])throw Error("session_changed");return api(kind,body,role)}})}productView();show("counter");await refresh();document.body.dataset.ready="true"}catch(e){feedback("Laboratório indisponível: "+e.message)}
 
 function renderInventory(){
