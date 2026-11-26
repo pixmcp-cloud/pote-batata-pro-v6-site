@@ -1,0 +1,80 @@
+name: Voice Studio - publicar piloto ADM
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/voice-pilot-deploy.yml'
+      - 'workers/antifraud/src/voice_*.mjs'
+      - 'workers/antifraud/wrangler.voice-pilot.toml'
+      - 'workers/antifraud/test/voice_pilot.test.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: voice-staging-deploy
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: workers/antifraud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: workers/antifraud/package-lock.json
+      - name: Instalar e testar (sem consumo)
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check
+          npm test
+          node --test ../../voice_backend/policy.test.mjs
+          npx wrangler deploy --config wrangler.voice-pilot.toml --dry-run --outdir .wrangler/voice-build
+      - name: Verificar infraestrutura, publicar somente staging e confirmar prontidão
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ELEVENLABS_API_KEY: ${{ secrets.CHAVE_LIVRESOM_ELEVENLABS }}
+          CI: 'true'
+          WRANGLER_SEND_METRICS: 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$ELEVENLABS_API_KEY"
+          ROOT=https://pote-batata-guard-staging.pixmcp.workers.dev
+          curl -fsS "$ROOT/health" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(j.writesEnabled!==false)process.exit(1);console.log("Estoque staging: desligado")})'
+          node --input-type=module <<'JS'
+          const u='https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID+'/workers/scripts/pote-batata-guard-staging/settings';
+          const r=await fetch(u,{headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN}}),j=await r.json();
+          if(!r.ok||!j.success)throw Error('Cannot verify staging bindings');
+          for(const n of ['GCP_CLIENT_EMAIL','GCP_PRIVATE_KEY'])if(!j.result.bindings.some(b=>b.name===n&&b.type==='secret_text'))throw Error('Missing '+n);
+          console.log('Identidade Firebase existente confirmada; sem leitura de valores');
+          JS
+          npx wrangler deployments list --config wrangler.voice-pilot.toml
+          umask 077
+          SECRETS_FILE="$(mktemp)"
+          trap 'rm -f "$SECRETS_FILE"' EXIT
+          export SECRETS_FILE
+          export VOICE_PROBE_TOKEN="$(openssl rand -hex 32)"
+          echo "::add-mask::$VOICE_PROBE_TOKEN"
+          node --input-type=module -e 'import {writeFileSync} from "node:fs";writeFileSync(process.env.SECRETS_FILE,JSON.stringify({ELEVENLABS_API_KEY:process.env.ELEVENLABS_API_KEY,VOICE_PROBE_TOKEN:process.env.VOICE_PROBE_TOKEN}))'
+          # Secrets-file is supported in current Wrangler; older locked releases use bulk before code deploy.
+          npx wrangler deploy --help > /tmp/voice-wrangler-help
+          if grep -q -- '--secrets-file' /tmp/voice-wrangler-help; then
+            npx wrangler deploy --config wrangler.voice-pilot.toml --keep-vars --secrets-file "$SECRETS_FILE"
+          else
+            npx wrangler secret bulk "$SECRETS_FILE" --config wrangler.voice-pilot.toml
+            npx wrangler deploy --config wrangler.voice-pilot.toml --keep-vars
+          fi
+          curl --retry 3 --retry-all-errors -fsS "$ROOT/voice/health" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(j.voicePilot!==true||j.stockWrites!==false||j.scope!=="adm-only")process.exit(1);console.log("Piloto ADM publicado; estoque desativado")})'
+          curl -fsS -H "X-Voice-Probe: $VOICE_PROBE_TOKEN" "$ROOT/voice/ready" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(!j.ready||!j.firestoreMetadata||!j.overageOff||j.allowedVoices<1)process.exit(1);console.log(JSON.stringify(j))})'
+          code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$ROOT/voice/status")"
+          test "$code" = "401"
+          echo "PASS: serviço de voz, cota, Firebase e bloqueio de não autenticados; nenhuma síntese executada."
