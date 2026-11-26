@@ -3,7 +3,7 @@
    All inventory-sensitive edits serialize through the same transaction guard. */
 import {splitState,combineState,diffState,validateChangeSet,recordId} from "./v5_store_core.mjs?v=v4-free-ids-20261117";
 import {stableJson,nextRevision,jsonBytes,MAX_APPSTATE_BYTES} from "./sync_guard.mjs?v=v4-backup-20261117";
-import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey} from "./free_limits.mjs?v=v4-free-ids-20261117";
+import {checkFreeUniverseDelta,freeSlotKey,modelRecordKey,retainedFreeSlots} from "./free_limits.mjs?v=v4-free-ids-20261117";
 import {validateInventoryJournalDiff} from "./inventory_integrity.mjs";
 import {validateProductionJournalDiff,validateCancellationJournalDiff,validateCashJournalDiff} from "./operation_integrity.mjs?v=f20-late-atomic-20261118";
 import {planV5Batches} from "./v5_batch_planner.mjs";
@@ -31,6 +31,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
  let saving=false,disposed=false,lastSavedJson="",needsFullRefresh=false;
  const recordRef=key=>doc(db,"users",uid,"recordsV5",key);
  const stateJson=()=>JSON.stringify(snapshot());
+ const publishSlots=records=>{if(!disposed&&typeof window!=="undefined"&&window.POTE_AUTH?.uid===uid)window.POTE_AUTH.freeSlots=retainedFreeSlots(records)};
  const matchesRecordKey=(key,entry)=>entry&&entry.group&&entry.universe&&(
   key===recordId(entry.universe,entry.group,entry.id)||key===freeSlotKey(entry)||key===modelRecordKey(entry));
  const loadDocuments=async()=>{
@@ -82,6 +83,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
   if(disposed)throw Error("Sessão encerrada");
   const meta=metaSnap.data().state;
   const restored=combineState(meta,recordMap);
+  publishSlots(recordMap);
   apply(restored);
   baseline={meta,records:recordMap};
   guardRevision=Number(guardSnap.data()?.revision)||0;
@@ -209,6 +211,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
     }
    }
    baseline=next;
+   publishSlots(next.records);
    if(delta.sensitive)guardRevision=nextRevision(oldGuard);
    lastSavedJson=current;
    status("Dados V5 salvos com segurança");
@@ -256,6 +259,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
      nextRecords.set(key,entry);
     });
     const merged=combineState(meta,nextRecords);
+    publishSlots(nextRecords);
     apply(merged);
     baseline={meta,records:nextRecords};
     if(guardSnap)guardRevision=Number(guardSnap.data()?.revision)||0;
@@ -271,6 +275,7 @@ export function createV5Store({uid,db,sdk,fresh,snapshot,apply,status=()=>{}}){
    if(stateJson()!==lastSavedJson)
     return {ok:false,code:"sync/conflict",error:"Alterações locais durante atualização"};
    const merged=combineState(head.data().state,records);
+   publishSlots(records);
    apply(merged);
    baseline={meta:head.data().state,records};
    guardRevision=Number(guard.data()?.revision)||0;
