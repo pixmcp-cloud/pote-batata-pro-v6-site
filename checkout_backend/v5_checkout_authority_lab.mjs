@@ -28,7 +28,7 @@ export async function loadV5CheckoutAuthority({tx,manifest,meta,profile,finance,
  // Shared physical kitchen requires explicit cross-universe projection; do not guess.
  const data=meta?.state?.data;
  const branch=data?.businessType===m.universe?data:data?.businessUniverses?.[m.universe];
- if(data?.kitchenStock?.mode==="shared")fail("shared_kitchen_requires_reconciliation");
+ if(data?.kitchenStock?.mode==="shared"&&(m.sharedKitchenEnabled!==true||typeof tx.listKitchenRecords!=="function"))fail("shared_kitchen_requires_reconciliation");
  if(!branch||!branch.settings||!Array.isArray(m.stockMap)||m.stockMap.some(s=>s.universe!==m.universe))fail("catalog_not_ready");
  const root="users/"+m.ownerUid+"/recordsV5";
  // Never cache across requests. Only select records capable of changing an
