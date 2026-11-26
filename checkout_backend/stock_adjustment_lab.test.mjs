@@ -1,4 +1,4 @@
-import {planStockAdjustment} from "./stock_adjustment_lab.mjs";
+import {planStockAdjustment,replacementUnitCostCents,purchaseEvidence,valueReservedLoss} from "./stock_adjustment_lab.mjs";
 function run(plan,log){
  let n=0;const eq=(a,b)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(JSON.stringify([a,b]));n++};const reject=(fn,code)=>{let e;try{fn()}catch(x){e=x}eq(e?.code,code)};
  const base={beforeUnits:1000,expectedUnits:1000,kind:"purchase",quantityUnits:500,reason:"Entrada",scale:1};
@@ -18,6 +18,26 @@ function run(plan,log){
  reject(()=>plan({...base,kind:"loss",unitCostCents:0}),"invalid_stock_cost");
  reject(()=>plan({...base,scale:3}),"invalid_stock_adjustment");
  reject(()=>plan({...base,beforeUnits:1000000000,expectedUnits:1000000000}),"invalid_stock_precision");
- log("PASS B02.15 stock",n,"assertivas");
+ const item={purchasePrice:10,purchaseQuantity:1,purchaseUnit:"kg",measureUnit:"g",yield:80};
+ eq(replacementUnitCostCents(item,"ingredients"),1);eq(replacementUnitCostCents({...item,measureUnit:"ml"},"ingredients"),null);
+ eq(replacementUnitCostCents({purchasePrice:24,purchaseQuantity:12},"beverages"),200);
+ eq(replacementUnitCostCents({...item,purchasePrice:0},"ingredients"),null);
+ eq(replacementUnitCostCents({...item,purchaseQuantity:0},"ingredients"),null);
+ eq(replacementUnitCostCents({...item,purchaseUnit:"L",measureUnit:"ml"},"ingredients"),1);
+ eq(plan({...base,kind:"loss",quantityUnits:100,unitCostCents:replacementUnitCostCents(item,"ingredients")}).lossCostCents,100);
+ const evidence={kind:"purchase",quantityUnits:1000,scale:1,purchaseCostCents:1200,purchaseReference:"NF 001",supplierId:"supplier1"};
+ eq(purchaseEvidence(evidence),{totalCents:1200,reference:"NF 001",supplierId:"supplier1",unitCostCents:1.2,source:"declared-acquisition"});
+ eq(purchaseEvidence({kind:"purchase"}),null);
+ reject(()=>purchaseEvidence({...evidence,kind:"loss"}),"invalid_purchase_evidence");
+ reject(()=>purchaseEvidence({...evidence,purchaseReference:" "}),"invalid_purchase_evidence");
+ reject(()=>purchaseEvidence({...evidence,purchaseCostCents:0}),"invalid_purchase_evidence");
+ reject(()=>purchaseEvidence({...evidence,supplierId:"../bad"}),"invalid_purchase_evidence");
+ const required=[{stockId:"pot",units:500},{stockId:"extra",units:100}];
+ const vals=[{stockId:"pot",scale:1,unitCostCents:1},{stockId:"extra",scale:10,unitCostCents:3}];
+ eq(valueReservedLoss(required,vals),{costCents:530,costKnown:true,costBasis:"replacement-at-reservation"});
+ eq(valueReservedLoss(required,vals.slice(0,1)),{costCents:null,costKnown:false});
+ eq(valueReservedLoss(required,[...vals,vals[0]]),{costCents:null,costKnown:false});
+ eq(valueReservedLoss(required,[vals[0],{...vals[1],unitCostCents:null}]),{costCents:null,costKnown:false});
+ log("PASS B02.16 stock",n,"assertivas");
 }
 run(planStockAdjustment,console.log);
