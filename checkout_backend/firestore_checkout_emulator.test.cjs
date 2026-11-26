@@ -67,6 +67,22 @@ const {createEmulatorRepository}=require("../qa/workers/emulator_repository.cjs"
    assert.equal((await sdk.getDoc(sdk.doc(db,cashRoot))).data().activeSessionId,null);
    assert.equal((await confirm()).duplicate,true);
    assert.deepEqual((await sdk.getDoc(sdk.doc(db,sessionPath))).data().closedSummary,closed);
+   const shift2=cashRoot+"/sessions/shift2";
+   await set(cashRoot,{activeSessionId:"shift2"});await set(shift2,{id:"shift2",ownerUid:"merchant1",status:"open",openedAt:now,revision:0,totals:{cash:0,pix:0,card:0,count:0}});
+   const reconcile=()=>api.execute({storeId:shop,token:"merchant1",kind:"transition",operationId:key(24),orderId:second.id,action:"reconcile_cancel",reconciliation:{reason:"Cancelamento de teste",stockDecision:"return",refundReference:"Estorno externo de teste"}});
+   assert.equal((await reconcile()).paymentStatus,"refunded");assert.equal((await reconcile()).duplicate,true);
+   assert.equal((await sdk.getDoc(sdk.doc(db,stock))).data().record.item.stock,.5);
+   const refundPath=cashRoot+"/refunds/"+shop.length+"_"+shop+"_"+second.id;
+   assert.equal((await sdk.getDoc(sdk.doc(db,refundPath))).data().originSessionId,"shift1");
+   assert.equal((await sdk.getDoc(sdk.doc(db,shift2))).data().refunds.pix,6000);
+   assert.deepEqual((await sdk.getDoc(sdk.doc(db,sessionPath))).data().closedSummary,closed);
+   await assertFails(sdk.getDoc(sdk.doc(own,refundPath)));
+   const thirdQuote=await q(shop,buyer,25);const third=await submit(shop,buyer,26,25);
+   now+=1800000;
+   const expire=()=>api.execute({storeId:shop,token:"merchant1",kind:"transition",operationId:key(27),orderId:third.id,action:"expire"});
+   assert.equal((await expire()).status,"cancelled");assert.equal((await expire()).duplicate,true);
+   assert.equal((await sdk.getDoc(sdk.doc(db,stock))).data().record.item.stock,.5);
+
   });
   console.log("PASS B02.2 Firestore SDK emulator: shared stock concurrency, idempotency, rules and cancellation.");
  }finally{await env.cleanup()}
