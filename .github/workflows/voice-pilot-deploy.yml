@@ -65,16 +65,17 @@ jobs:
           export VOICE_PROBE_TOKEN="$(openssl rand -hex 32)"
           echo "::add-mask::$VOICE_PROBE_TOKEN"
           node --input-type=module -e 'import {writeFileSync} from "node:fs";writeFileSync(process.env.SECRETS_FILE,JSON.stringify({ELEVENLABS_API_KEY:process.env.ELEVENLABS_API_KEY,VOICE_PROBE_TOKEN:process.env.VOICE_PROBE_TOKEN}))'
-          # Secrets-file is supported in current Wrangler; older locked releases use bulk before code deploy.
-          npx wrangler deploy --help > /tmp/voice-wrangler-help
-          if grep -q -- '--secrets-file' /tmp/voice-wrangler-help; then
-            npx wrangler deploy --config wrangler.voice-pilot.toml --keep-vars --secrets-file "$SECRETS_FILE"
-          else
-            npx wrangler secret bulk "$SECRETS_FILE" --config wrangler.voice-pilot.toml
-            npx wrangler deploy --config wrangler.voice-pilot.toml --keep-vars
-          fi
+          # Deploy code first, preserving existing secrets, then update the two dedicated secret bindings.
+          npx wrangler deploy --config wrangler.voice-pilot.toml --keep-vars
+          npx wrangler secret bulk "$SECRETS_FILE" --config wrangler.voice-pilot.toml
+          npx wrangler secret list --config wrangler.voice-pilot.toml
           curl --retry 3 --retry-all-errors -fsS "$ROOT/voice/health" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(j.voicePilot!==true||j.stockWrites!==false||j.scope!=="adm-only")process.exit(1);console.log("Piloto ADM publicado; estoque desativado")})'
-          curl -sS -H "X-Voice-Probe: $VOICE_PROBE_TOKEN" "$ROOT/voice/ready" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(!j.ready||!j.firestoreMetadata||!j.overageOff||j.allowedVoices<1){console.error("Prontidão recusada:",JSON.stringify(j));process.exit(1)}console.log(JSON.stringify(j))})'
+          for attempt in 1 2 3 4 5 6; do
+            result="$(curl -sS -H "X-Voice-Probe: $VOICE_PROBE_TOKEN" "$ROOT/voice/ready")"
+            if printf '%s' "$result" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{try{process.exit(JSON.parse(s).error==="Não autorizado."?1:0)}catch{process.exit(1)}})'; then break; fi
+            sleep 5
+          done
+          printf '%s' "$result" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{const j=JSON.parse(s);if(!j.ready||!j.firestoreMetadata||!j.overageOff||j.allowedVoices<1){console.error("Prontidão recusada:",JSON.stringify(j));process.exit(1)}console.log(JSON.stringify(j))})'
           code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$ROOT/voice/status")"
           test "$code" = "401"
           echo "PASS: serviço de voz, cota, Firebase e bloqueio de não autenticados; nenhuma síntese executada."
