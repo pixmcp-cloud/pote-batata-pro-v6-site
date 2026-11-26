@@ -39,7 +39,6 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    const actor=actorFor(identity,merchant?"merchant":"customer",storeId),now=clock();
    if(!Number.isSafeInteger(now)||now<=0)err("invalid_time");
    const orderRoot=root+"/orders/",viewRoot=root+"/customerViews/";
-   const opPath=root+"/operations/"+identity.uid+"_"+operationId;
    // Operation IDs are scoped to store and actor; prefix length encoding avoids separator collisions.
    const scopedOp=root+"/operations/"+identity.uid.length+"_"+identity.uid+"_"+operationId;
    const quotePath=root+"/quotes/"+quoteId;
@@ -60,7 +59,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    // Manifest is private and writable only by server. A real integration must derive it from
    // authoritative recipes, price rules and shared/separate stock settings; not public catalog.
    const uidRoot="users/"+m.ownerUid,meta=await tx.get(uidRoot+"/appState/v5"),guard=await tx.get(uidRoot+"/appState/v5InventoryGuard"),pulse=await tx.get(uidRoot+"/appState/v5Pulse");
-   if(!meta||meta.data.schemaVersion!==5||meta.data.migration?.status==="copying"||!guard||!int(guard.data.revision)||!pulse||!id(pulse.data.eventId))err("not_ready");
+   if(!meta||meta.data.schemaVersion!==5||meta.data.migration?.status==="copying"||!guard||!int(guard.data.revision)||!pulse||!docKey(pulse.data.eventId))err("not_ready");
    const maps=new Map(),physical=new Set(),inventory=[];
    for(const s of m.stockMap){
     if(!id(s?.stockId)||!id(s.universe)||!["ingredients","beverages"].includes(s.group)||!docKey(s.recordKey)||!id(s.itemId)||![1,10,100,1000,10000,100000].includes(s.scale)||maps.has(s.stockId)||physical.has(s.recordKey))err("invalid_stock_mapping");
@@ -94,6 +93,9 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    if(result.duplicate)err("inconsistent_operation");
    const o=result.order,orderPath=orderRoot+o.id,viewPath=viewRoot+o.id;
+   const mapping=o.required.map(n=>{const s=maps.get(n.stockId);if(!s)err("stock_mapping_changed");return {stockId:n.stockId,ownerUid:m.ownerUid,recordKey:s.recordKey,universe:s.universe,group:s.group,itemId:s.itemId,scale:s.scale}});
+   if(kind==="submit")o.reservedMapping=mapping;
+   else if(!same(priorOrder.data.reservedMapping,mapping))err("stock_mapping_changed");
    const oldView=await tx.get(viewPath);
    if(kind==="submit"&&(await tx.get(orderPath)||oldView))err("order_collision");
    if(kind==="transition"&&(!oldView||oldView.data.customerUid!==o.customerUid))err("not_ready");
@@ -111,7 +113,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    if(changed.length){
     if(guard.data.revision>=1000000000)err("limit");
-    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId+"-"+operationId,previousEventId:pulse.data.eventId,origin:"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse));
+    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId.length+"-"+storeId+"-"+identity.uid.length+"-"+identity.uid+"-"+operationId,previousEventId:pulse.data.eventId,origin:"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse));
    }
    if(writes.length>90)err("limit");
    await tx.commit(writes);
