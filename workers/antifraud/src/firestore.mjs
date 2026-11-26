@@ -99,8 +99,8 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
      // Exact logical IDs, not just guessed physical keys: detects duplicates across
      // canonical/model/free aliases. All expenses are queried, including inserts.
      async listCatalogRecords({collection,universe,selection,limit}){
-      const groups=["recipes","ingredients","beverages","addons"];
-      if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||! /^[A-Za-z0-9_-]{1,100}$/.test(universe)||!selection||Object.keys(selection).length!==4||groups.some(g=>!Array.isArray(selection[g])||selection[g].length>92||new Set(selection[g]).size!==selection[g].length||selection[g].some(id=>typeof id!=="string"||!/^[A-Za-z0-9_-]{1,100}$/.test(id)))||limit!==241)throw Error("Invalid selective lab query");
+      const groups=["recipes","ingredients","beverages","addons",...(Array.isArray(selection?.combos)?["combos"]:[])];
+      if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||! /^[A-Za-z0-9_-]{1,100}$/.test(universe)||!selection||Object.keys(selection).length!==groups.length||groups.some(g=>!Array.isArray(selection[g])||selection[g].length>92||new Set(selection[g]).size!==selection[g].length||selection[g].some(id=>typeof id!=="string"||!/^[A-Za-z0-9_-]{1,100}$/.test(id)))||limit!==241)throw Error("Invalid selective lab query");
       const parent=collection.split("/").slice(0,-1).join("/");
       const field=(fieldPath,op,value)=>({fieldFilter:{field:{fieldPath},op,value}});
       const found=[];
