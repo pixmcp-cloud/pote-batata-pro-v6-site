@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {LICENSE_TERMS,expiryForTerm,resolveLicense,epochMillis,licenseCountdown} from "./license_terms.mjs";
 import {readFileSync} from "node:fs";
 const ms=(s)=>new Date(s).getTime();
-assert.deepEqual(LICENSE_TERMS.map(x=>x.id),["trial24h","month1","month6","year1","lifetime"]);
+assert.deepEqual(LICENSE_TERMS.map(x=>x.id),["trial24h","trial7d","month1","month6","year1","lifetime"]);
 assert.equal(expiryForTerm("trial24h",new Date("2026-11-15T14:00:00Z")).toISOString(),"2026-11-16T14:00:00.000Z");
 assert.equal(expiryForTerm("month1",new Date("2027-01-31T11:30:00Z")).toISOString(),"2027-02-28T11:30:00.000Z");
 assert.equal(expiryForTerm("month1",new Date("2028-01-31T11:30:00Z")).toISOString(),"2028-02-29T11:30:00.000Z");
