@@ -104,7 +104,7 @@ function loadVoiceCatalog(live=[]){
   if(!v||typeof v.id!=='string'||!/^[A-Za-z0-9_-]{1,100}$/.test(v.id)||typeof v.name!=='string')continue;
   authorizedVoiceIds.add(v.id);refs.set(v.id,{...refs.get(v.id),id:v.id,name:v.name,description:typeof v.description==='string'?v.description.slice(0,250):refs.get(v.id)?.description||'',previewUrl:v.previewUrl});
  }
- displayedVoices=[...refs.values()].sort((a,b)=>Number(authorizedVoiceIds.has(b.id))-Number(authorizedVoiceIds.has(a.id)));
+ displayedVoices=[...refs.values()].filter(v=>authorizedVoiceIds.size===0||authorizedVoiceIds.has(v.id));
  select.replaceChildren(...displayedVoices.map(v=>new Option(v.name+' — '+(v.description||'Voz do catálogo')+(authorizedVoiceIds.has(v.id)?'':' · referência'),v.id)));
  select.value=displayedVoices.some(v=>v.id===previous)?previous:displayedVoices[0]?.id||'';
  renderSelectedVoice();
@@ -138,7 +138,7 @@ async function refreshClones(){
    row.append(label,btn);$('pvCloneList').append(row);
   }
   $('pvCloneCreate').disabled=!result.cloneApproved||cloneBusy;
-  if(!result.cloneApproved)cloneStatus('Clonagem comercial ainda não habilitada.');
+  if(!result.cloneApproved)cloneStatus('Clonagem comercial ainda não habilitada.');else if(!$('pvCloneStatus').textContent)cloneStatus('Clonagem habilitada no ADM. Vozes verificadas podem ser usadas no estúdio.');
  }catch(e){if(epoch===cloneEpoch)cloneStatus(e.message);}
 }
 $('pvCloneFile').addEventListener('change',()=>{
@@ -161,7 +161,7 @@ $('pvCloneCreate').onclick=async()=>{
   if(epoch!==cloneEpoch||auth.currentUser?.uid!==actor||!cloneAdmin())return;
   const result=await(await api('/admin/clone/create',{requestId:cloneRequestId,name,description,consentRef,consent:true,mime:/\.wav$/i.test(file.name)?'audio/wav':'audio/mpeg',audio:encoded})).json();
   if(epoch!==cloneEpoch||auth.currentUser?.uid!==actor)return;
-  resetCloneDraft();cloneStatus(result.state==='verification_required'?'Clone exige verificação no provedor; não será publicado.':'Clone criado em rascunho. Publique quando estiver autorizado.');
+  resetCloneDraft();cloneStatus(result.state==='verification_required'?'Clone exige verificação no provedor; não será publicado.':'Clone criado. Reabra o estúdio para utilizá-lo no ADM. Publicação aos lojistas ainda em homologação.');
  }catch(e){if(epoch===cloneEpoch)cloneStatus('Não foi possível confirmar a clonagem. Consulte o histórico antes de repetir. '+(e.message||''));}
  finally{cloneBusy=false;for(const id of ['pvCloneName','pvCloneDescription','pvCloneFile','pvCloneConsentRef','pvCloneConsent'])$(id).disabled=false;if(auth.currentUser?.uid===actor&&cloneAdmin())void refreshClones();}
 };
@@ -170,7 +170,7 @@ function studioStatus(message){$('pvStatus').textContent=message;state(message);
 function settings(){return Object.fromEntries([...voiceSettingsSpec.map(([key])=>[key,Number($('pv_'+key).value)]),['use_speaker_boost',$('pvBoost').checked]]);}
 function options(){return {modelId:$('pvModel').value,languageCode:$('pvLanguage').value||null,voiceSettings:settings()};}
 function invalidate(){quote=null;$('csVoiceGenerate').disabled=true;$('csVoicePrice').disabled=!consoleReady||busy||!authorizedVoiceIds.has($('csVoiceSelect').value);renderChars();const n=Number($('csVoiceDuration').value);$('pvCost').textContent=n/15+' IA COIN';$('pvTiers').querySelectorAll('[data-pv-seconds]').forEach(el=>el.setAttribute('aria-pressed',String(Number(el.dataset.pvSeconds)===n)));for(const [key] of voiceSettingsSpec)$('pvOut_'+key).textContent=Number($('pv_'+key).value).toFixed(2);$('csVoiceQuote').textContent='Custo previsto: '+n/15+' IA COIN · '+n*10+' caracteres. Validação no servidor obrigatória.';}
-function applyPreset(vals){for(const [key,,,,def] of voiceSettingsSpec)$('pv_'+key).value=String(vals[key]??def);$('pvBoost').checked=true;invalidate();}
+function applyPreset(vals){for(const [key,,,,,def] of voiceSettingsSpec)$('pv_'+key).value=String(vals[key]??def);$('pvBoost').checked=true;invalidate();}
 function importCreative(){const value=['creativeHeadline','creativeBody','creativeCta'].map(id=>$(id)?.value||'').filter(Boolean).join('. ').slice(0,750);$('csVoiceText').value=value;$('csVoiceDuration').value=String(Math.min(75,Math.max(15,Math.ceil(value.length/150)*15)));invalidate();}
 $('pvImport').onclick=importCreative;$('pvClear').onclick=()=>{$('csVoiceText').value='';invalidate();};
 $('pvBack').onclick=()=>{if(!busy&&!cloneBusy)voiceConsole.close();};
@@ -215,7 +215,7 @@ async function price(){
   if(!Number.isSafeInteger(data.credits)||data.credits!==seconds/15||data.seconds!==seconds||typeof data.quoteId!=="string")throw Error("Orçamento inválido.");
   quote={id:data.quoteId,credits:data.credits,text,voiceId,seconds,opts};renderQuota(data.franchiseAllocation);
   $("csVoiceQuote").textContent="Custo: "+data.credits+" créditos IA · saldo: "+data.balance+allocationText(data.franchiseAllocation);
-  $("csVoiceGenerate").disabled=data.balance<data.credits;if(data.balance<data.credits){$("csAiWallet").hidden=false;state("Saldo insuficiente. Consulte os pacotes na carteira IA.");}
+  $("csVoiceGenerate").disabled=data.balance<data.credits;if(data.balance<data.credits){if($("csAiWallet"))$("csAiWallet").hidden=false;state("Saldo insuficiente. Consulte os pacotes na carteira IA.");}
  }catch(e){studioStatus(e.message)}finally{busy=false;$("csVoicePrice").disabled=!consoleReady||!authorizedVoiceIds.has($("csVoiceSelect").value);}
 }
 async function generate(){
