@@ -26,3 +26,19 @@ export function closeCheckoutCash(session,receipts,now){
  if(session?.status!=="open"||!Number.isSafeInteger(now)||now<session.openedAt)fail("invalid_close");
  return {...session,status:"closed",closedAt:now,closedSummary:checkoutCashSummary(session,receipts)};
 }
+
+function totals(session){
+ const t=session.totals;
+ if(!t||!methods.every(m=>cents(t[m]))||!cents(t.count))fail("invalid_session_totals");
+ return {cash:t.cash,pix:t.pix,card:t.card,count:t.count};
+}
+export function applyCheckoutReceipt(session,receipt){
+ if(session?.status!=="open"||receipt?.sessionId!==session.id||receipt.ownerUid!==session.ownerUid||!methods.includes(receipt.method)||!cents(receipt.amountCents)||receipt.amountCents===0||!cents(session.revision)||session.revision>=1000000000)fail("invalid_session");
+ const t=totals(session);t[receipt.method]=add(t[receipt.method],receipt.amountCents);t.count=add(t.count,1);
+ return {...session,revision:session.revision+1,totals:t};
+}
+export function freezeCheckoutCashSession(session,now,operationId){
+ if(session?.status!=="open"||!id(operationId)||operationId.length<16||!Number.isSafeInteger(now)||now<session.openedAt||!cents(session.revision)||session.revision>=1000000000)fail("invalid_close");
+ const t=totals(session);
+ return {...session,status:"closed",closedAt:now,closeOperationId:operationId,revision:session.revision+1,closedSummary:{sessionId:session.id,byMethod:{cash:t.cash,pix:t.pix,card:t.card},receivedCents:add(add(t.cash,t.pix),t.card),cashDrawerIncreaseCents:t.cash,count:t.count}};
+}
