@@ -33,6 +33,7 @@ async function run({compile,finance,quote,baseline,advance,shared},log){
  eq(checked.updates.length,0);eq(checked.balances[0].beforeUnits,1000);eq(checked.balances[0].aliasKeys,["r1","r2"]);
  reject(()=>shared({...args,requests:[{link:"batata|g",units:-1000000000,scale:1}]}),"invalid_stock_precision");
  reject(()=>shared({...args,requests:[{link:"batata|g",units:200,scale:1},{link:"batata|g",units:300,scale:10}]}),"invalid_stock_precision");
+ const mixed=copy(records);mixed[0].data.record.item.kitchenLink="batata|g";mixed[1].data.record.item.kitchenLink="batata|g";mixed[1].data.record.item.measureUnit="ml";reject(()=>shared({...args,records:mixed}),"shared_kitchen_divergent");
  log("PASS B02.10",n,"assertivas");
 }
 await run({compile:compileV5Catalog,finance:globalThis.POTE_FINANCE,quote:quoteCheckout,baseline:v5SequenceBaseline,advance:advanceV5Sequence,shared:planSharedKitchen},console.log);
