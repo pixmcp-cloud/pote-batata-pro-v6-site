@@ -7,10 +7,10 @@ const allowedVoiceIds=new Set(['gOupLcAkjEnguROwi4oS','OZ0L6eISlOejga3XjDFt','WQ
 const cfg={commercialApproved:true,licensedTiers:['starter'],providerMicroBrlPer1000:1500000,creditMicroBrl:1100000};
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{publicStatus:status});};
 const put=(path,data,previous,serverTimestamps=[])=>({path,data,precondition:previous?{updateTime:previous.updateTime}:{exists:false},serverTimestamps});
-export function createVoicePilot({verify=verifyFirebaseToken,repo=createFirestoreRepository,serviceToken=serviceAccessToken,providerFetch=(...args)=>globalThis.fetch(...args),clock=()=>Date.now(),uuid=()=>crypto.randomUUID()}={}){
+export function createVoicePilot({verify=verifyFirebaseToken,repo=env=>createFirestoreRepository(env,{requestFetch:(...args)=>globalThis.fetch(...args)}),serviceToken=serviceAccessToken,providerFetch=(...args)=>globalThis.fetch(...args),clock=()=>Date.now(),uuid=()=>crypto.randomUUID()}={}){
  async function provider(env,path,body){
   if(!env.ELEVENLABS_API_KEY||env.VOICE_PILOT_ENABLED!=='true')fail('Serviço de voz não ativado.',423);
-  let r;try{r=await providerFetch('https://api.elevenlabs.io'+path,{method:body?'POST':'GET',headers:{'xi-api-key':env.ELEVENLABS_API_KEY,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(25000),redirect:'error'});}catch(e){fail('ELEVENLABS_TRANSPORT_'+(e instanceof TypeError?'TYPE_ERROR':e?.name==='TimeoutError'?'TIMEOUT':'FAILED'),502);}
+  let r;try{r=await providerFetch('https://api.elevenlabs.io'+path,{method:body?'POST':'GET',headers:{'xi-api-key':env.ELEVENLABS_API_KEY,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(25000),redirect:'manual'});}catch(e){fail('ELEVENLABS_TRANSPORT_'+(e instanceof TypeError?'TYPE_ERROR':e?.name==='TimeoutError'?'TIMEOUT':'FAILED'),502);}
   if(!r.ok)fail('ElevenLabs indisponível; operação não será repetida automaticamente.',502);
   return r;
  }
