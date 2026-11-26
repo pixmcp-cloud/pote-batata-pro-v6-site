@@ -90,6 +90,44 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
   const meta=await read(root+"/appState/v5");
   await set(root+"/appState/v5",{...meta,state:{...meta.state,data:{...meta.state.data,kitchenStock:{mode:"shared",inventory:{}}}}});
   await assert.rejects(()=>quote(14),e=>e.code==="shared_kitchen_requires_reconciliation");
+  // B02.10: two universes, identical physical ingredient; one central stock.
+  const pizza="pizzaria",pizzaStore="pizzashop",pizzaIngredient={...ingredient,id:"pizza-potato",stock:500},pizzaRecipe={...recipe,id:"pizza-meal",items:[{id:pizzaIngredient.id,g:400}]};
+  const pizzaKey=keyFor(pizza,"ingredients",pizzaIngredient.id),pizzaPath=root+"/recordsV5/"+pizzaKey;
+  const mainIngredient={...ingredient,stock:500};
+  const sharedMeta={...meta,state:{...meta.state,data:{...meta.state.data,businessUniverses:{pizzaria:{settings,orderSequenceLast:12}},kitchenStock:{mode:"shared",inventory:{"batata|g":{...mainIngredient}}}}}};
+  await set(root+"/appState/v5",sharedMeta);await set(stockPath,rec("ingredients",mainIngredient));
+  await set(pizzaPath,{record:{universe:pizza,group:"ingredients",id:pizzaIngredient.id,item:pizzaIngredient,rank:1}});
+  await set(root+"/recordsV5/"+keyFor(pizza,"recipes",pizzaRecipe.id),{record:{universe:pizza,group:"recipes",id:pizzaRecipe.id,item:pizzaRecipe,rank:1}});
+  await set(root+"/recordsV5/"+keyFor(pizza,"expenses",expense.id),{record:{universe:pizza,group:"expenses",id:expense.id,item:expense,rank:1}});
+  const pizzaManifest={...manifest,universe:pizza,sharedKitchenEnabled:true,recipeIds:[pizzaRecipe.id],stockMap:[{...stockMap[0],universe:pizza,itemId:pizzaIngredient.id,recordKey:pizzaKey}]};
+  pizzaManifest.products=compileV5Catalog({finance,branch:{...branch,ingredients:[pizzaIngredient],recipes:[pizzaRecipe]},...pizzaManifest}).products;
+  await set("checkoutLabStores/"+storeId,{...manifest,sharedKitchenEnabled:true});await set("checkoutLabStores/"+pizzaStore,pizzaManifest);await set("checkoutLabStores/"+pizzaStore+"/meta/sequence",{value:0});
+  const pizzaInput={...input,lines:[{productId:pizzaRecipe.id,quantity:1,extras:[]}]};
+  const pq=()=>api.execute({token:"buyer2",storeId:pizzaStore,kind:"quote",operationId:op(31),input:pizzaInput});
+  const ps=()=>api.execute({token:"buyer2",storeId:pizzaStore,kind:"submit",operationId:op(33),quoteId:op(31),input:pizzaInput,expectedRevision:"rev1",expectedTotalCents:1450});
+  await quote(30);await pq();
+  const oldGuard=(await read(root+"/appState/v5InventoryGuard")).revision;
+  const staleMeta=await repository.transaction();const stale=await staleMeta.get(root+"/appState/v5");await staleMeta.rollback();
+  const race=await Promise.allSettled([submit(32,30),ps()]);
+  assert.equal(race.filter(x=>x.status==="fulfilled").length,1);
+  const winningIndex=race.findIndex(x=>x.status==="fulfilled"),winner=winningIndex===0?storeId:pizzaStore,winningOrder=race[winningIndex].value.id;
+  const verifyStock=async value=>{assert.equal((await read(stockPath)).record.item.stock,value);assert.equal((await read(pizzaPath)).record.item.stock,value);assert.equal((await read(root+"/appState/v5")).state.data.kitchenStock.inventory["batata|g"].stock,value)};
+  await verifyStock(0);assert.equal((await read(root+"/appState/v5InventoryGuard")).revision,oldGuard+1);
+  const sharedPulse=await read(root+"/appState/v5Pulse");assert.equal(sharedPulse.metaChanged,true);assert.deepEqual(new Set(sharedPulse.changedKeys),new Set([stockKey,pizzaKey]));
+  // A stale legacy meta replacement cannot commit after the online reservation.
+  const staleWriter=await repository.transaction();try{await assert.rejects(()=>staleWriter.commit([{path:root+"/appState/v5",data:stale.data,precondition:{updateTime:stale.updateTime}}]))}finally{await staleWriter.rollback()}
+  await verifyStock(0);
+  const cancel=()=>api.execute({token:owner,storeId:winner,kind:"transition",operationId:op(34),orderId:winningOrder,action:"cancel"});
+  assert.equal((await cancel()).status,"cancelled");await verifyStock(500);assert.equal((await cancel()).duplicate,true);await verifyStock(500);
+  assert.equal((await read(root+"/appState/v5InventoryGuard")).revision,oldGuard+2);
+  const next=await (winningIndex===0?ps():submit(32,30));assert.equal(next.status,"received");await verifyStock(0);
+  const losingStore=winningIndex===0?pizzaStore:storeId;
+  const prepare=()=>api.execute({token:owner,storeId:losingStore,kind:"transition",operationId:op(35),orderId:next.id,action:"prepare"});
+  assert.equal((await prepare()).status,"preparing");await verifyStock(0);
+  await set(pizzaPath,{record:{universe:pizza,group:"ingredients",id:pizzaIngredient.id,item:{...pizzaIngredient,stock:5},rank:1}});
+  await assert.rejects(()=>quote(36),e=>e.code==="shared_kitchen_divergent");
+  console.log("PASS B02.10 shared kitchen: one reservation, stale writer rejected, idempotent return, no second production debit, divergence rejected.");
+
  });
  console.log("PASS B02.7 REST emulator: complete catalog query, license revocation, stale price, shared stock vs legacy domain");
  }finally{await env.cleanup()}
