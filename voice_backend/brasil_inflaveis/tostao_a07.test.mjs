@@ -75,7 +75,7 @@ function runA07({planTostaoVoice:plan,availableTostaoPayments:options,fundingGat
  fail(b);fail(b);
  check("simulation",global===150&&same(wallets.get("bi/b/u"),{commercial:2,promo:4}),"release once");
  reject("simulation",()=>reserve("bi/b/u","promo",15,{commercial:0,promo:2}),"unfunded promo");
- const c=reserve("bi/b/u","mixed",15,{commercial:1,promo:0});
+ const c=reserve("bi/b/u","commercial",15,{commercial:1,promo:0});
  dispatch(a);reject("simulation",()=>dispatch(a),"no duplicate dispatch");
  fail(a);fail(a);
  check("simulation",a.state==="reconcile"&&global===0,"ambiguous retains hold");
@@ -84,6 +84,16 @@ function runA07({planTostaoVoice:plan,availableTostaoPayments:options,fundingGat
  check("simulation",dispatches===2&&c.state==="completed","capture idempotent");
  check("simulation",same(wallets.get("bi/a/u"),{commercial:1,promo:4})&&same(wallets.get("bi/b/u"),{commercial:1,promo:4}),"isolated balances");
  check("simulation",budget===100,"failed promo does not consume budget");
+ // Independent mixed-payment scenario with reset mock fixtures.
+ global=300;budget=150;wallets.set("bi/c/u",{commercial:1,promo:2});
+ const mixed=reserve("bi/c/u","mixed",30,{commercial:1,promo:2});
+ check("simulation",global===0&&budget===0&&same(wallets.get("bi/c/u"),{commercial:0,promo:0}),"mixed payment and subsidy both reserved");
+ check("simulation",reserve("bi/c/u","mixed",30,{commercial:1,promo:2})===mixed&&budget===0,"mixed retry retains one reservation");
+ fail(mixed);fail(mixed);
+ check("simulation",global===300&&budget===150&&same(wallets.get("bi/c/u"),{commercial:1,promo:2}),"mixed release restores both balances and subsidy exactly once");
+ const finalMixed=reserve("bi/c/u","mixed2",30,{commercial:1,promo:2});
+ dispatch(finalMixed);complete(finalMixed);complete(finalMixed);
+ check("simulation",global===0&&budget===0&&same(wallets.get("bi/c/u"),{commercial:0,promo:0}),"mixed capture retains funded charge");
  return stats;
 }
 const stats=runA07({planTostaoVoice,availableTostaoPayments,fundingGate});
