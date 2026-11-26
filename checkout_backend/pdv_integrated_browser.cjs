@@ -1,7 +1,7 @@
 // Test-only HTTP server; loopback, synthetic credentials, bounded requests.
 const assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path"),http=require("node:http");
 const puppeteer=require("../qa/mobile/node_modules/puppeteer-core");
-exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter,readCatalog,readQueue,catalogEditor})=>{
+exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter,readCatalog,readQueue,catalogEditor,setCatalogExpired})=>{
  const {createCheckoutHttpLab}=await import("./checkout_http_lab.mjs");
  const {createCheckoutAuthLab}=await import("../workers/antifraud/src/checkout_auth_lab.mjs");
  const {generateKeyPair,SignJWT}=await import(require.resolve("jose",{paths:[path.join(__dirname,"../workers/antifraud")]}));
@@ -22,7 +22,7 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter,readCata
    if(req.method!=="POST"||req.headers.origin!==origin){send(403,{error:"origin_denied"});return}
    let body="";for await(const chunk of req){body+=chunk.toString();if(body.length>8192){send(413,{error:"body_limit"});return}}
    if(req.url==="/lab/bootstrap"){if(separated){send(404,{error:"not_found"});return}send(200,config);return}
-   if(separated&&req.url==="/customer/catalog"){try{send(200,await readCatalog())}catch{send(503,{error:"catalog_not_ready"})}return}
+   if(separated&&req.url==="/customer/catalog"){try{send(200,await readCatalog())}catch(e){if(e?.code==="license_required")send(200,{storeId:store.online,products:[],deliveryEnabled:false,deliveryFeeCents:0,orderingEnabled:false});else send(503,{error:"catalog_not_ready"})}return}
    if(separated&&req.url==="/customer/login"){send(200,{uid:buyerUid,token:await issue(buyerUid)});return}
    let identity;try{identity=await verify(req.headers.authorization?.startsWith("Bearer ")?req.headers.authorization.slice(7):"",projectId)}catch{send(401,{error:"login_required"});return}
    if(separated&&req.url==="/merchant/config"){if(identity.uid!==ownerUid){send(403,{error:"forbidden"});return}send(200,{ownerUid,counter:store.counter,epoch:config.epoch,products:config.products});return}
@@ -116,6 +116,10 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter,readCata
   await merchant.waitForFunction(()=>!document.querySelector("#tab-catalog").disabled);await merchant.click("#tab-catalog");await merchant.waitForSelector("[data-catalog-group=recipes]",{visible:true});
   await merchant.waitForFunction(()=>!document.querySelector("#tab-catalog").disabled);await merchant.click("#catalog-preview");await merchant.waitForFunction(()=>!document.querySelector("#catalog-approve").disabled&&!document.querySelector("#tab-catalog").disabled);await merchant.click("#catalog-approve");await merchant.waitForFunction(()=>document.querySelector("#feedback").textContent.includes("Revisão aprovada"));
   assert.deepEqual(merchantErrors,[]);await merchant.close();
+  if(typeof setCatalogExpired==="function"){
+   await setCatalogExpired(true);
+   try{const expired=await browser.newPage();await expired.goto(origin+"/customer_menu_lab.html");await expired.waitForSelector('body[data-ready="true"]');assert.equal(await expired.$eval("#quote",x=>x.disabled),true);assert.equal(await expired.$eval("#submit",x=>x.disabled),true);assert.equal(await expired.$eval("#recover",x=>x.disabled),false);await expired.click("#recover");await expired.waitForFunction(()=>document.querySelector("#feedback").textContent.includes("Nenhuma tentativa"));await expired.close();}finally{await setCatalogExpired(false)}
+  }
   console.log("PASS B02-G2 separated customer/merchant surfaces: anonymous catalog, on-demand synthetic Google, six denied cross-surface requests, private owner cash.");
   console.log("PASS B02-G1 browser integrated: signed identity, reload recovery, real emulator writes from UI; 4 viewport widths; shared stock, drawer, receipt, frozen ticker; no external requests.");
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
