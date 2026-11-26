@@ -8,7 +8,7 @@ import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planChec
 import {v5SequenceBaseline,advanceV5Sequence} from "./v5_checkout_sequence_lab.mjs";
 import {planSharedKitchen,kitchenLink} from "./v5_shared_kitchen_lab.mjs";
 import {requireCheckoutAuthority} from "./v5_cutover_policy.mjs";
-import {planStockAdjustment} from "./stock_adjustment_lab.mjs";
+import {planStockAdjustment,replacementUnitCostCents,purchaseEvidence,valueReservedLoss} from "./stock_adjustment_lab.mjs";
 const labProject="demo-nucleobit-checkout";
 const id=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const operation=x=>id(x)&&x.length>=16;
@@ -128,8 +128,9 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(result.duplicate)err("inconsistent_operation");
    const o=result.order,orderPath=orderRoot+o.id,viewPath=viewRoot+o.id;
    const mapping=o.required.map(n=>{const s=maps.get(n.stockId);if(!s)err("stock_mapping_changed");return {stockId:n.stockId,ownerUid:m.ownerUid,recordKey:s.recordKey,universe:s.universe,group:s.group,itemId:s.itemId,scale:s.scale,...(s.sharedLink?{sharedLink:s.sharedLink,aliasKeys:s.aliasKeys}:{})}});
-   if(kind==="submit"){o.reservedMapping=mapping;if(channel==="counter")o.channel="counter";}
+   if(kind==="submit"){o.reservedMapping=mapping;o.stockValuations=o.required.map(n=>{const s=maps.get(n.stockId);return {stockId:n.stockId,scale:s.scale,unitCostCents:replacementUnitCostCents(s.doc.data.record.item,s.group)}});if(channel==="counter")o.channel="counter";}
    else if(!same(priorOrder.data.reservedMapping,mapping))err("stock_mapping_changed");
+   if(o.stockState==="lost"&&o.loss){Object.assign(o.loss,valueReservedLoss(o.required,o.stockValuations));}
    const oldView=await tx.get(viewPath);
    if(kind==="submit"&&(await tx.get(orderPath)||oldView))err("order_collision");
    if(kind==="transition"&&(!oldView||oldView.data.customerUid!==o.customerUid))err("not_ready");
@@ -276,7 +277,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
   }
   return result;
  }
- async function adjustStock({token,storeId,epoch,operationId,stockId,kind,quantityUnits,expectedUnits,reason}={}){
+ async function adjustStock({token,storeId,epoch,operationId,stockId,kind,quantityUnits,expectedUnits,reason,purchaseCostCents,purchaseReference,supplierId}={}){
   const identity=await cashIdentity(token,epoch);
   if(!id(storeId)||!operation(operationId)||!id(stockId))err("invalid_request");
   const tx=await repository.transaction();
@@ -284,7 +285,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    const root="users/"+identity.uid,profile=await tx.get(root);requireCheckoutAuthority(profile?.data,epoch);
    const m=(await tx.get("checkoutLabStores/"+storeId))?.data;
    if(!m||m.ownerUid!==identity.uid||m.lab!==true||m.enabled!==true||m.catalogMode!=="v5-authoritative"||m.cutoverEpoch!==epoch)err("forbidden");
-   const eventPath=root+"/checkoutStockOperations/"+operationId,prior=await tx.get(eventPath),fingerprint=JSON.stringify([storeId,epoch,stockId,kind,quantityUnits,expectedUnits,reason]);
+   const eventPath=root+"/checkoutStockOperations/"+operationId,prior=await tx.get(eventPath),fingerprint=JSON.stringify([storeId,epoch,stockId,kind,quantityUnits,expectedUnits,reason,purchaseCostCents??null,purchaseReference??null,supplierId??null]);
    if(prior){if(prior.data.fingerprint!==fingerprint)err("idempotency_conflict");return {...copy(prior.data.result),duplicate:true}}
    const meta=await tx.get(root+"/appState/v5"),guard=await tx.get(root+"/appState/v5InventoryGuard"),pulse=await tx.get(root+"/appState/v5Pulse");
    if(!meta||meta.data.schemaVersion!==5||meta.data.migration?.status==="copying"||!guard||!int(guard.data.revision,0,999999999)||!pulse||!docKey(pulse.data.eventId))err("not_ready");
@@ -296,7 +297,12 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    const raw=i.stock*s.scale,beforeUnits=Math.round(raw);if(!int(beforeUnits)||Math.abs(raw-beforeUnits)>1e-6)err("invalid_stock_precision");
    // Count refers to AVAILABLE stock, excluding already reserved quantities.
    // Purchase is stock receipt only, not supplier payable or change of acquisition cost.
-   const plan=planStockAdjustment({beforeUnits,expectedUnits,kind,quantityUnits,reason,scale:s.scale});
+   const unitCostCents=replacementUnitCostCents(i,s.group);
+   const plan=planStockAdjustment({beforeUnits,expectedUnits,kind,quantityUnits,reason,scale:s.scale,unitCostCents});
+   const evidence=purchaseEvidence({kind,quantityUnits,scale:s.scale,purchaseCostCents,purchaseReference,supplierId});
+   if(evidence?.supplierId){const supplier=(await tx.get(root+"/recordsV5/"+evidence.supplierId))?.data?.record;if(!supplier||supplier.group!=="suppliers"||supplier.universe!==s.universe||supplier.item?.archived)err("invalid_supplier");evidence.supplierName=String(supplier.item?.name??"").slice(0,220);}
+   // Acquisition evidence is immutable; do not overwrite V5 replacement/average costs automatically.
+   // Those affect every active menu and require explicit price approval/reconciliation.
    const writes=[],changed=[];let metaChanged=false;
    if(meta.data.state?.data?.kitchenStock?.mode==="shared"&&s.group==="ingredients"){
     if(m.sharedKitchenEnabled!==true||typeof tx.listKitchenRecords!=="function")err("shared_kitchen_requires_reconciliation");
@@ -306,7 +312,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     for(const u of k.updates){if(!docKey(u.key)||!u.updateTime)err("invalid_stock_mapping");writes.push(put(root+"/recordsV5/"+u.key,u.data,u));changed.push(u.key)}
     writes.push(put(root+"/appState/v5",k.meta,meta));metaChanged=true;
    }else{writes.push(put(path,{...old.data,record:{...record,item:{...i,stock:plan.afterUnits/s.scale}}},old));changed.push(s.recordKey)}
-   const result={...plan,ownerUid:identity.uid,storeId,stockId,recordKey:s.recordKey,operationId,at:clock()};
+   const result={...plan,...(plan.costKnown?{costBasis:"replacement-at-adjustment"}:{}),purchase:evidence,ownerUid:identity.uid,storeId,stockId,recordKey:s.recordKey,operationId,at:clock()};
    writes.push(put(eventPath,{fingerprint,result},null),put(root+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(root+"/appState/v5Pulse",{eventId:"stock-"+operationId,previousEventId:pulse.data.eventId,origin:"checkout-lab-stock",affected:changed.length,changedKeys:changed,metaChanged,sensitive:true},pulse));
    if(writes.length>90)err("limit");await tx.commit(writes);return {...result,duplicate:false};
   }finally{await tx.rollback()}
