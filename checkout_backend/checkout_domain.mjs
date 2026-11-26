@@ -53,15 +53,24 @@ export function quoteCheckout(store,actor,input,now){
  const fee=req.fulfillment==="delivery"?store.deliveryFeeCents:0;
  return {request:req,storeId:store.id,customerUid:actor.uid,revision:store.revision,lines,required,subtotalCents:subtotal,deliveryCents:fee,totalCents:add(subtotal,fee),expiresAt:now+300000};
 }
-export function submitCheckout(store,actor,{operationId,input,expectedRevision,expectedTotalCents}={},now){
- customer(actor,store);if(!key(operationId)||!id(expectedRevision)||!int(expectedTotalCents,1)||!time(now)||!Array.isArray(store.orders)||!int(store.sequence,0,9999998))fail("invalid_submit");
+// Quote stored by trusted server; quoteId generated there, not accepted as a client price.
+export function createCheckoutQuote(store,actor,input,quoteId,now){
+ if(!key(quoteId)||!Array.isArray(store.quotes)||store.quotes.some(x=>x.id===quoteId))fail("invalid_quote");
+ const q=quoteCheckout(store,actor,input,now),next=clone(store);
+ next.quotes.push({id:quoteId,storeId:q.storeId,customerUid:q.customerUid,request:q.request,revision:q.revision,totalCents:q.totalCents,expiresAt:q.expiresAt,used:false});
+ return {state:next,quote:{quoteId,lines:q.lines,subtotalCents:q.subtotalCents,deliveryCents:q.deliveryCents,totalCents:q.totalCents,revision:q.revision,expiresAt:q.expiresAt}};
+}
+export function submitCheckout(store,actor,{operationId,quoteId,input,expectedRevision,expectedTotalCents}={},now){
+ customer(actor,store);if(!key(operationId)||!key(quoteId)||!id(expectedRevision)||!int(expectedTotalCents,1)||!time(now)||!Array.isArray(store.orders)||!int(store.sequence,0,9999998))fail("invalid_submit");
  const request=requestShape(input);
- const fingerprint=JSON.stringify([request,expectedRevision,expectedTotalCents]);
+ const fingerprint=JSON.stringify([quoteId,request,expectedRevision,expectedTotalCents]);
  const existing=store.orders.find(o=>o.customerUid===actor.uid&&o.operationId===operationId);
  if(existing){if(existing.fingerprint!==fingerprint)fail("idempotency_conflict");return {state:store,order:clone(existing),duplicate:true}}
+ const saved=store.quotes?.find(x=>x.id===quoteId&&x.customerUid===actor.uid&&x.storeId===store.id);
+ if(!saved||saved.used===true||now>=saved.expiresAt||JSON.stringify(saved.request)!==JSON.stringify(request)||saved.revision!==expectedRevision||saved.totalCents!==expectedTotalCents)fail("invalid_quote");
  const q=quoteCheckout(store,actor,request,now);
  if(q.revision!==expectedRevision||q.totalCents!==expectedTotalCents)fail("quote_changed");
- const next=clone(store);next.sequence++;
+ const next=clone(store);next.sequence++;next.quotes.find(x=>x.id===quoteId).used=true;
  for(const n of q.required){const s=next.inventory.find(x=>x.id===n.stockId);s.availableUnits-=n.units}
  const order={id:"P"+String(next.sequence).padStart(7,"0"),storeId:store.id,customerUid:actor.uid,operationId,fingerprint,lines:q.lines,required:q.required,subtotalCents:q.subtotalCents,deliveryCents:q.deliveryCents,totalCents:q.totalCents,fulfillment:request.fulfillment,address:request.address,paymentMethod:request.paymentMethod,paymentStatus:"pending",status:"received",stockState:"reserved",createdAt:now,events:[{status:"received",at:now}],actions:[],deliveredAt:null,elapsedMs:null};
  next.orders.push(order);
