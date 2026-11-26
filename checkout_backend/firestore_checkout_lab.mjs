@@ -7,6 +7,7 @@ import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} fro
 import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund} from "./checkout_cash_lab.mjs";
 import {v5SequenceBaseline,advanceV5Sequence} from "./v5_checkout_sequence_lab.mjs";
 import {planSharedKitchen,kitchenLink} from "./v5_shared_kitchen_lab.mjs";
+import {requireCheckoutAuthority} from "./v5_cutover_policy.mjs";
 const labProject="demo-nucleobit-checkout";
 const id=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const operation=x=>id(x)&&x.length>=16;
@@ -64,10 +65,13 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    // authoritative recipes, price rules and shared/separate stock settings; not public catalog.
    const uidRoot="users/"+m.ownerUid,meta=await tx.get(uidRoot+"/appState/v5"),guard=await tx.get(uidRoot+"/appState/v5InventoryGuard"),pulse=await tx.get(uidRoot+"/appState/v5Pulse");
    if(!meta||meta.data.schemaVersion!==5||meta.data.migration?.status==="copying"||!guard||!int(guard.data.revision)||!pulse||!docKey(pulse.data.eventId))err("not_ready");
+   // Strict staging mode binds new operations to the same server-owned epoch.
+   // Historical fixtures remain usable only in the synthetic demo project.
+   const profile=m.cutoverEpoch!==undefined||m.catalogMode==="v5-authoritative"?await tx.get(uidRoot):null;
+   if(m.cutoverEpoch!==undefined)requireCheckoutAuthority(profile?.data,m.cutoverEpoch);
    let products=m.products;
    if(["quote","submit"].includes(kind)&&m.catalogMode==="v5-authoritative"){
     if(typeof loadAuthoritativeCatalog!=="function")err("catalog_not_ready");
-    const profile=await tx.get(uidRoot);
     const catalog=await loadAuthoritativeCatalog({tx,manifest:m,meta:meta.data,profile:profile?.data,now});
     if(catalog?.revision!==m.revision||!Array.isArray(catalog.products))err("catalog_not_ready");
     products=catalog.products;
