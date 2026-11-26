@@ -112,6 +112,24 @@ const sdk=require("../qa/firestore/node_modules/firebase/firestore");
    assert.deepEqual((await sdk.getDoc(sdk.doc(target,cash+"/sessions/shift1"))).data().closedSummary,closed);
    assert.equal((await sdk.getDoc(sdk.doc(target,root+"/appState/v5"))).data().state.data.orderSequenceLast,42);
   });
+  // Browser scenario runs AFTER the verified backup, using a fresh test turn.
+  await set(stockPath,rec("ingredients",{...ingredient,stock:1000}));
+  const {runIntegratedBrowser}=require("./pdv_integrated_browser.cjs");
+  const browserApi={...api,execute:args=>{now+=1000;return api.execute(args)},openCash:args=>{now+=1000;return api.openCash(args)},moveCash:args=>{now+=1000;return api.moveCash(args)},closeCash:args=>{now+=1000;return api.closeCash(args)}};
+  await runIntegratedBrowser({api:browserApi,config:{ownerToken:owner,buyerToken:buyer,online,counter,epoch,products:manifest.products.map(({id,title,priceCents})=>({id,title,priceCents}))},
+   readSnapshot:async()=>{const orders=[];for(const id of [online,counter]){const docs=await sdk.getDocs(sdk.query(sdk.collection(db,store(id)+"/orders"),sdk.limit(50)));for(const d of docs.docs)orders.push(d.data())}
+    const ptr=await read(cash),session=ptr.activeSessionId?await read(cash+"/sessions/"+ptr.activeSessionId):null;
+    const shifts=await sdk.getDocs(sdk.collection(db,cash+"/sessions"));const lastClosed=shifts.docs.map(d=>d.data()).filter(x=>x.status==="closed").sort((a,b)=>b.closedAt-a.closedAt)[0]?.closedSummary??null;
+    return {orders,session,lastClosed,stock:(await read(stockPath)).record.item.stock,now};
+   },verifyAfter:async ({counter:counterOrder,online:onlineOrder})=>{
+    assert.deepEqual(new Set([counterOrder,onlineOrder]),new Set(["P0000043","P0000044"]));
+    assert.equal((await read(stockPath)).record.item.stock,0);
+    assert.equal((await read(store(counter)+"/orders/"+counterOrder)).status,"delivered");
+    assert.equal((await read(store(online)+"/orders/"+onlineOrder)).status,"delivered");
+    const shifts=await sdk.getDocs(sdk.collection(db,cash+"/sessions"));const latest=shifts.docs.map(d=>d.data()).filter(x=>x.status==="closed").sort((a,b)=>b.closedAt-a.closedAt)[0];
+    assert.equal(latest.closedSummary.expectedCashCents,7450);assert.equal(latest.closedSummary.differenceCents,-50);assert.equal(latest.closedSummary.receivedCents,2900);
+    assert.deepEqual((await read(cash+"/sessions/shift1")).closedSummary,closed);
+   }});
   console.log("PASS B02.13 integrated: 2 sales, 2900 cents gross, 1450 cents cash sales, 7450 expected drawer, -50 discrepancy, stock 0, lost-reply replay, private views, receipt, "+rows.length+" documents restored SHA-256 "+parsed.sha256);
  });
  }finally{if(restored)await restored.cleanup();await env.cleanup()}
