@@ -40,7 +40,16 @@ exports.runIntegratedBrowser=async({api,config,readSnapshot,verifyAfter})=>{
   await page.click("#tab-queue");await page.waitForSelector('[data-order="'+counter+'"] [data-action="receipt"]');await page.click('[data-order="'+counter+'"] [data-action="receipt"]');await waitText("#receipt-text","VENDA DE BALCÃO");
   await page.emulateMediaType("print");assert.equal(await page.$eval("header",e=>getComputedStyle(e).display),"none");await page.emulateMediaType("screen");
   await page.click("#tab-cash");await waitText("#metrics","74,50");await cash("#close","74");await waitText("#closed-summary","0,50");
-  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);await verifyAfter({counter,online});
-  console.log("PASS B02.14 browser integrated: real emulator writes from UI; 4 viewport widths; shared stock, drawer, receipt, frozen ticker; no external requests.");
+  await page.click("#tab-stock");await waitText("#inventory-list","Batata: 0 g");
+  async function adjust(kind,qty,expected){await page.select("#inventory-kind",kind);await page.type("#inventory-qty",String(qty));await page.type("#inventory-reason","Conferência laboratório");await page.click("#inventory-save");await waitText("#feedback","Ajuste de estoque registrado.");await waitText("#inventory-list","Batata: "+expected+" g")}
+  await adjust("purchase",1000,1000);await adjust("loss",100,900);await adjust("count",800,800);
+  await page.click("#tab-online");await page.$eval('[data-product="meal"]',e=>{e.value="1";e.dispatchEvent(new Event("input"))});
+  await page.$eval('[data-extra="extra"]',e=>{e.value="2";e.dispatchEvent(new Event("input"))});
+  await page.select("#fulfillment","delivery");await page.type("#address","Endereço fictício");await page.click("#quote");await waitText("#quote-total","25,50");await page.click("#submit");await waitText("#feedback","registrado.");
+  const deliveryOrder=(await page.$eval("#feedback",e=>e.textContent)).match(/P[0-9]{7}/)[0];
+  await page.click("#tab-queue");await waitText("#stock","200 g");
+  page.once("dialog",d=>d.accept());await action(deliveryOrder,"cancel");await waitText("#stock","800 g");
+  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);await verifyAfter({counter,online,deliveryOrder});
+  console.log("PASS B02.15 browser integrated: real emulator writes from UI; 4 viewport widths; shared stock, drawer, receipt, frozen ticker; no external requests.");
  }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
 };
