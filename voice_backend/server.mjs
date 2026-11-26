@@ -93,7 +93,7 @@ async function createClone(uid,data){
  if(old){if(old.uid!==uid)fail('Solicitação inválida.',403);if(old.state==='completed')return {voiceId:old.voiceId,state:old.voiceState};fail('Solicitação pendente; consulte a administração antes de repetir.',409);}
  try{
   const form=new FormData();form.set('name',x.name);form.set('description',x.description);
-  form.append('files',new Blob([x.bytes],{type:x.mime}),x.mime==='audio/wav'?'sample.wav':'sample.mp3');
+  form.append('files',new Blob([x.bytes],{type:x.mime}),x.filename);
   const response=await fetch('https://api.elevenlabs.io/v1/voices/add',{method:'POST',headers:{'xi-api-key':key},body:form,signal:AbortSignal.timeout(60000),redirect:'error'});
   if(!response.ok)fail('Clonagem não confirmada pelo provedor; concilie antes de repetir.',502);
   const result=await response.json(),voiceId=result.voice_id;
