@@ -67,8 +67,12 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
    if(!opened.transaction)throw Error("Firestore transaction unavailable");
    const transaction=opened.transaction;
    let done=false;
+   const labReadCache=new Map();
+   const localLab=project==="demo-nucleobit-checkout"&&typeof apiBaseUrl==="string"&&/^http:\/\/127\.0\.0\.1:\d+\/v1\/projects\/demo-nucleobit-checkout\/databases\/\(default\)$/.test(apiBaseUrl);
    return {
     async get(path){
+     if(done)throw Error("Transaction already finalized");
+     if(localLab&&labReadCache.has(path))return structuredClone(labReadCache.get(path));
      // batchGet envia transaction no corpo JSON, não como parâmetro GET.
      // Além de ser suportado oficialmente, evita o erro BYTE_STRING do
      // Firebase Emulator nas consultas GET com ?transaction=....
@@ -76,20 +80,47 @@ export function createFirestoreRepository(env,{requestFetch=fetch,accessToken=se
       documents:[fullName(path)],transaction
      }});
      const found=Array.isArray(response)?response[0]:response;
-     if(found?.missing)return null;
+     if(found?.missing){if(localLab)labReadCache.set(path,null);return null;}
      if(!found?.found?.fields||!found.found.updateTime)
       throw Error("Firestore: resposta transacional batchGet inválida");
-     return {data:decodeFields(found.found.fields),updateTime:found.found.updateTime};
+     const record={data:decodeFields(found.found.fields),updateTime:found.found.updateTime};
+     if(localLab)labReadCache.set(path,structuredClone(record));return record;
     },
     // B02.7 only: bounded complete catalog query on local synthetic emulator.
     // Production repository does not expose this capability.
-    ...(project==="demo-nucleobit-checkout"&&typeof apiBaseUrl==="string"&&/^http:\/\/127\.0\.0\.1:\d+\/v1\/projects\/demo-nucleobit-checkout\/databases\/\(default\)$/.test(apiBaseUrl)?{
+    ...(localLab?{
      async listRecords({collection,universe,groups,limit}){
       if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||! /^[A-Za-z0-9_-]{1,100}$/.test(universe)||!Array.isArray(groups)||groups.length!==5||new Set(groups).size!==5||groups.some(g=>!["recipes","ingredients","beverages","addons","expenses"].includes(g))||limit!==241)throw Error("Invalid lab catalog query");
       const parent=collection.split("/").slice(0,-1).join("/");
       const response=await api("/documents/"+parent+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],where:{compositeFilter:{op:"AND",filters:[{fieldFilter:{field:{fieldPath:"record.universe"},op:"EQUAL",value:{stringValue:universe}}},{fieldFilter:{field:{fieldPath:"record.group"},op:"IN",value:{arrayValue:{values:groups.map(stringValue=>({stringValue}))}}}}]}},limit}}});
       if(!Array.isArray(response))throw Error("Invalid lab query response");
       return response.filter(x=>x.document).map(x=>({key:x.document.name.split("/").at(-1),data:decodeFields(x.document.fields),updateTime:x.document.updateTime}));
+     },
+     // Exact logical IDs, not just guessed physical keys: detects duplicates across
+     // canonical/model/free aliases. All expenses are queried, including inserts.
+     async listCatalogRecords({collection,universe,selection,limit}){
+      const groups=["recipes","ingredients","beverages","addons"];
+      if(done||!/^users\/[A-Za-z0-9_-]{1,100}\/recordsV5$/.test(collection)||! /^[A-Za-z0-9_-]{1,100}$/.test(universe)||!selection||Object.keys(selection).length!==4||groups.some(g=>!Array.isArray(selection[g])||selection[g].length>92||new Set(selection[g]).size!==selection[g].length||selection[g].some(id=>typeof id!=="string"||!/^[A-Za-z0-9_-]{1,100}$/.test(id)))||limit!==241)throw Error("Invalid selective lab query");
+      const parent=collection.split("/").slice(0,-1).join("/");
+      const field=(fieldPath,op,value)=>({fieldFilter:{field:{fieldPath},op,value}});
+      const found=[];
+      const query=async(group,ids)=>{
+       if(found.length>=limit)return;
+       const filters=[field("record.universe","EQUAL",{stringValue:universe}),field("record.group","EQUAL",{stringValue:group})];
+       if(ids)filters.push(field("record.id","IN",{arrayValue:{values:ids.map(stringValue=>({stringValue}))}}));
+       const response=await api("/documents/"+parent+":runQuery",{method:"POST",body:{transaction,structuredQuery:{from:[{collectionId:"recordsV5"}],where:{compositeFilter:{op:"AND",filters}},limit:limit-found.length}}});
+       if(!Array.isArray(response))throw Error("Invalid selective lab response");
+       for(const row of response){if(!row.document)continue;const d=row.document;
+        if(!d.name||!d.updateTime||!d.fields)throw Error("Invalid selective lab document");
+        const key=d.name.split("/").at(-1),data=decodeFields(d.fields);
+        found.push({key,data,updateTime:d.updateTime});
+        labReadCache.set(collection+"/"+key,structuredClone({data,updateTime:d.updateTime}));
+       }
+      };
+      // Firestore IN allows at most 30 alternatives; smaller chunks stay bounded.
+      for(const g of groups)for(let i=0;i<selection[g].length&&found.length<limit;i+=30)await query(g,selection[g].slice(i,i+30));
+      if(found.length<limit)await query("expenses",null);
+      return found;
      }
     }:{}),
     async commit(writes){
