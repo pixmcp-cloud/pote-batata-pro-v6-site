@@ -109,3 +109,12 @@ test('clone requires explicit consent, licensed operation, and separate publicat
  for(const x of [{state:'draft'},{requiresVerification:true},{consentConfirmed:false}])assert.equal(sharedCloneUsable({...record,...x},{sharedCloneApproved:true}),false);
  assert.equal(sharedCloneUsable(record,{}),false);
 });
+
+test('clone validates MP3 WAV M4A AAC and OGG containers',()=>{
+ const make=(mime,fill,ext)=>{const bytes=Buffer.alloc(2048);fill(bytes);const input={name:'Voz oficial',description:'Locução autorizada',consentRef:'termo-123',consent:true,requestId:'12345678-1234-1234-1234-123456789abc',mime,audio:bytes.toString('base64')};assert.equal(validateClone(input).filename,'sample.'+ext);assert.throws(()=>validateClone({...input,audio:Buffer.alloc(2048).toString('base64')}));};
+ make('audio/mpeg',b=>b.write('ID3'),'mp3');
+ make('audio/wav',b=>{b.write('RIFF');b.write('WAVE',8)},'wav');
+ make('audio/mp4',b=>{b.write('ftyp',4);b.write('M4A ',8)},'m4a');
+ make('audio/aac',b=>{b[0]=255;b[1]=241},'aac');
+ make('audio/ogg',b=>{b.write('OggS');b.write('OpusHead',28)},'ogg');
+});
