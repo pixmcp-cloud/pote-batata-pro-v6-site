@@ -5,6 +5,7 @@
 // The checkout inbox is NOT a native V5 orders record: old production code would debit twice.
 import {createCheckoutQuote,submitCheckout,transitionCheckout,customerOrder} from "./checkout_domain.mjs";
 import {planCheckoutCash,applyCheckoutReceipt,freezeCheckoutCashSession,planCheckoutRefund,applyCheckoutRefund} from "./checkout_cash_lab.mjs";
+import {v5SequenceBaseline,advanceV5Sequence} from "./v5_checkout_sequence_lab.mjs";
 const labProject="demo-nucleobit-checkout";
 const id=x=>typeof x==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(x);
 const operation=x=>id(x)&&x.length>=16;
@@ -81,7 +82,9 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    const sequencePath=root+"/meta/sequence",sequence=await tx.get(sequencePath);
    if(!sequence||!int(sequence.data.value,0,9999998))err("not_ready");
-   const state={id:storeId,revision:m.revision,reservationMinutes:m.reservationMinutes??30,enabled:true,deliveryEnabled:m.deliveryEnabled===true,deliveryFeeCents:m.deliveryFeeCents,products,inventory,sequence:sequence.data.value,quotes:[],orders:[]};
+   const sharedSequence=m.catalogMode==="v5-authoritative"&&kind==="submit";
+   const initialSequence=sharedSequence?v5SequenceBaseline(meta.data,m.universe,sequence.data.value):sequence.data.value;
+   const state={id:storeId,revision:m.revision,reservationMinutes:m.reservationMinutes??30,enabled:true,deliveryEnabled:m.deliveryEnabled===true,deliveryFeeCents:m.deliveryFeeCents,products,inventory,sequence:initialSequence,quotes:[],orders:[]};
    if(kind==="quote"){
     const qid=operationId;
     const qpath=root+"/quotes/"+qid;
@@ -111,6 +114,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(kind==="transition"&&(!oldView||oldView.data.customerUid!==o.customerUid))err("not_ready");
    const writes=[put(orderPath,o,priorOrder),put(viewPath,{customerUid:o.customerUid,storeId,status:projection(o,now),serverNowMs:now},oldView),put(scopedOp,{actorUid:identity.uid,fingerprint:requestFingerprint,orderId:o.id},null)];
    if(kind==="submit"){writes.push(put(quotePath,result.state.quotes[0],savedQuote),put(sequencePath,{value:result.state.sequence},sequence))}
+   if(sharedSequence)writes.push(put(uidRoot+"/appState/v5",advanceV5Sequence(meta.data,m.universe,sequence.data.value,result.state.sequence),meta));
    // Optional synthetic cash integration: fail closed for payment when no open shift.
    if(kind==="transition"&&action==="confirm_payment"){
     const pointerPath="checkoutLabCash/"+m.ownerUid,ptr=await tx.get(pointerPath);
@@ -151,7 +155,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    if(changed.length){
     if(guard.data.revision>=1000000000)err("limit");
-    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId.length+"-"+storeId+"-"+identity.uid.length+"-"+identity.uid+"-"+operationId,previousEventId:pulse.data.eventId,origin:service?"checkout-lab-scheduler":"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse));
+    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId.length+"-"+storeId+"-"+identity.uid.length+"-"+identity.uid+"-"+operationId,previousEventId:pulse.data.eventId,origin:service?"checkout-lab-scheduler":"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged:sharedSequence,sensitive:true},pulse));
    }
    if(writes.length>90)err("limit");
    await tx.commit(writes);
