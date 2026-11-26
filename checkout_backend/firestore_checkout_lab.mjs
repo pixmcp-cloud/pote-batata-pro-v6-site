@@ -144,7 +144,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     const receiptPath=pointerPath+"/receipts/"+storeId.length+"_"+storeId+"_"+o.id,priorReceipt=await tx.get(receiptPath);
     const receipt=planCheckoutCash({ownerUid:m.ownerUid,storeId,order:o,session:session?.data,priorReceipt,now});
     if(o.channel==="counter")receipt.channel="counter";
-    if(session.data.id!==ptr.data.activeSessionId)err("cash_not_open");
+    if(session.data.id!==ptr.data.activeSessionId||session.data.cutoverEpoch!==undefined&&session.data.cutoverEpoch!==m.cutoverEpoch)err("cash_not_open");
     // Update shift revision so closure and receipt cannot both win on a stale baseline.
     if(!int(session.data.revision)||session.data.revision>=1000000000)err("invalid_session");
     writes.push(put(receiptPath,receipt,null),put(sessionPath,applyCheckoutReceipt(session.data,receipt),session));
@@ -154,7 +154,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     if(o.paymentStatus==="refunded"){
      const ptr=await tx.get(rootCash);if(!ptr||!id(ptr.data.activeSessionId))err("cash_not_open");
      const sessionPath=rootCash+"/sessions/"+ptr.data.activeSessionId,session=await tx.get(sessionPath);
-     if(session?.data.id!==ptr.data.activeSessionId)err("cash_not_open");
+     if(session?.data.id!==ptr.data.activeSessionId||session.data.cutoverEpoch!==undefined&&session.data.cutoverEpoch!==m.cutoverEpoch)err("cash_not_open");
      const receiptKey=storeId.length+"_"+storeId+"_"+o.id,receipt=await tx.get(rootCash+"/receipts/"+receiptKey),refundPath=rootCash+"/refunds/"+receiptKey,priorRefund=await tx.get(refundPath);
      const refund=planCheckoutRefund({ownerUid:m.ownerUid,storeId,order:o,receipt:receipt?.data,priorRefund,session:session.data,now,reference:reconciliation.refundReference});
      writes.push(put(refundPath,refund,null),put(sessionPath,applyCheckoutRefund(session.data,refund),session));
