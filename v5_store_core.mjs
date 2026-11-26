@@ -168,7 +168,11 @@ export function splitState(state,previousRecords=new Map(),{free=false}={}){
     const recordInfo={universe,group,id};
     const originalKey=recordId(universe,group,id);
     const templateKey=modelRecordKey(recordInfo);
-    const slot=free?freeSlotKey(recordInfo):null;
+    const quotaKey=freeSlotKey(recordInfo);
+    const priorQuota=quotaKey&&previousRecords.get(quotaKey);
+    // Keep the existing FREE identity through paid upgrades and renewals.
+    const reserved=priorQuota?.universe===universe&&priorQuota?.group===group&&priorQuota?.id===id?quotaKey:null;
+    const slot=free?quotaKey:reserved;
     const previousSlot=historical.get(slot);
     if(previousSlot){
      // Uma renovação vencida não deve reescrever nem apagar o histórico excedente.
