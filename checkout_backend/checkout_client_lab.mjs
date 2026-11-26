@@ -1,5 +1,6 @@
 // Laboratory frontend bridge. Firebase auth/sdk and server transport are injected.
 // No auto login, no production endpoint, no actual checkout UI import.
+import {createCheckoutRecovery} from "./checkout_recovery_lab.mjs";
 export function createCheckoutClient({auth,signIn,send,subscribePrivate,onAuthChanged,clock=()=>Date.now()}={}){
  if(!auth||typeof signIn!=="function"||typeof send!=="function"||typeof subscribePrivate!=="function"||typeof onAuthChanged!=="function")throw Error("invalid_config");
  let epoch=0,stopped=false,login=null,stopView=null;
@@ -13,8 +14,8 @@ export function createCheckoutClient({auth,signIn,send,subscribePrivate,onAuthCh
   }
   const u=auth.currentUser;if(stopped||!usable(u))throw Error("login_required");return u;
  }
- async function request(kind,params){
-  const user=await userForOrder(),before=epoch,token=await user.getIdToken();
+ async function request(kind,params,expectedUid){
+  const user=await userForOrder(),before=epoch;if(expectedUid!==undefined&&user.uid!==expectedUid)throw Error("session_changed");const token=await user.getIdToken();
   if(stopped||epoch!==before||auth.currentUser!==user)throw Error("session_changed");
   const response=await send(kind,params,token);
   if(stopped||epoch!==before||auth.currentUser!==user)throw Error("session_changed");
@@ -36,5 +37,9 @@ export function createCheckoutClient({auth,signIn,send,subscribePrivate,onAuthCh
   stopView=cleanup;
   return ()=>{cleanup();if(stopView===cleanup)stopView=null};
  }
- return {quote:params=>request("quote",params),submit:params=>request("submit",params),watch,close(){stopped=true;if(stopView)stopView();if(typeof stopAuth==="function")stopAuth();}};
+ function recovery({storeId,storage,newOperationId}){
+  const journal=createCheckoutRecovery({storeId,storage,newOperationId,getUid:()=>!stopped&&usable(auth.currentUser)?auth.currentUser.uid:null,send:request});
+  return {begin:async q=>{await userForOrder();return journal.begin(q)},recover:async()=>{await userForOrder();return journal.recover()},retry:async()=>{await userForOrder();return journal.retry()},pending:journal.pending};
+ }
+ return {quote:params=>request("quote",params),submit:params=>request("submit",params),recovery,watch,close(){stopped=true;if(stopView)stopView();if(typeof stopAuth==="function")stopAuth();}};
 }
