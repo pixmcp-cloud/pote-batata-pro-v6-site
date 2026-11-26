@@ -42,7 +42,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    if(!Number.isSafeInteger(now)||now<=0)err("invalid_time");
    const orderRoot=root+"/orders/",viewRoot=root+"/customerViews/";
    // Operation IDs are scoped to store and actor; prefix length encoding avoids separator collisions.
-   const scopedOp=root+"/operations/"+identity.uid.length+"_"+identity.uid+"_"+operationId;
+   const scopedOp=root+(service?"/schedulerOperations/":"/operations/")+identity.uid.length+"_"+identity.uid+"_"+operationId;
    const quotePath=root+"/quotes/"+quoteId;
    if(kind==="status"){
     const o=await tx.get(orderRoot+orderId);
@@ -137,13 +137,13 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
     const record=copy(before.doc.data.record);record.item.stock=after.availableUnits/before.scale;
     writes.push(put(before.path,{...before.doc.data,record},before.doc));changed.push(before.recordKey);
     // Dedicated reservation ledger; not old production stockMovements until semantics reconciled.
-    const ledger=root+"/stockLedger/"+identity.uid.length+"_"+identity.uid+"_"+operationId+"_"+after.id;
+    const ledger=root+"/stockLedger/"+(service?"svc_":"usr_")+identity.uid.length+"_"+identity.uid+"_"+operationId+"_"+after.id;
     if(await tx.get(ledger))err("ledger_collision");
     writes.push(put(ledger,{orderId:o.id,operationId,stockId:after.id,physicalKey:before.recordKey,scale:before.scale,deltaUnits:after.availableUnits-before.units,beforeUnits:before.units,afterUnits:after.availableUnits,at:now},null));
    }
    if(changed.length){
     if(guard.data.revision>=1000000000)err("limit");
-    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId.length+"-"+storeId+"-"+identity.uid.length+"-"+identity.uid+"-"+operationId,previousEventId:pulse.data.eventId,origin:"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse));
+    writes.push(put(uidRoot+"/appState/v5InventoryGuard",{...guard.data,revision:guard.data.revision+1},guard),put(uidRoot+"/appState/v5Pulse",{eventId:"checkout-"+storeId.length+"-"+storeId+"-"+identity.uid.length+"-"+identity.uid+"-"+operationId,previousEventId:pulse.data.eventId,origin:service?"checkout-lab-scheduler":"checkout-lab",affected:changed.length,changedKeys:changed,metaChanged:false,sensitive:true},pulse));
    }
    if(writes.length>90)err("limit");
    await tx.commit(writes);
@@ -177,7 +177,8 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
   }finally{await tx.rollback()}
  }
  // Private scheduler interface, never exposed through the customer HTTP dispatcher.
- // listExpiredCandidates MUST use a server-side bounded query, no full collection scan.
+ // listExpiredCandidates MUST filter received/pending/reserved and expiry <= before,
+ // use a server-side bounded query, no full collection scan.
  async function sweepExpired({serviceToken,storeId,limit=20}={}){
   if(!active||typeof verifyScheduler!=="function"||typeof listExpiredCandidates!=="function")err("scheduler_disabled");
   if(typeof serviceToken!=="string"||!serviceToken||!id(storeId)||!int(limit,1,20))err("invalid_request");
