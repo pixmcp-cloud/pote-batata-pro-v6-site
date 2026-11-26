@@ -22,22 +22,23 @@ function verifyIdentity(identity){
 // Tokens are not accepted as identity objects from the browser. verifyToken is injected by server.
 // The existing verifyFirebaseToken validates Google and verified email but returns uid/email only;
 // wrap that verified function in a server-only adapter supplying the verified claims.
-export function createCheckoutLabRepository({projectId,enabled=false,repository,verifyToken,clock=()=>Date.now()}={}){
+export function createCheckoutLabRepository({projectId,enabled=false,repository,verifyToken,verifyScheduler,listExpiredCandidates,clock=()=>Date.now()}={}){
  const active=enabled===true&&projectId===labProject&&typeof repository?.transaction==="function"&&typeof verifyToken==="function";
- async function execute({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action,paymentReference,reconciliation}={}){
+ async function executeInternal({token,storeId,kind,operationId,quoteId,orderId,input,expectedRevision,expectedTotalCents,action,paymentReference,reconciliation}={},service=null){
   if(!active)err("lab_disabled");
-  if(typeof token!=="string"||!token||!id(storeId)||!["quote","submit","transition","status"].includes(kind))err("invalid_request");
+  if((!service&&(typeof token!=="string"||!token))||!id(storeId)||!["quote","submit","transition","status"].includes(kind))err("invalid_request");
   if(kind!=="status"&&!operation(operationId))err("invalid_operation");
   if(kind==="submit"&&!operation(quoteId)||["transition","status"].includes(kind)&&!id(orderId))err("invalid_request");
-  const identity=await verifyToken(token,projectId);verifyIdentity(identity);
+  const identity=service??await verifyToken(token,projectId);if(!service)verifyIdentity(identity);
   const tx=await repository.transaction();
   try{
    const root="checkoutLabStores/"+storeId,manifest=await tx.get(root);
    const m=manifest?.data;
    if(!m||m.lab!==true||m.enabled!==true||!id(m.ownerUid)||!id(m.revision)||!id(m.universe)||!Array.isArray(m.products)||m.products.length>60||!Array.isArray(m.stockMap)||m.stockMap.length>32||!m.stockMap.length)err("store_unavailable");
    const merchant=kind==="transition";
-   if(merchant&&identity.uid!==m.ownerUid)err("forbidden");
-   const actor=actorFor(identity,merchant?"merchant":"customer",storeId),now=clock();
+   if(service){if(kind!=="transition"||action!=="expire"||service.ownerUid!==m.ownerUid||service.storeId!==storeId)err("forbidden");}
+   else if(merchant&&identity.uid!==m.ownerUid)err("forbidden");
+   const actor=service?{uid:service.uid,role:"scheduler",verified:true,storeId}:actorFor(identity,merchant?"merchant":"customer",storeId),now=clock();
    if(!Number.isSafeInteger(now)||now<=0)err("invalid_time");
    const orderRoot=root+"/orders/",viewRoot=root+"/customerViews/";
    // Operation IDs are scoped to store and actor; prefix length encoding avoids separator collisions.
@@ -72,7 +73,7 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    }
    const sequencePath=root+"/meta/sequence",sequence=await tx.get(sequencePath);
    if(!sequence||!int(sequence.data.value,0,9999998))err("not_ready");
-   const state={id:storeId,revision:m.revision,enabled:true,deliveryEnabled:m.deliveryEnabled===true,deliveryFeeCents:m.deliveryFeeCents,products:m.products,inventory,sequence:sequence.data.value,quotes:[],orders:[]};
+   const state={id:storeId,revision:m.revision,reservationMinutes:m.reservationMinutes??30,enabled:true,deliveryEnabled:m.deliveryEnabled===true,deliveryFeeCents:m.deliveryFeeCents,products:m.products,inventory,sequence:sequence.data.value,quotes:[],orders:[]};
    if(kind==="quote"){
     const qid=operationId;
     const qpath=root+"/quotes/"+qid;
@@ -163,5 +164,37 @@ export function createCheckoutLabRepository({projectId,enabled=false,repository,
    return copy(closed.closedSummary);
   }finally{await tx.rollback()}
  }
- return {execute,closeCash};
+ async function configureReservation({token,storeId,minutes}={}){
+  if(!active)err("lab_disabled");
+  if(typeof token!=="string"||!token||!id(storeId)||!int(minutes,5,120))err("invalid_request");
+  const identity=await verifyToken(token,projectId);verifyIdentity(identity);
+  const tx=await repository.transaction();
+  try{
+   const path="checkoutLabStores/"+storeId,m=await tx.get(path);
+   if(!m||m.data.lab!==true||m.data.ownerUid!==identity.uid)err("forbidden");
+   if((m.data.reservationMinutes??30)===minutes)return {minutes};
+   await tx.commit([put(path,{...m.data,reservationMinutes:minutes},m)]);return {minutes};
+  }finally{await tx.rollback()}
+ }
+ // Private scheduler interface, never exposed through the customer HTTP dispatcher.
+ // listExpiredCandidates MUST use a server-side bounded query, no full collection scan.
+ async function sweepExpired({serviceToken,storeId,limit=20}={}){
+  if(!active||typeof verifyScheduler!=="function"||typeof listExpiredCandidates!=="function")err("scheduler_disabled");
+  if(typeof serviceToken!=="string"||!serviceToken||!id(storeId)||!int(limit,1,20))err("invalid_request");
+  const verified=await verifyScheduler(serviceToken,projectId);
+  if(!verified||verified.schedulerVerified!==true||verified.storeId!==storeId||!id(verified.ownerUid)||!id(verified.uid))err("forbidden");
+  const service={...verified,uid:"scheduler_"+verified.uid};
+  if(!id(service.uid))err("forbidden");
+  const now=clock();const candidates=await listExpiredCandidates({storeId,ownerUid:service.ownerUid,before:now,limit});
+  if(!Array.isArray(candidates)||candidates.length>limit)err("invalid_candidates");
+  const result={scanned:0,released:0,duplicates:0,skipped:0,retry:0};
+  for(const orderId of new Set(candidates)){
+   if(!/^P[0-9]{7}$/.test(orderId)){result.skipped++;continue;}
+   result.scanned++;
+   try{const x=await executeInternal({storeId,kind:"transition",action:"expire",orderId,operationId:"auto_expire_"+orderId},service);if(x.duplicate)result.duplicates++;else result.released++}
+   catch(e){if(["not_found","reservation_not_expired","manual_reconciliation_required","forbidden"].includes(e?.code))result.skipped++;else result.retry++}
+  }
+  return result;
+ }
+ return {execute:args=>executeInternal(args),closeCash,configureReservation,sweepExpired};
 }
